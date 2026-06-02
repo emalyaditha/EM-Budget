@@ -140,7 +140,7 @@ export default function SubscriptionManagement({
     }
 
     if (availableBalance < sub.amount) {
-      showToast('error', `Insufficient funds! Required ${currency}${sub.amount.toLocaleString()}, available: {currency}${availableBalance.toLocaleString()}`);
+      showToast('error', `Insufficient funds! Required ${currency}${sub.amount.toLocaleString()}, available: ${currency}${availableBalance.toLocaleString()}`);
       return;
     }
 
@@ -171,15 +171,15 @@ export default function SubscriptionManagement({
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
-      return { label: `Overdue by ${Math.abs(diffDays)}d`, color: 'text-rose-400 bg-rose-950/40 border border-rose-900/40' };
+      return { label: `Overdue by ${Math.abs(diffDays)}d`, color: 'text-rose-400 bg-rose-950/40 border border-rose-900/40 font-mono font-bold text-[9px]' };
     }
     if (diffDays === 0) {
-      return { label: 'Due Today', color: 'text-amber-400 bg-amber-950/45 border border-amber-900/50 animate-pulse' };
+      return { label: 'Due Today', color: 'text-amber-400 bg-amber-955/45 border border-amber-900/50 animate-pulse font-mono font-bold text-[9px]' };
     }
     if (diffDays <= 5) {
-      return { label: `Due in ${diffDays}d`, color: 'text-amber-500 bg-amber-950/20 border border-amber-900/20' };
+      return { label: `Due in ${diffDays}d`, color: 'text-amber-500 bg-amber-950/20 border border-amber-900/20 font-mono font-bold text-[9px]' };
     }
-    return { label: `Due in ${diffDays}d`, color: 'text-[#8aa8bb] bg-[#050505] border border-zinc-850' };
+    return { label: `Due in ${diffDays}d`, color: 'text-[#8aa8bb] bg-[#050510]/60 border border-zinc-850 font-mono font-bold text-[9px]' };
   };
 
   const selectedSubscription = subscriptions.find(s => s.id === selectedSubId);
@@ -189,12 +189,12 @@ export default function SubscriptionManagement({
   });
 
   return (
-    <div className="space-y-6" id="subscription-management-section">
+    <div className="space-y-6 animate-fade-in" id="subscription-management-section">
       
       {/* 1. Header and Add Trigger */}
-      <div className="flex justify-between items-center bg-[#050505] border border-zinc-850 p-4 rounded-2xl">
+      <div className="flex justify-between items-center bg-[#0a0a0f] border border-zinc-850 p-4 rounded-2xl">
         <div className="flex items-center gap-2">
-          <Clock size={16} className="text-emerald-400" />
+          <Clock size={16} className="text-indigo-400" />
           <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">Active Run-Rates & Subscriptions</span>
         </div>
         <button
@@ -202,48 +202,48 @@ export default function SubscriptionManagement({
             setIsAdding(!isAdding);
             setSelectedSubId(null);
           }}
-          className="px-3 py-1.5 bg-zinc-805 border border-zinc-800 text-white hover:border-zinc-500 font-mono text-[10px] uppercase font-bold rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+          className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-white hover:border-zinc-500 font-mono text-[10px] uppercase font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
         >
-          <Plus size={12} className="text-emerald-400" />
-          {isAdding ? 'Collapse' : 'Add Plan'}
+          <Plus size={12} className="text-indigo-400" />
+          {isAdding ? 'Collapse' : 'Add Recuring Plan'}
         </button>
       </div>
 
       {/* 2. New Subscription Panel */}
       {isAdding && (
-        <form onSubmit={handleCreate} className="bg-zinc-900/40 border border-emerald-900/30 rounded-[28px] p-6 shadow-xl space-y-4 animate-fade-in" id="add-subscription-form">
-          <div className="flex gap-2 items-center text-emerald-400 font-bold text-[10px] font-mono tracking-wider uppercase mb-2">
+        <form onSubmit={handleCreate} className="bg-gradient-to-br from-[#0c0c0e] to-zinc-950 border border-zinc-805 border-zinc-800 rounded-[28px] p-6 shadow-2xl space-y-4 animate-fade-in" id="add-subscription-form">
+          <div className="flex gap-2 items-center text-indigo-400 font-bold text-[10px] font-mono tracking-wider uppercase mb-2">
             <Sparkles size={12} />
-            <span>Create Subscription Plan</span>
+            <span>Setup New Recurring Subscription</span>
           </div>
 
           <div>
-            <label className="text-[10px] text-zinc-400 font-mono font-bold uppercase block mb-1">Service name</label>
+            <label className="text-[9px] text-zinc-400 font-mono font-bold uppercase tracking-wider block mb-1.5">Service name</label>
             <input
               ref={nameInputRef}
               type="text"
-              placeholder="e.g. Netflix, Amazon Prime, AWS Server, Gym"
+              placeholder="e.g. Netflix Premium, AWS Cloud Hosting, Canva Premium"
               value={subName}
               onChange={(e) => {
                 setSubName(e.target.value);
                 validateForm(e.target.value, subAmount, submitted);
               }}
-              className={`w-full bg-[#050505] border text-white text-xs rounded-xl px-3 py-3 focus:outline-none transition-colors ${
+              className={`w-full bg-[#050510]/50 border text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none transition-all placeholder:text-zinc-650 ${
                 errors.name
-                  ? 'border-rose-500 focus:border-rose-600'
+                  ? 'border-rose-500 focus:border-rose-500'
                   : subName && !errors.name
-                  ? 'border-emerald-500 focus:border-emerald-600'
-                  : 'border-zinc-800'
+                  ? 'border-emerald-500 focus:border-emerald-500'
+                  : 'border-zinc-850 hover:border-zinc-700 focus:border-zinc-500'
               }`}
             />
             {errors.name && (
-              <span className="text-rose-400 font-mono text-[10px] mt-1 block">{errors.name}</span>
+              <span className="text-rose-400 font-mono text-[9px] mt-1.5 block">{errors.name}</span>
             )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] text-zinc-400 font-mono font-bold uppercase block mb-1">Billing Sum ({currency})</label>
+              <label className="text-[9px] text-zinc-400 font-mono font-bold uppercase tracking-wider block mb-1.5">Billing Sum ({currency})</label>
               <input
                 ref={amountInputRef}
                 type="number"
@@ -254,24 +254,24 @@ export default function SubscriptionManagement({
                   setSubAmount(e.target.value);
                   validateForm(subName, e.target.value, submitted);
                 }}
-                className={`w-full bg-[#050505] border text-white text-xs rounded-xl px-3 py-3 focus:outline-none font-mono font-bold transition-colors ${
+                className={`w-full bg-[#050510]/55 border text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none font-mono font-bold transition-all ${
                   errors.amount
-                    ? 'border-rose-500 focus:border-rose-600'
+                    ? 'border-rose-500 focus:border-rose-500'
                     : subAmount && !errors.amount
-                    ? 'border-emerald-500 focus:border-emerald-600'
-                    : 'border-zinc-800'
+                    ? 'border-emerald-500 focus:border-emerald-500'
+                    : 'border-zinc-850 focus:border-zinc-550 focus:border-zinc-500'
                 }`}
               />
               {errors.amount && (
-                <span className="text-rose-400 font-mono text-[10px] mt-1 block">{errors.amount}</span>
+                <span className="text-rose-400 font-mono text-[9px] mt-1.5 block">{errors.amount}</span>
               )}
             </div>
             <div>
-              <label className="text-[10px] text-zinc-400 font-mono font-bold uppercase block mb-1">Billing Interval</label>
+              <label className="text-[9px] text-zinc-400 font-mono font-bold uppercase tracking-wider block mb-1.5">Billing Interval</label>
               <select
                 value={billingCycle}
                 onChange={(e) => setBillingCycle(e.target.value as 'Monthly' | 'Yearly')}
-                className="w-full bg-[#050505] border border-zinc-800 text-zinc-300 text-xs rounded-xl px-2.5 py-3 focus:outline-none focus:border-zinc-500 font-medium"
+                className="w-full bg-[#050510]/50 border border-zinc-85c border-zinc-850 hover:border-zinc-700 text-zinc-300 text-xs rounded-xl px-2.5 py-3.5 focus:outline-none font-medium cursor-pointer"
               >
                 <option value="Monthly">Monthly Cycle</option>
                 <option value="Yearly">Yearly Cycle</option>
@@ -281,21 +281,21 @@ export default function SubscriptionManagement({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] text-zinc-400 font-mono font-bold uppercase block mb-1">Next Payment Due</label>
+              <label className="text-[9px] text-zinc-400 font-mono font-bold uppercase tracking-wider block mb-1.5">Next billing Date</label>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 required
-                className="w-full bg-[#050505] border border-zinc-800 text-white text-xs rounded-xl px-3 py-3 focus:outline-none focus:border-zinc-500 font-mono"
+                className="w-full bg-[#050510]/50 border border-zinc-850 hover:border-zinc-700 text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none focus:border-zinc-500 font-mono cursor-pointer"
               />
             </div>
             <div>
-              <label className="text-[10px] text-zinc-400 font-mono font-bold uppercase block mb-1">Expense Category</label>
+              <label className="text-[9px] text-zinc-400 font-mono font-bold uppercase tracking-wider block mb-1.5">Expense Category</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as CategoryExpense)}
-                className="w-full bg-[#050505] border border-zinc-800 text-zinc-300 text-xs rounded-xl px-2.5 py-3 focus:outline-none focus:border-zinc-500"
+                className="w-full bg-[#050510]/50 border border-zinc-850 hover:border-zinc-700 text-zinc-300 text-xs rounded-xl px-2.5 py-3.5 focus:outline-none focus:border-zinc-500 cursor-pointer"
               >
                 <option value="Entertainment">Entertainment</option>
                 <option value="Utilities">Utilities</option>
@@ -322,45 +322,45 @@ export default function SubscriptionManagement({
 
       {/* 3. Subscription Payment Modal (Inline Panel) */}
       {selectedSubscription && (
-        <div className="bg-zinc-900/85 border border-amber-950 p-6 rounded-[28px] space-y-4 shadow-2xl animate-fade-in" id="subscription-payment-panel">
+        <div className="bg-gradient-to-br from-[#0c0c0f] to-zinc-950 border border-amber-500/20 p-6 rounded-[28px] space-y-4 shadow-2xl animate-fade-in animate-pulse-ring" id="subscription-payment-panel">
           <div className="flex justify-between items-center">
             <div className="flex gap-2 items-center text-amber-400 font-bold text-[10px] font-mono tracking-wider uppercase">
               <Calendar size={13} />
-              <span>Process Subscription Payment</span>
+              <span>Settle Active Subscription Billing</span>
             </div>
             <button 
               onClick={() => setSelectedSubId(null)}
-              className="text-zinc-500 hover:text-zinc-300 font-mono text-[9px] uppercase font-bold"
+              className="text-zinc-500 hover:text-zinc-300 font-mono text-[9px] uppercase font-bold cursor-pointer"
             >
               Cancel
             </button>
           </div>
 
-          <div className="bg-black/60 p-4 border border-zinc-850 rounded-2xl flex justify-between items-center">
+          <div className="bg-black/80 p-4 border border-zinc-900 rounded-2xl flex justify-between items-center">
             <div>
-              <span className="text-zinc-500 text-[10px] font-mono font-bold uppercase block">SERVICE TO SETTLE</span>
-              <span className="text-white text-sm font-bold font-sans">{selectedSubscription.name}</span>
+              <span className="text-zinc-550 text-[9px] font-mono font-bold uppercase block text-zinc-500">SERVICE TO DEBIT</span>
+              <span className="text-white text-sm font-extrabold font-sans leading-relaxed">{selectedSubscription.name}</span>
             </div>
             <div className="text-right">
-              <span className="text-zinc-500 text-[10px] font-mono font-bold uppercase block">SUM</span>
+              <span className="text-zinc-550 text-[9px] font-mono font-bold uppercase block text-zinc-500">SUM DUE</span>
               <span className="text-emerald-400 text-sm font-mono font-black">{currency}{selectedSubscription.amount.toLocaleString()}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="text-[10px] text-zinc-400 font-mono font-bold uppercase block mb-1">Deduct Funds From</label>
+              <label className="text-[9px] text-zinc-400 font-mono font-bold uppercase tracking-wider block mb-1">Deduct Funds From</label>
               <select
                 value={`${payAccountId}:${payAccountType}`}
                 onChange={(e) => handleSelectPayAccount(e.target.value)}
-                className="w-full bg-[#050505] border border-zinc-800 text-white text-xs rounded-xl px-2.5 py-2.5 focus:outline-none focus:border-zinc-500 font-mono"
+                className="w-full bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 text-xs rounded-xl px-2.5 py-3 focus:outline-none font-bold"
               >
-                <optgroup label="Cash Wallets/Accounts">
+                <optgroup label="Cash Wallets/Accounts" className="bg-[#0c0c0e] text-zinc-400">
                   {cashAccounts.map(c => (
                     <option key={c.id} value={`${c.id}:cash`}>Wallet: {c.name} ({currency}{c.balance.toLocaleString()})</option>
                   ))}
                 </optgroup>
-                <optgroup label="Bank Cards">
+                <optgroup label="Bank Cards" className="bg-[#0c0c0e] text-zinc-400">
                   {cards.filter(c => !c.isCanceled).map(c => (
                     <option key={c.id} value={`${c.id}:card`}>{c.bankName} - {c.cardName} ({currency}{c.currentBalance.toLocaleString()})</option>
                   ))}
@@ -369,19 +369,19 @@ export default function SubscriptionManagement({
             </div>
 
             <div>
-              <label className="text-[10px] text-zinc-400 font-mono font-bold uppercase block mb-1">Payment Settle Date</label>
+              <label className="text-[9px] text-zinc-400 font-mono font-bold uppercase tracking-wider block mb-1">Payment Settle Date</label>
               <input
                 type="date"
                 value={payDate}
                 onChange={(e) => setPayDate(e.target.value)}
-                className="w-full bg-[#050505] border border-zinc-800 text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-zinc-500 font-mono"
+                className="w-full bg-[#050510]/50 border border-zinc-850 hover:border-zinc-700 text-white text-xs rounded-xl px-3 py-3 focus:outline-none font-mono cursor-pointer"
               />
             </div>
           </div>
 
           <button
             onClick={executePayment}
-            className="w-full py-3.5 bg-amber-500 text-black font-mono font-bold uppercase tracking-widest text-[10px] rounded-xl hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+            className="w-full py-3.5 bg-amber-500 text-black font-mono font-bold uppercase tracking-widest text-[10px] rounded-xl hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 mt-4 cursor-pointer shadow-lg"
           >
             <CheckCircle2 size={13} />
             Authorize & post to journal
@@ -391,77 +391,79 @@ export default function SubscriptionManagement({
 
       {/* 4. Subscriptions List view */}
       {subscriptions.length === 0 ? (
-        <div className="bg-[#050505] border border-zinc-850 p-8 rounded-[28px] text-center text-zinc-500 space-y-2 animate-fade-in">
-          <Clock className="mx-auto text-zinc-650" size={24} />
-          <h4 className="text-xs font-bold font-mono text-zinc-400 uppercase tracking-wide">Ready for recurring Dues</h4>
-          <p className="text-[10px] leading-relaxed max-w-[280px] mx-auto text-zinc-500">
-            Keep track of monthly servers, Netflix, subscriptions, and yearly renewals with automatic Ledger postings.
+        <div className="bg-[#050505]/45 border border-zinc-850 p-12 rounded-[28px] text-center text-zinc-500 space-y-3 animate-fade-in">
+          <Clock className="mx-auto text-zinc-600" size={28} />
+          <h4 className="text-xs font-bold font-mono text-zinc-400 uppercase tracking-widest">Ready for recurring Dues</h4>
+          <p className="text-[11px] leading-relaxed max-w-[325px] mx-auto text-zinc-500">
+            Keep track of monthly servers, Netflix accounts, subscription plans, and yearly renewals with instant Ledger postings.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4" id="subscriptions-grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5" id="subscriptions-grid">
           {sortedSubscriptions.map(sub => {
             const statusStyle = getDueStatus(sub.dueDate, sub.status);
             return (
               <div 
                 key={sub.id} 
-                className={`bg-zinc-900/40 border rounded-[24px] p-5 relative overflow-hidden transition-all flex flex-col justify-between ${
-                  selectedSubId === sub.id ? 'border-amber-500 shadow-md ring-1 ring-amber-500/10' : 'border-zinc-850 hover:border-zinc-800'
+                className={`bg-[#0c0c0f]/80 border rounded-[28px] p-5.5 relative overflow-hidden transition-all duration-350 flex flex-col justify-between ${
+                  selectedSubId === sub.id 
+                    ? 'border-indigo-500 shadow-xl ring-1 ring-indigo-500/20' 
+                    : 'border-zinc-850 hover:border-zinc-800 shadow-md'
                 }`}
               >
                 {/* Background decorative category tag */}
-                <span className="absolute bottom-2 right-4 text-[26px] font-black font-mono opacity-[0.02] text-white uppercase select-none pointer-events-none">
+                <span className="absolute bottom-2 right-4 text-[32px] font-black font-mono opacity-[0.015] text-white uppercase select-none pointer-events-none">
                   {sub.category}
                 </span>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {/* Top line summary info */}
-                  <div className="flex justify-between items-start gap-2">
+                  <div className="flex justify-between items-start gap-3">
                     <div>
-                      <h4 className="font-extrabold text-white text-sm tracking-tight">{sub.name}</h4>
-                      <div className="flex gap-1.5 items-center mt-0.5">
-                        <span className="text-[9px] font-mono bg-zinc-950 text-zinc-500 border border-zinc-900 px-1.5 py-0.5 rounded-full capitalize font-semibold">
+                      <h4 className="font-extrabold text-white text-base tracking-tight leading-tight">{sub.name}</h4>
+                      <div className="flex gap-2 items-center mt-1">
+                        <span className="text-[8.5px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-900 px-2 py-0.5 rounded-full capitalize font-bold tracking-wide">
                           {sub.category}
                         </span>
-                        <span className="text-[9px] font-sans text-zinc-400 font-semibold">• {sub.billingCycle}</span>
+                        <span className="text-[9.5px] font-sans text-zinc-400 font-bold">• {sub.billingCycle}</span>
                       </div>
                     </div>
 
-                    <div className={`px-2 py-1.5 rounded-xl font-mono text-[9px] font-bold tracking-tight border ${statusStyle.color}`}>
+                    <div className={`px-2.5 py-1 rounded-xl font-mono text-[9px] font-bold tracking-tight border ${statusStyle.color}`}>
                       {statusStyle.label}
                     </div>
                   </div>
 
                   {/* Pricing Sum */}
                   <div className="flex justify-between items-baseline pt-2 border-t border-zinc-850/60">
-                    <span className="text-xs font-semibold text-zinc-500 font-mono">CYCLE TOTAL:</span>
-                    <span className="text-base font-mono font-black text-white">
+                    <span className="text-[10px] font-black text-zinc-500 font-mono tracking-wider">CYCLE TOTAL:</span>
+                    <span className="text-lg font-mono font-black text-white">
                       {currency}{sub.amount.toLocaleString()}
                     </span>
                   </div>
 
                   {/* Due detail info */}
-                  <div className="space-y-1 font-mono text-[10px] text-zinc-400 bg-black/35 p-2 rounded-xl border border-zinc-900/50">
+                  <div className="space-y-1.5 font-mono text-[10px] text-zinc-400 bg-black/45 p-3 rounded-2xl border border-zinc-905">
                     <div className="flex justify-between">
-                      <span className="text-zinc-500 uppercase">NEXT BILLING DUE:</span>
+                      <span className="text-zinc-500 uppercase font-bold text-[8.5px]">NEXT BILLING DUE:</span>
                       <span className="font-bold text-white tracking-tight">{sub.dueDate}</span>
                     </div>
                     {sub.lastPaidDate && (
-                      <div className="flex justify-between border-t border-zinc-900/40 pt-1 mt-1">
-                        <span className="text-zinc-500 uppercase">LAST RECORDED PAYMENT:</span>
-                        <span className="text-emerald-500 font-semibold">{sub.lastPaidDate}</span>
+                      <div className="flex justify-between border-t border-zinc-900/60 pt-1.5 mt-1.5 font-bold text-[8.5px]">
+                        <span className="text-zinc-500 uppercase">LAST SETTLED DATE:</span>
+                        <span className="text-emerald-400 tracking-tight">{sub.lastPaidDate}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Multi actions triggers footer */}
-                <div className="flex gap-2.5 mt-4 pt-4 border-t border-zinc-850">
+                <div className="flex gap-2.5 mt-5 pt-4.5 border-t border-zinc-850">
                   {sub.status === 'Active' ? (
                     <button
                       type="button"
                       onClick={() => onToggleSubscriptionStatus(sub.id, 'Active')}
-                      className="px-2.5 py-1.5 bg-[#050505] hover:bg-zinc-900 text-zinc-400 hover:text-white rounded-lg border border-zinc-850 flex items-center gap-1 cursor-pointer transition text-[9px] font-mono uppercase font-bold"
+                      className="px-3 py-2 bg-[#050510]/50 hover:bg-zinc-900 text-zinc-400 hover:text-white rounded-xl border border-zinc-850 flex items-center gap-1.5 cursor-pointer transition text-[9px] font-mono uppercase font-bold"
                       title="Pause tracking plans temporarily"
                     >
                       <Pause size={10} className="text-amber-500" />
@@ -471,11 +473,11 @@ export default function SubscriptionManagement({
                     <button
                       type="button"
                       onClick={() => onToggleSubscriptionStatus(sub.id, 'Paused')}
-                      className="px-2.5 py-1.5 bg-emerald-950/20 text-emerald-400 hover:bg-emerald-950/35 rounded-lg border border-emerald-900/40 flex items-center gap-1 cursor-pointer transition text-[9px] font-mono uppercase font-bold animate-pulse"
-                      title="Resume tracking/paying membership cycle"
+                      className="px-3 py-2 bg-emerald-950/20 text-emerald-450 hover:bg-emerald-950/35 rounded-xl border border-emerald-900/40 flex items-center gap-1.5 cursor-pointer transition text-[9px] font-mono uppercase font-bold animate-pulse"
+                      title="Resume tracking membership cycle"
                     >
                       <Play size={10} className="text-emerald-500" />
-                      Activate
+                      Resume
                     </button>
                   )}
 
@@ -486,13 +488,13 @@ export default function SubscriptionManagement({
                         setSelectedSubId(selectedSubId === sub.id ? null : sub.id);
                         if (isAdding) setIsAdding(false);
                       }}
-                      className={`flex-1 py-1.5 font-mono text-[9px] uppercase font-bold rounded-lg border flex items-center justify-center gap-1 cursor-pointer transition ${
+                      className={`flex-1 py-2 font-mono text-[9px] uppercase font-bold rounded-xl border flex items-center justify-center gap-1.5 cursor-pointer transition ${
                         selectedSubId === sub.id
-                          ? 'bg-amber-500 text-black border-amber-600 font-black'
-                          : 'bg-zinc-800 text-white border-zinc-700 hover:border-zinc-500'
+                          ? 'bg-amber-500 text-black border-amber-600 font-extrabold shadow-md'
+                          : 'bg-zinc-900 text-white border-zinc-800 hover:border-zinc-700'
                       }`}
                     >
-                      <DollarSign size={10} />
+                      <DollarSign size={10.5} />
                       Settle Payment
                     </button>
                   )}
@@ -500,10 +502,10 @@ export default function SubscriptionManagement({
                   <button
                     type="button"
                     onClick={() => handleDelete(sub.id, sub.name)}
-                    className="p-1.5 hover:bg-rose-950/20 text-zinc-500 hover:text-rose-400 bg-transparent border border-transparent hover:border-rose-950 rounded-lg cursor-pointer transition"
+                    className="p-1.5 hover:bg-rose-950/20 text-zinc-500 hover:text-rose-450 bg-transparent border border-transparent hover:border-rose-950 rounded-xl cursor-pointer transition"
                     title="Delete plan"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>

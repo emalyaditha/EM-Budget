@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CashAccount, BankCard, CategoryIncome, CategoryExpense } from '../types';
-import { PlusCircle, MinusCircle, Wallet, CreditCard, Calendar, RefreshCcw, Landmark, ShieldAlert, Tag } from 'lucide-react';
+import { PlusCircle, MinusCircle, Wallet, CreditCard, Calendar, RefreshCcw, Landmark, ShieldAlert, Tag, Sparkles } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
 interface InflowsOutflowsProps {
@@ -193,7 +193,7 @@ export default function InflowsOutflows({
       setIncSubmitted(false);
       setIncErrors({});
       showToast('success', 'Income received and ledger balanced successfully!');
-    } catch(e) {
+    } catch(err) {
       showToast('error', 'Failed to add income.');
     } finally {
       setIsProcessing(false);
@@ -235,7 +235,7 @@ export default function InflowsOutflows({
       setExpSubmitted(false);
       setExpErrors({});
       showToast('success', 'Invoice payment settled automatically! Account balance reduced.');
-    } catch(e) {
+    } catch(err) {
       showToast('error', 'Failed to add expense.');
     } finally {
       setIsProcessing(false);
@@ -262,71 +262,75 @@ export default function InflowsOutflows({
   };
 
   return (
-    <div id="inflows-outflows-view" className="space-y-5">
+    <div id="inflows-outflows-view" className="space-y-6 animate-fade-in">
       
       {/* Tab Selectors */}
-      <div className="grid grid-cols-2 p-1.5 bg-[#050505] border border-zinc-850 rounded-2xl" id="tab-selectors">
+      <div className="grid grid-cols-2 p-1.5 bg-[#0a0a0f] border border-zinc-850 rounded-[20px]" id="tab-selectors">
         <button
           onClick={() => {
             setToggleForm('income');
             setInsufficiencyError(null);
           }}
-          className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+          className={`py-3 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
             toggleForm === 'income'
-              ? 'bg-zinc-800 border border-zinc-700 text-white shadow-md font-sans font-bold'
+              ? 'bg-zinc-900 border border-zinc-800 text-white shadow-xl font-extrabold'
               : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
           <PlusCircle size={14} className="text-emerald-400" />
-          Log Inflow
+          Capture Inflow Income
         </button>
 
         <button
           onClick={() => setToggleForm('expense')}
-          className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+          className={`py-3 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
             toggleForm === 'expense'
-              ? 'bg-zinc-800 border border-zinc-700 text-white shadow-md font-sans font-bold'
+              ? 'bg-zinc-900 border border-zinc-800 text-white shadow-xl font-extrabold'
               : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
-          <MinusCircle size={14} className="text-rose-400" />
-          Log Outflow
+          <MinusCircle size={14} className="text-rose-455 text-rose-450" />
+          Settle Outflow Invoice
         </button>
       </div>
 
       {/* 2. FORM MODULES */}
-      <div className="bg-zinc-900/50 border border-zinc-850 rounded-[28px] p-6 shadow-xl">
-        
+      <div className="bg-gradient-to-br from-[#0c0c0f] to-zinc-950 border border-zinc-850 rounded-[32px] p-6 shadow-2xl relative">
+        <div className="absolute top-0 right-0 p-4 text-zinc-900 pointer-events-none select-none">
+          <Sparkles size={60} className="opacity-[0.03]" />
+        </div>
+
         {toggleForm === 'income' ? (
           /* ================== INCOME ENTRY FORM ================== */
-          <form onSubmit={handleIncomeSubmit} className="space-y-4" id="log-income-form">
+          <form onSubmit={handleIncomeSubmit} className="space-y-5" id="log-income-form">
+            
             <div>
-              <label className="text-[10px] text-[#888888] font-mono font-bold uppercase block mb-1">Receipt Source Title</label>
+              <label className="text-[9px] text-[#a1a1a9] font-mono font-bold uppercase tracking-wider block mb-1.5 pl-0.5">Inflow Origin / Source</label>
               <input
                 ref={incSourceRef}
                 type="text"
-                placeholder="e.g. Website Overhaul project bonus"
+                placeholder="e.g. Freelance Web consulting, Salary bonus, Gift"
                 value={incSource}
                 onChange={(e) => {
                   setIncSource(e.target.value);
                   validateIncome(e.target.value, incAmount, incTargetId ? `${incTargetId}:${incTargetType}` : '', incSubmitted);
                 }}
-                className={`w-full bg-[#050505] border text-white text-xs rounded-xl px-3 py-3 focus:outline-none transition-colors ${
+                className={`w-full bg-[#050510]/55 border text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none transition-all ${
                   incErrors.source
-                    ? 'border-rose-500 focus:border-rose-600'
+                    ? 'border-rose-500 focus:border-rose-500'
                     : incSource && !incErrors.source
-                    ? 'border-emerald-500 focus:border-emerald-600'
-                    : 'border-zinc-805 border-zinc-800 focus:border-zinc-500'
+                    ? 'border-emerald-500 focus:border-emerald-500'
+                    : 'border-zinc-850 hover:border-zinc-700'
                 }`}
               />
               {incErrors.source && (
-                <span className="text-rose-400 font-mono text-[10px] mt-1 block">{incErrors.source}</span>
+                <span className="text-rose-400 font-mono text-[9px] mt-1.5 block pl-0.5">{incErrors.source}</span>
               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] text-[#888888] font-mono font-bold uppercase block mb-1">Received Sum ({currency})</label>
+                <label className="text-[9px] text-[#a1a1a9] font-mono font-bold uppercase tracking-wider block mb-1.5 pl-0.5">Received Sum ({currency})</label>
                 <input
                   ref={incAmountRef}
                   type="number"
@@ -336,63 +340,63 @@ export default function InflowsOutflows({
                     setIncAmount(e.target.value);
                     validateIncome(incSource, e.target.value, incTargetId ? `${incTargetId}:${incTargetType}` : '', incSubmitted);
                   }}
-                  className={`w-full bg-[#050505] border text-white text-xs rounded-xl px-3 py-3 focus:outline-none font-mono font-semibold transition-colors ${
+                  className={`w-full bg-[#050510]/55 border text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none font-mono font-black transition-all ${
                     incErrors.amount
-                      ? 'border-rose-500 focus:border-rose-600'
+                      ? 'border-rose-500 focus:border-rose-500'
                       : incAmount && !incErrors.amount
-                      ? 'border-emerald-500 focus:border-emerald-600'
-                      : 'border-zinc-800 focus:border-zinc-500'
+                      ? 'border-emerald-500 focus:border-emerald-500'
+                      : 'border-zinc-850 hover:border-zinc-700'
                   }`}
                 />
                 {incErrors.amount && (
-                  <span className="text-rose-400 font-mono text-[10px] mt-1 block">{incErrors.amount}</span>
+                  <span className="text-rose-400 font-mono text-[9px] mt-1.5 block pl-0.5">{incErrors.amount}</span>
                 )}
               </div>
 
               <div>
-                <label className="text-[10px] text-[#888888] font-mono font-bold uppercase block mb-1">Inflow Category</label>
+                <label className="text-[9px] text-[#a1a1a9] font-mono font-bold uppercase tracking-wider block mb-1.5 pl-0.5">Inflow Classification</label>
                 <select
                   value={incCategory}
                   onChange={(e) => setIncCategory(e.target.value as CategoryIncome)}
-                  className="w-full bg-[#050505] border border-zinc-800 text-zinc-300 text-xs rounded-xl px-2.5 py-3 focus:outline-none focus:border-zinc-500 transition-colors"
+                  className="w-full bg-[#050510]/55 border border-zinc-850 hover:border-zinc-700 text-zinc-300 text-xs rounded-xl px-2.5 py-3.5 focus:outline-none cursor-pointer"
                 >
-                  <option value="Salary">Salary</option>
-                  <option value="Freelance">Freelance</option>
-                  <option value="Business">Business</option>
-                  <option value="Bonus">Bonus</option>
-                  <option value="Commission">Commission</option>
-                  <option value="Other">Other Income</option>
+                  <option value="Salary">Salary Pay</option>
+                  <option value="Freelance">Freelance Contract</option>
+                  <option value="Business">Business Operation</option>
+                  <option value="Bonus">Surprise Bonus</option>
+                  <option value="Commission">Sales Commission</option>
+                  <option value="Other">Other Inflow</option>
                 </select>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] text-[#888888] font-mono font-bold block mb-1 uppercase">Record Date</label>
+                <label className="text-[9px] text-[#a1a1a9] font-mono font-bold block mb-1.5 uppercase pl-0.5">Receipt Date</label>
                 <input
                   type="date"
                   value={incDate}
                   onChange={(e) => setIncDate(e.target.value)}
-                  className="w-full bg-[#050505] border border-zinc-800 text-white text-xs rounded-xl px-3 py-3 focus:outline-none focus:border-zinc-500 font-mono"
+                  className="w-full bg-[#050510]/55 border border-zinc-850 hover:border-zinc-700 text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none font-mono cursor-pointer"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-[10px] text-[#888888] font-mono font-bold block mb-1 uppercase">Receipt Target Account</label>
+                <label className="text-[9px] text-[#a1a1a9] font-mono font-bold block mb-1.5 uppercase pl-0.5">Destination target Vault</label>
                 <select
                   ref={incTargetRef}
                   value={incTargetId ? `${incTargetId}:${incTargetType}` : ''}
                   onChange={(e) => handleSelectTargetAccount(e.target.value)}
-                  className="w-full bg-[#050505] border border-zinc-800 text-white text-xs rounded-xl px-2.5 py-3 focus:outline-none focus:border-zinc-500 font-medium font-mono"
+                  className="w-full bg-[#050510]/55 border border-zinc-850 hover:border-zinc-700 text-zinc-350 text-xs rounded-xl px-2.5 py-3.5 focus:outline-none cursor-pointer"
                 >
                   <option value="">Select target</option>
-                  <optgroup label="Cash Wallets">
+                  <optgroup label="Cash Wallets" className="bg-[#0c0c0e] text-zinc-500">
                     {cashAccounts.map(c => (
-                      <option key={c.id} value={`${c.id}:cash`}>Wallet: {c.name} (Bal: {currency}{c.balance})</option>
+                      <option key={c.id} value={`${c.id}:cash`}>Wallet: {c.name} ({currency}{c.balance.toLocaleString()})</option>
                     ))}
                   </optgroup>
-                  <optgroup label="Bank Card Accounts">
+                  <optgroup label="Bank Card Accounts" className="bg-[#0c0c0e] text-zinc-500">
                     {cards.filter(c => !c.isCanceled).map(card => (
                       <option key={card.id} value={`${card.id}:card`} disabled={card.isFrozen}>
                         {card.bankName} - {card.cardName}{card.isFrozen ? ' [FROZEN]' : ''}
@@ -401,7 +405,7 @@ export default function InflowsOutflows({
                   </optgroup>
                 </select>
                 {incErrors.target && (
-                  <span className="text-rose-400 font-mono text-[10px] mt-1 block">{incErrors.target}</span>
+                  <span className="text-rose-400 font-mono text-[9px] mt-1.5 block pl-0.5">{incErrors.target}</span>
                 )}
               </div>
             </div>
@@ -409,55 +413,56 @@ export default function InflowsOutflows({
             <button
               type="submit"
               disabled={isProcessing}
-              className="w-full py-3.5 bg-white text-black font-mono font-bold uppercase tracking-widest text-[10px] rounded-xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer shadow-lg disabled:opacity-50"
+              className="w-full py-4 bg-white text-black font-mono font-bold uppercase tracking-widest text-[10px] rounded-xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer shadow-lg disabled:opacity-55"
             >
-              {isProcessing ? 'Processing...' : <><PlusCircle size={14} className="text-emerald-600" /> Collect and Increment Balance</>}
+              {isProcessing ? 'Processing Inflow...' : <><PlusCircle size={14} className="text-emerald-600 stroke-[2.5px]" /> Log Inflow & Increase Balance</>}
             </button>
           </form>
         ) : (
           /* ================== EXPENSE DEBIT FORM ================== */
           <form onSubmit={handleExpenseSubmit} className="space-y-4" id="log-expense-form">
+            
             <div>
-              <label className="text-[10px] text-[#888888] font-mono font-bold uppercase block mb-1">Expense / Invoice Title</label>
+              <label className="text-[9px] text-[#a1a1a9] font-mono font-bold uppercase tracking-wider block mb-1.5 pl-0.5">Expense / Invoice Title</label>
               <input
                 ref={expTitleRef}
                 type="text"
-                placeholder="e.g. Electric bill payment, restaurant burger"
+                placeholder="e.g. Electric bill payment, restaurant lunch with clients"
                 value={expTitle}
                 onChange={(e) => {
                   setExpTitle(e.target.value);
                   validateExpense(e.target.value, expDesc, expAmount, expMethodId, expMethodType, expSubmitted);
                 }}
-                className={`w-full bg-[#050505] border text-white text-xs rounded-xl px-3 py-3 focus:outline-none font-medium transition-colors ${
+                className={`w-full bg-[#050510]/55 border text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none transition-all ${
                   expErrors.title
-                    ? 'border-rose-500 focus:border-rose-600'
+                    ? 'border-rose-500 focus:border-rose-500'
                     : expTitle && !expErrors.title
-                    ? 'border-emerald-500 focus:border-emerald-600'
-                    : 'border-zinc-800'
+                    ? 'border-emerald-500 focus:border-emerald-500'
+                    : 'border-zinc-850 hover:border-zinc-700'
                 }`}
               />
               {expErrors.title && (
-                <span className="text-rose-400 font-mono text-[10px] mt-1 block">{expErrors.title}</span>
+                <span className="text-rose-400 font-mono text-[9px] mt-1.5 block pl-0.5">{expErrors.title}</span>
               )}
             </div>
 
             <div>
-              <label className="text-[10px] text-[#888888] font-mono font-bold uppercase block mb-1">Invoice Notes / Description (Optional)</label>
+              <label className="text-[9px] text-[#a1a1a9] font-mono font-bold uppercase tracking-wider block mb-1.5 pl-0.5 font-sans font-bold">Supplemental Remarks (Optional)</label>
               <input
                 type="text"
-                placeholder="e.g. Account code: ELE-291, reference 1"
+                placeholder="e.g. Booking reference #8291, corporate card"
                 value={expDesc}
                 onChange={(e) => {
                   setExpDesc(e.target.value);
                   validateExpense(expTitle, e.target.value, expAmount, expMethodId, expMethodType, expSubmitted);
                 }}
-                className="w-full bg-[#050505] border border-zinc-800 text-white text-xs rounded-xl px-3 py-3 focus:outline-none focus:border-zinc-500 transition-colors font-medium"
+                className="w-full bg-[#050510]/55 border border-zinc-850 hover:border-zinc-700 text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none transition-all font-medium placeholder:text-zinc-650"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] text-[#888888] font-mono font-bold uppercase block mb-1">Settled Sum ({currency})</label>
+                <label className="text-[9px] text-[#a1a1a9] font-mono font-bold uppercase tracking-wider block mb-1.5 pl-0.5">Settle Sum ({currency})</label>
                 <input
                   ref={expAmountRef}
                   type="number"
@@ -468,89 +473,89 @@ export default function InflowsOutflows({
                     setInsufficiencyError(null);
                     validateExpense(expTitle, expDesc, e.target.value, expMethodId, expMethodType, expSubmitted);
                   }}
-                  className={`w-full bg-[#050505] border text-white text-xs rounded-xl px-3 py-3 focus:outline-none font-mono font-semibold transition-colors ${
+                  className={`w-full bg-[#050510]/55 border text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none font-mono font-black transition-all ${
                     expErrors.amount
-                      ? 'border-rose-500 focus:border-rose-600'
+                      ? 'border-rose-500 focus:border-rose-500'
                       : expAmount && !expErrors.amount
-                      ? 'border-emerald-500 focus:border-emerald-600'
-                      : 'border-zinc-800 focus:border-zinc-500'
+                      ? 'border-emerald-500 focus:border-emerald-500'
+                      : 'border-zinc-850 hover:border-zinc-700'
                   }`}
                 />
                 {expErrors.amount && (
-                  <span className="text-rose-400 font-mono text-[10px] mt-1 block">{expErrors.amount}</span>
+                  <span className="text-rose-400 font-mono text-[9px] mt-1.5 block pl-0.5">{expErrors.amount}</span>
                 )}
               </div>
 
               <div>
-                <label className="text-[10px] text-[#888888] font-mono font-bold uppercase block mb-1">Usage Category</label>
+                <label className="text-[9px] text-[#a1a1a9] font-mono font-bold uppercase tracking-wider block mb-1.5 pl-0.5">Usage Category</label>
                 <select
                   value={expCategory}
                   onChange={(e) => setExpCategory(e.target.value as CategoryExpense)}
-                  className="w-full bg-[#050505] border border-zinc-800 text-white text-xs rounded-xl px-2.5 py-3 focus:outline-none focus:border-zinc-500 transition-colors"
+                  className="w-full bg-[#050510]/55 border border-zinc-850 hover:border-zinc-700 text-zinc-350 text-xs rounded-xl px-2.5 py-3.5 focus:outline-none cursor-pointer"
                 >
-                  <option value="Food">Food</option>
-                  <option value="Transport">Transport</option>
-                  <option value="Shopping">Shopping</option>
-                  <option value="Utilities">Utilities</option>
-                  <option value="Rent">Rent</option>
-                  <option value="Entertainment">Entertainment</option>
-                  <option value="Medical">Medical</option>
-                  <option value="Education">Education</option>
-                  <option value="Insurance">Insurance</option>
-                  <option value="Other">Other Expenses</option>
+                  <option value="Food">Food / Groceries</option>
+                  <option value="Transport">Public Transport</option>
+                  <option value="Shopping">Shopping & Lifestyle</option>
+                  <option value="Utilities">Household Utilities</option>
+                  <option value="Rent">Landlord Rent</option>
+                  <option value="Entertainment">Entertainment / Media</option>
+                  <option value="Medical">Medical / Healthcare</option>
+                  <option value="Education">Education Coursework</option>
+                  <option value="Insurance">Asset Insurance</option>
+                  <option value="Other font-sans">Other Miscellaneous</option>
                 </select>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] text-[#888888] font-mono font-bold block mb-1 uppercase">Transaction Date</label>
+                <label className="text-[9px] text-[#a1a1a9] font-mono font-bold block mb-1.5 uppercase pl-0.5">Swipe / Settlement Date</label>
                 <input
                   type="date"
                   value={expDate}
                   onChange={(e) => setExpDate(e.target.value)}
-                  className="w-full bg-[#050505] border border-zinc-800 text-white text-xs rounded-xl px-3 py-3 focus:outline-none focus:border-zinc-500 font-mono"
+                  className="w-full bg-[#050510]/55 border border-zinc-850 hover:border-zinc-700 text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none font-mono cursor-pointer"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-[10px] text-[#888888] font-mono font-bold block mb-1 uppercase">Deduct Balance From</label>
+                <label className="text-[9px] text-[#a1a1a9] font-mono font-bold block mb-1.5 uppercase pl-0.5 font-bold">Deduct Source Account</label>
                 <select
                   ref={expTargetRef}
                   value={expMethodId ? `${expMethodId}:${expMethodType}` : ''}
                   onChange={(e) => handleSelectPaymentMethod(e.target.value)}
-                  className={`w-full bg-[#050505] border text-white text-xs rounded-xl px-2.5 py-3 focus:outline-none transition-colors ${
+                  className={`w-full bg-[#050510]/55 border text-zinc-350 text-xs rounded-xl px-2.5 py-3.5 focus:outline-none cursor-pointer ${
                     expErrors.methodId
-                      ? 'border-rose-500 focus:border-rose-600'
+                      ? 'border-rose-500'
                       : expMethodId && !expErrors.methodId
                       ? 'border-emerald-500'
-                      : 'border-zinc-800'
+                      : 'border-zinc-850 hover:border-zinc-700'
                   }`}
                 >
-                  <option value="">Select source</option>
-                  <optgroup label="Cash Wallets">
+                  <option value="">Select funding source</option>
+                  <optgroup label="Cash Wallets" className="bg-[#0c0c0e] text-zinc-500 font-bold">
                     {cashAccounts.map(c => (
-                      <option key={c.id} value={`${c.id}:cash`}>{c.name} ({currency}{c.balance})</option>
+                      <option key={c.id} value={`${c.id}:cash`}>{c.name} ({currency}{c.balance.toLocaleString()})</option>
                     ))}
                   </optgroup>
-                  <optgroup label="Saved Bank Cards">
+                  <optgroup label="Saved Bank Cards" className="bg-[#0c0c0e] text-zinc-500 font-bold">
                     {cards.filter(c => !c.isCanceled).map(card => (
                       <option key={card.id} value={`${card.id}:card`} disabled={card.isFrozen}>
-                        {card.bankName} - {card.cardName} ({currency}{card.currentBalance}){card.isFrozen ? ' [FROZEN]' : ''}
+                        {card.bankName} - {card.cardName} ({currency}{card.currentBalance.toLocaleString()}){card.isFrozen ? ' [FROZEN / LOCKED]' : ''}
                       </option>
                     ))}
                   </optgroup>
                 </select>
                 {expErrors.methodId && (
-                  <span className="text-rose-400 font-mono text-[10px] mt-1 block">{expErrors.methodId}</span>
+                  <span className="text-rose-400 font-mono text-[9px] mt-1.5 block pl-0.5">{expErrors.methodId}</span>
                 )}
               </div>
             </div>
 
             {/* ERROR TRIGGER INDICATOR */}
             {insufficiencyError && (
-              <div className="p-4 bg-rose-950/40 border border-rose-900/65 rounded-xl flex items-start gap-2 text-rose-300 font-semibold text-xs leading-relaxed mt-2 animate-pulse">
+              <div className="p-4 bg-rose-950/40 border border-rose-900/65 rounded-xl flex items-start gap-2.5 text-rose-300 font-semibold text-xs leading-relaxed mt-2 animate-pulse">
                 <ShieldAlert size={16} className="shrink-0 mt-0.5 text-rose-400 font-extrabold" />
                 <span>{insufficiencyError}</span>
               </div>
@@ -559,17 +564,17 @@ export default function InflowsOutflows({
             <button
               type="submit"
               disabled={isProcessing}
-              className="w-full py-3.5 bg-white text-black font-mono font-bold uppercase tracking-widest text-[10px] rounded-xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer shadow-lg disabled:opacity-50"
+              className="w-full py-4 bg-white text-black font-mono font-bold uppercase tracking-widest text-[10px] rounded-xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer shadow-lg disabled:opacity-55"
             >
-              {isProcessing ? 'Processing...' : <><MinusCircle size={14} className="text-rose-600" /> Settle Invoice & Deduct</>}
+              {isProcessing ? 'Processing Settlement...' : <><MinusCircle size={14} className="text-rose-600 stroke-[2.5px]" /> Authorize Outflow & Settle Debit</>}
             </button>
           </form>
         )}
       </div>
 
-      <div className="bg-zinc-900/10 border border-zinc-850 rounded-[20px] p-4 flex gap-2 justify-center text-center">
-        <span className="text-[10px] font-mono text-zinc-500">
-          * Dynamic system triggers will sync balances & log audit lines instantly.
+      <div className="bg-[#08080c]/50 border border-zinc-850 rounded-[20px] p-4 flex gap-2 justify-center text-center">
+        <span className="text-[10.5px] font-mono text-zinc-500 font-semibold tracking-tight">
+          * Dynamic system triggers will sync balances & log audit lines instantly inside unified ledger.
         </span>
       </div>
     </div>

@@ -122,28 +122,30 @@ function InteractiveBankCard({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       style={inlineStyle}
-      className={`relative p-5 rounded-2xl bg-gradient-to-br ${cardGradientStyle} border shadow-xl flex flex-col justify-between h-36 overflow-hidden duration-300 group cursor-pointer ${
+      className={`relative p-5.5 rounded-3xl bg-gradient-to-br ${cardGradientStyle} border shadow-2xl flex flex-col justify-between h-44 overflow-hidden duration-300 group cursor-pointer ${
         isCanceled ? 'opacity-50 filter grayscale contrast-75 brightness-90 hover:grayscale-0 hover:opacity-85' : ''
       }`}
     >
       {isHovered && !isCanceled && !card.isFrozen && (
         <div 
-          className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-80 z-20"
+          className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-95 z-20"
           style={{
-            background: `radial-gradient(circle at var(--glow-x, 50%) var(--glow-y, 50%), rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.08) 45%, transparent 75%), linear-gradient(135deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0) 70%)`
+            background: `radial-gradient(circle 140px at var(--glow-x, 50%) var(--glow-y, 50%), rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.12) 40%, transparent 80%), linear-gradient(135deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0) 70%)`
           }}
         />
       )}
 
-      <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-white/5 blur-xl pointer-events-none z-0" />
+      {/* Glossy bank card circuitry overlay pattern */}
+      <div className="absolute inset-0 bg-[#ffffff]/[0.015] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
+      <div className="absolute -bottom-16 -left-16 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none z-0" />
       
       {card.isFrozen && !isCanceled && (
-        <div className="absolute inset-0 z-30 bg-[#0c101a]/45 backdrop-blur-[8px] flex flex-col items-center justify-center border border-sky-500/25 rounded-2xl transition-all duration-300">
-          <div className="p-2 bg-sky-950/70 border border-sky-400/40 text-sky-300 rounded-full shadow-lg shadow-sky-500/10 animate-pulse">
-            <Snowflake size={18} className="stroke-[2.5px]" />
+        <div className="absolute inset-0 z-30 bg-black/75 backdrop-blur-[10px] flex flex-col items-center justify-center border border-sky-500/30 rounded-3xl transition-all duration-300">
+          <div className="p-3 bg-sky-950/80 border border-sky-400/40 text-sky-300 rounded-full shadow-lg shadow-sky-500/20 animate-pulse">
+            <Snowflake size={20} className="stroke-[2.5px]" />
           </div>
-          <span className="text-[10px] font-black font-mono tracking-widest text-sky-200 mt-2 text-shadow-sm">
-            CARD TEMP FROZEN
+          <span className="text-[10px] font-black font-mono tracking-[0.2em] text-sky-200 mt-2.5">
+            TEMP FROZEN
           </span>
           <button
             onClick={(e) => {
@@ -151,7 +153,7 @@ function InteractiveBankCard({
               onUpdateCard({ ...card, isFrozen: false });
               showToast('success', `${card.cardName} un-frozen successfully.`);
             }}
-            className="mt-2.5 px-3 py-1 bg-sky-950 hover:bg-sky-900 border border-sky-500/35 text-sky-200 text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all cursor-pointer shadow-lg"
+            className="mt-3 px-4 py-1.5 bg-sky-900/80 hover:bg-white hover:text-black border border-sky-500/30 hover:border-white text-sky-100 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-md"
           >
             Unfreeze
           </button>
@@ -159,7 +161,7 @@ function InteractiveBankCard({
       )}
 
       {!isCanceled && !card.isFrozen && (
-        <div className="absolute top-2 right-2.5 z-25 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="absolute top-3 right-3 z-25 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -170,7 +172,7 @@ function InteractiveBankCard({
               setEditCardErrors({});
               setEditCardSubmitted(false);
             }}
-            className="bg-black/60 hover:bg-black/85 border border-white/10 text-white/80 hover:text-white rounded-lg p-1.5 cursor-pointer flex items-center justify-center shadow-lg transition-colors"
+            className="bg-black/80 hover:bg-white hover:text-black border border-white/10 text-white rounded-lg p-2 cursor-pointer flex items-center justify-center shadow-lg transition-colors"
             title="Edit Card Details"
           >
             <Edit size={11} />
@@ -183,7 +185,7 @@ function InteractiveBankCard({
               onUpdateCard(updated);
               showToast('warning', `${card.cardName} soft-locked and frozen.`);
             }}
-            className="bg-black/60 hover:bg-sky-900/80 border border-white/10 text-white/80 hover:text-sky-300 rounded-lg p-1.5 cursor-pointer flex items-center justify-center shadow-lg transition-colors"
+            className="bg-black/80 hover:bg-sky-900 border border-white/10 text-white hover:text-sky-300 rounded-lg p-2 cursor-pointer flex items-center justify-center shadow-lg transition-colors"
             title="Freeze Card"
           >
             <Snowflake size={11} />
@@ -191,27 +193,49 @@ function InteractiveBankCard({
         </div>
       )}
 
-      <div className="flex justify-between items-start z-10 pr-12">
-        <div className="min-w-0">
-          <p className="text-[9px] uppercase font-bold tracking-wider text-white/50 truncate max-w-[120px]">{card.bankName}</p>
-          <h4 className="text-xs font-semibold text-white mt-0.5 flex items-center gap-1.5 truncate">
-            <span className="truncate max-w-[110px]">{card.cardName}</span>
+      {/* Card Header: Brand & chip */}
+      <div className="flex justify-between items-start z-10">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-white/50">{card.bankName}</span>
+            <span className="w-1 h-1 rounded-full bg-white/40" />
+            <span className="text-[9px] font-mono font-bold uppercase text-indigo-305 text-indigo-350">Premier</span>
+          </div>
+          <h4 className="text-sm font-extrabold text-white mt-1 flex items-center gap-1.5 truncate max-w-[130px]">
+            {card.cardName}
           </h4>
         </div>
-        <div>
-          <span className="text-[9px] uppercase tracking-widest font-mono font-bold bg-white/10 px-2 py-0.5 rounded text-white/95">
-            {card.cardType}
-          </span>
+        
+        {/* Holographic physical chip visual details */}
+        <div className="flex flex-col items-end shrink-0">
+          <div className="w-9 h-7 rounded-lg bg-gradient-to-r from-amber-500/30 via-yellow-400/20 to-amber-600/30 border border-amber-500/40 opacity-90 shadow-md relative overflow-hidden flex items-center justify-center">
+            <div className="w-3.5 h-full border-r border-white/15 absolute left-1" />
+            <div className="w-full h-2.5 border-b border-t border-white/15 absolute" />
+          </div>
         </div>
       </div>
 
-      <div className="z-10 flex justify-between items-end">
+      {/* Card Middle elements - contactless icon decoration */}
+      <div className="flex justify-between items-center z-10 py-1">
+        <div className="text-[14px] font-mono tracking-[0.25em] text-white/90 font-bold select-all">
+          {card.cardNumber ? card.cardNumber : '•••• •••• •••• 1234'}
+        </div>
+        <div className="flex items-center gap-1 opacity-45">
+          <span className="w-0.5 h-3 bg-white" />
+          <span className="w-0.5 h-2.5 bg-white" />
+          <span className="w-0.5 h-2 bg-white" />
+          <span className="w-0.5 h-1.5 bg-white" />
+        </div>
+      </div>
+
+      {/* Card Footer: Balances & Brand circle emblems */}
+      <div className="z-10 flex justify-between items-end border-t border-white/5 pt-3">
         <div>
-          <span className="text-[9px] text-white/40 block">
-            {card.cardType === 'Credit' ? 'Available Credit' : 'Available Balance'}
+          <span className="text-[8px] uppercase tracking-wider text-white/40 block">
+            {card.cardType === 'Credit' ? 'Available Limit' : 'Available Balance'}
           </span>
-          <span className="text-xs font-bold font-mono tracking-tight text-white">
-            {currency} {
+          <span className="text-sm font-extrabold font-mono text-white leading-none">
+            {currency}{
               card.cardType === 'Credit' 
                 ? ((card.limit ?? 0) - card.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                 : card.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -219,18 +243,21 @@ function InteractiveBankCard({
           </span>
         </div>
 
-        <div className="text-right flex flex-col items-end">
-          <span className="text-[9px] font-mono text-white/60 tracking-wider">
-            {card.cardNumber || '**** **** **** 0000'}
-          </span>
+        <div className="text-right flex items-center gap-3">
           {!isCanceled && (
             <button
               onClick={(e) => { e.stopPropagation(); onDeleteCard(card.id); }}
-              className="text-[9px] text-rose-400 opacity-65 hover:opacity-100 flex items-center gap-1 mt-1 font-semibold cursor-pointer transition-opacity"
+              className="text-[9px] text-rose-400 opacity-60 hover:opacity-100 flex items-center gap-1 font-bold cursor-pointer transition-opacity"
             >
-              <Trash2 size={10} /> Delete
+              <Trash2 size={10} />
             </button>
           )}
+
+          {/* Overlapping orbs (Mastercard premium style card signature detail) */}
+          <div className="flex -space-x-2.5 shrink-0 select-none">
+            <span className="w-5 h-5 rounded-full bg-rose-500/70 backdrop-blur-sm" />
+            <span className="w-5 h-5 rounded-full bg-amber-500/70 backdrop-blur-sm" />
+          </div>
         </div>
       </div>
     </div>

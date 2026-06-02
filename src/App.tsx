@@ -33,6 +33,7 @@ export default function App() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'inflow_outflow' | 'debts' | 'reports'>('dashboard');
+  const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   
   // Modals & Panels Toggles
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -1239,15 +1240,27 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start relative pb-28 lg:pb-12">
         
         {/* =================== COLUMN 1: ACCESS MODULES & ACTIVE OPERATIONS =================== */}
-        <section className="col-span-1 lg:col-span-3 order-3 lg:order-1 space-y-6 w-full" id="desktop-control-column">
+        <section className={`col-span-1 ${isNavCollapsed ? 'lg:col-span-1' : 'lg:col-span-3'} order-3 lg:order-1 space-y-6 w-full transition-all duration-300`} id="desktop-control-column">
           
           {/* Navigation Menu (Visible on Desktop / Large screens, hidden on Mobile) */}
-          <div className="bg-zinc-900/50 border border-zinc-850 p-6 rounded-[24px] space-y-4 shadow-xl hidden lg:block animate-fade-in shadow-xl">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-              Application Menu
-            </h3>
-            <nav className="flex flex-col gap-1.5" id="web-sidebar-navigation">
+          <div className={`bg-zinc-900/50 border border-zinc-850 backdrop-blur-md p-4 sm:p-5 rounded-[28px] space-y-4 shadow-2xl hidden lg:block animate-fade-in transition-all duration-300`}>
+            <div className="flex items-center justify-between pointer-events-auto">
+              {!isNavCollapsed && (
+                <span className="text-[10px] sm:text-[11px] font-mono tracking-widest text-[#8aa8bb] uppercase font-bold flex items-center gap-1.5 animate-fade-in">
+                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                  COMMAND CENTER
+                </span>
+              )}
+              <button 
+                onClick={() => setIsNavCollapsed(!isNavCollapsed)}
+                className={`p-1.5 rounded-lg bg-[#070707] hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all duration-200 cursor-pointer flex items-center justify-center ${isNavCollapsed ? 'mx-auto' : 'ml-auto'}`}
+                title={isNavCollapsed ? "Expand Sidebar Layout" : "Collapse Sidebar Layout"}
+              >
+                <Zap size={12} className={`text-indigo-400 ${isNavCollapsed ? 'animate-pulse' : ''}`} />
+              </button>
+            </div>
+
+            <nav className="flex flex-col gap-2" id="web-sidebar-navigation">
               {[
                 { tab: 'dashboard', icon: <Percent size={15} />, label: 'Overview Hub' },
                 { tab: 'accounts', icon: <Wallet size={15} />, label: 'Wallets Portfolio' },
@@ -1258,48 +1271,55 @@ export default function App() {
                 <button
                   key={item.tab}
                   onClick={() => setActiveTab(item.tab as any)}
-                  className={`w-full py-3 px-4 rounded-xl font-mono font-bold text-xs flex items-center gap-3 transition-all cursor-pointer border ${
+                  className={`w-full py-3.5 px-4 rounded-2xl font-sans font-bold text-xs flex items-center gap-3.5 transition-all duration-300 cursor-pointer border ${
                     activeTab === item.tab
-                      ? 'bg-white border-white text-black shadow-md'
-                      : 'text-zinc-400 bg-transparent border-transparent hover:text-white hover:border-zinc-800 hover:bg-zinc-900/40'
-                  }`}
+                      ? 'bg-white border-white text-black shadow-lg hover:scale-[1.01]'
+                      : 'text-zinc-400 bg-transparent border-transparent hover:text-white hover:border-zinc-800 hover:bg-zinc-900/60'
+                  } ${isNavCollapsed ? 'justify-center px-1' : ''}`}
+                  title={isNavCollapsed ? item.label : undefined}
                 >
-                  <span className={`${activeTab === item.tab ? 'text-black' : 'text-zinc-500'}`}>
+                  <span className={`shrink-0 ${activeTab === item.tab ? 'text-black scale-110' : 'text-zinc-500'}`}>
                     {item.icon}
                   </span>
-                  <span>{item.label}</span>
+                  {!isNavCollapsed && <span className="truncate">{item.label}</span>}
                 </button>
               ))}
             </nav>
           </div>
 
-          {/* Secure Environment Security Vault Identity Card (Visible on Desktop, hidden on Mobile) */}
-          <div className="bg-zinc-900/50 border border-zinc-850 p-6 rounded-[24px] space-y-4 shadow-xl hidden lg:block animate-fade-in">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-              Identity Security Vault
-            </h3>
-            <div className="space-y-3">
-              <div className="p-3 bg-[#050505] border border-zinc-800 rounded-xl space-y-1">
-                <span className="text-[9px] text-[#8aa8bb] block uppercase font-mono font-bold">Secured Connection</span>
-                <span className="text-xs font-mono font-bold text-zinc-300 break-all">{userEmail || 'Client Local Only'}</span>
-              </div>
-              <div className="flex justify-between items-center text-[10px] text-zinc-400 font-mono border-t border-zinc-850/60 pt-3">
-                <span>Identity Session</span>
-                <span className="text-emerald-450 text-emerald-400 font-bold uppercase">Active</span>
-              </div>
-              <div className="flex justify-between items-center text-[10px] text-zinc-400 font-mono">
-                <span>Synchronicity</span>
-                <span className={realtimeSyncStatus === 'synced' ? 'text-emerald-400 font-bold uppercase' : 'text-amber-400 font-bold uppercase'}>
-                  {realtimeSyncStatus ? realtimeSyncStatus.toUpperCase() : 'IDLE'}
-                </span>
+          {/* Secure Environment Security Vault Identity Card */}
+          {isNavCollapsed ? (
+            <div className="bg-zinc-900/50 border border-zinc-850 p-3 rounded-2xl shadow-sm hidden lg:flex items-center justify-center animate-fade-in text-emerald-400 hover:scale-105 duration-200 cursor-pointer" title={`Secured Connection for ${userEmail}`}>
+              <Lock size={14} className="animate-pulse" />
+            </div>
+          ) : (
+            <div className="bg-[#070707]/60 border border-zinc-850 p-5 rounded-[24px] space-y-4 shadow-xl hidden lg:block animate-fade-in">
+              <h3 className="text-[10px] tracking-wider text-emerald-400 font-mono font-bold uppercase flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                SECURITY VAULT ACTIVE
+              </h3>
+              <div className="space-y-3">
+                <div className="p-3 bg-black/40 border border-zinc-900 rounded-xl space-y-1">
+                  <span className="text-[9px] text-[#8aa8bb] block uppercase font-mono font-bold">DEVICE HOLDER</span>
+                  <span className="text-xs font-mono font-bold text-zinc-300 break-all truncate block">{userEmail || 'Client Local Only'}</span>
+                </div>
+                <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono border-t border-zinc-900 pt-3">
+                  <span>State Syncing</span>
+                  <span className="text-emerald-400 font-bold uppercase">Active</span>
+                </div>
+                <div className="flex justify-between items-center text-[10px] text-zinc-505 text-zinc-500 font-mono">
+                  <span>Status Indicator</span>
+                  <span className={realtimeSyncStatus === 'synced' ? 'text-indigo-400 font-bold uppercase' : 'text-amber-400 font-bold uppercase'}>
+                    {realtimeSyncStatus ? realtimeSyncStatus.toUpperCase() : 'IDLE'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </section>
 
         {/* =================== COLUMN 2: FINANCIAL WEB CONTENT (WIDESCREEN EXPANSION) =================== */}
-        <section className="col-span-1 lg:col-span-9 xl:col-span-9 order-1 lg:order-2 space-y-6 w-full animate-fade-in" id="central-web-canvas">
+        <section className={`col-span-1 ${isNavCollapsed ? 'lg:col-span-11' : 'lg:col-span-9'} order-1 lg:order-2 space-y-6 w-full transition-all duration-350 animate-fade-in`} id="central-web-canvas">
           
           {/* Header block for current active tab */}
           {activeTab !== 'dashboard' && (
@@ -1468,25 +1488,32 @@ export default function App() {
             </div>
 
             {/* =================== MOBILE BOTTOM BAR NAVIGATOR =================== */}
-            <nav className="fixed bottom-0 inset-x-0 bg-[#050505]/95 backdrop-blur-md border-t border-zinc-850 pb-5 pt-2 flex justify-around items-center z-30 shadow-2xl lg:hidden">
+            <nav className="fixed bottom-4 inset-x-4 bg-[#0a0a0af0]/90 backdrop-blur-xl border border-zinc-800 rounded-3xl pb-3.5 pt-2 flex justify-around items-center z-30 shadow-[0_10px_35px_rgba(0,0,0,0.8)] lg:hidden">
               {[
-                { tab: 'dashboard', icon: <Percent size={16} />, label: 'Summary' },
-                { tab: 'accounts', icon: <Wallet size={16} />, label: 'Wallets' },
-                { tab: 'inflow_outflow', icon: <Plus size={16} />, label: 'Register' },
-                { tab: 'debts', icon: <CircleDot size={16} />, label: 'Liabilities' },
-                { tab: 'reports', icon: <TrendingUp size={16} />, label: 'Reports' },
+                { tab: 'dashboard', icon: <Percent size={15} />, label: 'Dashboard' },
+                { tab: 'accounts', icon: <Wallet size={15} />, label: 'Wallets' },
+                { tab: 'inflow_outflow', icon: <Plus size={15} />, label: 'Transactions' },
+                { tab: 'debts', icon: <CircleDot size={15} />, label: 'Liabilities' },
+                { tab: 'reports', icon: <TrendingUp size={15} />, label: 'Reports' },
               ].map((item) => (
                 <button
                   key={item.tab}
                   onClick={() => setActiveTab(item.tab as any)}
-                  className={`flex flex-col items-center gap-1 transition-all ${
-                    activeTab === item.tab ? 'text-white font-bold' : 'text-zinc-500 hover:text-zinc-400'
+                  className={`flex flex-col items-center gap-1.5 transition-all duration-300 relative cursor-pointer ${
+                    activeTab === item.tab ? 'text-white' : 'text-zinc-500 hover:text-zinc-400'
                   }`}
                 >
-                  <div className={`p-1.5 rounded-xl transition-all ${activeTab === item.tab ? 'bg-zinc-800 border border-zinc-700 shadow-md text-white' : 'text-zinc-400'}`}>
+                  <div className={`p-2 rounded-2xl transition-all duration-300 flex items-center justify-center ${
+                    activeTab === item.tab 
+                      ? 'bg-indigo-600 text-white shadow-xl scale-110 border border-indigo-500' 
+                      : 'text-zinc-400 bg-[#0f0f12] border border-zinc-900'
+                  }`}>
                     {item.icon}
                   </div>
-                  <span className="text-[9px] uppercase tracking-widest font-semibold font-mono">{item.label}</span>
+                  <span className={`text-[8.5px] uppercase tracking-wider font-extrabold font-mono transition-colors duration-300 ${activeTab === item.tab ? 'text-white' : 'text-zinc-500'}`}>{item.label}</span>
+                  {activeTab === item.tab && (
+                    <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                  )}
                 </button>
               ))}
             </nav>
