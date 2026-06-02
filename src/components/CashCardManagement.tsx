@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CashAccount, BankCard } from '../types';
-import { Plus, Trash2, Wallet, CreditCard, ChevronRight, CornerDownRight, Landmark, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronRight, CornerDownRight, Landmark, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
 interface CashCardManagementProps {
@@ -12,6 +12,7 @@ interface CashCardManagementProps {
   onDeleteCard: (id: string) => void;
   onDeleteCashAccount: (id: string) => void;
   currency: string;
+  onUpdateCard: (card: BankCard) => void;
 }
 
 export default function CashCardManagement({
@@ -23,6 +24,7 @@ export default function CashCardManagement({
   onDeleteCard,
   onDeleteCashAccount,
   currency,
+  onUpdateCard,
 }: CashCardManagementProps) {
   const { showToast, showConfirm } = useNotifications();
   // Cash form states
@@ -41,6 +43,14 @@ export default function CashCardManagement({
   const [cardTheme, setCardTheme] = useState('obsidian'); // obsidian, sapphire, emerald, copper, ruby
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
   const [cardSubmitted, setCardSubmitted] = useState(false);
+
+  // Edit card state fields
+  const [editingCard, setEditingCard] = useState<BankCard | null>(null);
+  const [editCardName, setEditCardName] = useState('');
+  const [editCardNumber, setEditCardNumber] = useState('');
+  const [editCardTheme, setEditCardTheme] = useState('obsidian');
+  const [editCardErrors, setEditCardErrors] = useState<Record<string, string>>({});
+  const [editCardSubmitted, setEditCardSubmitted] = useState(false);
 
   // Quick action states
   const [selectedCashId, setSelectedCashId] = useState<string | null>(null);
@@ -225,6 +235,7 @@ export default function CashCardManagement({
       cardType,
       currentBalance: balanceNum,
       cardNumber: cleanNum,
+      cardTheme: cardTheme,
     });
 
     // Reset card form
@@ -236,6 +247,58 @@ export default function CashCardManagement({
     setCardErrors({});
     setIsAddingCard(false);
     showToast('success', 'Your bank asset card is certified.');
+  };
+
+  const validateEditCard = (name: string, numStr: string) => {
+    const errs: Record<string, string> = {};
+    if (!name.trim()) {
+      errs.name = 'Card name is required';
+    } else if (name.trim().length < 3) {
+      errs.name = 'Card name must be at least 3 characters long';
+    } else if (/[<>{}]/.test(name)) {
+      errs.name = 'Invalid characters are not allowed';
+    }
+    
+    const cleanNum = numStr.replace(/\s+/g, '').replace(/\*/g, '');
+    if (cleanNum && cleanNum.length > 0 && !/^\d+$/.test(cleanNum)) {
+      errs.number = 'Card number must contain digits only';
+    }
+    
+    setEditCardErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSaveEditCard = (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditCardSubmitted(true);
+    if (!editingCard) return;
+    
+    const isValid = validateEditCard(editCardName, editCardNumber);
+    if (!isValid) {
+      return;
+    }
+    
+    let cleanNum = editCardNumber.replace(/\s+/g, '').replace(/\*/g, '');
+    if (cleanNum.length > 0) {
+      if (cleanNum.length > 4) {
+        cleanNum = `**** **** **** ${cleanNum.slice(-4)}`;
+      } else {
+        cleanNum = `**** **** **** ${cleanNum}`;
+      }
+    } else {
+      cleanNum = editingCard.cardNumber || `**** **** **** ${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+    
+    const updated: BankCard = {
+      ...editingCard,
+      cardName: editCardName.trim(),
+      cardNumber: cleanNum,
+      cardTheme: editCardTheme,
+    };
+    
+    onUpdateCard(updated);
+    setEditingCard(null);
+    showToast('success', 'Card details updated successfully.');
   };
 
   const handleQuickAdjustCash = (e: React.FormEvent) => {
@@ -651,23 +714,44 @@ export default function CashCardManagement({
             </div>
           ) : (
             cards.map((card, idx) => {
-              // Assign a theme based on card position or choose randomly
+              // Assign a theme based on card position or choose saved
               const themesCodes = ['obsidian', 'sapphire', 'emerald', 'copper', 'ruby'];
-              const derivedTheme = themesCodes[idx % themesCodes.length];
+              const derivedTheme = card.cardTheme || themesCodes[idx % themesCodes.length];
               const isCanceled = card.isCanceled || (card as any).is_canceled;
 
               return (
                 <div
                   key={card.id}
                   id={`card-view-${card.id}`}
-                  className={`relative p-5 rounded-2xl bg-gradient-to-br ${getCardGradient(derivedTheme)} border shadow-xl flex flex-col justify-between h-36 overflow-hidden transition-all duration-300 ${
+                  className={`relative p-5 rounded-2xl bg-gradient-to-br ${getCardGradient(derivedTheme)} border shadow-xl flex flex-col justify-between h-36 overflow-hidden transition-all duration-300 group ${
                     isCanceled ? 'opacity-50 filter grayscale contrast-75 brightness-90 hover:grayscale-0 hover:opacity-85' : 'hover:scale-[1.01]'
                   }`}
                 >
                   {/* Glowing background circles */}
                   <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-white/5 blur-xl pointer-events-none" />
                   
-                  <div className="flex justify-between items-start z-10">
+                  {/* Hover Edit Action overlay / corner button */}
+                  {!isCanceled && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingCard(card);
+                        setEditCardName(card.cardName);
+                        // Strip masking indicators so user can edit cleanly
+                        setEditCardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g, '').trim() : '');
+                        setEditCardTheme(derivedTheme);
+                        setEditCardErrors({});
+                        setEditCardSubmitted(false);
+                      }}
+                      className="absolute top-2 right-2.5 z-25 bg-black/50 hover:bg-black/75 border border-white/5 text-white/80 hover:text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-all cursor-pointer flex items-center justify-center shadow-lg"
+                      title="Edit Card Details"
+                      id={`edit-card-btn-${card.id}`}
+                    >
+                      <Edit size={12} />
+                    </button>
+                  )}
+
+                  <div className="flex justify-between items-start z-10 pr-6">
                     <div>
                       <p className="text-[10px] uppercase font-bold tracking-wider text-white/50">{card.bankName}</p>
                       <h4 className="text-xs font-semibold text-white mt-0.5 flex items-center gap-1.5">
@@ -729,6 +813,110 @@ export default function CashCardManagement({
           )}
         </div>
       </div>
+      {/* Edit Card AJAX/Popup Modal */}
+      {editingCard && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animation-fade-in" onClick={() => setEditingCard(null)}>
+          <div className="bg-[#0a0a0a] border border-zinc-800 p-6 rounded-3xl shadow-2xl max-w-sm w-full space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
+              <h3 className="text-white font-bold text-sm flex items-center gap-2">
+                <Edit size={14} className="text-emerald-400" />
+                Edit Card Details
+              </h3>
+              <button 
+                onClick={() => setEditingCard(null)} 
+                className="text-xs font-mono font-bold text-zinc-500 hover:text-white uppercase transition-colors"
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditCard} className="space-y-4">
+              <div>
+                <label className="text-[10px] text-[#888888] font-bold block mb-1 uppercase tracking-wider">Card Nickname</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Travel Silver Black"
+                  value={editCardName}
+                  onChange={(e) => {
+                    setEditCardName(e.target.value);
+                    validateEditCard(e.target.value, editCardNumber);
+                  }}
+                  className={`w-full bg-[#050505] border text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none transition-colors ${
+                    editCardErrors.name
+                      ? 'border-rose-500 focus:border-rose-600 focus:ring-1 focus:ring-rose-500'
+                      : 'border-zinc-800 focus:border-zinc-500'
+                  }`}
+                />
+                {editCardErrors.name && (
+                  <span className="text-rose-400 text-[10px] font-mono mt-1 block">{editCardErrors.name}</span>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#888888] font-bold block mb-1 uppercase tracking-wider">Card Number (digits only)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 4201 9283 (optional)"
+                  value={editCardNumber}
+                  onChange={(e) => {
+                    setEditCardNumber(e.target.value);
+                    validateEditCard(editCardName, e.target.value);
+                  }}
+                  maxLength={19}
+                  className={`w-full bg-[#050505] border text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none transition-colors font-mono ${
+                    editCardErrors.number
+                      ? 'border-rose-500 focus:border-rose-600 focus:ring-1 focus:ring-rose-500'
+                      : 'border-zinc-800 focus:border-zinc-500'
+                  }`}
+                />
+                {editCardErrors.number && (
+                  <span className="text-rose-400 text-[10px] font-mono mt-1 block">{editCardErrors.number}</span>
+                )}
+              </div>
+
+              {/* Custom Aesthetic Theme Selectors */}
+              <div>
+                <span className="text-[10px] text-[#888888] font-bold block mb-2 uppercase tracking-wider font-mono">Gloss/Hologram Hue</span>
+                <div className="flex gap-2">
+                  {[
+                    { name: 'obsidian', color: 'bg-zinc-800 ring-white' },
+                    { name: 'sapphire', color: 'bg-blue-600 ring-blue-400' },
+                    { name: 'emerald', color: 'bg-emerald-600 ring-emerald-400' },
+                    { name: 'copper', color: 'bg-amber-600 ring-amber-400' },
+                    { name: 'ruby', color: 'bg-rose-600 ring-rose-400' },
+                  ].map((th) => (
+                    <button
+                      key={th.name}
+                      type="button"
+                      onClick={() => setEditCardTheme(th.name)}
+                      className={`w-7 h-7 rounded-lg ${th.color} border border-black transition-all cursor-pointer ${
+                        editCardTheme === th.name ? 'ring-2 ring-offset-2 ring-offset-[#050505] scale-110' : 'opacity-70'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditingCard(null)}
+                  className="px-4 py-2.5 text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2.5 text-xs font-bold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors shadow-lg font-mono tracking-wider uppercase"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Dialog */}
       {cardToDelete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animation-fade-in">

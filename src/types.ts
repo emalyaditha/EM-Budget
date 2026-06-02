@@ -17,6 +17,7 @@ export interface BankCard {
   isLimitLocked?: boolean; // True to lock the limit
   cardNumber?: string; // masked card number e.g. **** 4242
   isCanceled?: boolean; // Support soft delete / cancel status
+  cardTheme?: string;
 }
 
 export interface CreditCard {
@@ -113,7 +114,14 @@ export interface Subscription {
   lastPaidDate?: string; // YYYY-MM-DD string
 }
 
+export interface UserProfile {
+  name: string;
+  email: string;
+  avatarUrl?: string;
+}
+
 export interface AppState {
+  userProfile: UserProfile;
   cashAccounts: CashAccount[];
   cards: BankCard[];
   creditCards: CreditCard[];

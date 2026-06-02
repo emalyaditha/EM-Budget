@@ -197,6 +197,21 @@ export async function forceCancelCardInSupabase(email: string, cardId: string): 
 }
 
 /**
+ * Updates the user name in the auth_accounts table
+ */
+export async function updateAuthAccountName(email: string, name: string): Promise<void> {
+  const client = getSupabaseClient();
+  if (!client) return;
+  try {
+    await client.from('auth_accounts').update({ name }).eq('email', email);
+    console.log(`Updated name for ${email} in auth_accounts.`);
+  } catch(err) {
+    console.warn(`Failed to update name in auth_accounts`, err);
+    throw err;
+  }
+}
+
+/**
  * Truncates all user data from the database completely.
  */
 export async function truncateAllDataInSupabase(email: string): Promise<{ success: boolean; error?: string }> {
@@ -755,9 +770,24 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       console.warn('Subscriptions table fetch skipped or table does not exist:', e);
     }
 
+    // Fetch profile name from auth_accounts to correctly restore user name
+    let profileName = 'User';
+    try {
+      const { data: authAcc } = await client.from('auth_accounts').select('name').eq('email', email).maybeSingle();
+      if (authAcc && authAcc.name) {
+        profileName = authAcc.name;
+      }
+    } catch (e) {
+      console.warn('Could not load profile name from auth_accounts:', e);
+    }
+
     // Construct the AppState from individual tables with mapping applied
     const reconstructedState: AppState = {
       ...DEFAULT_APP_STATE, // Use initial structure
+      userProfile: {
+        name: profileName,
+        email: email
+      },
       cards: (cards.data || []).map(mapDatabaseResultToState),
       cashAccounts: (cash.data || []).map(mapDatabaseResultToState),
       transactions: (transactions.data || []).map(mapDatabaseResultToState),
@@ -784,6 +814,7 @@ alter table public.bank_cards add column if not exists "limit" numeric;
 alter table public.bank_cards add column if not exists is_limit_locked boolean default true;
 alter table public.transactions add column if not exists charge numeric default 0;
 alter table public.transactions add column if not exists transfer_charge numeric default 0;
+alter table public.auth_accounts add column if not exists name text;
 
 -- Upgrade script for subscriptions:
 create table if not exists public.subscriptions (
@@ -928,6 +959,7 @@ create table if not exists public.auth_accounts (
   id uuid default gen_random_uuid() primary key,
   email text not null unique,
   password_hash text not null,
+  name text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -992,6 +1024,7 @@ alter table public.bank_cards add column if not exists "limit" numeric;
 alter table public.bank_cards add column if not exists is_limit_locked boolean default true;
 alter table public.transactions add column if not exists charge numeric default 0;
 alter table public.transactions add column if not exists transfer_charge numeric default 0;
+alter table public.auth_accounts add column if not exists name text;
 
 -- Upgrade script for subscriptions:
 create table if not exists public.subscriptions (

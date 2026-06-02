@@ -15,6 +15,8 @@ import NotificationDrawer from './components/NotificationDrawer';
 import CashCardManagement from './components/CashCardManagement';
 import InflowsOutflows from './components/InflowsOutflows';
 import SubscriptionManagement from './components/SubscriptionManagement';
+import FintechDashboard from './components/FintechDashboard';
+import ProfileSection from './components/ProfileSection';
 import DebtTracker from './components/DebtTracker';
 import TransferFunds from './components/TransferFunds';
 import CreditCardManagement from './components/CreditCardManagement';
@@ -37,6 +39,7 @@ export default function App() {
   const [newPinCode, setNewPinCode] = useState('');
   const [showConfigPanel, setShowConfigPanel] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
 
@@ -83,10 +86,7 @@ export default function App() {
 
   // Synchronize state with Storage whenever it edits
   const updateState = (updater: (prev: AppState) => AppState) => {
-    setState(prev => {
-      const next = updater(prev);
-      return next;
-    });
+    setState(updater);
   };
 
   // Automatic background push to Supabase if config exists and auto-sync is checked
@@ -1183,18 +1183,30 @@ export default function App() {
             </button>
           )}
 
-          {/* Settings Mark */}
+          {/* Profile Mark */}
           <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="px-3 py-1.5 bg-neutral-900 border border-zinc-800 rounded-lg text-zinc-300 hover:text-white hover:border-zinc-700 cursor-pointer transition-all flex items-center gap-1.5 text-xs font-semibold"
-            title="Settings & System State"
-            id="header-settings-trigger"
+            onClick={() => setIsProfileOpen(true)}
+            className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold hover:bg-indigo-700 transition-all cursor-pointer"
+            title="Profile"
+            id="header-profile-trigger"
           >
-            <Settings size={13} className="text-zinc-400" />
-            <span>Settings</span>
+            {state.userProfile.name.charAt(0)}
           </button>
         </div>
       </header>
+
+      {/* Profile Modal */}
+      {isProfileOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setIsProfileOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm">
+            <ProfileSection 
+              state={state} 
+              updateState={updateState}
+              onOpenSettings={() => { setIsProfileOpen(false); setIsSettingsOpen(true); }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ======================= RE-LOCK SCREEN INTERACTION ======================= */}
       {!isUnlocked && (
@@ -1290,30 +1302,33 @@ export default function App() {
         <section className="col-span-1 lg:col-span-9 xl:col-span-9 order-1 lg:order-2 space-y-6 w-full animate-fade-in" id="central-web-canvas">
           
           {/* Header block for current active tab */}
-          <div className="flex justify-between items-center bg-zinc-900/50 border border-zinc-850 p-6 rounded-[28px] shadow-xl">
-            <div>
-              <span className="text-[10px] tracking-widest text-[#8aa8bb] font-mono font-bold uppercase block">
-                {activeTab === 'dashboard' ? 'Overview Hub' :
-                 activeTab === 'accounts' ? 'Wallets Core' :
-                 activeTab === 'inflow_outflow' ? 'Ledger Action' :
-                 activeTab === 'debts' ? 'Track Liabilities' : 'Diagnostics Reports'}
-              </span>
-              <h2 className="text-2xl font-black tracking-tight text-white capitalize leading-tight">
-                {activeTab.replace('_', ' ')} Overview
-              </h2>
-            </div>
+          {activeTab !== 'dashboard' && (
+            <div className="flex justify-between items-center bg-zinc-900/50 border border-zinc-850 p-4 sm:p-6 rounded-[28px] shadow-xl">
+              <div className="min-w-0 pr-3">
+                <span className="text-[10px] tracking-widest text-[#8aa8bb] font-mono font-bold uppercase block mr-1 truncate">
+                  {activeTab === 'accounts' ? 'Wallets Core' :
+                   activeTab === 'inflow_outflow' ? 'Ledger Action' :
+                   activeTab === 'debts' ? 'Track Liabilities' : 'Diagnostics Reports'}
+                </span>
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white capitalize leading-tight truncate">
+                  {activeTab === 'accounts' ? 'Wallets' :
+                   activeTab === 'inflow_outflow' ? 'Register' :
+                   activeTab === 'debts' ? 'Liabilities' : 'Reports'}
+                </h2>
+              </div>
 
-            {/* Notifications trigger bell */}
-            <button
-              onClick={() => setIsNotifOpen(true)}
-              className="p-3 bg-[#050505] border border-zinc-800 rounded-full text-zinc-300 hover:text-white hover:border-zinc-500 relative cursor-pointer shadow-md transition-all animate-fade-in"
-            >
-              <Bell size={14} />
-              {state.notifications.filter(n => !n.read).length > 0 && (
-                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#050505] rounded-full animate-pulse" />
-              )}
-            </button>
-          </div>
+              {/* Notifications trigger bell */}
+              <button
+                onClick={() => setIsNotifOpen(true)}
+                className="p-2 sm:p-3 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-300 hover:text-white hover:border-zinc-500 relative cursor-pointer shadow-md transition-all flex items-center justify-center shrink-0"
+              >
+                <Bell size={15} />
+                {state.notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-400 border-2 border-zinc-900 rounded-full animate-pulse" />
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Supabase Error Diagnostics Banner */}
           {realtimeSyncStatus === 'error' && (
@@ -1345,158 +1360,21 @@ export default function App() {
 
               {/* =================== CASE: TAB: DASHBOARD =================== */}
               {activeTab === 'dashboard' && (
-                <div className="space-y-5 animation-fade-in" id="dashboard-tab">
-                  
-                  {/* Immersive Theme Total Balance Hero Card */}
-                  <div className="relative p-7 rounded-[32px] bg-gradient-to-br from-zinc-800 to-zinc-950 border border-zinc-700 shadow-2xl flex flex-col justify-between min-h-[180px] overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full"></div>
-                    
-                    <div>
-                      <p className="text-zinc-400 text-[10px] font-semibold uppercase tracking-widest mb-1">Total Net Worth</p>
-                      <h2 className="text-4xl font-light tracking-tighter text-white">
-                        {state.currency} {aggregateActiveWealth.toLocaleString()}
-                        <span className="text-zinc-500 text-xl font-light font-sans">.00</span>
-                      </h2>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-zinc-800/80 z-10">
-                      <div>
-                        <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-0.5" title="Physical Cash + Debit Card Assets">Liquid Assets</p>
-                        <p className="text-emerald-400 text-xs font-mono font-bold">+{state.currency}{(totalCashAmount + totalDebitCardsAmount).toLocaleString()}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-0.5" title="Owed Balance on Credit Cards">Card Owed</p>
-                        <p className="text-amber-500 text-xs font-mono font-bold">-{state.currency}{totalCreditCardsAmount.toLocaleString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-0.5" title="Owed Balance on Private/Institutional Loans">Loan Owed</p>
-                        <p className="text-red-400 text-xs font-mono font-bold">-{state.currency}{totalDebtsAmount.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Cash Flow Quick Bar overview */}
-                  <div className="grid grid-cols-2 gap-3" id="cash-flow-overview">
-                    <div className="bg-zinc-900/40 border border-zinc-850 p-4 rounded-[20px] flex items-center justify-between shadow-sm">
-                      <div className="min-w-0">
-                        <span className="text-[9px] text-[#888888] font-bold uppercase block font-mono">{currentMonthLabel} Received</span>
-                        <span className="text-xs font-bold text-emerald-400 font-mono">+{state.currency}{currentMonthInflow.toLocaleString()}</span>
-                      </div>
-                      <div className="p-2 bg-emerald-950/20 text-emerald-400 rounded-lg">
-                        <ArrowUpRight size={13} />
-                      </div>
-                    </div>
-
-                    <div className="bg-zinc-900/40 border border-zinc-850 p-4 rounded-[20px] flex items-center justify-between shadow-sm">
-                      <div className="min-w-0">
-                        <span className="text-[9px] text-[#888888] font-bold uppercase block font-mono">{currentMonthLabel} Paid</span>
-                        <span className="text-xs font-bold text-rose-400 font-mono">-{state.currency}{currentMonthOutflow.toLocaleString()}</span>
-                      </div>
-                      <div className="p-2 bg-rose-950/20 text-rose-400 rounded-lg">
-                        <ArrowDownLeft size={13} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Custom quick category breakdown display */}
-                  <div className="p-4 bg-zinc-900/50 border border-zinc-850 rounded-[20px] flex justify-between items-center shadow-sm">
-                    <div className="flex items-center gap-1.5">
-                      <CircleDot size={12} className="text-amber-500 animate-pulse" />
-                      <span className="text-[10px] text-zinc-400 font-semibold font-mono">Active Debts Balance</span>
-                    </div>
-                    <span className="text-xs font-bold font-mono text-white">
-                      {state.currency} {totalDebtsAmount.toLocaleString()}
-                    </span>
-                  </div>
-
-                  {/* Credit cards slider visual */}
-                  <div className="space-y-2.5">
-                    <div className="flex justify-between items-center text-xs px-1">
-                      <span className="font-bold text-zinc-400">Electronic Cards</span>
-                      <button onClick={() => setActiveTab('accounts')} className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase transition-colors">Add/Edit</button>
-                    </div>
-
-                    <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }} id="cards-slider">
-                      {state.cards.filter(c => !c.isCanceled).map((card) => (
-                        <div key={card.id} className="w-[85%] bg-gradient-to-br from-zinc-850 to-zinc-950 border border-zinc-750 p-4 rounded-[20px] shrink-0 space-y-4 shadow-lg hover:border-zinc-600 transition-all">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className="text-[8px] uppercase text-zinc-400 font-mono tracking-widest block">{card.bankName}</span>
-                              <h5 className="text-xs font-bold text-white leading-tight font-sans mt-0.5">{card.cardName}</h5>
-                            </div>
-                            <span className="text-[9px] text-zinc-500 tracking-wider font-mono bg-black/40 px-1.5 py-0.5 rounded-md border border-zinc-800">{card.cardType}</span>
-                          </div>
-                          <div>
-                            <span className="text-[9px] text-zinc-500 block">Balance</span>
-                            <span className="text-xs font-bold font-mono text-white text-md">
-                              {state.currency} {card.currentBalance.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Recent Transaction Timeline */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-zinc-404 text-zinc-400 px-1">Recent Transactions</h4>
-                    <div className="space-y-2">
-                      {[...state.transactions]
-                        .sort((a, b) => {
-                          const dateCompare = b.date.localeCompare(a.date);
-                          if (dateCompare !== 0) return dateCompare;
-                          const aNum = parseInt(a.id.replace(/\D/g, ''), 10);
-                          const bNum = parseInt(b.id.replace(/\D/g, ''), 10);
-                          if (!isNaN(aNum) && !isNaN(bNum)) return bNum - aNum;
-                          return b.id.localeCompare(a.id);
-                        })
-                        .slice(0, 4)
-                        .map((t) => {
-                        const isIncome = t.type === 'income' || t.type === 'deposit' || (t.type === 'transfer' && (t.category === 'Transfer In' || t.amount > 0));
-                        const absAmount = Math.abs(t.amount);
-                        
-                        const getAccountLabel = (accId?: string, accType?: string) => {
-                          if (!accId || !accType) return '';
-                          if (accType === 'cash') {
-                            return state.cashAccounts.find(c => c.id === accId)?.name || 'Cash';
-                          }
-                          return state.cards.find(c => c.id === accId)?.cardName || 'Card';
-                        };
-
-                        const accountLabel = getAccountLabel(t.accountId, t.accountType);
-
-                        return (
-                          <div 
-                            key={t.id} 
-                            onClick={() => setEditingTransactionId(t.id)}
-                            className="p-3 bg-zinc-900/40 border border-zinc-850 rounded-[18px] flex justify-between items-center hover:border-zinc-700 transition-colors cursor-pointer group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2.5 rounded-xl shrink-0 text-center flex items-center justify-center ${
-                                isIncome ? 'bg-emerald-990 bg-emerald-950/20 text-emerald-400' : 'bg-rose-950/20 text-rose-400'
-                              }`}>
-                                {isIncome ? <ArrowUpRight size={14} /> : <ArrowDownLeft size={14} />}
-                              </div>
-                              <div className="flex items-center gap-2 max-w-[170px]">
-                                <div>
-                                  <h5 className="text-xs font-semibold text-white truncate">{t.title}</h5>
-                                  <span className="text-[9px] uppercase tracking-wider font-mono text-zinc-500">{t.category} {accountLabel ? `• ${accountLabel}` : ''} • {t.date}</span>
-                                </div>
-                                <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-zinc-800 text-white text-[9px] px-1.5 py-0.5 rounded font-bold shrink-0">EDIT</span>
-                              </div>
-                            </div>
-                            <span className={`text-xs font-bold font-mono shrink-0 ${
-                              isIncome ? 'text-emerald-400' : 'text-rose-400'
-                            }`}>
-                              {isIncome ? '+' : '-'}{state.currency}{absAmount.toLocaleString()}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                </div>
+                <FintechDashboard 
+                  state={state} 
+                  aggregateActiveWealth={aggregateActiveWealth}
+                  totalCashAmount={totalCashAmount}
+                  totalDebitCardsAmount={totalDebitCardsAmount}
+                  totalCreditCardsAmount={totalCreditCardsAmount}
+                  totalDebtsAmount={totalDebtsAmount}
+                  currentMonthLabel={currentMonthLabel}
+                  currentMonthInflow={currentMonthInflow}
+                  currentMonthOutflow={currentMonthOutflow}
+                  setActiveTab={setActiveTab}
+                  setEditingTransactionId={setEditingTransactionId}
+                  onProfileClick={() => setIsProfileOpen(true)}
+                  onNotificationClick={() => setIsNotifOpen(true)}
+                />
               )}
 
               {/* =================== CASE: TAB: ACCOUNTS =================== */}
@@ -1511,6 +1389,7 @@ export default function App() {
                     onDeleteCard={handleDeleteCard}
                     onDeleteCashAccount={handleDeleteCashAccount}
                     currency={state.currency}
+                    onUpdateCard={handleUpdateCard}
                   />
                   <TransferFunds
                     cashAccounts={state.cashAccounts}

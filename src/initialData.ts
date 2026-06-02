@@ -22,6 +22,7 @@ export const DEFAULT_APP_STATE: AppState = {
   transactions: INITIAL_TRANSACTIONS,
   notifications: INITIAL_NOTIFICATIONS,
   subscriptions: INITIAL_SUBSCRIPTIONS,
+  userProfile: { name: 'User', email: 'user@example.com' },
   pinCode: '',
   pinEnabled: false,
   currency: 'Rs.',
