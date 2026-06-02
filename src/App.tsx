@@ -15,7 +15,7 @@ import NotificationDrawer from './components/NotificationDrawer';
 import CashCardManagement from './components/CashCardManagement';
 import InflowsOutflows from './components/InflowsOutflows';
 import SubscriptionManagement from './components/SubscriptionManagement';
-import FintechDashboard from './components/FintechDashboard';
+import Dashboard from './components/Dashboard';
 import ProfileSection from './components/ProfileSection';
 import DebtTracker from './components/DebtTracker';
 import TransferFunds from './components/TransferFunds';
@@ -1380,7 +1380,7 @@ export default function App() {
 
               {/* =================== CASE: TAB: DASHBOARD =================== */}
               {activeTab === 'dashboard' && (
-                <FintechDashboard 
+                <Dashboard 
                   state={state} 
                   aggregateActiveWealth={aggregateActiveWealth}
                   totalCashAmount={totalCashAmount}

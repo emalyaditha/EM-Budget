@@ -37,13 +37,13 @@ export default function ProfileSection({ state, updateState, onOpenSettings }: P
   const firstLetter = state.userProfile.name ? state.userProfile.name.charAt(0).toUpperCase() : 'U';
 
   return (
-    <div className="bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-zinc-850 p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6" id="fintech-profile-card">
+    <div className="bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-zinc-850 p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6" id="secure-profile-card">
       
       {/* HEADER SECTION */}
       <div className="flex justify-between items-center pb-4 border-b border-zinc-900">
         <div>
           <span className="text-[10px] tracking-wider text-indigo-400 font-mono font-bold uppercase block mb-0.5">VAULT SUITE SECURE</span>
-          <h2 className="text-lg font-extrabold text-white">Fintech Account</h2>
+          <h2 className="text-lg font-extrabold text-white">Vault Account</h2>
         </div>
         
         <button 

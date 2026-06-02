@@ -9,7 +9,7 @@ import {
 import { TrendAnalysisChart, SpendingByCategoryPie } from './Charts';
 import { EXPENSE_COLORS } from '../utils';
 
-interface FintechDashboardProps {
+interface DashboardProps {
   state: AppState;
   aggregateActiveWealth: number;
   totalCashAmount: number;
@@ -25,7 +25,7 @@ interface FintechDashboardProps {
   onNotificationClick: () => void;
 }
 
-export default function FintechDashboard({ 
+export default function Dashboard({ 
   state, 
   aggregateActiveWealth, 
   totalCashAmount, 
@@ -39,7 +39,7 @@ export default function FintechDashboard({
   setEditingTransactionId, 
   onProfileClick, 
   onNotificationClick 
-}: FintechDashboardProps) {
+}: DashboardProps) {
 
   const unreadCount = state.notifications ? state.notifications.filter(n => !n.read).length : 0;
 
@@ -96,7 +96,7 @@ export default function FintechDashboard({
   };
 
   return (
-    <div className="flex flex-col h-full bg-black text-zinc-100 font-sans animate-fade-in space-y-8" id="fintech-command-dashboard">
+    <div className="flex flex-col h-full bg-black text-zinc-100 font-sans animate-fade-in space-y-8" id="command-dashboard">
       
       {/* 1. TOP PERSONALIZED BANNER & VISUAL HEALTH */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-2 border-b border-zinc-900/80 pb-6">
@@ -104,7 +104,7 @@ export default function FintechDashboard({
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 bg-indigo-950/50 border border-indigo-800/45 text-indigo-400 text-[10px] uppercase font-bold tracking-widest rounded-full flex items-center gap-1">
               <Sparkles size={10} className="text-indigo-400" />
-              Fintech Premium Active
+              Premium Suite Active
             </span>
             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
           </div>
@@ -209,7 +209,7 @@ export default function FintechDashboard({
           </div>
         </div>
 
-        {/* 3. PREMIUM FLOATING QUICK ACTION BAR (Monzo/Fintech styled shortcut widgets) */}
+        {/* 3. PREMIUM FLOATING QUICK ACTION BAR (Monzo-styled shortcut widgets) */}
         <div className="lg:col-span-5 bg-zinc-900/25 border border-zinc-850 rounded-[32px] p-6 flex flex-col justify-between shadow-xl space-y-4">
           <div>
             <span className="text-[10px] tracking-wider text-emerald-400 font-mono font-bold uppercase block mb-1">Financial Actions</span>
@@ -277,7 +277,7 @@ export default function FintechDashboard({
       </div>
 
       {/* 4. METRIC KPI CARDS PANEL (With Soft Glow elements) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4.5" id="fintech-kpi-panel">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4.5" id="kpi-panel">
         
         {/* KPI: Cash/Debit */}
         <div className="bg-zinc-900/45 p-4 rounded-2xl border border-zinc-850 flex flex-col justify-between h-28 hover:border-zinc-700 transition-colors shadow-sm">
