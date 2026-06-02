@@ -111,7 +111,7 @@ export default function Dashboard({
             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2 leading-none">
-            Hello, {state.userProfile.name}
+            Hello, {state.userProfile?.name || 'User'}
             <span className="text-xl sm:text-2xl hover:scale-125 duration-150 cursor-pointer">👋</span>
           </h1>
           <p className="text-zinc-500 text-xs font-mono font-medium flex items-center gap-1.5">
@@ -127,7 +127,7 @@ export default function Dashboard({
             className="flex items-center gap-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3.5 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition-all cursor-pointer"
           >
             <div className="w-4 h-4 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] font-black font-sans text-white">
-              {state.userProfile.name.charAt(0)}
+              {state.userProfile?.name?.charAt(0) || 'U'}
             </div>
             <span>Profile settings</span>
           </button>
@@ -180,7 +180,7 @@ export default function Dashboard({
             </div>
             <p className="text-[10px] text-zinc-500 mt-2 font-mono uppercase tracking-wider flex items-center gap-1.5">
               <span>Account Holder:</span>
-              <span className="font-sans font-bold text-zinc-300">{state.userProfile.name}</span>
+              <span className="font-sans font-bold text-zinc-300">{state.userProfile?.name || 'User'}</span>
             </p>
           </div>
 
@@ -384,12 +384,34 @@ export default function Dashboard({
           </div>
 
           <div className="space-y-3">
-            {state.transactions.length === 0 ? (
+            {state.transactions.length === 0 && state.loansGiven.length === 0 ? (
               <div className="p-8 text-center text-zinc-550 border border-dashed border-zinc-850 rounded-2xl bg-zinc-950/20 italic text-xs">
-                No active expenditures recorded yet.
+                No active expenditures or loan activity recorded yet.
               </div>
             ) : (
-              [...state.transactions]
+              [
+                ...state.transactions.map(t => ({ ...t, logType: 'transaction' as const })),
+                ...state.loansGiven.map(l => ({ 
+                    id: l.id, 
+                    type: 'expense' as const, 
+                    title: `Loan Given: ${l.borrowerName}`, 
+                    amount: l.totalAmount, 
+                    date: l.dateGiven, 
+                    category: 'Loan', 
+                    logType: 'loan' as const,
+                    accountType: l.sourceAccountType
+                })),
+                ...state.loansGiven.flatMap(l => l.settlements.map(s => ({
+                    id: s.id,
+                    type: 'income' as const,
+                    title: `Loan Settle: ${l.borrowerName}`,
+                    amount: s.amount,
+                    date: s.date,
+                    category: 'Loan Settle',
+                    logType: 'settlement' as const,
+                    accountType: s.receivedInType
+                })))
+              ]
                 .sort((a, b) => b.date.localeCompare(a.date))
                 .slice(0, 5)
                 .map((t) => {
@@ -401,7 +423,7 @@ export default function Dashboard({
 
                   return (
                     <div 
-                      key={t.id}
+                      key={`${t.logType}-${t.id}`}
                       onClick={() => setEditingTransactionId(t.id)}
                       className="group p-3.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-900/80 hover:border-zinc-800 rounded-2xl flex justify-between items-center cursor-pointer transition-all duration-200"
                     >

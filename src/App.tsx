@@ -363,7 +363,7 @@ export default function App() {
         title: `Asset Loan: ${loanData.borrowerName}`,
         amount: loanData.totalAmount,
         date: loanData.dateGiven,
-        category: 'Other',
+        category: 'Loan',
         accountId: loanData.sourceAccountId,
         accountType: loanData.sourceAccountType,
         referenceId: loanId,
@@ -376,7 +376,7 @@ export default function App() {
         description: `Lent capital. Notes: ${loanData.notes}`,
         amount: loanData.totalAmount,
         date: loanData.dateGiven,
-        category: 'Other',
+        category: 'Loan',
         paymentMethodId: loanData.sourceAccountId,
         paymentMethodType: loanData.sourceAccountType,
       };
@@ -464,7 +464,7 @@ export default function App() {
         title: `Loan Settle Recv: ${targetLoan.borrowerName}`,
         amount: amount,
         date: settlementDate,
-        category: 'Other',
+        category: 'Loan Settle',
         accountId: receivedInId,
         accountType: receivedInType,
         referenceId: settlementId,
@@ -476,7 +476,7 @@ export default function App() {
         amount,
         date: settlementDate,
         source: `Loan settlement received from ${targetLoan.borrowerName}`,
-        category: 'Other',
+        category: 'Loan Settle',
         targetAccountId: receivedInId,
         targetType: receivedInType,
       };
@@ -1316,12 +1316,40 @@ export default function App() {
         }
 
         if (stateToLoad) {
-          updateState(() => stateToLoad);
+          const sanitizedState: AppState = {
+            ...DEFAULT_APP_STATE,
+            ...stateToLoad,
+            cashAccounts: stateToLoad.cashAccounts || [],
+            cards: stateToLoad.cards || [],
+            creditCards: stateToLoad.creditCards || [],
+            creditCardPurchases: stateToLoad.creditCardPurchases || [],
+            incomes: stateToLoad.incomes || [],
+            expenses: stateToLoad.expenses || [],
+            debts: stateToLoad.debts || [],
+            transactions: stateToLoad.transactions || [],
+            notifications: stateToLoad.notifications || [],
+            subscriptions: stateToLoad.subscriptions || [],
+            loansGiven: stateToLoad.loansGiven || [],
+          };
+          updateState(() => sanitizedState);
           
           if (originalOwner && originalOwner !== 'Anonymous') {
             showToast('success', `Personal ledger belonging to ${originalOwner} imported successfully! All records linked to your active identity.`);
           } else {
             showToast('success', 'Database restored successfully! Ledger tracks have re-balanced.');
+          }
+
+          // Trigger manual push to ensure data is synced to cloud immediately
+          const { autoSync } = getSupabaseConfig();
+          if (autoSync && userEmail) {
+            syncStateToSupabase(userEmail, stateToLoad).then(res => {
+              if (res.success) {
+                showToast('success', 'Imported data pushed to cloud automatically!');
+              } else {
+                console.warn('Auto-push failed after import:', res.error);
+                showToast('error', 'Imported data failed to push to cloud.');
+              }
+            });
           }
         } else {
           showToast('error', 'Invalid backup file. Requisite database structures were missing.');
@@ -1457,7 +1485,7 @@ export default function App() {
             title="Profile"
             id="header-profile-trigger"
           >
-            {state.userProfile.name.charAt(0)}
+            {state.userProfile?.name?.charAt(0) || 'U'}
           </button>
         </div>
       </header>

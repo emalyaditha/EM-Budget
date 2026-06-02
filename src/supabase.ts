@@ -878,20 +878,32 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
     // 1. Force reconstruction of AppState from relational tables to ensure complete data sync.
     console.warn('Syncing state from relational tables...');
     
-    const [cards, cash, transactions, debts, incomes, expenses, notifications] = await Promise.all([
-      client.from('bank_cards').select('*').eq('user_email', email),
-      client.from('cash_accounts').select('*').eq('user_email', email),
-      client.from('transactions').select('*').eq('user_email', email),
-      client.from('debts').select('*').eq('user_email', email),
-      client.from('incomes').select('*').eq('user_email', email),
-      client.from('expenses').select('*').eq('user_email', email),
-      client.from('notifications').select('*').eq('user_email', email)
-    ]);
+    const fetchTable = async (tableName: string) => {
+      const cols = await getColumnsForTable(tableName);
+      // More robust column detection (case-insensitive check)
+      const userCol = cols.find(c => c.toLowerCase() === 'user_email' || c.toLowerCase() === 'useremail');
+      const emailField = userCol || 'user_email'; // Default to user_email
+      
+      const { data, error } = await client.from(tableName).select('*').eq(emailField, email);
+      if (error) {
+        if (error.code === '42P01') {
+          console.warn(`Table ${tableName} does not exist, skipped.`);
+          return [];
+        }
+        throw error;
+      }
+      return data || [];
+    };
 
-    // Handle possible errors
-    if (cards.error || cash.error || transactions.error || debts.error || incomes.error || expenses.error || notifications.error) {
-      throw new Error('Failed to fetch from one or more relational tables.');
-    }
+    const [cards, cash, transactions, debts, incomes, expenses, notifications] = await Promise.all([
+      fetchTable('bank_cards'),
+      fetchTable('cash_accounts'),
+      fetchTable('transactions'),
+      fetchTable('debts'),
+      fetchTable('incomes'),
+      fetchTable('expenses'),
+      fetchTable('notifications')
+    ]);
 
     // Fault-tolerant loading for subscriptions
     let fetchedSubs: any[] = [];
@@ -954,13 +966,13 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
         name: profileName,
         email: email
       },
-      cards: (cards.data || []).map(mapDatabaseResultToState),
-      cashAccounts: (cash.data || []).map(mapDatabaseResultToState),
-      transactions: (transactions.data || []).map(mapDatabaseResultToState),
-      debts: (debts.data || []).map(mapDatabaseResultToState),
-      incomes: (incomes.data || []).map(mapDatabaseResultToState),
-      expenses: (expenses.data || []).map(mapDatabaseResultToState),
-      notifications: (notifications.data || []).map(mapDatabaseResultToState),
+      cards: cards.map(mapDatabaseResultToState),
+      cashAccounts: cash.map(mapDatabaseResultToState),
+      transactions: transactions.map(mapDatabaseResultToState),
+      debts: debts.map(mapDatabaseResultToState),
+      incomes: incomes.map(mapDatabaseResultToState),
+      expenses: expenses.map(mapDatabaseResultToState),
+      notifications: notifications.map(mapDatabaseResultToState),
       subscriptions: fetchedSubs.map(mapDatabaseResultToState),
       loansGiven: fetchedLoansGiven
     };

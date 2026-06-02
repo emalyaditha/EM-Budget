@@ -14,7 +14,7 @@ interface ProfileSectionProps {
 export default function ProfileSection({ state, updateState, onOpenSettings, onLogout }: ProfileSectionProps) {
   const { showToast } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(state.userProfile.name);
+  const [name, setName] = useState(state.userProfile?.name || 'User');
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -27,7 +27,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
         userProfile: { ...prev.userProfile, name: name.trim() }
     }));
     try {
-        await updateAuthAccountName(state.userProfile.email, name.trim());
+        await updateAuthAccountName(state.userProfile?.email || '', name.trim());
         showToast('success', 'Profile name synced with secure cloud record.');
     } catch (err) {
         console.error("Failed to sync name to auth_accounts", err);
@@ -35,7 +35,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
     setIsEditing(false);
   };
 
-  const firstLetter = state.userProfile.name ? state.userProfile.name.charAt(0).toUpperCase() : 'U';
+  const firstLetter = state.userProfile?.name ? state.userProfile.name.charAt(0).toUpperCase() : 'U';
 
   return (
     <div className="bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-zinc-850 p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6" id="secure-profile-card">
@@ -102,7 +102,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
           </div>
         ) : (
           <div className="text-center">
-            <h3 className="text-xl font-extrabold text-white tracking-tight">{state.userProfile.name}</h3>
+            <h3 className="text-xl font-extrabold text-white tracking-tight">{state.userProfile?.name || 'User'}</h3>
             <span className="px-2.5 py-0.5 bg-emerald-950/40 border border-emerald-900/40 text-emerald-400 text-[9px] uppercase font-bold tracking-widest rounded-full inline-block mt-2 font-mono">
               PREMIER MEMBER
             </span>
@@ -119,7 +119,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
           </div>
           <div className="min-w-0 flex-1">
             <span className="text-[9px] font-mono text-zinc-550 block uppercase font-bold text-zinc-500">Linked Account Email</span>
-            <span className="text-xs font-mono font-bold text-zinc-300 block truncate">{state.userProfile.email || 'Client Local Storage'}</span>
+            <span className="text-xs font-mono font-bold text-zinc-300 block truncate">{state.userProfile?.email || 'Client Local Storage'}</span>
           </div>
         </div>
 
