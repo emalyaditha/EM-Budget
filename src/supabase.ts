@@ -60,7 +60,8 @@ const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
   incomes: ['id', 'user_email', 'amount', 'date', 'source', 'category', 'target_account_id', 'target_type', 'updated_at'],
   expenses: ['id', 'user_email', 'title', 'description', 'amount', 'date', 'category', 'payment_method_id', 'payment_method_type', 'updated_at'],
   notifications: ['id', 'user_email', 'type', 'message', 'date', 'read', 'updated_at'],
-  subscriptions: ['id', 'user_email', 'name', 'amount', 'billing_cycle', 'due_date', 'category', 'status', 'payment_method_id', 'payment_method_type', 'last_paid_date', 'updated_at']
+  subscriptions: ['id', 'user_email', 'name', 'amount', 'billing_cycle', 'due_date', 'category', 'status', 'payment_method_id', 'payment_method_type', 'last_paid_date', 'updated_at'],
+  loans_given: ['id', 'user_email', 'borrower_name', 'total_amount', 'remaining_amount', 'date_given', 'source_account_id', 'source_account_type', 'source_account_name', 'status', 'notes', 'settlements', 'updated_at']
 };
 
 let detectedColumnsCache: { [tableName: string]: string[] } | null = null;
@@ -117,6 +118,14 @@ async function getColumnsForTable(tableName: string): Promise<string[]> {
   // Method A: Quick CSV header lookup to find existing database columns instantly
   try {
     const { data, error } = await client.from(tableName).select('*').limit(0).csv();
+    if (error) {
+      if (error.code === '42P01' || (error.message && error.message.includes('does not exist'))) {
+        console.warn(`Table ${tableName} does not exist in the remote database yet (Error 42P01: undefined table).`);
+        if (!detectedColumnsCache) detectedColumnsCache = {};
+        detectedColumnsCache[tableName] = [];
+        return [];
+      }
+    }
     if (!error && typeof data === 'string' && data.trim()) {
       const firstLine = data.split('\n')[0].trim();
       const cols = firstLine.split(',').map(c => c.replace(/^["']|["']$/g, '').trim()).filter(Boolean);
@@ -763,6 +772,64 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
       errorDetails.push(`Subscriptions block: ${subSyncErr.message || subSyncErr}`);
     }
 
+    // 10. Synchronize Remote Loans Given
+    try {
+      const loansCols = await getColumnsForTable('loans_given');
+      if (loansCols.length > 0) {
+        if (state.loansGiven && state.loansGiven.length > 0) {
+          const records = state.loansGiven.map(loan => mapObjectToColumns(loan, loansCols, email, {
+            id: loan.id,
+            borrower_name: loan.borrowerName,
+            borrowerName: loan.borrowerName,
+            total_amount: loan.totalAmount,
+            totalAmount: loan.totalAmount,
+            remaining_amount: loan.remainingAmount,
+            remainingAmount: loan.remainingAmount,
+            date_given: loan.dateGiven,
+            dateGiven: loan.dateGiven,
+            source_account_id: loan.sourceAccountId,
+            sourceAccountId: loan.sourceAccountId,
+            source_account_type: loan.sourceAccountType,
+            sourceAccountType: loan.sourceAccountType,
+            source_account_name: loan.sourceAccountName,
+            sourceAccountName: loan.sourceAccountName,
+            status: loan.status,
+            notes: loan.notes || null,
+            settlements: loan.settlements || []
+          }));
+          const { error: loanErr } = await client.from('loans_given').upsert(records, { onConflict: 'id' });
+          if (loanErr) {
+            console.warn('Supabase Loans Given Sync Warning:', loanErr);
+            errorDetails.push(`Loans Given Sync: ${loanErr.message || loanErr.details}`);
+          }
+        }
+
+        // Clean up loans_given removed locally
+        const activeLoanIds = (state.loansGiven || []).map(l => l.id);
+        const emailField = loansCols.includes('user_email') ? 'user_email' : loansCols.includes('userEmail') ? 'userEmail' : '';
+        if (emailField) {
+          if (activeLoanIds.length > 0) {
+            const { data: existing } = await client.from('loans_given').select('id').eq(emailField, email);
+            const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeLoanIds.includes(id));
+            if (toDelete.length > 0) {
+              for (let i = 0; i < toDelete.length; i += 100) {
+                const { error: delErr } = await client.from('loans_given').delete().in('id', toDelete.slice(i, i + 100));
+                if (delErr) console.warn('Supabase loans_given delete warning:', delErr);
+              }
+            }
+          } else {
+            const { error: delErr } = await client.from('loans_given').delete().eq(emailField, email);
+            if (delErr) {
+              console.warn('Supabase Loans Given delete error:', delErr);
+            }
+          }
+        }
+      }
+    } catch (loansSyncErr: any) {
+      console.error('Error syncing individual loans_given:', loansSyncErr);
+      errorDetails.push(`Loans Given block: ${loansSyncErr.message || loansSyncErr}`);
+    }
+
     if (errorDetails.length > 0) {
       return { success: false, error: errorDetails.join('; ') };
     }
@@ -850,6 +917,36 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       console.warn('Could not load profile name from auth_accounts:', e);
     }
 
+    // Load loansGiven from the relational loans_given table first, fallback to ledger_states if missing
+    let fetchedLoansGiven: any[] = [];
+    try {
+      const loansResult = await client.from('loans_given').select('*').eq('user_email', email);
+      if (!loansResult.error && loansResult.data) {
+        fetchedLoansGiven = loansResult.data.map(mapDatabaseResultToState);
+      } else {
+        if (loansResult.error) {
+          console.warn('loans_given relational table read error or does not exist, falling back to ledger_states:', loansResult.error);
+        }
+        // Fallback to ledger_states
+        const { data: latestStateData, error: stateErr } = await client
+          .from('ledger_states')
+          .select('state')
+          .eq('user_email', email)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!stateErr && latestStateData && latestStateData.state) {
+          const fullJsonStateStr = latestStateData.state as any;
+          if (fullJsonStateStr.loansGiven) {
+            fetchedLoansGiven = fullJsonStateStr.loansGiven;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Could not restore loans_given from database or ledger_states:', e);
+    }
+
     // Construct the AppState from individual tables with mapping applied
     const reconstructedState: AppState = {
       ...DEFAULT_APP_STATE, // Use initial structure
@@ -864,7 +961,8 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       incomes: (incomes.data || []).map(mapDatabaseResultToState),
       expenses: (expenses.data || []).map(mapDatabaseResultToState),
       notifications: (notifications.data || []).map(mapDatabaseResultToState),
-      subscriptions: fetchedSubs.map(mapDatabaseResultToState)
+      subscriptions: fetchedSubs.map(mapDatabaseResultToState),
+      loansGiven: fetchedLoansGiven
     };
 
     return { success: true, state: reconstructedState };
@@ -909,6 +1007,30 @@ create policy "Allow read accessibility on subscriptions" on public.subscription
 create policy "Allow insert/upsert accessibility on subscriptions" on public.subscriptions for insert with check (true);
 create policy "Allow update accessibility on subscriptions" on public.subscriptions for update using (true);
 create policy "Allow delete accessibility on subscriptions" on public.subscriptions for delete using (true);
+
+-- Upgrade script for loans_given:
+create table if not exists public.loans_given (
+  id text not null primary key,
+  user_email text not null,
+  borrower_name text not null,
+  total_amount numeric not null default 0,
+  remaining_amount numeric not null default 0,
+  date_given text not null,
+  source_account_id text not null,
+  source_account_type text not null,
+  source_account_name text not null,
+  status text not null, -- 'Active' | 'Partially Settled' | 'Settled'
+  notes text,
+  settlements jsonb not null default '[]'::jsonb,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.loans_given enable row level security;
+
+create policy "Allow read accessibility on loans_given" on public.loans_given for select using (true);
+create policy "Allow insert/upsert accessibility on loans_given" on public.loans_given for insert with check (true);
+create policy "Allow update accessibility on loans_given" on public.loans_given for update using (true);
+create policy "Allow delete accessibility on loans_given" on public.loans_given for delete using (true);
 
 -- 1. CREATE CORE STATE MATRIX FOR FLUTTER <-> REACT STATE SYNC (Appends row-by-row history list)
 create table if not exists public.ledger_states (
@@ -1026,6 +1148,7 @@ alter table public.debts enable row level security;
 alter table public.incomes enable row level security;
 alter table public.expenses enable row level security;
 alter table public.notifications enable row level security;
+alter table public.loans_given enable row level security;
 
 -- 10. CREATE RELATIONAL AUTH ACCOUNTS TABLE
 create table if not exists public.auth_accounts (
@@ -1122,5 +1245,29 @@ create policy "Allow read accessibility on subscriptions" on public.subscription
 create policy "Allow insert/upsert accessibility on subscriptions" on public.subscriptions for insert with check (true);
 create policy "Allow update accessibility on subscriptions" on public.subscriptions for update using (true);
 create policy "Allow delete accessibility on subscriptions" on public.subscriptions for delete using (true);
+
+-- Upgrade script for loans_given:
+create table if not exists public.loans_given (
+  id text not null primary key,
+  user_email text not null,
+  borrower_name text not null,
+  total_amount numeric not null default 0,
+  remaining_amount numeric not null default 0,
+  date_given text not null,
+  source_account_id text not null,
+  source_account_type text not null,
+  source_account_name text not null,
+  status text not null, -- 'Active' | 'Partially Settled' | 'Settled'
+  notes text,
+  settlements jsonb not null default '[]'::jsonb,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.loans_given enable row level security;
+
+create policy "Allow read accessibility on loans_given" on public.loans_given for select using (true);
+create policy "Allow insert/upsert accessibility on loans_given" on public.loans_given for insert with check (true);
+create policy "Allow update accessibility on loans_given" on public.loans_given for update using (true);
+create policy "Allow delete accessibility on loans_given" on public.loans_given for delete using (true);
 `;
 }

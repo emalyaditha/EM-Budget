@@ -16,6 +16,7 @@ interface DashboardProps {
   totalDebitCardsAmount: number;
   totalCreditCardsAmount: number;
   totalDebtsAmount: number;
+  totalLoansGiven: number;
   currentMonthLabel: string;
   currentMonthInflow: number;
   currentMonthOutflow: number;
@@ -32,6 +33,7 @@ export default function Dashboard({
   totalDebitCardsAmount, 
   totalCreditCardsAmount, 
   totalDebtsAmount, 
+  totalLoansGiven,
   currentMonthLabel, 
   currentMonthInflow, 
   currentMonthOutflow, 
@@ -277,7 +279,7 @@ export default function Dashboard({
       </div>
 
       {/* 4. METRIC KPI CARDS PANEL (With Soft Glow elements) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4.5" id="kpi-panel">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4.5" id="kpi-panel">
         
         {/* KPI: Cash/Debit */}
         <div className="bg-zinc-900/45 p-4 rounded-2xl border border-zinc-850 flex flex-col justify-between h-28 hover:border-zinc-700 transition-colors shadow-sm">
@@ -288,6 +290,18 @@ export default function Dashboard({
               <span>{state.currency}{(totalCashAmount + totalDebitCardsAmount).toLocaleString()}</span>
             </div>
             <p className="text-[9px] text-zinc-500 font-mono mt-1 uppercase">Cash + Debit Cards</p>
+          </div>
+        </div>
+
+        {/* KPI: Lent Asset */}
+        <div className="bg-zinc-900/45 p-4 rounded-2xl border border-zinc-850 flex flex-col justify-between h-28 hover:border-indigo-700/40 transition-colors shadow-sm">
+          <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono font-bold block">Lent Assets</span>
+          <div>
+            <div className="text-xs sm:text-sm font-black font-mono text-indigo-400 flex items-center gap-1">
+              <span>+</span>
+              <span>{state.currency}{totalLoansGiven.toLocaleString()}</span>
+            </div>
+            <p className="text-[9px] text-zinc-500 font-mono mt-1 uppercase">Total Loans Given</p>
           </div>
         </div>
 
@@ -328,7 +342,7 @@ export default function Dashboard({
         </div>
 
         {/* KPI: Savings Rate */}
-        <div className="bg-zinc-900/45 p-4 rounded-2xl border border-zinc-850 flex flex-col justify-between h-28 hover:border-amber-700/40 transition-colors shadow-sm col-span-2 md:col-span-1">
+        <div className="bg-zinc-900/45 p-4 rounded-2xl border border-zinc-850 flex flex-col justify-between h-28 hover:border-amber-700/40 transition-colors shadow-sm md:col-span-1">
           <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono font-bold block">Savings Rate</span>
           <div>
             <div className="text-sm font-black font-mono text-amber-400 flex items-center gap-1.5 leading-none">

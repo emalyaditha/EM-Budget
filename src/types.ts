@@ -102,6 +102,30 @@ export interface AppNotification {
   read: boolean;
 }
 
+export interface LoanSettlement {
+  id: string;
+  loanId: string;
+  amount: number;
+  date: string;
+  receivedInId: string;
+  receivedInType: 'cash' | 'card';
+  receivedInName: string;
+}
+
+export interface LoanGiven {
+  id: string;
+  borrowerName: string;
+  totalAmount: number;
+  remainingAmount: number;
+  dateGiven: string;
+  sourceAccountId: string;
+  sourceAccountType: 'cash' | 'card';
+  sourceAccountName: string;
+  status: 'Active' | 'Partially Settled' | 'Settled';
+  notes: string;
+  settlements: LoanSettlement[];
+}
+
 export interface Subscription {
   id: string;
   name: string;
@@ -133,6 +157,7 @@ export interface AppState {
   transactions: Transaction[];
   notifications: AppNotification[];
   subscriptions: Subscription[]; // Added subscriptions list
+  loansGiven: LoanGiven[];
   pinCode: string;
   pinEnabled: boolean;
   currency: string;

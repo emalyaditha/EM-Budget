@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription } from './types';
+import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
 import { exportStateAsJSON } from './utils';
 import { 
@@ -18,6 +18,7 @@ import SubscriptionManagement from './components/SubscriptionManagement';
 import Dashboard from './components/Dashboard';
 import ProfileSection from './components/ProfileSection';
 import DebtTracker from './components/DebtTracker';
+import LoansTracker from './components/LoansTracker';
 import TransferFunds from './components/TransferFunds';
 import CreditCardManagement from './components/CreditCardManagement';
 import ReportsCentre from './components/ReportsCentre';
@@ -32,7 +33,7 @@ export default function App() {
   const [state, setState] = useState<AppState>(DEFAULT_APP_STATE);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'inflow_outflow' | 'debts' | 'reports'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'inflow_outflow' | 'debts' | 'loans' | 'reports'>('dashboard');
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   
   // Modals & Panels Toggles
@@ -328,6 +329,223 @@ export default function App() {
     });
   };
 
+  // Loans Receivables Actions
+  const handleAddLoan = (loanData: Omit<LoanGiven, 'id' | 'remainingAmount' | 'status' | 'settlements'>) => {
+    const loanId = `loan_given_${Date.now()}`;
+    const newLoan: LoanGiven = {
+      ...loanData,
+      id: loanId,
+      remainingAmount: loanData.totalAmount,
+      status: 'Active',
+      settlements: [],
+    };
+
+    updateState(prev => {
+      // 1. Deduct funds from selected account
+      let updatedCash = [...prev.cashAccounts];
+      let updatedCards = [...prev.cards];
+
+      if (loanData.sourceAccountType === 'cash') {
+        updatedCash = updatedCash.map(c =>
+          c.id === loanData.sourceAccountId ? { ...c, balance: c.balance - loanData.totalAmount } : c
+        );
+      } else {
+        updatedCards = updatedCards.map(c =>
+          c.id === loanData.sourceAccountId ? { ...c, currentBalance: c.currentBalance - loanData.totalAmount } : c
+        );
+      }
+
+      // 2. Create Transaction log
+      const txId = `tx_loan_${Date.now()}`;
+      const newTx: Transaction = {
+        id: txId,
+        type: 'expense',
+        title: `Asset Loan: ${loanData.borrowerName}`,
+        amount: loanData.totalAmount,
+        date: loanData.dateGiven,
+        category: 'Other',
+        accountId: loanData.sourceAccountId,
+        accountType: loanData.sourceAccountType,
+        referenceId: loanId,
+      };
+
+      // 3. Create Expense entry
+      const newExp: Expense = {
+        id: `exp_loan_${Date.now()}`,
+        title: `Loan Given: ${loanData.borrowerName}`,
+        description: `Lent capital. Notes: ${loanData.notes}`,
+        amount: loanData.totalAmount,
+        date: loanData.dateGiven,
+        category: 'Other',
+        paymentMethodId: loanData.sourceAccountId,
+        paymentMethodType: loanData.sourceAccountType,
+      };
+
+      // 4. Notification
+      const newNotif: AppNotification = {
+        id: `nt_loan_${Date.now()}`,
+        type: 'system',
+        message: `Registered loan given to ${loanData.borrowerName}: model tracks Rs. ${loanData.totalAmount.toLocaleString()} receivable.`,
+        date: new Date().toISOString().split('T')[0],
+        read: false,
+      };
+
+      return {
+        ...prev,
+        cashAccounts: updatedCash,
+        cards: updatedCards,
+        loansGiven: [...(prev.loansGiven || []), newLoan],
+        transactions: [newTx, ...prev.transactions],
+        expenses: [newExp, ...prev.expenses],
+        notifications: [newNotif, ...prev.notifications],
+      };
+    });
+  };
+
+  const handleMakeLoanSettlement = (
+    loanId: string,
+    amount: number,
+    receivedInId: string,
+    receivedInType: 'cash' | 'card',
+    receivedInName: string
+  ) => {
+    const settlementId = `setl_${Date.now()}`;
+    const settlementDate = new Date().toISOString().split('T')[0];
+
+    updateState(prev => {
+      // Find the loan item to capture borrower info
+      const targetLoan = (prev.loansGiven || []).find(l => l.id === loanId);
+      if (!targetLoan) return prev;
+
+      // 1. Credit the received account
+      let updatedCash = [...prev.cashAccounts];
+      let updatedCards = [...prev.cards];
+
+      if (receivedInType === 'cash') {
+        updatedCash = updatedCash.map(c =>
+          c.id === receivedInId ? { ...c, balance: c.balance + amount } : c
+        );
+      } else {
+        updatedCards = updatedCards.map(c =>
+          c.id === receivedInId ? { ...c, currentBalance: c.currentBalance + amount } : c
+        );
+      }
+
+      // 2. Add settlement item
+      const newSettlement: LoanSettlement = {
+        id: settlementId,
+        loanId,
+        amount,
+        date: settlementDate,
+        receivedInId,
+        receivedInType,
+        receivedInName,
+      };
+
+      const updatedLoans: LoanGiven[] = (prev.loansGiven || []).map(loan => {
+        if (loan.id === loanId) {
+          const newRemaining = Math.max(0, loan.remainingAmount - amount);
+          const newStatus = newRemaining <= 0 ? 'Settled' : 'Partially Settled';
+          return {
+            ...loan,
+            remainingAmount: newRemaining,
+            status: newStatus,
+            settlements: [...(loan.settlements || []), newSettlement],
+          };
+        }
+        return loan;
+      });
+
+      // 3. Create Transaction log
+      const txId = `tx_setl_${Date.now()}`;
+      const newTx: Transaction = {
+        id: txId,
+        type: 'income',
+        title: `Loan Settle Recv: ${targetLoan.borrowerName}`,
+        amount: amount,
+        date: settlementDate,
+        category: 'Other',
+        accountId: receivedInId,
+        accountType: receivedInType,
+        referenceId: settlementId,
+      };
+
+      // 4. Create Income entry
+      const newInc: Income = {
+        id: `inc_setl_${Date.now()}`,
+        amount,
+        date: settlementDate,
+        source: `Loan settlement received from ${targetLoan.borrowerName}`,
+        category: 'Other',
+        targetAccountId: receivedInId,
+        targetType: receivedInType,
+      };
+
+      // 5. Notification
+      const newNotif: AppNotification = {
+        id: `nt_setl_${Date.now()}`,
+        type: 'system',
+        message: `Processed loan settlement installment of Rs. ${amount.toLocaleString()} from ${targetLoan.borrowerName}, credited to ${receivedInName}.`,
+        date: settlementDate,
+        read: false,
+      };
+
+      return {
+        ...prev,
+        cashAccounts: updatedCash,
+        cards: updatedCards,
+        loansGiven: updatedLoans,
+        transactions: [newTx, ...prev.transactions],
+        incomes: [newInc, ...prev.incomes],
+        notifications: [newNotif, ...prev.notifications],
+      };
+    });
+  };
+
+  const handleDeleteLoan = (loanId: string) => {
+    updateState(prev => {
+      const loanToDelete = (prev.loansGiven || []).find(l => l.id === loanId);
+      if (!loanToDelete) return prev;
+
+      // 1. Refund the deducted funds
+      let updatedCash = [...prev.cashAccounts];
+      let updatedCards = [...prev.cards];
+
+      if (loanToDelete.sourceAccountType === 'cash') {
+        updatedCash = updatedCash.map(c =>
+          c.id === loanToDelete.sourceAccountId ? { ...c, balance: c.balance + loanToDelete.totalAmount } : c
+        );
+      } else {
+        updatedCards = updatedCards.map(c =>
+          c.id === loanToDelete.sourceAccountId ? { ...c, currentBalance: c.currentBalance + loanToDelete.totalAmount } : c
+        );
+      }
+
+      // 2. Add an audit transaction record
+      const refundTransaction: Transaction = {
+        id: `trans-refund-${Date.now()}`,
+        type: 'deposit',
+        title: `Loan Refund: ${loanToDelete.borrowerName}`,
+        amount: loanToDelete.totalAmount,
+        date: new Date().toISOString().split('T')[0],
+        category: 'Loan Refund',
+        accountId: loanToDelete.sourceAccountId,
+        accountType: loanToDelete.sourceAccountType,
+        referenceId: loanId,
+      };
+
+      // 3. Optional: Remove associated transaction/expense if needed (for now just refund)
+      return {
+        ...prev,
+        cashAccounts: updatedCash,
+        cards: updatedCards,
+        loansGiven: (prev.loansGiven || []).filter(l => l.id !== loanId),
+        transactions: [refundTransaction, ...prev.transactions],
+        // Note: We might want to remove the transaction here too, but the user didn't explicitly ask for that. Simple refund first.
+      };
+    });
+  };
+
   const handleAddCreditCard = (card: Omit<DbCreditCard, 'id'>) => {
       updateState(prev => ({
           ...prev,
@@ -355,10 +573,26 @@ export default function App() {
   };
 
   const handleDeleteSubscription = (id: string) => {
-    updateState(prev => ({
-      ...prev,
-      subscriptions: (prev.subscriptions || []).filter(sub => sub.id !== id),
-    }));
+    updateState(prev => {
+      const subToDelete = (prev.subscriptions || []).find(s => s.id === id);
+      if (!subToDelete) return prev;
+
+      const auditTransaction: Transaction = {
+        id: `trans-sub-del-${Date.now()}`,
+        type: 'expense',
+        title: `Subscription Cancelled: ${subToDelete.name}`,
+        amount: 0,
+        date: new Date().toISOString().split('T')[0],
+        category: 'Subscription Deletion',
+        referenceId: id,
+      };
+
+      return {
+        ...prev,
+        subscriptions: (prev.subscriptions || []).filter(sub => sub.id !== id),
+        transactions: [auditTransaction, ...prev.transactions],
+      };
+    });
   };
 
   const handleToggleSubscriptionStatus = (id: string, currentStatus: 'Active' | 'Paused' | 'Cancelled') => {
@@ -727,10 +961,31 @@ export default function App() {
   };
 
   const handleDeleteCashAccount = (id: string) => {
-    updateState(prev => ({
-      ...prev,
-      cashAccounts: prev.cashAccounts.filter(c => c.id !== id),
-    }));
+    updateState(prev => {
+      const accountToDelete = prev.cashAccounts.find(c => c.id === id);
+      if (accountToDelete && accountToDelete.balance !== 0) {
+        showToast('error', `Cannot delete account "${accountToDelete.name}" with balance ${prev.currency} ${accountToDelete.balance.toLocaleString()}. Please clear funds first.`);
+        return prev;
+      }
+      
+      if (!accountToDelete) return prev;
+      
+      const auditTransaction: Transaction = {
+        id: `trans-cash-del-${Date.now()}`,
+        type: 'expense',
+        title: `Cash Account Deleted: ${accountToDelete.name}`,
+        amount: 0,
+        date: new Date().toISOString().split('T')[0],
+        category: 'Account Deletion',
+        referenceId: id,
+      };
+
+      return {
+        ...prev,
+        cashAccounts: prev.cashAccounts.filter(c => c.id !== id),
+        transactions: [auditTransaction, ...prev.transactions],
+      };
+    });
   };
 
   // Notification Modifiers
@@ -802,9 +1057,19 @@ export default function App() {
         if (tx.accountId) reverseAmount(tx.amount, tx.accountId, 'cash', false);
       }
 
+      const auditTransaction: Transaction = {
+        id: `trans-del-${Date.now()}`,
+        type: 'expense',
+        title: `Transaction Deleted: ${tx.title}`,
+        amount: 0,
+        date: new Date().toISOString().split('T')[0],
+        category: 'Transaction Deletion',
+        referenceId: txId,
+      };
+
       return {
         ...prev,
-        transactions: prev.transactions.filter(t => t.id !== txId),
+        transactions: [auditTransaction, ...prev.transactions.filter(t => t.id !== txId)],
         cashAccounts: updatedCash,
         cards: updatedCards,
         incomes: updatedIncomes,
@@ -1077,6 +1342,7 @@ export default function App() {
   const totalDebitCardsAmount = state.cards.filter(c => !c.isCanceled && c.cardType === 'Debit').reduce((sum, c) => sum + c.currentBalance, 0);
   const totalCreditCardsAmount = state.cards.filter(c => !c.isCanceled && c.cardType === 'Credit').reduce((sum, c) => sum + c.currentBalance, 0);
   const totalDebtsAmount = state.debts.reduce((sum, d) => sum + d.remainingAmount, 0);
+  const totalLoansGiven = (state.loansGiven || []).reduce((sum, l) => sum + l.totalAmount, 0);
   const aggregateActiveWealth = totalCashAmount + totalDebitCardsAmount - totalCreditCardsAmount - totalDebtsAmount;
 
   const currentMonthInflow = state.transactions
@@ -1273,6 +1539,7 @@ export default function App() {
                 { tab: 'accounts', icon: <Wallet size={15} />, label: 'Wallets Portfolio' },
                 { tab: 'inflow_outflow', icon: <Plus size={15} />, label: 'Ledger Registry' },
                 { tab: 'debts', icon: <CircleDot size={15} />, label: 'Track Liabilities' },
+                { tab: 'loans', icon: <ArrowUpRight size={15} />, label: 'Track Loans Given' },
                 { tab: 'reports', icon: <TrendingUp size={15} />, label: 'Reports Centre' },
               ].map((item) => (
                 <button
@@ -1335,12 +1602,14 @@ export default function App() {
                 <span className="text-[10px] tracking-widest text-[#8aa8bb] font-mono font-bold uppercase block mr-1 truncate">
                   {activeTab === 'accounts' ? 'Wallets Core' :
                    activeTab === 'inflow_outflow' ? 'Ledger Action' :
-                   activeTab === 'debts' ? 'Track Liabilities' : 'Diagnostics Reports'}
+                   activeTab === 'debts' ? 'Track Liabilities' :
+                   activeTab === 'loans' ? 'Vault Asset Ledger' : 'Diagnostics Reports'}
                 </span>
                 <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white capitalize leading-tight truncate">
                   {activeTab === 'accounts' ? 'Wallets' :
                    activeTab === 'inflow_outflow' ? 'Register' :
-                   activeTab === 'debts' ? 'Liabilities' : 'Reports'}
+                   activeTab === 'debts' ? 'Liabilities' :
+                   activeTab === 'loans' ? 'Loans Given' : 'Reports'}
                 </h2>
               </div>
 
@@ -1394,6 +1663,7 @@ export default function App() {
                   totalDebitCardsAmount={totalDebitCardsAmount}
                   totalCreditCardsAmount={totalCreditCardsAmount}
                   totalDebtsAmount={totalDebtsAmount}
+                  totalLoansGiven={totalLoansGiven}
                   currentMonthLabel={currentMonthLabel}
                   currentMonthInflow={currentMonthInflow}
                   currentMonthOutflow={currentMonthOutflow}
@@ -1478,6 +1748,21 @@ export default function App() {
                 </div>
               )}
 
+              {/* =================== CASE: TAB: LOANS =================== */}
+              {activeTab === 'loans' && (
+                <div className="space-y-6">
+                  <LoansTracker
+                    loans={state.loansGiven || []}
+                    cashAccounts={state.cashAccounts}
+                    cards={state.cards}
+                    onAddLoan={handleAddLoan}
+                    onAddSettlement={handleMakeLoanSettlement}
+                    onDeleteLoan={handleDeleteLoan}
+                    currency={state.currency}
+                  />
+                </div>
+              )}
+
               {/* =================== CASE: TAB: REPORTS =================== */}
               {activeTab === 'reports' && (
                 <ReportsCentre
@@ -1499,8 +1784,9 @@ export default function App() {
               {[
                 { tab: 'dashboard', icon: <Percent size={15} />, label: 'Dashboard' },
                 { tab: 'accounts', icon: <Wallet size={15} />, label: 'Wallets' },
-                { tab: 'inflow_outflow', icon: <Plus size={15} />, label: 'Transactions' },
-                { tab: 'debts', icon: <CircleDot size={15} />, label: 'Liabilities' },
+                { tab: 'inflow_outflow', icon: <Plus size={15} />, label: 'Transact' },
+                { tab: 'debts', icon: <CircleDot size={15} />, label: 'Debts' },
+                { tab: 'loans', icon: <ArrowUpRight size={15} />, label: 'Loans' },
                 { tab: 'reports', icon: <TrendingUp size={15} />, label: 'Reports' },
               ].map((item) => (
                 <button
