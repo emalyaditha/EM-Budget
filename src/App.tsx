@@ -1204,6 +1204,13 @@ export default function App() {
               state={state} 
               updateState={updateState}
               onOpenSettings={() => { setIsProfileOpen(false); setIsSettingsOpen(true); }}
+              onLogout={() => {
+                localStorage.removeItem('auth_user_email');
+                localStorage.removeItem('auth_session_token');
+                setState(DEFAULT_APP_STATE);
+                setIsUnlocked(false);
+                setIsProfileOpen(false);
+              }}
             />
           </div>
         </div>

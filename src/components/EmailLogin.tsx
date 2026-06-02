@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mail, ShieldCheck, KeyRound, AlertCircle, RefreshCw, Clipboard, Check, Lock, ArrowRight, Sparkles, Key } from 'lucide-react';
+import { Mail, ShieldCheck, KeyRound, AlertCircle, RefreshCw, Lock, ArrowRight, Sparkles, Key } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getSupabaseConfig } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
@@ -224,28 +224,30 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
 
   return (
     <div id="email-2fa-container" className="fixed inset-0 z-50 bg-[#0A0A0C] text-white flex flex-col justify-center items-center p-6 select-none overflow-y-auto">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-950/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 left-10 w-64 h-64 bg-zinc-900/45 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-950/15 rounded-full blur-3xl pointer-events-none animate-pulse duration-[8000ms]" />
+      <div className="absolute bottom-10 left-10 w-64 h-64 bg-zinc-955 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md bg-zinc-900/40 border border-zinc-800/80 backdrop-blur-xl rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+      <div className="w-full max-w-md bg-zinc-900/40 border border-zinc-850 backdrop-blur-xl rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden">
+        {/* Sleek top edge highlight */}
+        <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
         
         <div className="flex flex-col items-center text-center">
-          <div className="p-4 bg-neutral-950 rounded-2xl ring-1 ring-zinc-850 shadow-inner mb-6 relative text-emerald-400">
+          <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-805 shadow-inner mb-6 relative text-indigo-400">
+            <div className="absolute inset-0 bg-indigo-500/5 rounded-2xl blur-sm" />
             {renderIcon()}
           </div>
 
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            Secure Web Vault
-            <span className="text-[10px] py-0.5 px-2 rounded-full font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-900/30 font-bold uppercase tracking-wider flex items-center gap-1">
-              <Sparkles size={9} /> SYSTEM
+          <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+            Vault Suite Secure
+            <span className="text-[9px] py-0.5 px-2 rounded-full font-mono text-indigo-400 bg-indigo-950/40 border border-indigo-900/30 font-bold uppercase tracking-wider flex items-center gap-1">
+              <Sparkles size={9} /> PORTAL
             </span>
           </h1>
-          <p className="text-zinc-400 text-xs mt-2.5 px-4 leading-relaxed">
-            {step === 'enter-email' && "Enter your email to sign in or create a new account."}
-            {step === 'login-password' && `Welcome back, ${email}`}
-            {(step === 'verify-otp' || step === 'reset-otp') && `Enter the 6-digit code sent to ${email}`}
-            {(step === 'create-password' || step === 'reset-password') && "Secure your account with a strong password."}
+          <p className="text-zinc-400 text-xs mt-2.5 px-4 leading-relaxed font-medium">
+            {step === 'enter-email' && "Enter your credentials to connect with your corporate vault session."}
+            {step === 'login-password' && `Authenticate vault access for ${email}`}
+            {(step === 'verify-otp' || step === 'reset-otp') && `A secure OTP token was dispatched to ${email}. Provide code to establish identity.`}
+            {(step === 'create-password' || step === 'reset-password') && "Establish your lock keys to seal the security vault."}
           </p>
         </div>
 
@@ -258,19 +260,19 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
               >
                 <div>
                   <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
-                    Owner Email Boundary
+                    Identity Account (Email)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-650"><Mail size={16} /></span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"><Mail size={16} /></span>
                     <input
                       type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                      placeholder="e.g. owner@domain.com"
-                      className="w-full bg-[#050507] border border-zinc-855 text-white rounded-xl py-3.5 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-emerald-500 transition-colors placeholder-zinc-700 font-sans"
+                      placeholder="Enter verified email..."
+                      className="w-full bg-[#060608]/90 border border-zinc-855 text-white rounded-xl py-3.5 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors placeholder-zinc-700 font-sans"
                     />
                   </div>
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-white text-black font-bold text-sm py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50">
-                  {loading ? <RefreshCw className="animate-spin text-black" size={16} /> : <><span>Continue</span><ArrowRight size={15} /></>}
+                <button type="submit" disabled={loading} className="w-full bg-white hover:bg-zinc-200 text-black font-extrabold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50">
+                  {loading ? <RefreshCw className="animate-spin text-black" size={16} /> : <><span>Next Step</span><ArrowRight size={15} /></>}
                 </button>
               </motion.form>
             )}
@@ -282,30 +284,33 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
               >
                 <div>
                   <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
-                    Master Password
+                    Master Password Entry
                   </label>
-                  <input
-                    type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-[#050507] border border-zinc-855 text-white tracking-[3px] rounded-xl py-3.5 px-4 text-sm font-medium focus:outline-none focus:border-emerald-500 transition-colors font-sans"
-                  />
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"><Lock size={16} /></span>
+                    <input
+                      type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-[#060608]/90 border border-zinc-855 text-white tracking-[3px] rounded-xl py-3.5 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 mt-3.5">
                     <input
                       type="checkbox"
                       id="rememberMe"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="accent-emerald-500 w-4 h-4 cursor-pointer"
+                      className="accent-indigo-500 w-4 h-4 cursor-pointer rounded border-zinc-800 focus:ring-0"
                     />
-                    <label htmlFor="rememberMe" className="text-xs text-zinc-400 cursor-pointer">Remember me</label>
+                    <label htmlFor="rememberMe" className="text-xs text-zinc-400 cursor-pointer select-none font-medium hover:text-zinc-300">Remember me</label>
                   </div>
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-emerald-500 hover:bg-emerald-600 text-neutral-950 font-bold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg disabled:opacity-50">
-                  {loading ? <RefreshCw className="animate-spin text-neutral-950" size={16} /> : <><ShieldCheck size={16} /><span>Unlock System</span></>}
+                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer shadow-lg shadow-indigo-950/20 active:scale-[0.99] disabled:opacity-50">
+                  {loading ? <RefreshCw className="animate-spin text-white" size={16} /> : <><ShieldCheck size={16} /><span>Authenticate Vault</span></>}
                 </button>
-                <div className="flex justify-between mt-4 text-xs font-mono">
-                  <button type="button" onClick={() => setStep('enter-email')} className="text-zinc-500 hover:text-white transition-colors cursor-pointer font-bold">Go Back</button>
-                  <button type="button" onClick={handleSendForgotPassword} className="text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer font-bold">Forgot Password?</button>
+                <div className="flex justify-between mt-5 text-sm font-mono font-bold">
+                  <button type="button" onClick={() => setStep('enter-email')} className="text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer">Change Email</button>
+                  <button type="button" onClick={handleSendForgotPassword} className="text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer">Forgot Password?</button>
                 </div>
               </motion.form>
             )}
@@ -317,29 +322,32 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
               >
                 <div>
                   <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
-                    Secure Code / Master PIN
+                    Security Passcode Verification
                   </label>
-                  <input
-                    type="password" required value={otpValue} onChange={(e) => setOtpValue(e.target.value)}
-                    placeholder="Input 6-digit OTP"
-                    className="w-full bg-[#050507] border border-emerald-900/40 text-emerald-400 tracking-[3px] font-mono text-center text-md font-bold rounded-xl py-3.5 focus:outline-none focus:border-emerald-500 transition-colors"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400"><KeyRound size={16} /></span>
+                    <input
+                      type="password" required value={otpValue} onChange={(e) => setOtpValue(e.target.value)}
+                      placeholder="Input 6-digit OTP"
+                      className="w-full bg-[#060608]/90 border border-indigo-950 text-indigo-405 tracking-[8px] font-mono text-center text-lg font-bold rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-between items-center text-xs font-mono">
                   <span className="text-zinc-500">Passcode valid 5m</span>
                   {resendTimer > 0 ? (
-                    <span className="text-zinc-600 flex items-center gap-1">Resend in {resendTimer}s</span>
+                    <span className="text-zinc-650 text-zinc-600 flex items-center gap-1 font-semibold">Resend in {resendTimer}s</span>
                   ) : (
-                    <button type="button" onClick={() => initOtpSend()} disabled={loading} className="text-zinc-400 hover:text-white cursor-pointer font-bold flex items-center gap-1.5 active:scale-95 transition-all">
-                      <RefreshCw size={11} /> Resend Code
+                    <button type="button" onClick={() => initOtpSend()} disabled={loading} className="text-indigo-400 hover:text-indigo-300 cursor-pointer font-bold flex items-center gap-1.5 active:scale-95 transition-all">
+                      <RefreshCw size={11} /> Request New Pin
                     </button>
                   )}
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-emerald-500 hover:bg-emerald-600 text-neutral-950 font-bold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg disabled:opacity-50">
-                  {loading ? <RefreshCw className="animate-spin text-neutral-950" size={16} /> : <><ShieldCheck size={16} /><span>Verify Passcode</span></>}
+                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50">
+                  {loading ? <RefreshCw className="animate-spin text-white" size={16} /> : <><ShieldCheck size={16} /><span>Verify Entry PIN</span></>}
                 </button>
-                <button type="button" onClick={() => setStep('enter-email')} className="w-full bg-transparent border border-zinc-850 hover:bg-zinc-900/40 text-zinc-400 hover:text-white text-xs py-3 rounded-xl font-bold transition-all cursor-pointer">
-                  Cancel
+                <button type="button" onClick={() => setStep('enter-email')} className="w-full bg-transparent border border-zinc-850 hover:bg-zinc-900/40 text-zinc-400 hover:text-zinc-300 text-xs py-3 rounded-xl font-bold transition-all cursor-pointer">
+                  Cancel Choice
                 </button>
               </motion.form>
             )}
@@ -351,26 +359,26 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
               >
                 <div>
                   <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
-                    New Master Password
+                    New Secure Password
                   </label>
                   <input
                     type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-[#050507] border border-zinc-855 text-white tracking-[3px] rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:border-emerald-500 transition-colors font-sans"
+                    className="w-full bg-[#060608]/90 border border-zinc-850 text-white rounded-xl py-3.5 px-4 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                   />
                 </div>
                 <div>
                   <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
-                    Confirm Password
+                    Confirm Secure Password
                   </label>
                   <input
                     type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-[#050507] border border-zinc-855 text-white tracking-[3px] rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:border-emerald-500 transition-colors font-sans"
+                    className="w-full bg-[#060608]/90 border border-zinc-850 text-white rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                   />
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-emerald-500 hover:bg-emerald-600 text-neutral-950 font-bold text-sm py-4 rounded-xl transition-all cursor-pointer shadow-lg disabled:opacity-50 mt-2">
-                  {loading ? <RefreshCw className="animate-spin text-neutral-950 mx-auto" size={16} /> : <span>{step === 'reset-password' ? 'Reset and Unlock' : 'Create and Unlock'}</span>}
+                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-sm py-4 rounded-xl shadow-lg transition-all duration-300 active:scale-[0.99] disabled:opacity-50 mt-2">
+                  {loading ? <RefreshCw className="animate-spin text-white mx-auto" size={16} /> : <span>{step === 'reset-password' ? 'Reset and Terminate Lock' : 'Seal Account and Authenticate'}</span>}
                 </button>
               </motion.form>
             )}
@@ -382,9 +390,9 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
           {errorMsg && (
             <motion.div
               initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-              className="mt-5 bg-red-950/30 border border-red-900/40 p-4 rounded-xl flex items-start gap-2.5 text-xs text-red-400"
+              className="mt-5 bg-rose-950/20 border border-rose-900/30 p-4 rounded-xl flex items-start gap-2.5 text-xs text-rose-400"
             >
-              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-500" />
               <span>{errorMsg}</span>
             </motion.div>
           )}
@@ -395,10 +403,10 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
           {infoMsg && (
             <motion.div
               initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-              className="mt-5 p-4 rounded-xl border text-xs leading-relaxed space-y-2 bg-emerald-950/20 border-emerald-900/30 text-emerald-400"
+              className="mt-5 p-4 rounded-xl border border-indigo-900/25 text-xs leading-relaxed space-y-2 bg-indigo-950/20 text-indigo-400"
             >
-              <p className="flex items-center gap-1.5 break-all">
-                <ShieldCheck size={13} className="shrink-0 text-emerald-500" />
+              <p className="flex items-center gap-1.5 break-all font-medium animate-fade-in">
+                <ShieldCheck size={13} className="shrink-0 text-indigo-405 text-indigo-400" />
                 <span>{infoMsg}</span>
               </p>
             </motion.div>
@@ -406,8 +414,8 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
         </AnimatePresence>
       </div>
 
-      <span className="text-zinc-700 text-[10px] tracking-widest font-mono uppercase mt-8 pointer-events-none select-none">
-        Active Auth Protocol — Secure Storage
+      <span className="text-zinc-700 text-[9px] tracking-[4px] font-mono font-bold uppercase mt-8 pointer-events-none select-none">
+        Active Vault Link / Secure Suite Session
       </span>
     </div>
   );

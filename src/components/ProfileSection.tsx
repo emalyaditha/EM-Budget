@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Save, Edit2, ShieldCheck, KeyRound, CreditCard } from 'lucide-react';
+import { Mail, Save, Edit2, ShieldCheck, KeyRound, CreditCard, LogOut } from 'lucide-react';
 import { AppState } from '../types';
 import { updateAuthAccountName } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
@@ -8,9 +8,10 @@ interface ProfileSectionProps {
   state: AppState;
   updateState: (updater: (prev: AppState) => AppState) => void;
   onOpenSettings: () => void;
+  onLogout: () => void;
 }
 
-export default function ProfileSection({ state, updateState, onOpenSettings }: ProfileSectionProps) {
+export default function ProfileSection({ state, updateState, onOpenSettings, onLogout }: ProfileSectionProps) {
   const { showToast } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(state.userProfile.name);
@@ -148,6 +149,20 @@ export default function ProfileSection({ state, updateState, onOpenSettings }: P
             </div>
           </div>
           <ShieldCheck size={14} className="text-emerald-500 mr-1" />
+        </button>
+      </div>
+
+      {/* SECURE TERMINATION / LOGOUT */}
+      <div className="pt-2 border-t border-zinc-950">
+        <button
+          onClick={() => {
+            showToast('info', 'Secure session terminated. Logging out.');
+            onLogout();
+          }}
+          className="w-full flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-600 border border-rose-950/45 hover:border-rose-500 text-rose-400 hover:text-white py-3.5 px-4 rounded-xl text-xs font-extrabold transition-all duration-300 cursor-pointer group shadow-lg shadow-rose-950/10"
+        >
+          <LogOut size={14} className="group-hover:translate-x-0.5 group-hover:scale-110 transition-all duration-300" />
+          <span>Settle Session & Terminate Access</span>
         </button>
       </div>
 
