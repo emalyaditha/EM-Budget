@@ -103,6 +103,14 @@ export default function InflowsOutflows({
     if (sub || target) {
       if (!target) {
         errs.target = 'Receipt target account is required';
+      } else {
+        const [id, type] = target.split(':');
+        if (type === 'card') {
+          const match = cards.find(c => c.id === id);
+          if (match && match.isFrozen) {
+            errs.target = 'Target card is FROZEN and cannot receive funds.';
+          }
+        }
       }
     }
     setIncErrors(errs);
@@ -147,6 +155,11 @@ export default function InflowsOutflows({
     if (sub || methodId) {
       if (!methodId) {
         errs.methodId = 'Payment source account is required';
+      } else if (methodType === 'card') {
+        const match = cards.find(c => c.id === methodId);
+        if (match && match.isFrozen) {
+          errs.methodId = 'This card is currently FROZEN / soft-locked.';
+        }
       }
     }
     setExpErrors(errs);
@@ -381,7 +394,9 @@ export default function InflowsOutflows({
                   </optgroup>
                   <optgroup label="Bank Card Accounts">
                     {cards.filter(c => !c.isCanceled).map(card => (
-                      <option key={card.id} value={`${card.id}:card`}>{card.bankName} - {card.cardName}</option>
+                      <option key={card.id} value={`${card.id}:card`} disabled={card.isFrozen}>
+                        {card.bankName} - {card.cardName}{card.isFrozen ? ' [FROZEN]' : ''}
+                      </option>
                     ))}
                   </optgroup>
                 </select>
@@ -521,7 +536,9 @@ export default function InflowsOutflows({
                   </optgroup>
                   <optgroup label="Saved Bank Cards">
                     {cards.filter(c => !c.isCanceled).map(card => (
-                      <option key={card.id} value={`${card.id}:card`}>{card.bankName} - {card.cardName} ({currency}{card.currentBalance})</option>
+                      <option key={card.id} value={`${card.id}:card`} disabled={card.isFrozen}>
+                        {card.bankName} - {card.cardName} ({currency}{card.currentBalance}){card.isFrozen ? ' [FROZEN]' : ''}
+                      </option>
                     ))}
                   </optgroup>
                 </select>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CashAccount, BankCard } from '../types';
-import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronRight, CornerDownRight, Landmark, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronRight, CornerDownRight, Landmark, ArrowUpRight, ArrowDownLeft, Snowflake } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
 interface CashCardManagementProps {
@@ -13,6 +13,228 @@ interface CashCardManagementProps {
   onDeleteCashAccount: (id: string) => void;
   currency: string;
   onUpdateCard: (card: BankCard) => void;
+}
+
+interface InteractiveBankCardProps {
+  key?: any;
+  card: BankCard;
+  idx: number;
+  currency: string;
+  onUpdateCard: (card: BankCard) => void;
+  onDeleteCard: (id: string) => void;
+  getCardGradient: (theme: string) => string;
+  setEditingCard: (card: BankCard | null) => void;
+  setEditCardName: (name: string) => void;
+  setEditCardNumber: (num: string) => void;
+  setEditCardTheme: (theme: string) => void;
+  setEditCardErrors: (errs: Record<string, string>) => void;
+  setEditCardSubmitted: (sub: boolean) => void;
+}
+
+function InteractiveBankCard({
+  card,
+  idx,
+  currency,
+  onUpdateCard,
+  onDeleteCard,
+  getCardGradient,
+  setEditingCard,
+  setEditCardName,
+  setEditCardNumber,
+  setEditCardTheme,
+  setEditCardErrors,
+  setEditCardSubmitted,
+}: InteractiveBankCardProps) {
+  const { showToast } = useNotifications();
+  const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  const themesCodes = ['obsidian', 'sapphire', 'emerald', 'copper', 'ruby'];
+  const derivedTheme = card.cardTheme || themesCodes[idx % themesCodes.length];
+  const isCanceled = card.isCanceled || (card as any).is_canceled;
+
+  React.useEffect(() => {
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (isCanceled || card.isFrozen) return;
+      if (e.beta !== null && e.gamma !== null) {
+        const rotX = Math.min(Math.max((e.beta - 45) / 5, -8), 8);
+        const rotY = Math.min(Math.max(e.gamma / 5, -8), 8);
+        setCoords({ x: rotX, y: rotY });
+      }
+    };
+    if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
+      window.addEventListener('deviceorientation', handleOrientation);
+    }
+    return () => {
+      if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
+        window.removeEventListener('deviceorientation', handleOrientation);
+      }
+    };
+  }, [isCanceled, card.isFrozen]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isCanceled || card.isFrozen) return;
+    const cardEl = cardRef.current;
+    if (!cardEl) return;
+    setIsHovered(true);
+
+    const rect = cardEl.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const midX = rect.width / 2;
+    const midY = rect.height / 2;
+    const rotX = -((y - midY) / midY) * 12; 
+    const rotY = ((x - midX) / midX) * 12;  
+
+    setCoords({ x: rotX, y: rotY });
+
+    const pctX = (x / rect.width) * 100;
+    const pctY = (y / rect.height) * 100;
+    cardEl.style.setProperty('--glow-x', `${pctX}%`);
+    cardEl.style.setProperty('--glow-y', `${pctY}%`);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setCoords({ x: 0, y: 0 });
+    const cardEl = cardRef.current;
+    if (cardEl) {
+      cardEl.style.setProperty('--glow-x', '50%');
+      cardEl.style.setProperty('--glow-y', '50%');
+    }
+  };
+
+  const cardGradientStyle = getCardGradient(derivedTheme);
+
+  const inlineStyle: React.CSSProperties = {
+    transform: isHovered 
+      ? `perspective(1000px) rotateX(${coords.x}deg) rotateY(${coords.y}deg) scale3d(1.02, 1.02, 1.02)` 
+      : `perspective(1000px) rotateX(${coords.x}deg) rotateY(${coords.y}deg) scale3d(1, 1, 1)`,
+    transition: isHovered ? 'none' : 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), background 0.4s ease',
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      id={`card-view-${card.id}`}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={inlineStyle}
+      className={`relative p-5 rounded-2xl bg-gradient-to-br ${cardGradientStyle} border shadow-xl flex flex-col justify-between h-36 overflow-hidden duration-300 group cursor-pointer ${
+        isCanceled ? 'opacity-50 filter grayscale contrast-75 brightness-90 hover:grayscale-0 hover:opacity-85' : ''
+      }`}
+    >
+      {isHovered && !isCanceled && !card.isFrozen && (
+        <div 
+          className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-80 z-20"
+          style={{
+            background: `radial-gradient(circle at var(--glow-x, 50%) var(--glow-y, 50%), rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.08) 45%, transparent 75%), linear-gradient(135deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0) 70%)`
+          }}
+        />
+      )}
+
+      <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-white/5 blur-xl pointer-events-none z-0" />
+      
+      {card.isFrozen && !isCanceled && (
+        <div className="absolute inset-0 z-30 bg-[#0c101a]/45 backdrop-blur-[8px] flex flex-col items-center justify-center border border-sky-500/25 rounded-2xl transition-all duration-300">
+          <div className="p-2 bg-sky-950/70 border border-sky-400/40 text-sky-300 rounded-full shadow-lg shadow-sky-500/10 animate-pulse">
+            <Snowflake size={18} className="stroke-[2.5px]" />
+          </div>
+          <span className="text-[10px] font-black font-mono tracking-widest text-sky-200 mt-2 text-shadow-sm">
+            CARD TEMP FROZEN
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateCard({ ...card, isFrozen: false });
+              showToast('success', `${card.cardName} un-frozen successfully.`);
+            }}
+            className="mt-2.5 px-3 py-1 bg-sky-950 hover:bg-sky-900 border border-sky-500/35 text-sky-200 text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all cursor-pointer shadow-lg"
+          >
+            Unfreeze
+          </button>
+        </div>
+      )}
+
+      {!isCanceled && !card.isFrozen && (
+        <div className="absolute top-2 right-2.5 z-25 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingCard(card);
+              setEditCardName(card.cardName);
+              setEditCardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g, '').trim() : '');
+              setEditCardTheme(derivedTheme);
+              setEditCardErrors({});
+              setEditCardSubmitted(false);
+            }}
+            className="bg-black/60 hover:bg-black/85 border border-white/10 text-white/80 hover:text-white rounded-lg p-1.5 cursor-pointer flex items-center justify-center shadow-lg transition-colors"
+            title="Edit Card Details"
+          >
+            <Edit size={11} />
+          </button>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const updated = { ...card, isFrozen: true };
+              onUpdateCard(updated);
+              showToast('warning', `${card.cardName} soft-locked and frozen.`);
+            }}
+            className="bg-black/60 hover:bg-sky-900/80 border border-white/10 text-white/80 hover:text-sky-300 rounded-lg p-1.5 cursor-pointer flex items-center justify-center shadow-lg transition-colors"
+            title="Freeze Card"
+          >
+            <Snowflake size={11} />
+          </button>
+        </div>
+      )}
+
+      <div className="flex justify-between items-start z-10 pr-12">
+        <div className="min-w-0">
+          <p className="text-[9px] uppercase font-bold tracking-wider text-white/50 truncate max-w-[120px]">{card.bankName}</p>
+          <h4 className="text-xs font-semibold text-white mt-0.5 flex items-center gap-1.5 truncate">
+            <span className="truncate max-w-[110px]">{card.cardName}</span>
+          </h4>
+        </div>
+        <div>
+          <span className="text-[9px] uppercase tracking-widest font-mono font-bold bg-white/10 px-2 py-0.5 rounded text-white/95">
+            {card.cardType}
+          </span>
+        </div>
+      </div>
+
+      <div className="z-10 flex justify-between items-end">
+        <div>
+          <span className="text-[9px] text-white/40 block">
+            {card.cardType === 'Credit' ? 'Available Credit' : 'Available Balance'}
+          </span>
+          <span className="text-xs font-bold font-mono tracking-tight text-white">
+            {currency} {
+              card.cardType === 'Credit' 
+                ? ((card.limit ?? 0) - card.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : card.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            }
+          </span>
+        </div>
+
+        <div className="text-right flex flex-col items-end">
+          <span className="text-[9px] font-mono text-white/60 tracking-wider">
+            {card.cardNumber || '**** **** **** 0000'}
+          </span>
+          {!isCanceled && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDeleteCard(card.id); }}
+              className="text-[9px] text-rose-400 opacity-65 hover:opacity-100 flex items-center gap-1 mt-1 font-semibold cursor-pointer transition-opacity"
+            >
+              <Trash2 size={10} /> Delete
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function CashCardManagement({
@@ -713,103 +935,23 @@ export default function CashCardManagement({
               No active cards. Add a credit/debit card.
             </div>
           ) : (
-            cards.map((card, idx) => {
-              // Assign a theme based on card position or choose saved
-              const themesCodes = ['obsidian', 'sapphire', 'emerald', 'copper', 'ruby'];
-              const derivedTheme = card.cardTheme || themesCodes[idx % themesCodes.length];
-              const isCanceled = card.isCanceled || (card as any).is_canceled;
-
-              return (
-                <div
-                  key={card.id}
-                  id={`card-view-${card.id}`}
-                  className={`relative p-5 rounded-2xl bg-gradient-to-br ${getCardGradient(derivedTheme)} border shadow-xl flex flex-col justify-between h-36 overflow-hidden transition-all duration-300 group ${
-                    isCanceled ? 'opacity-50 filter grayscale contrast-75 brightness-90 hover:grayscale-0 hover:opacity-85' : 'hover:scale-[1.01]'
-                  }`}
-                >
-                  {/* Glowing background circles */}
-                  <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-white/5 blur-xl pointer-events-none" />
-                  
-                  {/* Hover Edit Action overlay / corner button */}
-                  {!isCanceled && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingCard(card);
-                        setEditCardName(card.cardName);
-                        // Strip masking indicators so user can edit cleanly
-                        setEditCardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g, '').trim() : '');
-                        setEditCardTheme(derivedTheme);
-                        setEditCardErrors({});
-                        setEditCardSubmitted(false);
-                      }}
-                      className="absolute top-2 right-2.5 z-25 bg-black/50 hover:bg-black/75 border border-white/5 text-white/80 hover:text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-all cursor-pointer flex items-center justify-center shadow-lg"
-                      title="Edit Card Details"
-                      id={`edit-card-btn-${card.id}`}
-                    >
-                      <Edit size={12} />
-                    </button>
-                  )}
-
-                  <div className="flex justify-between items-start z-10 pr-6">
-                    <div>
-                      <p className="text-[10px] uppercase font-bold tracking-wider text-white/50">{card.bankName}</p>
-                      <h4 className="text-xs font-semibold text-white mt-0.5 flex items-center gap-1.5">
-                        <span>{card.cardName}</span>
-                        {isCanceled && (
-                          <span className="text-[8px] bg-red-950/80 text-red-500 border border-red-900/40 px-1 py-0.5 rounded font-bold uppercase tracking-widest font-mono">
-                            INACTIVE
-                          </span>
-                        )}
-                      </h4>
-                    </div>
-                    {isCanceled ? (
-                      <span className="text-[9px] uppercase tracking-widest font-mono font-bold bg-rose-950/80 px-2 py-0.5 rounded text-rose-400 border border-rose-900/50">
-                        CANCELED
-                      </span>
-                    ) : (
-                      <span className="text-[9px] uppercase tracking-widest font-mono font-bold bg-white/10 px-2 py-0.5 rounded text-white/90">
-                        {card.cardType}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="z-10 flex justify-between items-end">
-                    <div>
-                      <span className="text-[10px] text-white/40 block">
-                        {card.cardType === 'Credit' ? 'Available Credit' : 'Available Balance'}
-                      </span>
-                      <span className={`text-sm font-bold font-mono tracking-tight ${isCanceled ? 'text-white/50 line-through' : 'text-white'}`}>
-                        {currency} {
-                          card.cardType === 'Credit' 
-                            ? ((card.limit ?? 0) - card.currentBalance).toLocaleString() 
-                            : card.currentBalance.toLocaleString()
-                        }
-                      </span>
-                    </div>
-
-                    <div className="text-right flex flex-col items-end">
-                      <span className="text-[10px] font-mono text-white/60 tracking-widest">
-                        {card.cardNumber || '**** **** **** 0000'}
-                      </span>
-                      {isCanceled ? (
-                        <span className="text-[9px] text-red-400/80 font-mono font-bold uppercase mt-1 tracking-wider flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                          CANCELED SECURELY
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => setCardToDelete(card.id)}
-                          className="text-[10px] text-rose-400 opacity-60 hover:opacity-100 flex items-center gap-1 mt-1 font-semibold cursor-pointer"
-                        >
-                          <Trash2 size={11} /> Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+            cards.map((card, idx) => (
+              <InteractiveBankCard
+                key={card.id}
+                card={card}
+                idx={idx}
+                currency={currency}
+                onUpdateCard={onUpdateCard}
+                onDeleteCard={onDeleteCard}
+                getCardGradient={getCardGradient}
+                setEditingCard={setEditingCard}
+                setEditCardName={setEditCardName}
+                setEditCardNumber={setEditCardNumber}
+                setEditCardTheme={setEditCardTheme}
+                setEditCardErrors={setEditCardErrors}
+                setEditCardSubmitted={setEditCardSubmitted}
+              />
+            ))
           )}
         </div>
       </div>

@@ -53,7 +53,7 @@ export function getSupabaseClient(): SupabaseClient | null {
 
 // Fallback column list if Supabase REST OpenAPI inspection is unavailable
 const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
-  bank_cards: ['id', 'user_email', 'card_name', 'bank_name', 'card_type', 'current_balance', 'card_number', 'is_canceled', 'limit', 'is_limit_locked', 'updated_at'],
+  bank_cards: ['id', 'user_email', 'card_name', 'bank_name', 'card_type', 'current_balance', 'card_number', 'is_canceled', 'limit', 'is_limit_locked', 'is_frozen', 'card_theme', 'updated_at'],
   cash_accounts: ['id', 'user_email', 'name', 'balance', 'updated_at'],
   transactions: ['id', 'user_email', 'type', 'title', 'amount', 'charge', 'transfer_charge', 'date', 'category', 'account_id', 'account_type', 'target_account_id', 'target_account_type', 'reference_id', 'updated_at'],
   debts: ['id', 'user_email', 'debt_source', 'total_amount', 'remaining_amount', 'due_date', 'notes', 'payments', 'updated_at'],
@@ -64,6 +64,45 @@ const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
 };
 
 let detectedColumnsCache: { [tableName: string]: string[] } | null = null;
+
+function toCamelCase(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+function toSnakeCase(str: string): string {
+  return str.replace(/([A-Z])/g, '_$1').toLowerCase();
+}
+
+/**
+ * Intelligent helper to identify if an error originates from a column missing in the remote DB schema.
+ * Supports PostgREST missing column cache errors and standard Postgres relation errors.
+ */
+function extractMissingColumn(errorMsg: string, tableName: string): string | null {
+  if (!errorMsg) return null;
+  
+  // Pattern 1: Could not find the 'column_name' column of 'table_name' in the schema cache
+  const cacheRegex = new RegExp(`Could not find the '([^']+)' column of '${tableName}'`, 'i');
+  let match = errorMsg.match(cacheRegex);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  // Pattern 2: column "column_name" of relation "table_name" does not exist
+  const postgresRegex = new RegExp(`column "([^"]+)" of relation "${tableName}" does not exist`, 'i');
+  match = errorMsg.match(postgresRegex);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Pattern 3: column "column_name" does not exist
+  const genericRegex = /column "([^"]+)" does not exist/i;
+  match = genericRegex.exec(errorMsg);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  return null;
+}
 
 /**
  * Automatically inspects empty table metadata via Supabase/PostgREST OpenAPI or CSV headers to find exactly what columns exist
@@ -269,49 +308,74 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
 
     // 2. Synchronize Remote Bank Cards
     try {
-      const cardsCols = await getColumnsForTable('bank_cards');
+      let cardsCols = await getColumnsForTable('bank_cards');
       if (cardsCols.length > 0) {
-        if (state.cards && state.cards.length > 0) {
-          const records = state.cards.map(card => {
-            const mapped = mapObjectToColumns(card, cardsCols, email, {
-              id: card.id,
-              current_balance: card.currentBalance,
-              currentBalance: card.currentBalance,
-              card_name: card.cardName,
-              cardName: card.cardName,
-              bank_name: card.bankName,
-              bankName: card.bankName,
-              card_type: card.cardType,
-              cardType: card.cardType,
-              card_number: card.cardNumber || null,
-              cardNumber: card.cardNumber || null
+        let attempts = 0;
+        let success = false;
+        while (attempts < 3 && !success) {
+          attempts++;
+          if (state.cards && state.cards.length > 0) {
+            const records = state.cards.map(card => {
+              const mapped = mapObjectToColumns(card, cardsCols, email, {
+                id: card.id,
+                current_balance: card.currentBalance,
+                currentBalance: card.currentBalance,
+                card_name: card.cardName,
+                cardName: card.cardName,
+                bank_name: card.bankName,
+                bankName: card.bankName,
+                card_type: card.cardType,
+                cardType: card.cardType,
+                card_number: card.cardNumber || null,
+                cardNumber: card.cardNumber || null,
+                card_theme: card.cardTheme || 'obsidian',
+                cardTheme: card.cardTheme || 'obsidian'
+              });
+              // PostgREST upsert determines columns from the FIRST object in the array.
+              // If we omit is_canceled on the first item, it ignores is_canceled for ALL items.
+              // Therefore, we MUST explicitly map it boolean across the board.
+              mapped.is_canceled = Boolean(card.isCanceled === true || (card as any).is_canceled === true);
+              
+              // Clean up aliases so we don't send duplicate random columns
+              delete mapped.is_cancelled;
+              delete mapped.isCanceled;
+
+              if (cardsCols.includes('limit')) {
+                mapped.limit = card.limit !== undefined ? card.limit : null;
+              }
+              if (cardsCols.includes('is_limit_locked') || cardsCols.includes('isLimitLocked')) {
+                const activeLockCol = cardsCols.includes('is_limit_locked') ? 'is_limit_locked' : 'isLimitLocked';
+                mapped[activeLockCol] = card.isLimitLocked !== undefined ? Boolean(card.isLimitLocked) : true;
+              }
+              if (cardsCols.includes('is_frozen') || cardsCols.includes('isFrozen')) {
+                const activeFrozenCol = cardsCols.includes('is_frozen') ? 'is_frozen' : 'isFrozen';
+                mapped[activeFrozenCol] = card.isFrozen !== undefined ? Boolean(card.isFrozen) : false;
+              }
+              
+              return mapped;
             });
-            // PostgREST upsert determines columns from the FIRST object in the array.
-            // If we omit is_canceled on the first item, it ignores is_canceled for ALL items.
-            // Therefore, we MUST explicitly map it boolean across the board.
-            mapped.is_canceled = Boolean(card.isCanceled === true || (card as any).is_canceled === true);
             
-            // Clean up aliases so we don't send duplicate random columns
-            delete mapped.is_cancelled;
-            delete mapped.isCanceled;
+            console.log("DEBUG: bank_cards upsert payload properties:", records.map(r => ({ id: r.id, is_canceled: r.is_canceled })));
 
-            if (cardsCols.includes('limit')) {
-              mapped.limit = card.limit !== undefined ? card.limit : null;
+            const { data, error: cardsErr } = await client.from('bank_cards').upsert(records, { onConflict: 'id' }).select();
+            if (cardsErr) {
+              console.warn('Supabase Bank Cards Sync Warning:', cardsErr);
+              const errMsg = cardsErr.message || cardsErr.details || '';
+              const missingCol = extractMissingColumn(errMsg, 'bank_cards');
+              if (missingCol) {
+                console.warn(`Self-healing: column '${missingCol}' does not exist on bank_cards in Postgres. Filtering it out and retrying!`);
+                cardsCols = cardsCols.filter(c => c !== missingCol && c !== toCamelCase(missingCol) && c !== toSnakeCase(missingCol));
+                if (!detectedColumnsCache) detectedColumnsCache = {};
+                detectedColumnsCache['bank_cards'] = cardsCols;
+                continue;
+              }
+              errorDetails.push(`Bank Cards Sync: ${cardsErr.message || cardsErr.details}`);
+              break;
+            } else {
+              success = true;
             }
-            if (cardsCols.includes('is_limit_locked') || cardsCols.includes('isLimitLocked')) {
-              const activeLockCol = cardsCols.includes('is_limit_locked') ? 'is_limit_locked' : 'isLimitLocked';
-              mapped[activeLockCol] = card.isLimitLocked !== undefined ? Boolean(card.isLimitLocked) : true;
-            }
-            
-            return mapped;
-          });
-          
-          console.log("DEBUG: bank_cards upsert payload properties:", records.map(r => ({ id: r.id, is_canceled: r.is_canceled })));
-
-          const { data, error: cardsErr } = await client.from('bank_cards').upsert(records, { onConflict: 'id' }).select();
-          if (cardsErr) {
-            console.warn('Supabase Bank Cards Sync Warning:', cardsErr);
-            errorDetails.push(`Bank Cards Sync: ${cardsErr.message || cardsErr.details}`);
+          } else {
+            success = true;
           }
         }
 
@@ -725,6 +789,11 @@ function mapDatabaseResultToState(item: any): any {
   if (result.isCancelled !== undefined && result.isCanceled === undefined) {
     result.isCanceled = result.isCancelled;
   }
+  if (result.isFrozen === undefined) {
+    result.isFrozen = false;
+  } else {
+    result.isFrozen = Boolean(result.isFrozen);
+  }
   
   return result;
 }
@@ -812,6 +881,8 @@ export function getSupabaseSQLScript(): string {
   return `-- ⚠️ DATABASE UPGRADE MIGRATION (RUN THIS IN YOUR SQL EDITOR IF YOU HAVE AN EXISTING DB):
 alter table public.bank_cards add column if not exists "limit" numeric;
 alter table public.bank_cards add column if not exists is_limit_locked boolean default true;
+alter table public.bank_cards add column if not exists is_frozen boolean default false;
+alter table public.bank_cards add column if not exists card_theme text default 'obsidian';
 alter table public.transactions add column if not exists charge numeric default 0;
 alter table public.transactions add column if not exists transfer_charge numeric default 0;
 alter table public.auth_accounts add column if not exists name text;
@@ -860,6 +931,8 @@ create table if not exists public.bank_cards (
   current_balance numeric not null default 0,
   "limit" numeric,
   is_limit_locked boolean not null default true,
+  is_frozen boolean not null default false,
+  card_theme text not null default 'obsidian',
   card_number text,
   is_canceled boolean not null default false,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -1022,6 +1095,7 @@ export function getSupabaseUpgradeSQLScript(): string {
 
 alter table public.bank_cards add column if not exists "limit" numeric;
 alter table public.bank_cards add column if not exists is_limit_locked boolean default true;
+alter table public.bank_cards add column if not exists card_theme text default 'obsidian';
 alter table public.transactions add column if not exists charge numeric default 0;
 alter table public.transactions add column if not exists transfer_charge numeric default 0;
 alter table public.auth_accounts add column if not exists name text;

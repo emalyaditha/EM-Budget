@@ -35,8 +35,8 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
   const purchaseMerchantRef = React.useRef<HTMLInputElement>(null);
 
   const fundingAccounts = [
-      ...cashAccounts.map(c => ({ id: c.id, name: c.name, type: 'cash' as const, balance: c.balance })),
-      ...cards.map(c => ({ id: c.id, name: c.cardName, type: 'card' as const, balance: c.currentBalance })),
+      ...cashAccounts.map(c => ({ id: c.id, name: c.name, type: 'cash' as const, balance: c.balance, isFrozen: false })),
+      ...cards.filter(c => !c.isCanceled).map(c => ({ id: c.id, name: c.cardName, type: 'card' as const, balance: c.currentBalance, isFrozen: !!c.isFrozen })),
   ];
 
   const validatePay = (cardId: string, amtStr: string, srcVal: string, skipAmountCheck = false): boolean => {
@@ -51,6 +51,11 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
     const source = fundingAccounts.find(a => `${a.type}-${a.id}` === srcVal);
     if (!source) {
       setPayErrors(prev => ({ ...prev, [cardId]: 'Funding account is invalid' }));
+      return false;
+    }
+
+    if (source.isFrozen) {
+      setPayErrors(prev => ({ ...prev, [cardId]: 'This fund source card is currently FROZEN and locked.' }));
       return false;
     }
 
@@ -257,7 +262,11 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             }`}
                         >
                             <option value="">Source Account</option>
-                            {fundingAccounts.map(a => <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`}>{a.name}</option>)}
+                            {fundingAccounts.map(a => (
+                                <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`} disabled={(a as any).isFrozen}>
+                                    {a.name}{(a as any).isFrozen ? ' [FROZEN]' : ''}
+                                </option>
+                            ))}
                         </select>
                         <div className="flex gap-2">
                             {/* Settle FULL balance button */}

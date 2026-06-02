@@ -41,8 +41,8 @@ export default function TransferFunds({
   const amountInputRef = React.useRef<HTMLInputElement>(null);
 
   const accounts = [
-    ...cashAccounts.map(c => ({ id: c.id, name: c.name, type: 'cash' as const })),
-    ...cards.map(c => ({ id: c.id, name: c.cardName, type: 'card' as const })),
+    ...cashAccounts.map(c => ({ id: c.id, name: c.name, type: 'cash' as const, isFrozen: false })),
+    ...cards.filter(c => !c.isCanceled).map(c => ({ id: c.id, name: c.cardName, type: 'card' as const, isFrozen: !!c.isFrozen })),
   ];
 
   const validateTransfer = (from: string, to: string, amtStr: string, chargeStr: string, sub: boolean) => {
@@ -50,6 +50,11 @@ export default function TransferFunds({
     if (sub || from) {
       if (!from) {
         errs.from = 'Source account is required';
+      } else {
+        const srcAcc = accounts.find(a => `${a.type}-${a.id}` === from);
+        if (srcAcc && srcAcc.isFrozen) {
+          errs.from = 'Source card is FROZEN and transaction is blocked!';
+        }
       }
     }
     if (sub || to) {
@@ -57,6 +62,11 @@ export default function TransferFunds({
         errs.to = 'Destination account is required';
       } else if (from === to && from) {
         errs.to = 'Destination cannot be the same as source';
+      } else {
+        const destAcc = accounts.find(a => `${a.type}-${a.id}` === to);
+        if (destAcc && destAcc.isFrozen) {
+          errs.to = 'Destination card is FROZEN and transaction is blocked!';
+        }
       }
     }
     
@@ -177,7 +187,11 @@ export default function TransferFunds({
             }`}
           >
             <option value="">Select source</option>
-            {accounts.map(a => <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`}>{a.name} ({a.type})</option>)}
+            {accounts.map(a => (
+              <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`} disabled={a.isFrozen}>
+                {a.name} ({a.type}){a.isFrozen ? ' [FROZEN]' : ''}
+              </option>
+            ))}
           </select>
           {errors.from && (
             <span className="text-rose-400 font-mono text-[10px]">{errors.from}</span>
@@ -201,7 +215,11 @@ export default function TransferFunds({
             }`}
           >
             <option value="">Select destination</option>
-            {accounts.map(a => <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`}>{a.name} ({a.type})</option>)}
+            {accounts.map(a => (
+              <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`} disabled={a.isFrozen}>
+                {a.name} ({a.type}){a.isFrozen ? ' [FROZEN]' : ''}
+              </option>
+            ))}
           </select>
           {errors.to && (
             <span className="text-rose-400 font-mono text-[10px]">{errors.to}</span>

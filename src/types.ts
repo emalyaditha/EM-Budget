@@ -18,6 +18,7 @@ export interface BankCard {
   cardNumber?: string; // masked card number e.g. **** 4242
   isCanceled?: boolean; // Support soft delete / cancel status
   cardTheme?: string;
+  isFrozen?: boolean; // Stateful "Card Freezing" (Soft Lock)
 }
 
 export interface CreditCard {
