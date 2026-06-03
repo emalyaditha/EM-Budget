@@ -491,17 +491,35 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
         return { success: true };
       }
 
-      const isMissingRpc = rpcErr.message && (
-        rpcErr.message.includes('function') && rpcErr.message.includes('does not exist') ||
-        rpcErr.code === 'PGRST501' || rpcErr.code === '42883'
-      );
+      const errMsg = (rpcErr.message || '').toLowerCase();
+      const errCode = String(rpcErr.code || '');
+      const isMissingRpc = 
+        errCode === 'PGRST501' ||
+        errCode === '42883' ||
+        errCode === 'PGRST601' ||
+        errMsg.includes('does not exist') ||
+        errMsg.includes('could not find') ||
+        errMsg.includes('schema cache') ||
+        errMsg.includes('function');
+
       if (!isMissingRpc) {
         console.error('[TRANSACTIONAL SYNC ENGINE] Transactional RPC execution failed on DB:', rpcErr);
         throw rpcErr;
       }
       console.warn('[TRANSACTIONAL SYNC ENGINE] sync_complete_ledger RPC is not defined in distant DB. Falling back to sequential client table-sync...');
     } catch (rpcExecErr: any) {
-      if (rpcExecErr.code !== 'PGRST501' && rpcExecErr.code !== '42883' && (!rpcExecErr.message || !rpcExecErr.message.includes('does not exist'))) {
+      const errMsg = (rpcExecErr.message || '').toLowerCase();
+      const errCode = String(rpcExecErr.code || '');
+      const isMissingRpc = 
+        errCode === 'PGRST501' ||
+        errCode === '42883' ||
+        errCode === 'PGRST601' ||
+        errMsg.includes('does not exist') ||
+        errMsg.includes('could not find') ||
+        errMsg.includes('schema cache') ||
+        errMsg.includes('function');
+
+      if (!isMissingRpc) {
         throw rpcExecErr;
       }
     }
