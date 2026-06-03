@@ -125,20 +125,37 @@ async function startServer() {
     const headerUrl = req?.headers ? (req.headers['x-supabase-url'] as string) : undefined;
     const headerKey = req?.headers ? (req.headers['x-supabase-key'] as string) : undefined;
     
-    const url = (isDev && headerUrl) || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || (isDev && headerKey) || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    const rawUrl = (isDev && headerUrl) || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY || (isDev && headerKey) || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
     
-    if (url && key) {
-      const systemToken = generateSystemToken();
-      return createClient(url, key, {
-        global: {
-          headers: {
-            'x-system-token': systemToken
-          }
-        }
-      });
+    const url = rawUrl ? rawUrl.trim() : "";
+    const key = rawKey ? rawKey.trim() : "";
+    
+    console.log(`[Supabase Debug] Initialization attempt.`);
+    console.log(`[Supabase Debug] isDev: '${isDev}'`);
+    console.log(`[Supabase Debug] rawUrl (from process.env): '${rawUrl}'`);
+    console.log(`[Supabase Debug] trimmedUrl: '${url}'`);
+    console.log(`[Supabase Debug] rawKey length: ${rawKey ? rawKey.length : 0}`);
+    
+    if (!url || !key) {
+      console.log(`[Supabase Debug] Missing URL or Key. Returning null.`);
+      return null;
     }
-    return null;
+    
+    // Strict URL validation
+    if (!url.startsWith('https://') && !url.startsWith('http://')) {
+      console.error(`[Supabase Error] Detected invalid URL structure: '${url}'. Must start with https:// or http://`);
+      return null;
+    }
+    
+    const systemToken = generateSystemToken();
+    return createClient(url, key, {
+      global: {
+        headers: {
+          'x-system-token': systemToken
+        }
+      }
+    });
   };
   
   async function checkAccountExists(email: string, supabase: any): Promise<boolean> {

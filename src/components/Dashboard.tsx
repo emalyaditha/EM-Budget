@@ -279,13 +279,13 @@ export default function Dashboard({
       </div>
 
       {/* 4. METRIC KPI CARDS PANEL (With Soft Glow elements) */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4.5" id="kpi-panel">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4.5" id="kpi-panel">
         
         {/* KPI: Cash/Debit */}
         <div className="bg-zinc-900/45 p-4 rounded-2xl border border-zinc-850 flex flex-col justify-between h-28 hover:border-zinc-700 transition-colors shadow-sm">
           <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono font-bold block">Liquid Assets</span>
           <div>
-            <div className="text-xs sm:text-sm font-black font-mono text-emerald-400 flex items-center gap-1">
+            <div className="text-xs sm:text-sm md:text-xs font-black font-mono text-emerald-400 flex items-center gap-1">
               <span>+</span>
               <span>{state.currency}{(totalCashAmount + totalDebitCardsAmount).toLocaleString()}</span>
             </div>
@@ -297,7 +297,7 @@ export default function Dashboard({
         <div className="bg-zinc-900/45 p-4 rounded-2xl border border-zinc-850 flex flex-col justify-between h-28 hover:border-indigo-700/40 transition-colors shadow-sm">
           <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono font-bold block">Lent Assets</span>
           <div>
-            <div className="text-xs sm:text-sm font-black font-mono text-indigo-400 flex items-center gap-1">
+            <div className="text-xs sm:text-sm md:text-xs font-black font-mono text-indigo-400 flex items-center gap-1">
               <span>+</span>
               <span>{state.currency}{totalLoansGiven.toLocaleString()}</span>
             </div>
@@ -309,7 +309,7 @@ export default function Dashboard({
         <div className="bg-zinc-900/45 p-4 rounded-2xl border border-zinc-850 flex flex-col justify-between h-28 hover:border-zinc-700 transition-colors shadow-sm">
           <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono font-bold block">Credit Due</span>
           <div>
-            <div className="text-xs sm:text-sm font-black font-mono text-amber-500 flex items-center gap-1">
+            <div className="text-xs sm:text-sm md:text-xs font-black font-mono text-amber-500 flex items-center gap-1">
               <span>-</span>
               <span>{state.currency}{totalCreditCardsAmount.toLocaleString()}</span>
             </div>
@@ -321,7 +321,7 @@ export default function Dashboard({
         <div className="bg-zinc-900/45 p-4 rounded-2xl border border-zinc-850 flex flex-col justify-between h-28 hover:border-zinc-700 transition-colors shadow-sm">
           <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono font-bold block">{currentMonthLabel} Inflow</span>
           <div>
-            <div className="text-xs sm:text-sm font-black font-mono text-indigo-400 flex items-center gap-1">
+            <div className="text-xs sm:text-sm md:text-xs font-black font-mono text-indigo-400 flex items-center gap-1">
               <span>+</span>
               <span>{state.currency}{currentMonthInflow.toLocaleString()}</span>
             </div>
@@ -333,7 +333,7 @@ export default function Dashboard({
         <div className="bg-zinc-900/45 p-4 rounded-2xl border border-zinc-850 flex flex-col justify-between h-28 hover:border-zinc-700 transition-colors shadow-sm">
           <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono font-bold block">{currentMonthLabel} Outflow</span>
           <div>
-            <div className="text-xs sm:text-sm font-black font-mono text-rose-450 text-rose-400 flex items-center gap-1">
+            <div className="text-xs sm:text-sm md:text-xs font-black font-mono text-rose-450 text-rose-400 flex items-center gap-1">
               <span>-</span>
               <span>{state.currency}{currentMonthOutflow.toLocaleString()}</span>
             </div>

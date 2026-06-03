@@ -1794,7 +1794,7 @@ export default function App() {
           )}
 
           {/* Active Canvas Body */}
-          <div className="space-y-6">
+          <div className="space-y-6 pb-24 lg:pb-0">
 
               {/* =================== CASE: TAB: DASHBOARD =================== */}
               {activeTab === 'dashboard' && (
