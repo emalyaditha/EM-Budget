@@ -6,16 +6,35 @@ const URL_STORAGE_KEY = 'cashflow_supabase_url_v1';
 const KEY_STORAGE_KEY = 'cashflow_supabase_key_v1';
 const AUTO_SYNC_KEY = 'cashflow_supabase_auto_sync_v1';
 
+// Synchronized states cache to prevent redundant pushes
+let lastSyncedStatesCache: { [email: string]: string } = {};
+
+export function clearSyncedStatesCache() {
+  lastSyncedStatesCache = {};
+}
+
 // Default provided by the user
 const DEFAULT_SUPABASE_URL = 'https://iivdlgbztzthjbjzzjna.supabase.co';
 
 export function getSupabaseConfig() {
   const meta = import.meta as any;
-  let url = localStorage.getItem(URL_STORAGE_KEY) || (meta.env && meta.env.VITE_SUPABASE_URL) || DEFAULT_SUPABASE_URL;
-  if (url && !url.startsWith('http')) {
+  const isProd = !!(meta.env && meta.env.PROD);
+  
+  let url = (meta.env && meta.env.VITE_SUPABASE_URL) || DEFAULT_SUPABASE_URL;
+  let key = (meta.env && meta.env.VITE_SUPABASE_ANON_KEY) || '';
+  
+  // Only allow client-side LocalStorage override in non-production environments
+  if (!isProd) {
+    const localUrl = localStorage.getItem(URL_STORAGE_KEY);
+    const localKey = localStorage.getItem(KEY_STORAGE_KEY);
+    if (localUrl) url = localUrl;
+    if (localKey) key = localKey;
+  }
+  
+  if (url && !url.startsWith('https://') && !url.startsWith('http://')) {
     url = DEFAULT_SUPABASE_URL;
   }
-  const key = localStorage.getItem(KEY_STORAGE_KEY) || (meta.env && meta.env.VITE_SUPABASE_ANON_KEY) || '';
+  
   const storedAutoSync = localStorage.getItem(AUTO_SYNC_KEY);
   const autoSync = storedAutoSync === null ? true : storedAutoSync === 'true';
   return { url, key, autoSync };
@@ -28,7 +47,6 @@ export function saveSupabaseConfig(url: string, key: string, autoSync: boolean) 
 }
 
 let supabaseClientInstance: SupabaseClient | null = null;
-let currentSupabaseUrl: string | null = null;
 
 export function getSupabaseClient(): SupabaseClient | null {
   const { url, key } = getSupabaseConfig();
@@ -36,13 +54,28 @@ export function getSupabaseClient(): SupabaseClient | null {
     return null;
   }
   try {
-    if (!supabaseClientInstance || currentSupabaseUrl !== url) {
-      supabaseClientInstance = createClient(url, key, {
+    const token = localStorage.getItem('auth_session_token');
+    const email = localStorage.getItem('auth_user_email') || '';
+    const clientKey = `${url}:${token}:${email}`;
+
+    if (!supabaseClientInstance || (globalThis as any).__lastClientKey !== clientKey) {
+      const config: any = {
         auth: {
           persistSession: false
         }
-      });
-      currentSupabaseUrl = url;
+      };
+
+      if (token) {
+        config.global = {
+          headers: {
+            'x-user-email': email,
+            'x-session-token': token
+          }
+        };
+      }
+
+      supabaseClientInstance = createClient(url, key, config);
+      (globalThis as any).__lastClientKey = clientKey;
     }
     return supabaseClientInstance;
   } catch (error) {
@@ -299,10 +332,181 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
     return { success: false, error: 'Supabase URL or Anon Key is missing or invalid.' };
   }
 
+  const currentStateString = JSON.stringify(state);
+  const cacheKey = email.trim().toLowerCase();
+  if (lastSyncedStatesCache[cacheKey] === currentStateString) {
+    console.log('[PERFORMANCE OPTIMIZATION] Skipping redundant syncStateToSupabase - local state unchanged.');
+    return { success: true };
+  }
+
   let errorDetails: string[] = [];
 
   try {
-    // 1. Core State Unified Backup - Insert row-by-row to maintain audit log history
+    // 1. Map all arrays for modern transactional database sync
+    const cardsCols = await getColumnsForTable('bank_cards');
+    const recordsCards = (state.cards || []).map(card => {
+      const mapped = mapObjectToColumns(card, cardsCols, email, {
+        id: card.id,
+        current_balance: card.currentBalance,
+        currentBalance: card.currentBalance,
+        card_name: card.cardName,
+        cardName: card.cardName,
+        bank_name: card.bankName,
+        bankName: card.bankName,
+        card_type: card.cardType,
+        cardType: card.cardType,
+        card_number: card.cardNumber || null,
+        cardNumber: card.cardNumber || null,
+        card_theme: card.cardTheme || 'obsidian'
+      });
+      mapped.is_canceled = Boolean(card.isCanceled === true || (card as any).is_canceled === true);
+      delete mapped.is_cancelled;
+      delete mapped.isCanceled;
+      if (cardsCols.includes('limit')) mapped.limit = card.limit !== undefined ? card.limit : null;
+      if (cardsCols.includes('is_limit_locked')) mapped.is_limit_locked = card.isLimitLocked !== undefined ? Boolean(card.isLimitLocked) : true;
+      if (cardsCols.includes('is_frozen')) mapped.is_frozen = card.isFrozen !== undefined ? Boolean(card.isFrozen) : false;
+      return mapped;
+    });
+
+    const cashCols = await getColumnsForTable('cash_accounts');
+    const recordsCash = (state.cashAccounts || []).map(acc => mapObjectToColumns(acc, cashCols, email, {
+      id: acc.id,
+      name: acc.name,
+      balance: acc.balance
+    }));
+
+    const txCols = await getColumnsForTable('transactions');
+    const recordsTx = (state.transactions || []).map(tx => mapObjectToColumns(tx, txCols, email, {
+      id: tx.id,
+      type: tx.type,
+      title: tx.title,
+      amount: tx.amount,
+      charge: tx.charge || 0,
+      transfer_charge: (tx as any).transferCharge || tx.charge || 0,
+      date: tx.date,
+      category: tx.category,
+      account_id: tx.accountId || null,
+      accountType: tx.accountType || null,
+      account_type: tx.accountType || null,
+      target_account_id: tx.targetAccountId || null,
+      targetAccountType: tx.targetAccountType || null,
+      target_account_type: tx.targetAccountType || null,
+      reference_id: tx.referenceId || null
+    }));
+
+    const debtsCols = await getColumnsForTable('debts');
+    const recordsDebts = (state.debts || []).map(debt => mapObjectToColumns(debt, debtsCols, email, {
+      id: debt.id,
+      debt_source: debt.debtSource,
+      total_amount: debt.totalAmount,
+      remaining_amount: debt.remainingAmount,
+      due_date: debt.dueDate,
+      notes: debt.notes || null,
+      payments: debt.payments || [],
+      account_id: debt.accountId || null,
+      account_type: debt.accountType || null,
+      account_name: debt.accountName || null
+    }));
+
+    const incomesCols = await getColumnsForTable('incomes');
+    const recordsIncomes = (state.incomes || []).map(inc => mapObjectToColumns(inc, incomesCols, email, {
+      id: inc.id,
+      amount: inc.amount,
+      date: inc.date,
+      source: inc.source,
+      category: inc.category,
+      target_account_id: inc.targetAccountId,
+      target_type: inc.targetType
+    }));
+
+    const expensesCols = await getColumnsForTable('expenses');
+    const recordsExpenses = (state.expenses || []).map(exp => mapObjectToColumns(exp, expensesCols, email, {
+      id: exp.id,
+      title: exp.title,
+      description: exp.description || null,
+      amount: exp.amount,
+      date: exp.date,
+      category: exp.category,
+      payment_method_id: exp.paymentMethodId,
+      payment_method_type: exp.paymentMethodType
+    }));
+
+    const notificationsCols = await getColumnsForTable('notifications');
+    const recordsNotifications = (state.notifications || []).map(notif => mapObjectToColumns(notif, notificationsCols, email, {
+      id: notif.id,
+      type: notif.type,
+      message: notif.message,
+      date: notif.date,
+      read: notif.read
+    }));
+
+    const subscriptionsCols = await getColumnsForTable('subscriptions');
+    const recordsSubscriptions = (state.subscriptions || []).map(sub => mapObjectToColumns(sub, subscriptionsCols, email, {
+      id: sub.id,
+      name: sub.name,
+      amount: sub.amount,
+      billing_cycle: sub.billingCycle,
+      due_date: sub.dueDate,
+      category: sub.category,
+      status: sub.status,
+      payment_method_id: sub.paymentMethodId || null,
+      payment_method_type: sub.paymentMethodType || null,
+      last_paid_date: sub.lastPaidDate || null
+    }));
+
+    const loansCols = await getColumnsForTable('loans_given');
+    const recordsLoans = (state.loansGiven || []).map(loan => mapObjectToColumns(loan, loansCols, email, {
+      id: loan.id,
+      borrower_name: loan.borrowerName,
+      total_amount: loan.totalAmount,
+      remaining_amount: loan.remainingAmount,
+      date_given: loan.dateGiven,
+      source_account_id: loan.sourceAccountId,
+      source_account_type: loan.sourceAccountType,
+      source_account_name: loan.sourceAccountName,
+      status: loan.status,
+      notes: loan.notes || null,
+      settlements: loan.settlements || []
+    }));
+
+    // 2. ATTEMPT TRANSACTIONAL SINGLE-TRIP RPC
+    try {
+      const { data: rpcRes, error: rpcErr } = await client.rpc('sync_complete_ledger', {
+        p_email: email,
+        p_state: state,
+        p_cards: recordsCards,
+        p_cash_accounts: recordsCash,
+        p_transactions: recordsTx,
+        p_debts: recordsDebts,
+        p_incomes: recordsIncomes,
+        p_expenses: recordsExpenses,
+        p_notifications: recordsNotifications,
+        p_subscriptions: recordsSubscriptions,
+        p_loans_given: recordsLoans
+      });
+
+      if (!rpcErr) {
+        console.log('[TRANSACTIONAL SYNC ENGINE] Successfully synced entire ledger atomically using single-trip Postgres Transaction!');
+        lastSyncedStatesCache[cacheKey] = currentStateString;
+        return { success: true };
+      }
+
+      const isMissingRpc = rpcErr.message && (
+        rpcErr.message.includes('function') && rpcErr.message.includes('does not exist') ||
+        rpcErr.code === 'PGRST501' || rpcErr.code === '42883'
+      );
+      if (!isMissingRpc) {
+        console.error('[TRANSACTIONAL SYNC ENGINE] Transactional RPC execution failed on DB:', rpcErr);
+        throw rpcErr;
+      }
+      console.warn('[TRANSACTIONAL SYNC ENGINE] sync_complete_ledger RPC is not defined in distant DB. Falling back to sequential client table-sync...');
+    } catch (rpcExecErr: any) {
+      if (rpcExecErr.code !== 'PGRST501' && rpcExecErr.code !== '42883' && (!rpcExecErr.message || !rpcExecErr.message.includes('does not exist'))) {
+        throw rpcExecErr;
+      }
+    }
+
+    // 3. FALLBACK BACKWARD-COMPATIBILITY: CHUNKED PARALLEL CLIENT SYNCHRONIZER
     const { error: stateError } = await client
       .from('ledger_states')
       .insert({ 
@@ -311,537 +515,186 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
         updated_at: new Date().toISOString()
       });
 
-    if (stateError) {
-      throw stateError;
+    if (stateError) throw stateError;
+
+    // A. Sync Bank Cards
+    if (cardsCols.length > 0) {
+      if (recordsCards.length > 0) {
+        const { error: cardErr } = await client.from('bank_cards').upsert(recordsCards, { onConflict: 'id' });
+        if (cardErr) errorDetails.push(`Cards: ${cardErr.message}`);
+      }
+      const activeCardIds = (state.cards || []).map(c => c.id);
+      const emailField = cardsCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeCardIds.length > 0) {
+        const { data: existing } = await client.from('bank_cards').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeCardIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('bank_cards').delete().in('id', toDelete);
+        }
+      } else {
+        await client.from('bank_cards').delete().eq(emailField, email);
+      }
     }
 
-    // 2. Synchronize Remote Bank Cards
-    try {
-      let cardsCols = await getColumnsForTable('bank_cards');
-      if (cardsCols.length > 0) {
-        let attempts = 0;
-        let success = false;
-        while (attempts < 3 && !success) {
-          attempts++;
-          if (state.cards && state.cards.length > 0) {
-            const records = state.cards.map(card => {
-              const mapped = mapObjectToColumns(card, cardsCols, email, {
-                id: card.id,
-                current_balance: card.currentBalance,
-                currentBalance: card.currentBalance,
-                card_name: card.cardName,
-                cardName: card.cardName,
-                bank_name: card.bankName,
-                bankName: card.bankName,
-                card_type: card.cardType,
-                cardType: card.cardType,
-                card_number: card.cardNumber || null,
-                cardNumber: card.cardNumber || null,
-                card_theme: card.cardTheme || 'obsidian',
-                cardTheme: card.cardTheme || 'obsidian'
-              });
-              // PostgREST upsert determines columns from the FIRST object in the array.
-              // If we omit is_canceled on the first item, it ignores is_canceled for ALL items.
-              // Therefore, we MUST explicitly map it boolean across the board.
-              mapped.is_canceled = Boolean(card.isCanceled === true || (card as any).is_canceled === true);
-              
-              // Clean up aliases so we don't send duplicate random columns
-              delete mapped.is_cancelled;
-              delete mapped.isCanceled;
-
-              if (cardsCols.includes('limit')) {
-                mapped.limit = card.limit !== undefined ? card.limit : null;
-              }
-              if (cardsCols.includes('is_limit_locked') || cardsCols.includes('isLimitLocked')) {
-                const activeLockCol = cardsCols.includes('is_limit_locked') ? 'is_limit_locked' : 'isLimitLocked';
-                mapped[activeLockCol] = card.isLimitLocked !== undefined ? Boolean(card.isLimitLocked) : true;
-              }
-              if (cardsCols.includes('is_frozen') || cardsCols.includes('isFrozen')) {
-                const activeFrozenCol = cardsCols.includes('is_frozen') ? 'is_frozen' : 'isFrozen';
-                mapped[activeFrozenCol] = card.isFrozen !== undefined ? Boolean(card.isFrozen) : false;
-              }
-              
-              return mapped;
-            });
-            
-            console.log("DEBUG: bank_cards upsert payload properties:", records.map(r => ({ id: r.id, is_canceled: r.is_canceled })));
-
-            const { data, error: cardsErr } = await client.from('bank_cards').upsert(records, { onConflict: 'id' }).select();
-            if (cardsErr) {
-              console.warn('Supabase Bank Cards Sync Warning:', cardsErr);
-              const errMsg = cardsErr.message || cardsErr.details || '';
-              const missingCol = extractMissingColumn(errMsg, 'bank_cards');
-              if (missingCol) {
-                console.warn(`Self-healing: column '${missingCol}' does not exist on bank_cards in Postgres. Filtering it out and retrying!`);
-                cardsCols = cardsCols.filter(c => c !== missingCol && c !== toCamelCase(missingCol) && c !== toSnakeCase(missingCol));
-                if (!detectedColumnsCache) detectedColumnsCache = {};
-                detectedColumnsCache['bank_cards'] = cardsCols;
-                continue;
-              }
-              errorDetails.push(`Bank Cards Sync: ${cardsErr.message || cardsErr.details}`);
-              break;
-            } else {
-              success = true;
-            }
-          } else {
-            success = true;
-          }
-        }
-
-        // Clean up cards removed locally
-        const activeCardIds = (state.cards || []).map(c => c.id);
-        const emailField = cardsCols.includes('user_email') ? 'user_email' : cardsCols.includes('userEmail') ? 'userEmail' : '';
-        if (emailField) {
-          if (activeCardIds.length > 0) {
-            const { data: existing } = await client.from('bank_cards').select('id').eq(emailField, email);
-            const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeCardIds.includes(id));
-            if (toDelete.length > 0) {
-              // chunk up deletions if needed
-              for (let i = 0; i < toDelete.length; i += 100) {
-                const { error: delErr } = await client.from('bank_cards').delete().in('id', toDelete.slice(i, i + 100));
-                if (delErr) console.warn('Supabase bank_cards delete warning:', delErr);
-              }
-            }
-          } else {
-            const { error: delErr } = await client.from('bank_cards').delete().eq(emailField, email);
-            if (delErr) {
-              console.warn('Supabase Bank Cards delete error:', delErr);
-            }
-          }
-        }
+    // B. Sync Cash Accounts
+    if (cashCols.length > 0) {
+      if (recordsCash.length > 0) {
+        const { error: cashErr } = await client.from('cash_accounts').upsert(recordsCash, { onConflict: 'id' });
+        if (cashErr) errorDetails.push(`Cash: ${cashErr.message}`);
       }
-    } catch (cardSyncErr: any) {
-      console.error('Error syncing individual bank_cards:', cardSyncErr);
-      errorDetails.push(`Bank Cards block: ${cardSyncErr.message || cardSyncErr}`);
+      const activeCashIds = (state.cashAccounts || []).map(c => c.id);
+      const emailField = cashCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeCashIds.length > 0) {
+        const { data: existing } = await client.from('cash_accounts').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeCashIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('cash_accounts').delete().in('id', toDelete);
+        }
+      } else {
+        await client.from('cash_accounts').delete().eq(emailField, email);
+      }
     }
 
-    // 3. Synchronize Remote Cash Accounts
-    try {
-      const cashCols = await getColumnsForTable('cash_accounts');
-      if (cashCols.length > 0) {
-        if (state.cashAccounts && state.cashAccounts.length > 0) {
-          const records = state.cashAccounts.map(acc => mapObjectToColumns(acc, cashCols, email, {
-            id: acc.id,
-            name: acc.name,
-            balance: acc.balance
-          }));
-          const { error: cashErr } = await client.from('cash_accounts').upsert(records, { onConflict: 'id' });
-          if (cashErr) {
-            console.warn('Supabase Cash Accounts Sync Warning:', cashErr);
-            errorDetails.push(`Cash Accounts Sync: ${cashErr.message || cashErr.details}`);
-          }
-        }
-
-        // Clean up cash accounts removed locally
-        const activeCashIds = (state.cashAccounts || []).map(a => a.id);
-        const emailField = cashCols.includes('user_email') ? 'user_email' : cashCols.includes('userEmail') ? 'userEmail' : '';
-        if (emailField) {
-          if (activeCashIds.length > 0) {
-            const { data: existing } = await client.from('cash_accounts').select('id').eq(emailField, email);
-            const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeCashIds.includes(id));
-            if (toDelete.length > 0) {
-              // chunk up deletions if needed
-              for (let i = 0; i < toDelete.length; i += 100) {
-                const { error: delErr } = await client.from('cash_accounts').delete().in('id', toDelete.slice(i, i + 100));
-                if (delErr) console.warn('Supabase cash_accounts delete warning:', delErr);
-              }
-            }
-          } else {
-            const { error: delErr } = await client.from('cash_accounts').delete().eq(emailField, email);
-            if (delErr) {
-              console.warn('Supabase Cash Accounts delete error:', delErr);
-            }
-          }
-        }
+    // C. Sync Transactions
+    if (txCols.length > 0) {
+      if (recordsTx.length > 0) {
+        const { error: txErr } = await client.from('transactions').upsert(recordsTx, { onConflict: 'id' });
+        if (txErr) errorDetails.push(`Transactions: ${txErr.message}`);
       }
-    } catch (cashSyncErr: any) {
-      console.error('Error syncing individual cash_accounts:', cashSyncErr);
-      errorDetails.push(`Cash Accounts block: ${cashSyncErr.message || cashSyncErr}`);
+      const activeTxIds = (state.transactions || []).map(t => t.id);
+      const emailField = txCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeTxIds.length > 0) {
+        const { data: existing } = await client.from('transactions').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeTxIds.includes(id));
+        if (toDelete.length > 0) {
+          for (let i = 0; i < toDelete.length; i += 100) {
+            await client.from('transactions').delete().in('id', toDelete.slice(i, i + 100));
+          }
+        }
+      } else {
+        await client.from('transactions').delete().eq(emailField, email);
+      }
     }
 
-    // 4. Synchronize Remote Transactions
-    try {
-      const txCols = await getColumnsForTable('transactions');
-      if (txCols.length > 0) {
-        if (state.transactions && state.transactions.length > 0) {
-          const records = state.transactions.map(tx => mapObjectToColumns(tx, txCols, email, {
-            id: tx.id,
-            type: tx.type,
-            title: tx.title,
-            amount: tx.amount,
-            charge: tx.charge || 0,
-            transfer_charge: tx.charge || 0,
-            date: tx.date,
-            category: tx.category,
-            account_id: tx.accountId || null,
-            accountId: tx.accountId || null,
-            account_type: tx.accountType || null,
-            accountType: tx.accountType || null,
-            target_account_id: tx.targetAccountId || null,
-            targetAccountId: tx.targetAccountId || null,
-            target_account_type: tx.targetAccountType || null,
-            targetAccountType: tx.targetAccountType || null,
-            reference_id: tx.referenceId || null,
-            referenceId: tx.referenceId || null
-          }));
-          const { error: txErr } = await client.from('transactions').upsert(records, { onConflict: 'id' });
-          if (txErr) {
-            console.warn('Supabase Transactions Sync Warning:', txErr);
-            errorDetails.push(`Transactions Sync: ${txErr.message || txErr.details}`);
-          }
-        }
-
-        // Clean up transactions removed locally
-        const activeTxIds = (state.transactions || []).map(t => t.id);
-        const emailField = txCols.includes('user_email') ? 'user_email' : txCols.includes('userEmail') ? 'userEmail' : '';
-        if (emailField) {
-          if (activeTxIds.length > 0) {
-            const { data: existing } = await client.from('transactions').select('id').eq(emailField, email);
-            const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeTxIds.includes(id));
-            if (toDelete.length > 0) {
-              // chunk up deletions if needed
-              for (let i = 0; i < toDelete.length; i += 100) {
-                const { error: delErr } = await client.from('transactions').delete().in('id', toDelete.slice(i, i + 100));
-                if (delErr) console.warn('Supabase transactions delete warning:', delErr);
-              }
-            }
-          } else {
-            const { error: delErr } = await client.from('transactions').delete().eq(emailField, email);
-            if (delErr) {
-              console.warn('Supabase Transactions delete error:', delErr);
-            }
-          }
-        }
+    // D. Sync Debts
+    if (debtsCols.length > 0) {
+      if (recordsDebts.length > 0) {
+        const { error: debtsErr } = await client.from('debts').upsert(recordsDebts, { onConflict: 'id' });
+        if (debtsErr) errorDetails.push(`Debts: ${debtsErr.message}`);
       }
-    } catch (txSyncErr: any) {
-      console.error('Error syncing individual transactions:', txSyncErr);
-      errorDetails.push(`Transactions block: ${txSyncErr.message || txSyncErr}`);
+      const activeDebtIds = (state.debts || []).map(d => d.id);
+      const emailField = debtsCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeDebtIds.length > 0) {
+        const { data: existing } = await client.from('debts').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeDebtIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('debts').delete().in('id', toDelete);
+        }
+      } else {
+        await client.from('debts').delete().eq(emailField, email);
+      }
     }
 
-    // 5. Synchronize Remote Debts (Liabilities / Debt Accounts)
-    try {
-      const debtsCols = await getColumnsForTable('debts');
-      if (debtsCols.length > 0) {
-        if (state.debts && state.debts.length > 0) {
-          const records = state.debts.map((debt) =>
-            mapObjectToColumns(debt, debtsCols, email, {
-              id: debt.id,
-              debt_source: debt.debtSource,
-              debtSource: debt.debtSource,
-              total_amount: debt.totalAmount,
-              totalAmount: debt.totalAmount,
-              remaining_amount: debt.remainingAmount,
-              remainingAmount: debt.remainingAmount,
-              due_date: debt.dueDate,
-              dueDate: debt.dueDate,
-              account_id: debt.accountId || null,
-              accountId: debt.accountId || null,
-              account_type: debt.accountType || null,
-              accountType: debt.accountType || null,
-              account_name: debt.accountName || null,
-              accountName: debt.accountName || null,
-              notes: debt.notes || null,
-              payments: debt.payments || [],
-            })
-          );
-          const { error: debtsErr } = await client.from('debts').upsert(records, { onConflict: 'id' });
-          if (debtsErr) {
-            console.warn('Supabase Debts Sync Warning:', debtsErr);
-            errorDetails.push(`Debts Sync: ${debtsErr.message || debtsErr.details}`);
-          }
-        }
-
-        // Clean up debts removed locally
-        const activeDebtIds = (state.debts || []).map(d => d.id);
-        const emailField = debtsCols.includes('user_email') ? 'user_email' : debtsCols.includes('userEmail') ? 'userEmail' : '';
-        if (emailField) {
-          if (activeDebtIds.length > 0) {
-            const { data: existing } = await client.from('debts').select('id').eq(emailField, email);
-            const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeDebtIds.includes(id));
-            if (toDelete.length > 0) {
-              // chunk up deletions if needed
-              for (let i = 0; i < toDelete.length; i += 100) {
-                const { error: delErr } = await client.from('debts').delete().in('id', toDelete.slice(i, i + 100));
-                if (delErr) console.warn('Supabase debts delete warning:', delErr);
-              }
-            }
-          } else {
-            const { error: delErr } = await client.from('debts').delete().eq(emailField, email);
-            if (delErr) {
-              console.warn('Supabase Debts delete error:', delErr);
-            }
-          }
-        }
+    // E. Sync Incomes
+    if (incomesCols.length > 0) {
+      if (recordsIncomes.length > 0) {
+        const { error: incErr } = await client.from('incomes').upsert(recordsIncomes, { onConflict: 'id' });
+        if (incErr) errorDetails.push(`Incomes: ${incErr.message}`);
       }
-    } catch (debtsSyncErr: any) {
-      console.error('Error syncing individual debts:', debtsSyncErr);
-      errorDetails.push(`Debts block: ${debtsSyncErr.message || debtsSyncErr}`);
+      const activeIncomeIds = (state.incomes || []).map(i => i.id);
+      const emailField = incomesCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeIncomeIds.length > 0) {
+        const { data: existing } = await client.from('incomes').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeIncomeIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('incomes').delete().in('id', toDelete);
+        }
+      } else {
+        await client.from('incomes').delete().eq(emailField, email);
+      }
     }
 
-    // 6. Synchronize Remote Incomes
-    try {
-      const incomesCols = await getColumnsForTable('incomes');
-      if (incomesCols.length > 0) {
-        if (state.incomes && state.incomes.length > 0) {
-          const records = state.incomes.map(inc => mapObjectToColumns(inc, incomesCols, email, {
-            id: inc.id,
-            amount: inc.amount,
-            date: inc.date,
-            source: inc.source,
-            category: inc.category,
-            target_account_id: inc.targetAccountId,
-            targetAccountId: inc.targetAccountId,
-            target_type: inc.targetType,
-            targetType: inc.targetType
-          }));
-          const { error: incErr } = await client.from('incomes').upsert(records, { onConflict: 'id' });
-          if (incErr) {
-            console.warn('Supabase Incomes Sync Warning:', incErr);
-            errorDetails.push(`Incomes Sync: ${incErr.message || incErr.details}`);
-          }
-        }
-
-        // Clean up incomes removed locally
-        const activeIncomeIds = (state.incomes || []).map(i => i.id);
-        const emailField = incomesCols.includes('user_email') ? 'user_email' : incomesCols.includes('userEmail') ? 'userEmail' : '';
-        if (emailField) {
-          if (activeIncomeIds.length > 0) {
-            const { data: existing } = await client.from('incomes').select('id').eq(emailField, email);
-            const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeIncomeIds.includes(id));
-            if (toDelete.length > 0) {
-              // chunk up deletions if needed
-              for (let i = 0; i < toDelete.length; i += 100) {
-                const { error: delErr } = await client.from('incomes').delete().in('id', toDelete.slice(i, i + 100));
-                if (delErr) console.warn('Supabase incomes delete warning:', delErr);
-              }
-            }
-          } else {
-            const { error: delErr } = await client.from('incomes').delete().eq(emailField, email);
-            if (delErr) {
-              console.warn('Supabase Incomes delete error:', delErr);
-            }
-          }
-        }
+    // F. Sync Expenses
+    if (expensesCols.length > 0) {
+      if (recordsExpenses.length > 0) {
+        const { error: expErr } = await client.from('expenses').upsert(recordsExpenses, { onConflict: 'id' });
+        if (expErr) errorDetails.push(`Expenses: ${expErr.message}`);
       }
-    } catch (incSyncErr: any) {
-      console.error('Error syncing individual incomes:', incSyncErr);
-      errorDetails.push(`Incomes block: ${incSyncErr.message || incSyncErr}`);
+      const activeExpenseIds = (state.expenses || []).map(e => e.id);
+      const emailField = expensesCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeExpenseIds.length > 0) {
+        const { data: existing } = await client.from('expenses').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeExpenseIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('expenses').delete().in('id', toDelete);
+        }
+      } else {
+        await client.from('expenses').delete().eq(emailField, email);
+      }
     }
 
-    // 7. Synchronize Remote Expenses
-    try {
-      const expensesCols = await getColumnsForTable('expenses');
-      if (expensesCols.length > 0) {
-        if (state.expenses && state.expenses.length > 0) {
-          const records = state.expenses.map(exp => mapObjectToColumns(exp, expensesCols, email, {
-            id: exp.id,
-            title: exp.title,
-            description: exp.description || null,
-            amount: exp.amount,
-            date: exp.date,
-            category: exp.category,
-            payment_method_id: exp.paymentMethodId,
-            paymentMethodId: exp.paymentMethodId,
-            payment_method_type: exp.paymentMethodType,
-            paymentMethodType: exp.paymentMethodType
-          }));
-          const { error: expErr } = await client.from('expenses').upsert(records, { onConflict: 'id' });
-          if (expErr) {
-            console.warn('Supabase Expenses Sync Warning:', expErr);
-            errorDetails.push(`Expenses Sync: ${expErr.message || expErr.details}`);
-          }
-        }
-
-        // Clean up expenses removed locally
-        const activeExpenseIds = (state.expenses || []).map(e => e.id);
-        const emailField = expensesCols.includes('user_email') ? 'user_email' : expensesCols.includes('userEmail') ? 'userEmail' : '';
-        if (emailField) {
-          if (activeExpenseIds.length > 0) {
-            const { data: existing } = await client.from('expenses').select('id').eq(emailField, email);
-            const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeExpenseIds.includes(id));
-            if (toDelete.length > 0) {
-              // chunk up deletions if needed
-              for (let i = 0; i < toDelete.length; i += 100) {
-                const { error: delErr } = await client.from('expenses').delete().in('id', toDelete.slice(i, i + 100));
-                if (delErr) console.warn('Supabase expenses delete warning:', delErr);
-              }
-            }
-          } else {
-            const { error: delErr } = await client.from('expenses').delete().eq(emailField, email);
-            if (delErr) {
-              console.warn('Supabase Expenses delete error:', delErr);
-            }
-          }
-        }
+    // G. Sync Notifications
+    if (notificationsCols.length > 0) {
+      if (recordsNotifications.length > 0) {
+        const { error: notifErr } = await client.from('notifications').upsert(recordsNotifications, { onConflict: 'id' });
+        if (notifErr) errorDetails.push(`Notifications: ${notifErr.message}`);
       }
-    } catch (expSyncErr: any) {
-      console.error('Error syncing individual expenses:', expSyncErr);
-      errorDetails.push(`Expenses block: ${expSyncErr.message || expSyncErr}`);
+      const activeNotifIds = (state.notifications || []).map(n => n.id);
+      const emailField = notificationsCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeNotifIds.length > 0) {
+        const { data: existing } = await client.from('notifications').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeNotifIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('notifications').delete().in('id', toDelete);
+        }
+      } else {
+        await client.from('notifications').delete().eq(emailField, email);
+      }
     }
 
-    // 8. Synchronize Remote Notifications
-    try {
-      const notificationsCols = await getColumnsForTable('notifications');
-      if (notificationsCols.length > 0) {
-        if (state.notifications && state.notifications.length > 0) {
-          const records = state.notifications.map(notif => mapObjectToColumns(notif, notificationsCols, email, {
-            id: notif.id,
-            type: notif.type,
-            message: notif.message,
-            date: notif.date,
-            read: notif.read
-          }));
-          const { error: notifErr } = await client.from('notifications').upsert(records, { onConflict: 'id' });
-          if (notifErr) {
-            console.warn('Supabase Notifications Sync Warning:', notifErr);
-            errorDetails.push(`Notifications Sync: ${notifErr.message || notifErr.details}`);
-          }
-        }
-
-        // Clean up notifications removed locally
-        const activeNotifIds = (state.notifications || []).map(n => n.id);
-        const emailField = notificationsCols.includes('user_email') ? 'user_email' : notificationsCols.includes('userEmail') ? 'userEmail' : '';
-        if (emailField) {
-          if (activeNotifIds.length > 0) {
-            const { data: existing } = await client.from('notifications').select('id').eq(emailField, email);
-            const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeNotifIds.includes(id));
-            if (toDelete.length > 0) {
-              // chunk up deletions if needed
-              for (let i = 0; i < toDelete.length; i += 100) {
-                const { error: delErr } = await client.from('notifications').delete().in('id', toDelete.slice(i, i + 100));
-                if (delErr) console.warn('Supabase notifications delete warning:', delErr);
-              }
-            }
-          } else {
-            const { error: delErr } = await client.from('notifications').delete().eq(emailField, email);
-            if (delErr) {
-              console.warn('Supabase Notifications delete error:', delErr);
-            }
-          }
-        }
+    // H. Sync Subscriptions
+    if (subscriptionsCols.length > 0) {
+      if (recordsSubscriptions.length > 0) {
+        const { error: subErr } = await client.from('subscriptions').upsert(recordsSubscriptions, { onConflict: 'id' });
+        if (subErr) errorDetails.push(`Subscriptions: ${subErr.message}`);
       }
-    } catch (notifSyncErr: any) {
-      console.error('Error syncing individual notifications:', notifSyncErr);
-      errorDetails.push(`Notifications block: ${notifSyncErr.message || notifSyncErr}`);
+      const activeSubIds = (state.subscriptions || []).map(s => s.id);
+      const emailField = subscriptionsCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeSubIds.length > 0) {
+        const { data: existing } = await client.from('subscriptions').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeSubIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('subscriptions').delete().in('id', toDelete);
+        }
+      } else {
+        await client.from('subscriptions').delete().eq(emailField, email);
+      }
     }
 
-    // 9. Synchronize Remote Subscriptions
-    try {
-      const subscriptionsCols = await getColumnsForTable('subscriptions');
-      if (subscriptionsCols.length > 0) {
-        if (state.subscriptions && state.subscriptions.length > 0) {
-          const records = state.subscriptions.map(sub => mapObjectToColumns(sub, subscriptionsCols, email, {
-            id: sub.id,
-            name: sub.name,
-            amount: sub.amount,
-            billing_cycle: sub.billingCycle,
-            billingCycle: sub.billingCycle,
-            due_date: sub.dueDate,
-            dueDate: sub.dueDate,
-            category: sub.category,
-            status: sub.status,
-            payment_method_id: sub.paymentMethodId || null,
-            paymentMethodId: sub.paymentMethodId || null,
-            payment_method_type: sub.paymentMethodType || null,
-            paymentMethodType: sub.paymentMethodType || null,
-            last_paid_date: sub.lastPaidDate || null,
-            lastPaidDate: sub.lastPaidDate || null
-          }));
-          const { error: subErr } = await client.from('subscriptions').upsert(records, { onConflict: 'id' });
-          if (subErr) {
-            console.warn('Supabase Subscriptions Sync Warning:', subErr);
-            errorDetails.push(`Subscriptions Sync: ${subErr.message || subErr.details}`);
-          }
-        }
-
-        // Clean up subscriptions removed locally
-        const activeSubIds = (state.subscriptions || []).map(s => s.id);
-        const emailField = subscriptionsCols.includes('user_email') ? 'user_email' : subscriptionsCols.includes('userEmail') ? 'userEmail' : '';
-        if (emailField) {
-          if (activeSubIds.length > 0) {
-            const { data: existing } = await client.from('subscriptions').select('id').eq(emailField, email);
-            const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeSubIds.includes(id));
-            if (toDelete.length > 0) {
-              for (let i = 0; i < toDelete.length; i += 100) {
-                const { error: delErr } = await client.from('subscriptions').delete().in('id', toDelete.slice(i, i + 100));
-                if (delErr) console.warn('Supabase subscriptions delete warning:', delErr);
-              }
-            }
-          } else {
-            const { error: delErr } = await client.from('subscriptions').delete().eq(emailField, email);
-            if (delErr) {
-              console.warn('Supabase Subscriptions delete error:', delErr);
-            }
-          }
-        }
+    // I. Sync Loans Given
+    if (loansCols.length > 0) {
+      if (recordsLoans.length > 0) {
+        const { error: loanErr } = await client.from('loans_given').upsert(recordsLoans, { onConflict: 'id' });
+        if (loanErr) errorDetails.push(`Loans Given: ${loanErr.message}`);
       }
-    } catch (subSyncErr: any) {
-      console.error('Error syncing individual subscriptions:', subSyncErr);
-      errorDetails.push(`Subscriptions block: ${subSyncErr.message || subSyncErr}`);
-    }
-
-    // 10. Synchronize Remote Loans Given
-    try {
-      const loansCols = await getColumnsForTable('loans_given');
-      if (loansCols.length > 0) {
-        if (state.loansGiven && state.loansGiven.length > 0) {
-          const records = state.loansGiven.map(loan => mapObjectToColumns(loan, loansCols, email, {
-            id: loan.id,
-            borrower_name: loan.borrowerName,
-            borrowerName: loan.borrowerName,
-            total_amount: loan.totalAmount,
-            totalAmount: loan.totalAmount,
-            remaining_amount: loan.remainingAmount,
-            remainingAmount: loan.remainingAmount,
-            date_given: loan.dateGiven,
-            dateGiven: loan.dateGiven,
-            source_account_id: loan.sourceAccountId,
-            sourceAccountId: loan.sourceAccountId,
-            source_account_type: loan.sourceAccountType,
-            sourceAccountType: loan.sourceAccountType,
-            source_account_name: loan.sourceAccountName,
-            sourceAccountName: loan.sourceAccountName,
-            status: loan.status,
-            notes: loan.notes || null,
-            settlements: loan.settlements || []
-          }));
-          const { error: loanErr } = await client.from('loans_given').upsert(records, { onConflict: 'id' });
-          if (loanErr) {
-            console.warn('Supabase Loans Given Sync Warning:', loanErr);
-            errorDetails.push(`Loans Given Sync: ${loanErr.message || loanErr.details}`);
-          }
+      const activeLoanIds = (state.loansGiven || []).map(l => l.id);
+      const emailField = loansCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeLoanIds.length > 0) {
+        const { data: existing } = await client.from('loans_given').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeLoanIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('loans_given').delete().in('id', toDelete);
         }
-
-        // Clean up loans_given removed locally
-        const activeLoanIds = (state.loansGiven || []).map(l => l.id);
-        const emailField = loansCols.includes('user_email') ? 'user_email' : loansCols.includes('userEmail') ? 'userEmail' : '';
-        if (emailField) {
-          if (activeLoanIds.length > 0) {
-            const { data: existing } = await client.from('loans_given').select('id').eq(emailField, email);
-            const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeLoanIds.includes(id));
-            if (toDelete.length > 0) {
-              for (let i = 0; i < toDelete.length; i += 100) {
-                const { error: delErr } = await client.from('loans_given').delete().in('id', toDelete.slice(i, i + 100));
-                if (delErr) console.warn('Supabase loans_given delete warning:', delErr);
-              }
-            }
-          } else {
-            const { error: delErr } = await client.from('loans_given').delete().eq(emailField, email);
-            if (delErr) {
-              console.warn('Supabase Loans Given delete error:', delErr);
-            }
-          }
-        }
+      } else {
+        await client.from('loans_given').delete().eq(emailField, email);
       }
-    } catch (loansSyncErr: any) {
-      console.error('Error syncing individual loans_given:', loansSyncErr);
-      errorDetails.push(`Loans Given block: ${loansSyncErr.message || loansSyncErr}`);
     }
 
     if (errorDetails.length > 0) {
       return { success: false, error: errorDetails.join('; ') };
     }
 
+    lastSyncedStatesCache[cacheKey] = currentStateString;
     return { success: true };
   } catch (err: any) {
     console.error('Supabase State Push Error:', err);
@@ -985,6 +838,9 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       loansGiven: fetchedLoansGiven
     };
 
+    const cacheKey = email.trim().toLowerCase();
+    lastSyncedStatesCache[cacheKey] = JSON.stringify(reconstructedState);
+
     return { success: true, state: reconstructedState };
   } catch (err: any) {
     console.error('Supabase State Pull Error:', err);
@@ -1007,12 +863,149 @@ alter table public.auth_accounts add column if not exists name text;
 alter table public.debts add column if not exists account_id text;
 alter table public.debts add column if not exists account_type text;
 alter table public.debts add column if not exists account_name text;
-alter table public.debts add column if not exists account_id text;
-alter table public.debts add column if not exists account_type text;
-alter table public.debts add column if not exists account_name text;
-alter table public.debts add column if not exists account_id text;
-alter table public.debts add column if not exists account_type text;
-alter table public.debts add column if not exists account_name text;
+
+-- ENABLE CRYPTO EXTENSION
+create extension if not exists pgcrypto;
+
+-- CREATE CRYPTOGRAPHIC SESSION VERIFIER
+create or replace function public.verify_user_token(headers json) returns text as $$
+declare
+  token text;
+  email text;
+  parts text[];
+  payload_str text;
+  signature text;
+  expected_signature text;
+  payload json;
+  expires_at bigint;
+  secret text;
+begin
+  if headers is null then
+    return null;
+  end if;
+  
+  -- Extracted headers from connection
+  token := headers->>'x-session-token';
+  email := headers->>'x-user-email';
+  if token is null or email is null then
+    return null;
+  end if;
+  
+  -- Split token by '.' which divides HMAC text payload and signature
+  parts := string_to_array(token, '.');
+  if array_length(parts, 1) != 2 then
+    return null;
+  end if;
+  
+  payload_str := parts[1];
+  signature := parts[2];
+  
+  -- Get secret from database configuration or local fallback
+  secret := coalesce(nullif(current_setting('app.settings.session_secret', true), ''), 'vault_secure_suite_signature_key_2026_x92');
+  
+  -- Compute the expected cryptographic signature
+  expected_signature := encode(hmac(payload_str, secret, 'sha256'), 'hex');
+  if signature != expected_signature then
+    return null;
+  end if;
+  
+  -- Translate the base64url payload safe conversion
+  payload_str := rpad(replace(replace(payload_str, '-', '+'), '_', '/'), (ceil(length(payload_str) / 4.0) * 4)::integer, '=');
+  payload := convert_from(decode(payload_str, 'base64'), 'utf-8')::json;
+  
+  -- Prevent session replay expiration bounds
+  expires_at := (payload->>'expiresAt')::bigint;
+  if expires_at < (date_part('epoch', now()) * 1000)::bigint then
+    return null;
+  end if;
+  
+  -- Clean validated email response
+  if lower(payload->>'email') = lower(email) then
+    return email;
+  end if;
+  
+  return null;
+exception
+  when others then
+    return null;
+end;
+$$ language plpgsql security definer;
+
+-- CREATE CRYPTOGRAPHIC SYSTEM BYPASS VERIFIER
+create or replace function public.verify_system_signature(headers json) returns boolean as $$
+declare
+  token text;
+  parts text[];
+  payload_str text;
+  signature text;
+  expected_signature text;
+  secret text;
+begin
+  if headers is null then
+    return false;
+  end if;
+  
+  token := headers->>'x-system-token';
+  if token is null then
+    return false;
+  end if;
+  
+  parts := string_to_array(token, '.');
+  if array_length(parts, 1) != 2 then
+    return false;
+  end if;
+  
+  payload_str := parts[1];
+  signature := parts[2];
+  
+  secret := coalesce(nullif(current_setting('app.settings.session_secret', true), ''), 'vault_secure_suite_signature_key_2026_x92');
+  expected_signature := encode(hmac(payload_str, secret, 'sha256'), 'hex');
+  
+  return signature = expected_signature;
+exception
+  when others then
+    return false;
+end;
+$$ language plpgsql security definer;
+
+-- 1. AUTHENTICATION AND AUTH TOKENS TABLES OR TABLES TO STORE OTP & DEVICE DATA
+create table if not exists public.auth_otps (
+  email text not null primary key,
+  otp text not null,
+  expires_at timestamp with time zone not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create table if not exists public.auth_device_tokens (
+  token text not null primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create table if not exists public.auth_rate_limits (
+  key text not null primary key,
+  count integer not null default 1,
+  reset_time timestamp with time zone not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- RLS for auth helper tables
+alter table public.auth_otps enable row level security;
+alter table public.auth_device_tokens enable row level security;
+alter table public.auth_rate_limits enable row level security;
+
+drop policy if exists "Internal system access on auth_otps" on public.auth_otps;
+drop policy if exists "Secure system access on auth_otps" on public.auth_otps;
+create policy "Secure system access on auth_otps" on public.auth_otps for all
+using (public.verify_system_signature(nullif(current_setting('request.headers', true), '')::json));
+
+drop policy if exists "Internal system access on auth_device_tokens" on public.auth_device_tokens;
+drop policy if exists "Secure system access on auth_device_tokens" on public.auth_device_tokens;
+create policy "Secure system access on auth_device_tokens" on public.auth_device_tokens for all
+using (public.verify_system_signature(nullif(current_setting('request.headers', true), '')::json));
+
+drop policy if exists "Secure system access on auth_rate_limits" on public.auth_rate_limits;
+create policy "Secure system access on auth_rate_limits" on public.auth_rate_limits for all
+using (public.verify_system_signature(nullif(current_setting('request.headers', true), '')::json));
 
 -- Upgrade script for subscriptions:
 create table if not exists public.subscriptions (
@@ -1031,11 +1024,6 @@ create table if not exists public.subscriptions (
 );
 
 alter table public.subscriptions enable row level security;
-
-create policy "Allow read accessibility on subscriptions" on public.subscriptions for select using (true);
-create policy "Allow insert/upsert accessibility on subscriptions" on public.subscriptions for insert with check (true);
-create policy "Allow update accessibility on subscriptions" on public.subscriptions for update using (true);
-create policy "Allow delete accessibility on subscriptions" on public.subscriptions for delete using (true);
 
 -- Upgrade script for loans_given:
 create table if not exists public.loans_given (
@@ -1056,11 +1044,6 @@ create table if not exists public.loans_given (
 
 alter table public.loans_given enable row level security;
 
-create policy "Allow read accessibility on loans_given" on public.loans_given for select using (true);
-create policy "Allow insert/upsert accessibility on loans_given" on public.loans_given for insert with check (true);
-create policy "Allow update accessibility on loans_given" on public.loans_given for update using (true);
-create policy "Allow delete accessibility on loans_given" on public.loans_given for delete using (true);
-
 -- 1. CREATE CORE STATE MATRIX FOR FLUTTER <-> REACT STATE SYNC (Appends row-by-row history list)
 create table if not exists public.ledger_states (
   id uuid default gen_random_uuid() primary key,
@@ -1068,9 +1051,6 @@ create table if not exists public.ledger_states (
   state jsonb not null default '{}'::jsonb,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
-
--- Note: If you previously created ledger_states table with a UNIQUE constraint on user_email, run this to drop the unique constraint so multiple rows can be stored:
--- alter table public.ledger_states drop constraint if exists ledger_states_user_email_key;
 
 -- 2. CREATE RELATIONAL BANK CARDS TABLE
 create table if not exists public.bank_cards (
@@ -1195,49 +1175,456 @@ create table if not exists public.auth_accounts (
 alter table public.auth_accounts enable row level security;
 
 -- SETUP POLICIES FOR AUTH ACCOUNTS
-create policy "Allow read accessibility on auth_accounts" on public.auth_accounts for select using (true);
-create policy "Allow insert accessibility on auth_accounts" on public.auth_accounts for insert with check (true);
-create policy "Allow update accessibility on auth_accounts" on public.auth_accounts for update using (true);
+create policy "Secure select on auth_accounts" on public.auth_accounts for select using (email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on auth_accounts" on public.auth_accounts for insert with check (public.verify_system_signature(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on auth_accounts" on public.auth_accounts for update using (email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 
--- 11. SETUP PUBLIC BYPASS CRUD POLICIES (React Client-Side Syncing Enabled)
-create policy "Allow read accessibility on states" on public.ledger_states for select using (true);
-create policy "Allow insert/upsert accessibility on states" on public.ledger_states for insert with check (true);
-create policy "Allow update accessibility on states" on public.ledger_states for update using (true);
+-- 11. SETUP SECURE TENANT ISOLATION POLICIES (React Client-Side Syncing Enabled)
+create policy "Secure select on states" on public.ledger_states for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on states" on public.ledger_states for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on states" on public.ledger_states for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 
-create policy "Allow read accessibility on cards" on public.bank_cards for select using (true);
-create policy "Allow insert/upsert accessibility on cards" on public.bank_cards for insert with check (true);
-create policy "Allow update accessibility on cards" on public.bank_cards for update using (true);
-create policy "Allow delete accessibility on cards" on public.bank_cards for delete using (true);
+create policy "Secure select on cards" on public.bank_cards for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on cards" on public.bank_cards for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on cards" on public.bank_cards for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on cards" on public.bank_cards for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 
-create policy "Allow read accessibility on cash" on public.cash_accounts for select using (true);
-create policy "Allow insert/upsert accessibility on cash" on public.cash_accounts for insert with check (true);
-create policy "Allow update accessibility on cash" on public.cash_accounts for update using (true);
-create policy "Allow delete accessibility on cash" on public.cash_accounts for delete using (true);
+create policy "Secure select on cash" on public.cash_accounts for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on cash" on public.cash_accounts for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on cash" on public.cash_accounts for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on cash" on public.cash_accounts for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 
-create policy "Allow read accessibility on tx" on public.transactions for select using (true);
-create policy "Allow insert/upsert accessibility on tx" on public.transactions for insert with check (true);
-create policy "Allow update accessibility on tx" on public.transactions for update using (true);
-create policy "Allow delete accessibility on tx" on public.transactions for delete using (true);
+create policy "Secure select on tx" on public.transactions for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on tx" on public.transactions for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on tx" on public.transactions for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on tx" on public.transactions for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 
-create policy "Allow read accessibility on debts" on public.debts for select using (true);
-create policy "Allow insert/upsert accessibility on debts" on public.debts for insert with check (true);
-create policy "Allow update accessibility on debts" on public.debts for update using (true);
-create policy "Allow delete accessibility on debts" on public.debts for delete using (true);
+create policy "Secure select on debts" on public.debts for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on debts" on public.debts for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on debts" on public.debts for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on debts" on public.debts for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 
-create policy "Allow read accessibility on incomes" on public.incomes for select using (true);
-create policy "Allow insert/upsert accessibility on incomes" on public.incomes for insert with check (true);
-create policy "Allow update accessibility on incomes" on public.incomes for update using (true);
-create policy "Allow delete accessibility on incomes" on public.incomes for delete using (true);
+create policy "Secure select on incomes" on public.incomes for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on incomes" on public.incomes for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on incomes" on public.incomes for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on incomes" on public.incomes for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 
-create policy "Allow read accessibility on expenses" on public.expenses for select using (true);
-create policy "Allow insert/upsert accessibility on expenses" on public.expenses for insert with check (true);
-create policy "Allow update accessibility on expenses" on public.expenses for update using (true);
-create policy "Allow delete accessibility on expenses" on public.expenses for delete using (true);
+create policy "Secure select on expenses" on public.expenses for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on expenses" on public.expenses for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on expenses" on public.expenses for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on expenses" on public.expenses for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 
-create policy "Allow read accessibility on notifications" on public.notifications for select using (true);
-create policy "Allow insert/upsert accessibility on notifications" on public.notifications for insert with check (true);
-create policy "Allow update accessibility on notifications" on public.notifications for update using (true);
-create policy "Allow delete accessibility on notifications" on public.notifications for delete using (true);
+create policy "Secure select on notifications" on public.notifications for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on notifications" on public.notifications for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on notifications" on public.notifications for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on notifications" on public.notifications for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+
+create policy "Secure select on subscriptions" on public.subscriptions for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on subscriptions" on public.subscriptions for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on subscriptions" on public.subscriptions for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on subscriptions" on public.subscriptions for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+
+create policy "Secure select on loans_given" on public.loans_given for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on loans_given" on public.loans_given for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on loans_given" on public.loans_given for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on loans_given" on public.loans_given for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+
+-- CRYPTOGRAPHICALLY SECURED SINGLE-TRIP TRANSACTIONAL LEDGER SYNC ENGINE
+CREATE OR REPLACE FUNCTION public.sync_complete_ledger(
+  p_email text,
+  p_state jsonb,
+  p_cards jsonb,
+  p_cash_accounts jsonb,
+  p_transactions jsonb,
+  p_debts jsonb,
+  p_incomes jsonb,
+  p_expenses jsonb,
+  p_notifications jsonb,
+  p_subscriptions jsonb,
+  p_loans_given jsonb
+) RETURNS jsonb AS $$
+DECLARE
+  v_caller_email text;
+  v_item jsonb;
+BEGIN
+  -- Authenticate cryptographic token
+  v_caller_email := public.verify_user_token(nullif(current_setting('request.headers', true), '')::json);
+  IF v_caller_email IS NULL OR lower(v_caller_email) != lower(p_email) THEN
+    RAISE EXCEPTION 'Cryptographic Session Token Mismatch or Expired. Access Denied.';
+  END IF;
+
+  -- 1. Upsert Unified State
+  INSERT INTO public.ledger_states (user_email, state, updated_at)
+  VALUES (p_email, p_state, timezone('utc'::text, now()))
+  ON CONFLICT (user_email) DO UPDATE
+  SET state = EXCLUDED.state, updated_at = EXCLUDED.updated_at;
+
+  -- 2. Synchronize Cards
+  IF p_cards IS NOT NULL THEN
+    -- Delete card records removed in client
+    DELETE FROM public.bank_cards
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_cards)->>'id');
+
+    -- Upsert card records
+    FOR v_item IN SELECT jsonb_array_elements(p_cards) LOOP
+      INSERT INTO public.bank_cards (
+        id, user_email, card_name, bank_name, card_type, card_number, card_theme, current_balance, is_canceled, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'card_name',
+        v_item->>'bank_name',
+        v_item->>'card_type',
+        v_item->>'card_number',
+        coalesce(v_item->>'card_theme', 'obsidian'),
+        (v_item->>'current_balance')::numeric,
+        coalesce((v_item->>'is_canceled')::boolean, false),
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        card_name = EXCLUDED.card_name,
+        bank_name = EXCLUDED.bank_name,
+        card_type = EXCLUDED.card_type,
+        card_number = EXCLUDED.card_number,
+        card_theme = EXCLUDED.card_theme,
+        current_balance = EXCLUDED.current_balance,
+        is_canceled = EXCLUDED.is_canceled,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.bank_cards WHERE user_email = p_email;
+  END IF;
+
+  -- 3. Synchronize Cash Accounts
+  IF p_cash_accounts IS NOT NULL THEN
+    DELETE FROM public.cash_accounts
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_cash_accounts)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_cash_accounts) LOOP
+      INSERT INTO public.cash_accounts (
+        id, user_email, name, balance, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'name',
+        (v_item->>'balance')::numeric,
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        balance = EXCLUDED.balance,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.cash_accounts WHERE user_email = p_email;
+  END IF;
+
+  -- 4. Synchronize Transactions
+  IF p_transactions IS NOT NULL THEN
+    DELETE FROM public.transactions
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_transactions)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_transactions) LOOP
+      INSERT INTO public.transactions (
+        id, user_email, type, title, amount, charge, transfer_charge, date, category, account_id, account_type, target_account_id, target_account_type, reference_id, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'type',
+        v_item->>'title',
+        (v_item->>'amount')::numeric,
+        coalesce((v_item->>'charge')::numeric, 0),
+        coalesce((v_item->>'transfer_charge')::numeric, 0),
+        v_item->>'date',
+        v_item->>'category',
+        v_item->>'account_id',
+        v_item->>'account_type',
+        v_item->>'target_account_id',
+        v_item->>'target_account_type',
+        v_item->>'reference_id',
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        type = EXCLUDED.type,
+        title = EXCLUDED.title,
+        amount = EXCLUDED.amount,
+        charge = EXCLUDED.charge,
+        transfer_charge = EXCLUDED.transfer_charge,
+        date = EXCLUDED.date,
+        category = EXCLUDED.category,
+        account_id = EXCLUDED.account_id,
+        account_type = EXCLUDED.account_type,
+        target_account_id = EXCLUDED.target_account_id,
+        target_account_type = EXCLUDED.target_account_type,
+        reference_id = EXCLUDED.reference_id,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.transactions WHERE user_email = p_email;
+  END IF;
+
+  -- 5. Synchronize Debts
+  IF p_debts IS NOT NULL THEN
+    DELETE FROM public.debts
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_debts)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_debts) LOOP
+      INSERT INTO public.debts (
+        id, user_email, debt_source, total_amount, remaining_amount, due_date, notes, payments, account_id, account_type, account_name, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'debt_source',
+        (v_item->>'total_amount')::numeric,
+        (v_item->>'remaining_amount')::numeric,
+        v_item->>'due_date',
+        v_item->>'notes',
+        coalesce((v_item->'payments'), '[]'::jsonb),
+        v_item->>'account_id',
+        v_item->>'account_type',
+        v_item->>'account_name',
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        debt_source = EXCLUDED.debt_source,
+        total_amount = EXCLUDED.total_amount,
+        remaining_amount = EXCLUDED.remaining_amount,
+        due_date = EXCLUDED.due_date,
+        notes = EXCLUDED.notes,
+        payments = EXCLUDED.payments,
+        account_id = EXCLUDED.account_id,
+        account_type = EXCLUDED.account_type,
+        account_name = EXCLUDED.account_name,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.debts WHERE user_email = p_email;
+  END IF;
+
+  -- 6. Synchronize Incomes
+  IF p_incomes IS NOT NULL THEN
+    DELETE FROM public.incomes
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_incomes)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_incomes) LOOP
+      INSERT INTO public.incomes (
+        id, user_email, amount, date, source, category, target_account_id, target_type, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        (v_item->>'amount')::numeric,
+        v_item->>'date',
+        v_item->>'source',
+        v_item->>'category',
+        v_item->>'target_account_id',
+        v_item->>'target_type',
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        amount = EXCLUDED.amount,
+        date = EXCLUDED.date,
+        source = EXCLUDED.source,
+        category = EXCLUDED.category,
+        target_account_id = EXCLUDED.target_account_id,
+        target_type = EXCLUDED.target_type,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.incomes WHERE user_email = p_email;
+  END IF;
+
+  -- 7. Synchronize Expenses
+  IF p_expenses IS NOT NULL THEN
+    DELETE FROM public.expenses
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_expenses)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_expenses) LOOP
+      INSERT INTO public.expenses (
+        id, user_email, title, description, amount, date, category, payment_method_id, payment_method_type, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'title',
+        v_item->>'description',
+        (v_item->>'amount')::numeric,
+        v_item->>'date',
+        v_item->>'category',
+        v_item->>'payment_method_id',
+        v_item->>'payment_method_type',
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        description = EXCLUDED.description,
+        amount = EXCLUDED.amount,
+        date = EXCLUDED.date,
+        category = EXCLUDED.category,
+        payment_method_id = EXCLUDED.payment_method_id,
+        payment_method_type = EXCLUDED.payment_method_type,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.expenses WHERE user_email = p_email;
+  END IF;
+
+  -- 8. Synchronize Notifications
+  IF p_notifications IS NOT NULL THEN
+    DELETE FROM public.notifications
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_notifications)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_notifications) LOOP
+      INSERT INTO public.notifications (
+        id, user_email, type, message, date, read, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'type',
+        v_item->>'message',
+        v_item->>'date',
+        coalesce((v_item->>'read')::boolean, false),
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        type = EXCLUDED.type,
+        message = EXCLUDED.message,
+        date = EXCLUDED.date,
+        read = EXCLUDED.read,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.notifications WHERE user_email = p_email;
+  END IF;
+
+  -- 9. Synchronize Subscriptions
+  IF p_subscriptions IS NOT NULL THEN
+    DELETE FROM public.subscriptions
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_subscriptions)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_subscriptions) LOOP
+      INSERT INTO public.subscriptions (
+        id, user_email, name, amount, billing_cycle, due_date, category, status, payment_method_id, payment_method_type, last_paid_date, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'name',
+        (v_item->>'amount')::numeric,
+        v_item->>'billing_cycle',
+        v_item->>'due_date',
+        v_item->>'category',
+        v_item->>'status',
+        v_item->>'payment_method_id',
+        v_item->>'payment_method_type',
+        v_item->>'last_paid_date',
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        amount = EXCLUDED.amount,
+        billing_cycle = EXCLUDED.billing_cycle,
+        due_date = EXCLUDED.due_date,
+        category = EXCLUDED.category,
+        status = EXCLUDED.status,
+        payment_method_id = EXCLUDED.payment_method_id,
+        payment_method_type = EXCLUDED.payment_method_type,
+        last_paid_date = EXCLUDED.last_paid_date,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.subscriptions WHERE user_email = p_email;
+  END IF;
+
+  -- 10. Synchronize Loans Given
+  IF p_loans_given IS NOT NULL THEN
+    DELETE FROM public.loans_given
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_loans_given)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_loans_given) LOOP
+      INSERT INTO public.loans_given (
+        id, user_email, borrower_name, total_amount, remaining_amount, date_given, source_account_id, source_account_type, source_account_name, status, notes, settlements, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'borrower_name',
+        (v_item->>'total_amount')::numeric,
+        (v_item->>'remaining_amount')::numeric,
+        v_item->>'date_given',
+        v_item->>'source_account_id',
+        v_item->>'source_account_type',
+        v_item->>'source_account_name',
+        v_item->>'status',
+        v_item->>'notes',
+        coalesce((v_item->'settlements'), '[]'::jsonb),
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        borrower_name = EXCLUDED.borrower_name,
+        total_amount = EXCLUDED.total_amount,
+        remaining_amount = EXCLUDED.remaining_amount,
+        date_given = EXCLUDED.date_given,
+        source_account_id = EXCLUDED.source_account_id,
+        source_account_type = EXCLUDED.source_account_type,
+        source_account_name = EXCLUDED.source_account_name,
+        status = EXCLUDED.status,
+        notes = EXCLUDED.notes,
+        settlements = EXCLUDED.settlements,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.loans_given WHERE user_email = p_email;
+  END IF;
+
+  RETURN jsonb_build_object('success', true);
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 12. ADD DATABASE INTEGRITY CONSTRAINTS (FOREIGN KEYS AND CASCADE DELETIONS)
+alter table public.ledger_states drop constraint if exists ledger_states_user_email_key cascade;
+alter table public.ledger_states add constraint ledger_states_user_email_key unique (user_email);
+
+alter table public.ledger_states drop constraint if exists ledger_states_user_email_fkey cascade;
+alter table public.ledger_states add constraint ledger_states_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.bank_cards drop constraint if exists bank_cards_user_email_fkey cascade;
+alter table public.bank_cards add constraint bank_cards_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.cash_accounts drop constraint if exists cash_accounts_user_email_fkey cascade;
+alter table public.cash_accounts add constraint cash_accounts_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.transactions drop constraint if exists transactions_user_email_fkey cascade;
+alter table public.transactions add constraint transactions_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.debts drop constraint if exists debts_user_email_fkey cascade;
+alter table public.debts add constraint debts_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.incomes drop constraint if exists incomes_user_email_fkey cascade;
+alter table public.incomes add constraint incomes_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.expenses drop constraint if exists expenses_user_email_fkey cascade;
+alter table public.expenses add constraint expenses_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.notifications drop constraint if exists notifications_user_email_fkey cascade;
+alter table public.notifications add constraint notifications_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.subscriptions drop constraint if exists subscriptions_user_email_fkey cascade;
+alter table public.subscriptions add constraint subscriptions_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.loans_given drop constraint if exists loans_given_user_email_fkey cascade;
+alter table public.loans_given add constraint loans_given_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+-- 13. ADD PERFORMANCE INDEXES ON FREQUENT QUERY PATHS
+create index if not exists idx_ledger_states_user_email on public.ledger_states(user_email);
+create index if not exists idx_bank_cards_user_email on public.bank_cards(user_email);
+create index if not exists idx_cash_accounts_user_email on public.cash_accounts(user_email);
+create index if not exists idx_transactions_user_email on public.transactions(user_email);
+create index if not exists idx_debts_user_email on public.debts(user_email);
+create index if not exists idx_incomes_user_email on public.incomes(user_email);
+create index if not exists idx_expenses_user_email on public.expenses(user_email);
+create index if not exists idx_notifications_user_email on public.notifications(user_email);
+create index if not exists idx_subscriptions_user_email on public.subscriptions(user_email);
+create index if not exists idx_loans_given_user_email on public.loans_given(user_email);
 `;
 }
 
@@ -1248,6 +1635,357 @@ export function getSupabaseUpgradeSQLScript(): string {
   return `-- ⚠️ DATABASE UPGRADE MIGRATION
 -- To update your live Supabase database instantly, go to your Supabase Dashboard > SQL Editor and copy-paste the matching upgrade migration query below:
 
+-- ADD HIGH-PERFORMANCE TRANSACTION TRANSACTION ENGINE TO PREVIOUS DATABASES
+CREATE OR REPLACE FUNCTION public.sync_complete_ledger(
+  p_email text,
+  p_state jsonb,
+  p_cards jsonb,
+  p_cash_accounts jsonb,
+  p_transactions jsonb,
+  p_debts jsonb,
+  p_incomes jsonb,
+  p_expenses jsonb,
+  p_notifications jsonb,
+  p_subscriptions jsonb,
+  p_loans_given jsonb
+) RETURNS jsonb AS $$
+DECLARE
+  v_caller_email text;
+  v_item jsonb;
+BEGIN
+  -- Authenticate cryptographic token
+  v_caller_email := public.verify_user_token(nullif(current_setting('request.headers', true), '')::json);
+  IF v_caller_email IS NULL OR lower(v_caller_email) != lower(p_email) THEN
+    RAISE EXCEPTION 'Cryptographic Session Token Mismatch or Expired. Access Denied.';
+  END IF;
+
+  -- 1. Upsert Unified State
+  INSERT INTO public.ledger_states (user_email, state, updated_at)
+  VALUES (p_email, p_state, timezone('utc'::text, now()))
+  ON CONFLICT (user_email) DO UPDATE
+  SET state = EXCLUDED.state, updated_at = EXCLUDED.updated_at;
+
+  -- 2. Synchronize Cards
+  IF p_cards IS NOT NULL THEN
+    -- Delete card records removed in client
+    DELETE FROM public.bank_cards
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_cards)->>'id');
+
+    -- Upsert card records
+    FOR v_item IN SELECT jsonb_array_elements(p_cards) LOOP
+      INSERT INTO public.bank_cards (
+        id, user_email, card_name, bank_name, card_type, card_number, card_theme, current_balance, is_canceled, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'card_name',
+        v_item->>'bank_name',
+        v_item->>'card_type',
+        v_item->>'card_number',
+        coalesce(v_item->>'card_theme', 'obsidian'),
+        (v_item->>'current_balance')::numeric,
+        coalesce((v_item->>'is_canceled')::boolean, false),
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        card_name = EXCLUDED.card_name,
+        bank_name = EXCLUDED.bank_name,
+        card_type = EXCLUDED.card_type,
+        card_number = EXCLUDED.card_number,
+        card_theme = EXCLUDED.card_theme,
+        current_balance = EXCLUDED.current_balance,
+        is_canceled = EXCLUDED.is_canceled,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.bank_cards WHERE user_email = p_email;
+  END IF;
+
+  -- 3. Synchronize Cash Accounts
+  IF p_cash_accounts IS NOT NULL THEN
+    DELETE FROM public.cash_accounts
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_cash_accounts)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_cash_accounts) LOOP
+      INSERT INTO public.cash_accounts (
+        id, user_email, name, balance, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'name',
+        (v_item->>'balance')::numeric,
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        balance = EXCLUDED.balance,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.cash_accounts WHERE user_email = p_email;
+  END IF;
+
+  -- 4. Synchronize Transactions
+  IF p_transactions IS NOT NULL THEN
+    DELETE FROM public.transactions
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_transactions)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_transactions) LOOP
+      INSERT INTO public.transactions (
+        id, user_email, type, title, amount, charge, transfer_charge, date, category, account_id, account_type, target_account_id, target_account_type, reference_id, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'type',
+        v_item->>'title',
+        (v_item->>'amount')::numeric,
+        coalesce((v_item->>'charge')::numeric, 0),
+        coalesce((v_item->>'transfer_charge')::numeric, 0),
+        v_item->>'date',
+        v_item->>'category',
+        v_item->>'account_id',
+        v_item->>'account_type',
+        v_item->>'target_account_id',
+        v_item->>'target_account_type',
+        v_item->>'reference_id',
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        type = EXCLUDED.type,
+        title = EXCLUDED.title,
+        amount = EXCLUDED.amount,
+        charge = EXCLUDED.charge,
+        transfer_charge = EXCLUDED.transfer_charge,
+        date = EXCLUDED.date,
+        category = EXCLUDED.category,
+        account_id = EXCLUDED.account_id,
+        account_type = EXCLUDED.account_type,
+        target_account_id = EXCLUDED.target_account_id,
+        target_account_type = EXCLUDED.target_account_type,
+        reference_id = EXCLUDED.reference_id,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.transactions WHERE user_email = p_email;
+  END IF;
+
+  -- 5. Synchronize Debts
+  IF p_debts IS NOT NULL THEN
+    DELETE FROM public.debts
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_debts)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_debts) LOOP
+      INSERT INTO public.debts (
+        id, user_email, debt_source, total_amount, remaining_amount, due_date, notes, payments, account_id, account_type, account_name, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'debt_source',
+        (v_item->>'total_amount')::numeric,
+        (v_item->>'remaining_amount')::numeric,
+        v_item->>'due_date',
+        v_item->>'notes',
+        coalesce((v_item->'payments'), '[]'::jsonb),
+        v_item->>'account_id',
+        v_item->>'account_type',
+        v_item->>'account_name',
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        debt_source = EXCLUDED.debt_source,
+        total_amount = EXCLUDED.total_amount,
+        remaining_amount = EXCLUDED.remaining_amount,
+        due_date = EXCLUDED.due_date,
+        notes = EXCLUDED.notes,
+        payments = EXCLUDED.payments,
+        account_id = EXCLUDED.account_id,
+        account_type = EXCLUDED.account_type,
+        account_name = EXCLUDED.account_name,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.debts WHERE user_email = p_email;
+  END IF;
+
+  -- 6. Synchronize Incomes
+  IF p_incomes IS NOT NULL THEN
+    DELETE FROM public.incomes
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_incomes)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_incomes) LOOP
+      INSERT INTO public.incomes (
+        id, user_email, amount, date, source, category, target_account_id, target_type, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        (v_item->>'amount')::numeric,
+        v_item->>'date',
+        v_item->>'source',
+        v_item->>'category',
+        v_item->>'target_account_id',
+        v_item->>'target_type',
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        amount = EXCLUDED.amount,
+        date = EXCLUDED.date,
+        source = EXCLUDED.source,
+        category = EXCLUDED.category,
+        target_account_id = EXCLUDED.target_account_id,
+        target_type = EXCLUDED.target_type,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.incomes WHERE user_email = p_email;
+  END IF;
+
+  -- 7. Synchronize Expenses
+  IF p_expenses IS NOT NULL THEN
+    DELETE FROM public.expenses
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_expenses)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_expenses) LOOP
+      INSERT INTO public.expenses (
+        id, user_email, title, description, amount, date, category, payment_method_id, payment_method_type, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'title',
+        v_item->>'description',
+        (v_item->>'amount')::numeric,
+        v_item->>'date',
+        v_item->>'category',
+        v_item->>'payment_method_id',
+        v_item->>'payment_method_type',
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        description = EXCLUDED.description,
+        amount = EXCLUDED.amount,
+        date = EXCLUDED.date,
+        category = EXCLUDED.category,
+        payment_method_id = EXCLUDED.payment_method_id,
+        payment_method_type = EXCLUDED.payment_method_type,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.expenses WHERE user_email = p_email;
+  END IF;
+
+  -- 8. Synchronize Notifications
+  IF p_notifications IS NOT NULL THEN
+    DELETE FROM public.notifications
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_notifications)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_notifications) LOOP
+      INSERT INTO public.notifications (
+        id, user_email, type, message, date, read, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'type',
+        v_item->>'message',
+        v_item->>'date',
+        coalesce((v_item->>'read')::boolean, false),
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        type = EXCLUDED.type,
+        message = EXCLUDED.message,
+        date = EXCLUDED.date,
+        read = EXCLUDED.read,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.notifications WHERE user_email = p_email;
+  END IF;
+
+  -- 9. Synchronize Subscriptions
+  IF p_subscriptions IS NOT NULL THEN
+    DELETE FROM public.subscriptions
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_subscriptions)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_subscriptions) LOOP
+      INSERT INTO public.subscriptions (
+        id, user_email, name, amount, billing_cycle, due_date, category, status, payment_method_id, payment_method_type, last_paid_date, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'name',
+        (v_item->>'amount')::numeric,
+        v_item->>'billing_cycle',
+        v_item->>'due_date',
+        v_item->>'category',
+        v_item->>'status',
+        v_item->>'payment_method_id',
+        v_item->>'payment_method_type',
+        v_item->>'last_paid_date',
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        amount = EXCLUDED.amount,
+        billing_cycle = EXCLUDED.billing_cycle,
+        due_date = EXCLUDED.due_date,
+        category = EXCLUDED.category,
+        status = EXCLUDED.status,
+        payment_method_id = EXCLUDED.payment_method_id,
+        payment_method_type = EXCLUDED.payment_method_type,
+        last_paid_date = EXCLUDED.last_paid_date,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.subscriptions WHERE user_email = p_email;
+  END IF;
+
+  -- 10. Synchronize Loans Given
+  IF p_loans_given IS NOT NULL THEN
+    DELETE FROM public.loans_given
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_loans_given)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_loans_given) LOOP
+      INSERT INTO public.loans_given (
+        id, user_email, borrower_name, total_amount, remaining_amount, date_given, source_account_id, source_account_type, source_account_name, status, notes, settlements, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'borrower_name',
+        (v_item->>'total_amount')::numeric,
+        (v_item->>'remaining_amount')::numeric,
+        v_item->>'date_given',
+        v_item->>'source_account_id',
+        v_item->>'source_account_type',
+        v_item->>'source_account_name',
+        v_item->>'status',
+        v_item->>'notes',
+        coalesce((v_item->'settlements'), '[]'::jsonb),
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        borrower_name = EXCLUDED.borrower_name,
+        total_amount = EXCLUDED.total_amount,
+        remaining_amount = EXCLUDED.remaining_amount,
+        date_given = EXCLUDED.date_given,
+        source_account_id = EXCLUDED.source_account_id,
+        source_account_type = EXCLUDED.source_account_type,
+        source_account_name = EXCLUDED.source_account_name,
+        status = EXCLUDED.status,
+        notes = EXCLUDED.notes,
+        settlements = EXCLUDED.settlements,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.loans_given WHERE user_email = p_email;
+  END IF;
+
+  RETURN jsonb_build_object('success', true);
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 alter table public.bank_cards add column if not exists "limit" numeric;
 alter table public.bank_cards add column if not exists is_limit_locked boolean default true;
 alter table public.bank_cards add column if not exists card_theme text default 'obsidian';
@@ -1257,6 +1995,73 @@ alter table public.auth_accounts add column if not exists name text;
 alter table public.debts add column if not exists account_id text;
 alter table public.debts add column if not exists account_type text;
 alter table public.debts add column if not exists account_name text;
+
+-- ENABLE CRYPTO EXTENSION
+create extension if not exists pgcrypto;
+
+-- CREATE CRYPTOGRAPHIC SESSION VERIFIER
+create or replace function public.verify_user_token(headers json) returns text as $$
+declare
+  token text;
+  email text;
+  parts text[];
+  payload_str text;
+  signature text;
+  expected_signature text;
+  payload json;
+  expires_at bigint;
+  secret text;
+begin
+  if headers is null then
+    return null;
+  end if;
+  
+  -- Extracted headers from connection
+  token := headers->>'x-session-token';
+  email := headers->>'x-user-email';
+  if token is null or email is null then
+    return null;
+  end if;
+  
+  -- Split token by '.' which divides HMAC text payload and signature
+  parts := string_to_array(token, '.');
+  if array_length(parts, 1) != 2 then
+    return null;
+  end if;
+  
+  payload_str := parts[1];
+  signature := parts[2];
+  
+  -- Get secret from database configuration or local fallback
+  secret := coalesce(nullif(current_setting('app.settings.session_secret', true), ''), 'vault_secure_suite_signature_key_2026_x92');
+  
+  -- Compute the expected cryptographic signature
+  expected_signature := encode(hmac(payload_str, secret, 'sha256'), 'hex');
+  if signature != expected_signature then
+    return null;
+  end if;
+  
+  -- Translate the base64url payload safe conversion
+  payload_str := rpad(replace(replace(payload_str, '-', '+'), '_', '/'), (ceil(length(payload_str) / 4.0) * 4)::integer, '=');
+  payload := convert_from(decode(payload_str, 'base64'), 'utf-8')::json;
+  
+  -- Prevent session replay expiration bounds
+  expires_at := (payload->>'expiresAt')::bigint;
+  if expires_at < (date_part('epoch', now()) * 1000)::bigint then
+    return null;
+  end if;
+  
+  -- Clean validated email response
+  if lower(payload->>'email') = lower(email) then
+    return email;
+  end if;
+  
+  return null;
+exception
+  when others then
+    return null;
+end;
+$$ language plpgsql security definer;
 
 -- Upgrade script for subscriptions:
 create table if not exists public.subscriptions (
@@ -1275,11 +2080,6 @@ create table if not exists public.subscriptions (
 );
 
 alter table public.subscriptions enable row level security;
-
-create policy "Allow read accessibility on subscriptions" on public.subscriptions for select using (true);
-create policy "Allow insert/upsert accessibility on subscriptions" on public.subscriptions for insert with check (true);
-create policy "Allow update accessibility on subscriptions" on public.subscriptions for update using (true);
-create policy "Allow delete accessibility on subscriptions" on public.subscriptions for delete using (true);
 
 -- Upgrade script for loans_given:
 create table if not exists public.loans_given (
@@ -1300,9 +2100,148 @@ create table if not exists public.loans_given (
 
 alter table public.loans_given enable row level security;
 
-create policy "Allow read accessibility on loans_given" on public.loans_given for select using (true);
-create policy "Allow insert/upsert accessibility on loans_given" on public.loans_given for insert with check (true);
-create policy "Allow update accessibility on loans_given" on public.loans_given for update using (true);
-create policy "Allow delete accessibility on loans_given" on public.loans_given for delete using (true);
+-- DROP AND RE-CREATE SECURED RLS tenant isolation policies
+drop policy if exists "Secure select on subscriptions" on public.subscriptions;
+drop policy if exists "Secure insert on subscriptions" on public.subscriptions;
+drop policy if exists "Secure update on subscriptions" on public.subscriptions;
+drop policy if exists "Secure delete on subscriptions" on public.subscriptions;
+
+drop policy if exists "Allow read accessibility on subscriptions" on public.subscriptions;
+drop policy if exists "Allow insert/upsert accessibility on subscriptions" on public.subscriptions;
+drop policy if exists "Allow update accessibility on subscriptions" on public.subscriptions;
+drop policy if exists "Allow delete accessibility on subscriptions" on public.subscriptions;
+
+create policy "Secure select on subscriptions" on public.subscriptions for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on subscriptions" on public.subscriptions for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on subscriptions" on public.subscriptions for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on subscriptions" on public.subscriptions for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+
+drop policy if exists "Secure select on loans_given" on public.loans_given;
+drop policy if exists "Secure insert on loans_given" on public.loans_given;
+drop policy if exists "Secure update on loans_given" on public.loans_given;
+drop policy if exists "Secure delete on loans_given" on public.loans_given;
+
+drop policy if exists "Allow read accessibility on loans_given" on public.loans_given;
+drop policy if exists "Allow insert/upsert accessibility on loans_given" on public.loans_given;
+drop policy if exists "Allow update accessibility on loans_given" on public.loans_given;
+drop policy if exists "Allow delete accessibility on loans_given" on public.loans_given;
+
+create policy "Secure select on loans_given" on public.loans_given for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on loans_given" on public.loans_given for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on loans_given" on public.loans_given for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on loans_given" on public.loans_given for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+
+-- DATABASE UPGRADE - SYSTEM BYPASS VERIFIER, RATE LIMIT TABLE, FOREIGN KEYS, CASCADE DELETE AND PERFORMANCE INDEXES
+create or replace function public.verify_system_signature(headers json) returns boolean as $$
+declare
+  token text;
+  parts text[];
+  payload_str text;
+  signature text;
+  expected_signature text;
+  secret text;
+begin
+  if headers is null then
+    return false;
+  end if;
+  
+  token := headers->>'x-system-token';
+  if token is null then
+    return false;
+  end if;
+  
+  parts := string_to_array(token, '.');
+  if array_length(parts, 1) != 2 then
+    return false;
+  end if;
+  
+  payload_str := parts[1];
+  signature := parts[2];
+  
+  secret := coalesce(nullif(current_setting('app.settings.session_secret', true), ''), 'vault_secure_suite_signature_key_2026_x92');
+  expected_signature := encode(hmac(payload_str, secret, 'sha256'), 'hex');
+  
+  return signature = expected_signature;
+exception
+  when others then
+    return false;
+end;
+$$ language plpgsql security definer;
+
+create table if not exists public.auth_rate_limits (
+  key text not null primary key,
+  count integer not null default 1,
+  reset_time timestamp with time zone not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.auth_rate_limits enable row level security;
+
+-- Setup OTP and Device policy locks with System Cryptographic verification signature
+drop policy if exists "Internal system access on auth_otps" on public.auth_otps;
+drop policy if exists "Secure system access on auth_otps" on public.auth_otps;
+create policy "Secure system access on auth_otps" on public.auth_otps for all
+using (public.verify_system_signature(nullif(current_setting('request.headers', true), '')::json));
+
+drop policy if exists "Internal system access on auth_device_tokens" on public.auth_device_tokens;
+drop policy if exists "Secure system access on auth_device_tokens" on public.auth_device_tokens;
+create policy "Secure system access on auth_device_tokens" on public.auth_device_tokens for all
+using (public.verify_system_signature(nullif(current_setting('request.headers', true), '')::json));
+
+drop policy if exists "Secure system access on auth_rate_limits" on public.auth_rate_limits;
+create policy "Secure system access on auth_rate_limits" on public.auth_rate_limits for all
+using (public.verify_system_signature(nullif(current_setting('request.headers', true), '')::json));
+
+-- Hardening auth_accounts insert check policy
+drop policy if exists "Secure insert on auth_accounts" on public.auth_accounts;
+create policy "Secure insert on auth_accounts" on public.auth_accounts for insert
+with check (public.verify_system_signature(nullif(current_setting('request.headers', true), '')::json));
+
+-- Add Unique database constraint to allow server ledger state upserts
+alter table public.ledger_states drop constraint if exists ledger_states_user_email_key cascade;
+alter table public.ledger_states add constraint ledger_states_user_email_key unique (user_email);
+
+-- Add database cascade deletions constraints
+alter table public.ledger_states drop constraint if exists ledger_states_user_email_fkey cascade;
+alter table public.ledger_states add constraint ledger_states_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.bank_cards drop constraint if exists bank_cards_user_email_fkey cascade;
+alter table public.bank_cards add constraint bank_cards_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.cash_accounts drop constraint if exists cash_accounts_user_email_fkey cascade;
+alter table public.cash_accounts add constraint cash_accounts_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.transactions drop constraint if exists transactions_user_email_fkey cascade;
+alter table public.transactions add constraint transactions_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.debts drop constraint if exists debts_user_email_fkey cascade;
+alter table public.debts add constraint debts_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.incomes drop constraint if exists incomes_user_email_fkey cascade;
+alter table public.incomes add constraint incomes_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.expenses drop constraint if exists expenses_user_email_fkey cascade;
+alter table public.expenses add constraint expenses_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.notifications drop constraint if exists notifications_user_email_fkey cascade;
+alter table public.notifications add constraint notifications_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.subscriptions drop constraint if exists subscriptions_user_email_fkey cascade;
+alter table public.subscriptions add constraint subscriptions_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+alter table public.loans_given drop constraint if exists loans_given_user_email_fkey cascade;
+alter table public.loans_given add constraint loans_given_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
+-- Performance indexes setup
+create index if not exists idx_ledger_states_user_email on public.ledger_states(user_email);
+create index if not exists idx_bank_cards_user_email on public.bank_cards(user_email);
+create index if not exists idx_cash_accounts_user_email on public.cash_accounts(user_email);
+create index if not exists idx_transactions_user_email on public.transactions(user_email);
+create index if not exists idx_debts_user_email on public.debts(user_email);
+create index if not exists idx_incomes_user_email on public.incomes(user_email);
+create index if not exists idx_expenses_user_email on public.expenses(user_email);
+create index if not exists idx_notifications_user_email on public.notifications(user_email);
+create index if not exists idx_subscriptions_user_email on public.subscriptions(user_email);
+create index if not exists idx_loans_given_user_email on public.loans_given(user_email);
 `;
 }

@@ -271,7 +271,9 @@ export default function ReportsCentre({
                 {debts.length === 0 ? (
                   <p className="text-zinc-500 text-xs text-center py-8 italic">No active ledger debt registered.</p>
                 ) : (
-                  debts.map(d => {
+                  [...debts]
+                    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                    .map(d => {
                     const paid = d.totalAmount - d.remainingAmount;
                     const ratio = Math.round((paid / d.totalAmount) * 100);
 

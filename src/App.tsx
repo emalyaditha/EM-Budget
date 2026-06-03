@@ -57,6 +57,20 @@ export default function App() {
   // Verify remembered device on mount
   useEffect(() => {
     const verifyDevice = async () => {
+      // Load system-provided environments on mount
+      try {
+        const confResp = await fetch('/api/config');
+        if (confResp.ok) {
+          const confData = await confResp.json();
+          if (confData.supabaseUrl && confData.supabaseKey) {
+            localStorage.setItem('cashflow_supabase_url_v1', confData.supabaseUrl);
+            localStorage.setItem('cashflow_supabase_key_v1', confData.supabaseKey);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed retrieving dynamic server environments:", err);
+      }
+
       const email = localStorage.getItem('auth_user_email');
       const token = localStorage.getItem('auth_session_token');
       

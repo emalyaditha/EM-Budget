@@ -151,9 +151,13 @@ export default function SettingsModal({
     setPurgeError(null);
 
     try {
+      const token = localStorage.getItem('auth_session_token') || '';
       const response = await fetch('/api/auth/send-delete-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ email: userEmail })
       });
 
@@ -195,9 +199,13 @@ export default function SettingsModal({
     setSyncMessage('Verifying 2FA authorization token...');
 
     try {
+      const token = localStorage.getItem('auth_session_token') || '';
       const response = await fetch('/api/auth/verify-delete-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ email: userEmail, otp: purgeOtp })
       });
 
