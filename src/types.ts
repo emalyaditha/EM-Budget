@@ -77,6 +77,9 @@ export interface Debt {
   dueDate: string;
   notes: string;
   payments: DebtPayment[];
+  accountId?: string;
+  accountType?: 'cash' | 'card';
+  accountName?: string;
 }
 
 export interface Transaction {

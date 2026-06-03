@@ -56,7 +56,7 @@ const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
   bank_cards: ['id', 'user_email', 'card_name', 'bank_name', 'card_type', 'current_balance', 'card_number', 'is_canceled', 'limit', 'is_limit_locked', 'is_frozen', 'card_theme', 'updated_at'],
   cash_accounts: ['id', 'user_email', 'name', 'balance', 'updated_at'],
   transactions: ['id', 'user_email', 'type', 'title', 'amount', 'charge', 'transfer_charge', 'date', 'category', 'account_id', 'account_type', 'target_account_id', 'target_account_type', 'reference_id', 'updated_at'],
-  debts: ['id', 'user_email', 'debt_source', 'total_amount', 'remaining_amount', 'due_date', 'notes', 'payments', 'updated_at'],
+  debts: ['id', 'user_email', 'debt_source', 'total_amount', 'remaining_amount', 'due_date', 'notes', 'payments', 'account_id', 'account_type', 'account_name', 'updated_at'],
   incomes: ['id', 'user_email', 'amount', 'date', 'source', 'category', 'target_account_id', 'target_type', 'updated_at'],
   expenses: ['id', 'user_email', 'title', 'description', 'amount', 'date', 'category', 'payment_method_id', 'payment_method_type', 'updated_at'],
   notifications: ['id', 'user_email', 'type', 'message', 'date', 'read', 'updated_at'],
@@ -523,19 +523,27 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
       const debtsCols = await getColumnsForTable('debts');
       if (debtsCols.length > 0) {
         if (state.debts && state.debts.length > 0) {
-          const records = state.debts.map(debt => mapObjectToColumns(debt, debtsCols, email, {
-            id: debt.id,
-            debt_source: debt.debtSource,
-            debtSource: debt.debtSource,
-            total_amount: debt.totalAmount,
-            totalAmount: debt.totalAmount,
-            remaining_amount: debt.remainingAmount,
-            remainingAmount: debt.remainingAmount,
-            due_date: debt.dueDate,
-            dueDate: debt.dueDate,
-            notes: debt.notes || null,
-            payments: debt.payments || []
-          }));
+          const records = state.debts.map((debt) =>
+            mapObjectToColumns(debt, debtsCols, email, {
+              id: debt.id,
+              debt_source: debt.debtSource,
+              debtSource: debt.debtSource,
+              total_amount: debt.totalAmount,
+              totalAmount: debt.totalAmount,
+              remaining_amount: debt.remainingAmount,
+              remainingAmount: debt.remainingAmount,
+              due_date: debt.dueDate,
+              dueDate: debt.dueDate,
+              account_id: debt.accountId || null,
+              accountId: debt.accountId || null,
+              account_type: debt.accountType || null,
+              accountType: debt.accountType || null,
+              account_name: debt.accountName || null,
+              accountName: debt.accountName || null,
+              notes: debt.notes || null,
+              payments: debt.payments || [],
+            })
+          );
           const { error: debtsErr } = await client.from('debts').upsert(records, { onConflict: 'id' });
           if (debtsErr) {
             console.warn('Supabase Debts Sync Warning:', debtsErr);
@@ -996,6 +1004,15 @@ alter table public.bank_cards add column if not exists card_theme text default '
 alter table public.transactions add column if not exists charge numeric default 0;
 alter table public.transactions add column if not exists transfer_charge numeric default 0;
 alter table public.auth_accounts add column if not exists name text;
+alter table public.debts add column if not exists account_id text;
+alter table public.debts add column if not exists account_type text;
+alter table public.debts add column if not exists account_name text;
+alter table public.debts add column if not exists account_id text;
+alter table public.debts add column if not exists account_type text;
+alter table public.debts add column if not exists account_name text;
+alter table public.debts add column if not exists account_id text;
+alter table public.debts add column if not exists account_type text;
+alter table public.debts add column if not exists account_name text;
 
 -- Upgrade script for subscriptions:
 create table if not exists public.subscriptions (
@@ -1110,6 +1127,9 @@ create table if not exists public.debts (
   due_date text not null,
   notes text,
   payments jsonb default '[]'::jsonb,
+  account_id text,
+  account_type text,
+  account_name text,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -1234,6 +1254,9 @@ alter table public.bank_cards add column if not exists card_theme text default '
 alter table public.transactions add column if not exists charge numeric default 0;
 alter table public.transactions add column if not exists transfer_charge numeric default 0;
 alter table public.auth_accounts add column if not exists name text;
+alter table public.debts add column if not exists account_id text;
+alter table public.debts add column if not exists account_type text;
+alter table public.debts add column if not exists account_name text;
 
 -- Upgrade script for subscriptions:
 create table if not exists public.subscriptions (

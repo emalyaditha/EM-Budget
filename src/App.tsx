@@ -305,14 +305,46 @@ export default function App() {
 
   // Rule: Debt Registered
   const handleAddDebt = (debtData: Omit<Debt, 'id' | 'payments' | 'remainingAmount'>) => {
+    const debtId = `debt-${Date.now()}`;
     const newDebt: Debt = {
       ...debtData,
-      id: `debt-${Date.now()}`,
+      id: debtId,
       remainingAmount: debtData.totalAmount,
       payments: [],
     };
 
     updateState(prev => {
+      let updatedCash = [...prev.cashAccounts];
+      let updatedCards = [...prev.cards];
+      const newTransactions = [...prev.transactions];
+
+      if (debtData.accountId && debtData.accountType) {
+        if (debtData.accountType === 'cash') {
+          updatedCash = updatedCash.map(c =>
+            c.id === debtData.accountId ? { ...c, balance: c.balance + debtData.totalAmount } : c
+          );
+        } else {
+          updatedCards = updatedCards.map(c =>
+            c.id === debtData.accountId ? { ...c, currentBalance: c.currentBalance + debtData.totalAmount } : c
+          );
+        }
+
+        // Add transaction for incoming liability funds
+        const txId = `tx_debt_in_${Date.now()}`;
+        const newTx: Transaction = {
+          id: txId,
+          type: 'income',
+          title: `Borrowed: ${debtData.debtSource}`,
+          amount: debtData.totalAmount,
+          date: new Date().toISOString().split('T')[0],
+          category: 'Other',
+          accountId: debtData.accountId,
+          accountType: debtData.accountType,
+          referenceId: debtId,
+        };
+        newTransactions.unshift(newTx);
+      }
+
       const newNotif: AppNotification = {
         id: `nt-${Date.now()}`,
         type: 'reminder',
@@ -324,6 +356,70 @@ export default function App() {
       return {
         ...prev,
         debts: [...prev.debts, newDebt],
+        cashAccounts: updatedCash,
+        cards: updatedCards,
+        transactions: newTransactions,
+        notifications: [newNotif, ...prev.notifications],
+      };
+    });
+  };
+
+  const handleDeleteDebt = (debtId: string) => {
+    updateState(prev => {
+      const debtToDelete = prev.debts.find(d => d.id === debtId);
+      if (!debtToDelete) return prev;
+
+      let updatedCash = [...prev.cashAccounts];
+      let updatedCards = [...prev.cards];
+
+      // 1. Reverse initial balance addition
+      if (debtToDelete.accountId && debtToDelete.accountType) {
+        if (debtToDelete.accountType === 'cash') {
+          updatedCash = updatedCash.map(c =>
+            c.id === debtToDelete.accountId ? { ...c, balance: c.balance - debtToDelete.totalAmount } : c
+          );
+        } else {
+          updatedCards = updatedCards.map(c =>
+            c.id === debtToDelete.accountId ? { ...c, currentBalance: c.currentBalance - debtToDelete.totalAmount } : c
+          );
+        }
+      }
+
+      // 2. Reverse any payments made on this debt
+      if (debtToDelete.payments && debtToDelete.payments.length > 0) {
+        debtToDelete.payments.forEach(p => {
+          if (p.paidFromType === 'cash') {
+            updatedCash = updatedCash.map(c =>
+              c.id === p.paidFromId ? { ...c, balance: c.balance + p.amount } : c
+            );
+          } else {
+            updatedCards = updatedCards.map(c =>
+              c.id === p.paidFromId ? { ...c, currentBalance: c.currentBalance + p.amount } : c
+            );
+          }
+        });
+      }
+
+      // 3. Remove transactions referencing this debt or any of its payments
+      const paymentIds = (debtToDelete.payments || []).map(p => p.id);
+      const updatedTransactions = prev.transactions.filter(tx => 
+        tx.referenceId !== debtId && !paymentIds.includes(tx.referenceId || '')
+      );
+
+      const newNotif: AppNotification = {
+        id: `nt_del_debt_${Date.now()}`,
+        type: 'system',
+        message: `Liability to ${debtToDelete.debtSource} was deleted. Balance adjustments successfully reversed.`,
+        date: new Date().toISOString().split('T')[0],
+        read: false,
+      };
+
+      return {
+        ...prev,
+        debts: prev.debts.filter(d => d.id !== debtId),
+        cashAccounts: updatedCash,
+        cards: updatedCards,
+        transactions: updatedTransactions,
         notifications: [newNotif, ...prev.notifications],
       };
     });
@@ -1762,6 +1858,7 @@ export default function App() {
                     onAddDebt={handleAddDebt}
                     onIncreaseDebt={handleIncreaseDebt}
                     onMakeDebtPayment={handleMakeDebtPayment}
+                    onDeleteDebt={handleDeleteDebt}
                     currency={state.currency}
                   />
                   <CreditCardManagement

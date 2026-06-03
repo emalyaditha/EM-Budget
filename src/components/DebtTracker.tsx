@@ -14,6 +14,7 @@ interface DebtTrackerProps {
   onAddDebt: (debt: Omit<Debt, 'id' | 'payments' | 'remainingAmount'>) => void;
   onIncreaseDebt: (debtId: string, amount: number) => void;
   onMakeDebtPayment: (debtId: string, amount: number, paidFromId: string, paidFromType: 'cash' | 'card') => void;
+  onDeleteDebt: (debtId: string) => void;
   currency: string;
 }
 
@@ -24,6 +25,7 @@ export default function DebtTracker({
   onAddDebt,
   onIncreaseDebt,
   onMakeDebtPayment,
+  onDeleteDebt,
   currency,
 }: DebtTrackerProps) {
   const { showToast } = useNotifications();
@@ -33,6 +35,8 @@ export default function DebtTracker({
   const [totalDebt, setTotalDebt] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [targetAccountId, setTargetAccountId] = useState('');
+  const [targetAccountType, setTargetAccountType] = useState<'cash' | 'card' | ''>('');
 
   // Make Payment States
   const [payingDebtId, setPayingDebtId] = useState<string | null>(null);
@@ -107,11 +111,23 @@ export default function DebtTracker({
       return;
     }
 
+    let accountName = undefined;
+    if (targetAccountId && targetAccountType) {
+      if (targetAccountType === 'cash') {
+        accountName = cashAccounts.find(c => c.id === targetAccountId)?.name;
+      } else {
+        accountName = cards.find(c => c.id === targetAccountId)?.bankName;
+      }
+    }
+
     onAddDebt({
       debtSource: source.trim(),
       totalAmount: parseFloat(totalDebt),
       dueDate,
       notes: notes || 'No extra notes provided.',
+      accountId: targetAccountId || undefined,
+      accountType: targetAccountId ? targetAccountType : undefined,
+      accountName,
     });
 
     // Reset Form
@@ -119,6 +135,8 @@ export default function DebtTracker({
     setTotalDebt('');
     setDueDate('');
     setNotes('');
+    setTargetAccountId('');
+    setTargetAccountType('');
     setIsAddingDebt(false);
     setSubmitted(false);
     setErrors({});
@@ -342,6 +360,38 @@ export default function DebtTracker({
               </div>
 
               <div>
+                <label className="text-[9px] text-zinc-400 font-black block mb-1.5 uppercase font-mono tracking-widest">Account Target (Funds added here)</label>
+                <select
+                  value={targetAccountId && targetAccountType ? `${targetAccountId}:${targetAccountType}` : ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) {
+                      setTargetAccountId('');
+                      setTargetAccountType('');
+                    } else {
+                      const [id, type] = val.split(':');
+                      setTargetAccountId(id);
+                      setTargetAccountType(type as 'cash' | 'card');
+                    }
+                  }}
+                  className="w-full bg-black border border-zinc-800 text-zinc-300 text-xs rounded-xl px-2.5 py-3.5 focus:outline-none focus:border-zinc-700 font-semibold"
+                >
+                  <option value="">Select Account (Optional)</option>
+                  <optgroup label="Cash Vaults" className="bg-[#0c0c0e] text-zinc-400">
+                    {cashAccounts.map(c => (
+                      <option key={c.id} value={`${c.id}:cash`}>{c.name}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Cards Ledger" className="bg-[#0c0c0e] text-zinc-400">
+                    {cards.filter(c => !c.isCanceled).map(card => (
+                      <option key={card.id} value={`${card.id}:card`}>{card.bankName}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+
+            <div>
                 <label className="text-[9px] text-zinc-400 font-black block mb-1.5 uppercase font-mono tracking-widest">Pay-off Due Date</label>
                 <input
                   ref={dateInputRef}
@@ -363,7 +413,6 @@ export default function DebtTracker({
                   <span className="text-rose-400 font-mono text-[9px] mt-1.5 block">{errors.dueDate}</span>
                 )}
               </div>
-            </div>
 
             <div>
               <label className="text-[9px] text-zinc-400 font-black block mb-1.5 uppercase font-mono tracking-widest">Special Notes / Accord terms (Optional)</label>
@@ -393,7 +442,9 @@ export default function DebtTracker({
             No active liabilities registered. Rest easy, you are debt-free!
           </div>
         ) : (
-          debts.map((debt) => {
+          [...debts]
+            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+            .map((debt) => {
             const repaid = debt.totalAmount - debt.remainingAmount;
             const payoffPct = Math.round((repaid / debt.totalAmount) * 100);
             const isFullyPaid = debt.remainingAmount === 0;
@@ -405,7 +456,7 @@ export default function DebtTracker({
                 className="bg-zinc-900/40 border border-zinc-850 rounded-[28px] p-5 md:p-6 space-y-5 shadow-xl transition-all duration-300 hover:border-zinc-800"
               >
                 
-                {/* Header info */}
+                 {/* Header info */}
                 <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                   <div className="space-y-1">
                     <h4 className="text-sm sm:text-base font-extrabold text-white flex flex-wrap items-center gap-2 leading-none font-sans">
@@ -419,13 +470,31 @@ export default function DebtTracker({
                     <span className="text-[10px] text-zinc-500 font-mono font-bold flex items-center gap-1.5">
                       <Calendar size={12} className="text-zinc-600" /> Payoff Due Date: <span className="font-mono text-zinc-300">{debt.dueDate}</span>
                     </span>
+                    {debt.accountName && (
+                      <div className="text-[10px] text-indigo-400 font-mono font-bold flex items-center gap-1.5 mt-0.5">
+                        <Wallet size={11} className="text-indigo-400 shrink-0" />
+                        Target Account: <span className="text-zinc-300 font-sans font-bold">{debt.accountName}</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="text-left sm:text-right border-t border-zinc-900/60 pt-3 sm:pt-0 sm:border-0 shrink-0">
-                    <span className="text-[9px] text-zinc-550 block uppercase tracking-widest font-mono font-bold text-zinc-500">Remaining Balance</span>
-                    <span className="font-mono text-base font-black text-white">
-                      {currency} {debt.remainingAmount.toLocaleString()}
-                    </span>
+                  <div className="text-left sm:text-right border-t border-zinc-900/60 pt-3 sm:pt-0 sm:border-0 shrink-0 flex flex-col items-start sm:items-end gap-2">
+                    <div className="text-left sm:text-right">
+                      <span className="text-[9px] text-zinc-550 block uppercase tracking-widest font-mono font-bold text-zinc-500">Remaining Balance</span>
+                      <span className="font-mono text-base font-black text-white">
+                        {currency} {debt.remainingAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete this liability to "${debt.debtSource}"? This will reverse the initial account balance addition of ${currency}${debt.totalAmount.toLocaleString()} and refund any repayments made.`)) {
+                          onDeleteDebt(debt.id);
+                        }
+                      }}
+                      className="text-[9px] text-rose-500 hover:text-rose-400 font-mono font-bold uppercase tracking-wider underline cursor-pointer"
+                    >
+                      Delete Liability
+                    </button>
                   </div>
                 </div>
 
