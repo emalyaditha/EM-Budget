@@ -85,6 +85,7 @@ export default function App() {
             console.warn("Could not sync from database:", result.error);
             localStorage.removeItem('auth_user_email');
             localStorage.removeItem('auth_session_token');
+            localStorage.removeItem('auth_device_token');
             setIsUnlocked(false);
           }
         } catch (err) {
@@ -1611,6 +1612,7 @@ export default function App() {
               onLogout={() => {
                 localStorage.removeItem('auth_user_email');
                 localStorage.removeItem('auth_session_token');
+                localStorage.removeItem('auth_device_token');
                 setState(DEFAULT_APP_STATE);
                 setIsUnlocked(false);
                 setIsProfileOpen(false);
@@ -1623,10 +1625,12 @@ export default function App() {
       {/* ======================= RE-LOCK SCREEN INTERACTION ======================= */}
       {!isUnlocked && (
         <EmailLogin
-          onUnlocked={async (email, rememberMe) => {
-            if (rememberMe) {
-              localStorage.setItem('auth_user_email', email);
-              localStorage.setItem('auth_session_token', `token_vault_session_${Date.now()}`);
+          onUnlocked={async (email, token, rememberMe, deviceToken) => {
+            // Always store session secure token and email for the duration of current session context
+            localStorage.setItem('auth_user_email', email);
+            localStorage.setItem('auth_session_token', token);
+            if (rememberMe && deviceToken) {
+              localStorage.setItem('auth_device_token', deviceToken);
             }
             setUserEmail(email);
             try {
@@ -1971,6 +1975,7 @@ export default function App() {
               onLogout={() => {
                 localStorage.removeItem('auth_user_email');
                 localStorage.removeItem('auth_session_token');
+                localStorage.removeItem('auth_device_token');
                 setState(DEFAULT_APP_STATE);
                 setIsUnlocked(false);
                 setIsSettingsOpen(false);
