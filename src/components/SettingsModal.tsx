@@ -507,7 +507,6 @@ class CloudSyncService {
                   Cross-Platform Developer Blueprints
                 </span>
 
-                {/* SQL setup guide */}
                 <div className="bg-zinc-900/25 border border-zinc-850 rounded-2xl overflow-hidden">
                   <button
                     onClick={() => setExpandedSection(expandedSection === 'sql' ? 'none' : 'sql')}
@@ -521,16 +520,10 @@ class CloudSyncService {
                   </button>
                   
                   {expandedSection === 'sql' && (
-                    <div className="p-4 bg-black/80 text-[10px] space-y-3.5 border-t border-zinc-900">
-                      <p className="text-zinc-400 text-[11px] leading-relaxed">
-                        Execute the SQL query below inside your <strong>Supabase SQL Editor</strong> to construct all necessary tables, constraints, security rules, and the transaction backend.
+                    <div className="p-4 bg-black/80 text-[10px] space-y-2 border-t border-zinc-900">
+                      <p className="text-zinc-400 text-[11px]">
+                        Execute this inside your <strong>Supabase SQL Editor</strong> to construct the state synchronization core.
                       </p>
-                      <div className="bg-amber-950/20 border border-amber-900/35 p-3 rounded-xl space-y-1">
-                        <span className="text-[10px] text-amber-400 font-bold block">💡 SCHEMA INSIGHT: sync_complete_ledger</span>
-                        <p className="text-[10px] text-zinc-400 leading-normal">
-                          The backup engine relies on a database stored procedure (RPC) named <strong><code>sync_complete_ledger</code></strong> to handle atomic, single-trip transaction syncing. It is a <strong>Database Function</strong>, not a table. You will find it listed under <em>Database &gt; Functions</em> in your Supabase Dashboard once created.
-                        </p>
-                      </div>
                       <div className="relative">
                         <pre className="p-3 bg-zinc-950 rounded-xl overflow-x-auto text-[10px] text-emerald-400/90 font-mono border border-zinc-900 whitespace-pre scrollbar-none" style={{ maxHeight: '180px' }}>
                           {getSupabaseSQLScript()}
@@ -595,13 +588,10 @@ class CloudSyncService {
                   </button>
                   
                   {expandedSection === 'upgrade' && (
-                    <div className="p-4 bg-black/80 text-[10px] space-y-3.5 border-t border-zinc-900">
+                    <div className="p-4 bg-black/80 text-[10px] space-y-2 border-t border-zinc-900">
                       <p className="text-zinc-400 text-[11px]">
-                        To enable the atomic database sync engine on an existing database, go to your <strong>Supabase Dashboard &gt; SQL Editor</strong> and copy-paste the SQL Stored Procedure upgrade below:
+                        To update your live Supabase database instantly, go to your <strong>Supabase Dashboard &gt; SQL Editor</strong> and copy-paste the matching upgrade migration query below:
                       </p>
-                      <div className="bg-zinc-900/40 border border-zinc-850 p-3 rounded-lg text-zinc-400 text-[9px] leading-relaxed">
-                        ⚠️ <strong>Resilient Fallback Mode Active:</strong> If this code has not been run or the custom SQL function is absent from your database, Vault Secure is fully resilient and will automatically perform secure sequential updates table-by-table. No data is lost!
-                      </div>
                       <div className="relative">
                         <pre className="p-3 bg-zinc-950 rounded-xl overflow-x-auto text-[10px] text-emerald-400/90 font-mono border border-zinc-900 whitespace-pre scrollbar-none" style={{ maxHeight: '180px' }}>
                           {getSupabaseUpgradeSQLScript()}
