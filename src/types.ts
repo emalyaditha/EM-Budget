@@ -80,6 +80,7 @@ export interface Debt {
   accountId?: string;
   accountType?: 'cash' | 'card';
   accountName?: string;
+  status?: 'Active' | 'Closed' | 'Fully Repaid';
 }
 
 export interface Transaction {

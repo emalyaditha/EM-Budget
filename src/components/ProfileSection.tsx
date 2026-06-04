@@ -130,7 +130,18 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
           </div>
           <div className="min-w-0 flex-1">
             <span className="text-[9px] font-mono text-zinc-550 block uppercase font-bold text-zinc-500">Preferred Local Currency</span>
-            <span className="text-xs font-bold text-white block mt-0.5">{state.currency || 'Rs.'} (Default Prefix)</span>
+            <select
+              value={state.currency}
+              onChange={(e) => updateState(prev => ({ ...prev, currency: e.target.value }))}
+              className="w-full bg-black/40 border border-zinc-800 rounded-lg text-xs px-2 py-2 text-white focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
+            >
+              <option value="Rs.">Rs. (Sri Lankan Rupee)</option>
+              <option value="$">$ (US Dollar)</option>
+              <option value="€">€ (Euro)</option>
+              <option value="£">£ (British Pound)</option>
+              <option value="¥">¥ (Japanese Yen)</option>
+              <option value="SAR">SAR (Saudi Riyal)</option>
+            </select>
           </div>
         </div>
 

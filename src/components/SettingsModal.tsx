@@ -646,6 +646,7 @@ class CloudSyncService {
                       <option value="€">€ (Euro)</option>
                       <option value="£">£ (British Pound)</option>
                       <option value="¥">¥ (Japanese Yen)</option>
+                      <option value="SAR">SAR (Saudi Riyal)</option>
                     </select>
                   </div>
                 </div>

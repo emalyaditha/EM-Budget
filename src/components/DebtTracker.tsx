@@ -177,11 +177,18 @@ export default function DebtTracker({
       return;
     }
 
+    const isClearingFinal = amountNum === debtItem.remainingAmount;
+
     onMakeDebtPayment(payingDebtId, amountNum, paySourceId, paySourceType);
     setPayAmount('');
     setPayingDebtId(null);
     setPaymentError(null);
-    showToast('success', 'Repayment logged! Debt ledger balances correctly.');
+    
+    if (isClearingFinal) {
+      showToast('success', 'Debt Fully Repaid Successfully');
+    } else {
+      showToast('success', 'Repayment logged! Debt ledger balances correctly.');
+    }
   };
 
   const handleIncreaseDebtSubmit = (e: React.FormEvent) => {
@@ -207,9 +214,10 @@ export default function DebtTracker({
     setPaymentError(null);
   };
 
-  // Calculations
-  const totalRemainingDebt = debts.reduce((sum, d) => sum + d.remainingAmount, 0);
-  const totalOriginalDebt = debts.reduce((sum, d) => sum + d.totalAmount, 0);
+  // Calculations - Filter active (unpaid) debts for active screen/registry
+  const activeDebts = debts.filter(d => d.remainingAmount > 0);
+  const totalRemainingDebt = activeDebts.reduce((sum, d) => sum + d.remainingAmount, 0);
+  const totalOriginalDebt = activeDebts.reduce((sum, d) => sum + d.totalAmount, 0);
   const overallClearedPercent = totalOriginalDebt > 0 
     ? Math.round(((totalOriginalDebt - totalRemainingDebt) / totalOriginalDebt) * 100) 
     : 100;
@@ -273,7 +281,7 @@ export default function DebtTracker({
             <Landmark size={14} className="text-indigo-400" />
             Creditor Accounts Registry
           </h3>
-          <span className="text-[9.5px] text-zinc-500 font-mono mt-1 block">Live balance records: {debts.length} outstanding accounts</span>
+          <span className="text-[9.5px] text-zinc-500 font-mono mt-1 block">Live balance records: {activeDebts.length} outstanding accounts</span>
         </div>
         
         {!isAddingDebt && (
@@ -437,12 +445,12 @@ export default function DebtTracker({
 
       {/* 3. Debt Items List */}
       <div className="space-y-4">
-        {debts.length === 0 ? (
+        {activeDebts.length === 0 ? (
           <div className="p-12 text-center text-zinc-550 border border-dashed border-zinc-850 bg-zinc-950/20 rounded-[28px] italic text-xs">
             No active liabilities registered. Rest easy, you are debt-free!
           </div>
         ) : (
-          [...debts]
+          [...activeDebts]
             .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
             .map((debt) => {
             const repaid = debt.totalAmount - debt.remainingAmount;

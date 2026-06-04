@@ -326,6 +326,7 @@ export default function App() {
       id: debtId,
       remainingAmount: debtData.totalAmount,
       payments: [],
+      status: debtData.totalAmount === 0 ? 'Fully Repaid' : 'Active',
     };
 
     updateState(prev => {
@@ -910,7 +911,8 @@ export default function App() {
         debts: prev.debts.map(d => d.id === debtId ? { 
           ...d, 
           totalAmount: d.totalAmount + amount,
-          remainingAmount: d.remainingAmount + amount
+          remainingAmount: d.remainingAmount + amount,
+          status: (d.remainingAmount + amount) > 0 ? 'Active' : d.status
         } : d)
       };
     });
@@ -953,10 +955,12 @@ export default function App() {
             paidFromId,
             paidFromType,
           };
+          const nextRemaining = Math.max(0, debt.remainingAmount - amount);
           return {
             ...debt,
-            remainingAmount: Math.max(0, debt.remainingAmount - amount),
+            remainingAmount: nextRemaining,
             payments: [...debt.payments, newPayment],
+            status: nextRemaining === 0 ? 'Fully Repaid' : (debt.status || 'Active'),
           };
         }
         return debt;
@@ -1153,10 +1157,12 @@ export default function App() {
           updatedDebts = updatedDebts.map(d => {
             const removedPayment = d.payments?.find(p => p.id === tx.referenceId);
             if (removedPayment) {
+              const nextRemaining = d.remainingAmount + Math.abs(removedPayment.amount);
               return {
                 ...d,
-                remainingAmount: d.remainingAmount + Math.abs(removedPayment.amount),
-                payments: d.payments.filter(p => p.id !== tx.referenceId)
+                remainingAmount: nextRemaining,
+                payments: d.payments.filter(p => p.id !== tx.referenceId),
+                status: nextRemaining > 0 ? 'Active' : d.status
               };
             }
             return d;
@@ -1353,12 +1359,14 @@ export default function App() {
           const removedPayment = d.payments?.find(p => p.id === tx.referenceId);
           if (removedPayment) {
             const difference = newData.amount - tx.amount;
+            const nextRemaining = Math.max(0, d.remainingAmount - difference);
             return {
               ...d,
-              remainingAmount: d.remainingAmount - difference,
+              remainingAmount: nextRemaining,
               payments: d.payments.map(p => p.id === tx.referenceId ? { 
                 ...p, amount: newData.amount, date: newData.date, paidFromId: newData.accountId, paidFromType: newData.accountType 
-              } : p)
+              } : p),
+              status: nextRemaining === 0 ? 'Fully Repaid' : 'Active'
             };
           }
           return d;
