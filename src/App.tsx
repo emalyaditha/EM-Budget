@@ -278,7 +278,10 @@ export default function App() {
       } else {
         updatedCards = updatedCards.map(c => {
           if (c.id === paymentMethodId) {
-            const nextVal = c.currentBalance - amount;
+            const nextVal = c.cardType === 'Credit' 
+              ? c.currentBalance + amount 
+              : c.currentBalance - amount;
+            
             if (nextVal < 10000) {
               newAlertNotifications.push({
                 id: `nt-alert-${Date.now()}`,

@@ -144,10 +144,18 @@ export default function InflowsOutflows({
             availableBalance = match ? match.balance : 0;
           } else {
             const match = cards.find(c => c.id === methodId);
-            availableBalance = match ? match.currentBalance : 0;
+            if (match) {
+              if (match.cardType === 'Credit') {
+                availableBalance = (match.limit ?? 0) - match.currentBalance;
+              } else {
+                availableBalance = match.currentBalance;
+              }
+            } else {
+              availableBalance = 0;
+            }
           }
           if (availableBalance < num) {
-            errs.amount = `Insufficient balance! Available: ${currency} ${availableBalance.toLocaleString()}`;
+            errs.amount = `Insufficient available limit! Available: ${currency} ${availableBalance.toLocaleString()}`;
           }
         }
       }
