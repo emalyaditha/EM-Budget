@@ -1781,23 +1781,23 @@ export default function App() {
               <Lock size={14} className="animate-pulse" />
             </div>
           ) : (
-            <div className="bg-[#070707]/60 border border-zinc-850 p-5 rounded-[24px] space-y-4 shadow-xl hidden lg:block animate-fade-in">
-              <h3 className="text-[10px] tracking-wider text-emerald-400 font-mono font-bold uppercase flex items-center gap-1.5">
+            <div className="bg-card text-card-foreground border border-zinc-200 dark:border-zinc-850 p-5 rounded-[24px] space-y-4 shadow-xl hidden lg:block animate-fade-in">
+              <h3 className="text-[10px] tracking-wider text-emerald-500 dark:text-emerald-400 font-mono font-bold uppercase flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                 SECURITY VAULT ACTIVE
               </h3>
               <div className="space-y-3">
-                <div className="p-3 bg-black/40 border border-zinc-900 rounded-xl space-y-1">
-                  <span className="text-[9px] text-[#8aa8bb] block uppercase font-mono font-bold">DEVICE HOLDER</span>
-                  <span className="text-xs font-mono font-bold text-zinc-300 break-all truncate block">{userEmail || 'Client Local Only'}</span>
+                <div className="p-3 bg-muted border border-zinc-200 dark:border-zinc-900 rounded-xl space-y-1">
+                  <span className="text-[9px] text-muted-foreground block uppercase font-mono font-bold">DEVICE HOLDER</span>
+                  <span className="text-xs font-mono font-bold text-card-foreground break-all truncate block">{userEmail || 'Client Local Only'}</span>
                 </div>
-                <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono border-t border-zinc-900 pt-3">
+                <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono border-t border-zinc-200 dark:border-zinc-900 pt-3">
                   <span>State Syncing</span>
-                  <span className="text-emerald-400 font-bold uppercase">Active</span>
+                  <span className="text-emerald-500 dark:text-emerald-400 font-bold uppercase">Active</span>
                 </div>
-                <div className="flex justify-between items-center text-[10px] text-zinc-505 text-zinc-500 font-mono">
+                <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono">
                   <span>Status Indicator</span>
-                  <span className={realtimeSyncStatus === 'synced' ? 'text-indigo-400 font-bold uppercase' : 'text-amber-400 font-bold uppercase'}>
+                  <span className={realtimeSyncStatus === 'synced' ? 'text-indigo-500 dark:text-indigo-400 font-bold uppercase' : 'text-amber-500 dark:text-amber-400 font-bold uppercase'}>
                     {realtimeSyncStatus ? realtimeSyncStatus.toUpperCase() : 'IDLE'}
                   </span>
                 </div>
@@ -1825,6 +1825,11 @@ export default function App() {
                    activeTab === 'debts' ? 'Liabilities' :
                    activeTab === 'loans' ? 'Loans Given' : 'Reports'}
                 </h2>
+                {activeTab === 'loans' && (
+                  <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed max-w-xl hidden md:block">
+                    Register and monitor personal funds lent to others. Record individual settle records, and automatically back credit balances back into your ledger account suites.
+                  </p>
+                )}
               </div>
 
               {/* Notifications trigger bell */}
@@ -1995,7 +2000,7 @@ export default function App() {
             </div>
 
             {/* =================== MOBILE BOTTOM BAR NAVIGATOR =================== */}
-            <nav className="fixed bottom-4 inset-x-4 bg-[#0a0a0af0]/90 backdrop-blur-xl border border-zinc-800 rounded-3xl pb-3.5 pt-2 flex justify-around items-center z-30 shadow-[0_10px_35px_rgba(0,0,0,0.8)] lg:hidden">
+            <nav className="fixed bottom-4 inset-x-4 bg-card/85 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-3xl pb-3 pt-2.5 flex justify-around items-center z-30 shadow-[0_4px_22px_rgba(20,20,30,0.08)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.4)] lg:hidden">
               {[
                 { tab: 'dashboard', icon: <Percent size={15} />, label: 'Dashboard' },
                 { tab: 'accounts', icon: <Wallet size={15} />, label: 'Wallets' },
@@ -2003,27 +2008,34 @@ export default function App() {
                 { tab: 'debts', icon: <CircleDot size={15} />, label: 'Debts' },
                 { tab: 'loans', icon: <ArrowUpRight size={15} />, label: 'Loans' },
                 { tab: 'reports', icon: <TrendingUp size={15} />, label: 'Reports' },
-              ].map((item) => (
-                <button
-                  key={item.tab}
-                  onClick={() => setActiveTab(item.tab as any)}
-                  className={`flex flex-col items-center gap-1.5 transition-all duration-300 relative cursor-pointer ${
-                    activeTab === item.tab ? 'text-white' : 'text-zinc-500 hover:text-zinc-400'
-                  }`}
-                >
-                  <div className={`p-2 rounded-2xl transition-all duration-300 flex items-center justify-center ${
-                    activeTab === item.tab 
-                      ? 'bg-indigo-600 text-white shadow-xl scale-110 border border-indigo-500' 
-                      : 'text-zinc-400 bg-[#0f0f12] border border-zinc-900'
-                  }`}>
-                    {item.icon}
-                  </div>
-                  <span className={`text-[8.5px] uppercase tracking-wider font-extrabold font-mono transition-colors duration-300 ${activeTab === item.tab ? 'text-white' : 'text-zinc-500'}`}>{item.label}</span>
-                  {activeTab === item.tab && (
-                    <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
-                  )}
-                </button>
-              ))}
+              ].map((item) => {
+                const isActive = activeTab === item.tab;
+                return (
+                  <button
+                    key={item.tab}
+                    onClick={() => setActiveTab(item.tab as any)}
+                    className="flex flex-col items-center gap-1.5 relative cursor-pointer group"
+                  >
+                    <div className={`p-2.5 rounded-2xl transition-all duration-300 flex items-center justify-center ${
+                      isActive 
+                        ? 'bg-indigo-600 text-white shadow-md scale-105 border border-indigo-505 dark:border-indigo-500' 
+                        : 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-805 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800 group-hover:text-zinc-800 dark:group-hover:text-zinc-200'
+                    }`}>
+                      {item.icon}
+                    </div>
+                    <span className={`text-[8.5px] uppercase tracking-wider transition-colors duration-300 ${
+                      isActive 
+                        ? 'text-indigo-600 dark:text-indigo-400 font-extrabold font-sans' 
+                        : 'text-zinc-500 dark:text-zinc-400 font-medium font-sans group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
+                    }`}>
+                      {item.label}
+                    </span>
+                    {isActive && (
+                      <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-indigo-600 dark:bg-indigo-400 rounded-full animate-pulse" />
+                    )}
+                  </button>
+                );
+              })}
             </nav>
 
             {/* Notification sheet slideover drawer */}

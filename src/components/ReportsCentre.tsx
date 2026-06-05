@@ -192,35 +192,35 @@ export default function ReportsCentre({
          <div className="lg:col-span-7 space-y-6">
           
           {/* Executive Net Savings card */}
-          <div className="bg-gradient-to-tr from-zinc-950 via-[#0e0e13] to-zinc-950 border border-zinc-850 rounded-[32px] p-6 shadow-2xl relative overflow-hidden">
+          <div className="bg-card text-card-foreground border border-zinc-200 dark:border-zinc-850 rounded-[32px] p-6 shadow-2xl relative overflow-hidden">
             {/* Ambient lighting ring */}
             <div className="absolute top-0 right-0 p-4 text-indigo-500/10 pointer-events-none">
               <Award size={80} className="stroke-[1.5px] opacity-15" />
             </div>
 
-            <span className="text-[9px] font-mono uppercase tracking-widest text-indigo-400 font-bold block mb-1">Executive Summary</span>
-            <span className="text-[10px] uppercase font-bold text-zinc-550 block text-zinc-500">Period Net Surplus</span>
-            <h2 className="text-3xl font-extrabold text-white tracking-tight font-mono mt-1 select-all">
+            <span className="text-[9px] font-mono uppercase tracking-widest text-indigo-500 dark:text-indigo-400 font-bold block mb-1">Executive Summary</span>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground block">Period Net Surplus</span>
+            <h2 className="text-3xl font-extrabold text-card-foreground tracking-tight font-mono mt-1 select-all">
               {currency}{netSavings.toLocaleString()}
             </h2>
-            <p className="text-[11px] text-zinc-550 text-zinc-400 mt-2 leading-relaxed">
+            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
               Aggregated balance calculation of recorded inflows deducting logged settling charges and liabilities paydowns for selected dates bounds.
             </p>
 
-            <div className="grid grid-cols-3 gap-3 mt-6 pt-5 border-t border-zinc-900 text-center">
-              <div className="bg-black/50 border border-zinc-900 p-3 rounded-2xl">
-                <span className="text-[8px] text-zinc-500 block uppercase font-mono font-bold">Collected</span>
-                <span className="text-sm font-mono font-extrabold text-[#10b981] mt-0.5 block">+{currency}{totalIncome.toLocaleString()}</span>
+            <div className="grid grid-cols-3 gap-3 mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-900 text-center">
+              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-3 rounded-2xl">
+                <span className="text-[8px] text-muted-foreground block uppercase font-mono font-bold">Collected</span>
+                <span className="text-sm font-mono font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5 block">+{currency}{totalIncome.toLocaleString()}</span>
               </div>
 
-              <div className="bg-black/50 border border-zinc-900 p-3 rounded-2xl">
-                <span className="text-[8px] text-zinc-500 block uppercase font-mono font-bold">Settled</span>
-                <span className="text-sm font-mono font-extrabold text-[#f43f5e] mt-0.5 block">-{currency}{totalExpense.toLocaleString()}</span>
+              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-3 rounded-2xl">
+                <span className="text-[8px] text-muted-foreground block uppercase font-mono font-bold">Settled</span>
+                <span className="text-sm font-mono font-extrabold text-rose-600 dark:text-rose-400 mt-0.5 block">-{currency}{totalExpense.toLocaleString()}</span>
               </div>
 
-              <div className="bg-black/50 border border-zinc-900 p-3 rounded-2xl">
-                <span className="text-[8px] text-zinc-500 block uppercase font-mono font-bold">Surplus Match</span>
-                <span className="text-sm font-mono font-extrabold text-white mt-0.5 block">
+              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-3 rounded-2xl">
+                <span className="text-[8px] text-muted-foreground block uppercase font-mono font-bold">Surplus Match</span>
+                <span className="text-sm font-mono font-extrabold text-card-foreground mt-0.5 block">
                   {savingsRate > 0 ? `+${savingsRate}%` : `${savingsRate}%`}
                 </span>
               </div>

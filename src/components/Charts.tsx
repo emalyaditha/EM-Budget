@@ -52,9 +52,9 @@ export function TrendAnalysisChart({ data, currency }: { data: number[]; currenc
         </defs>
 
         {/* Soft Grid Horizontal Lines */}
-        <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="#3f3f46" strokeWidth="1" strokeDasharray="3,3" className="opacity-30" />
-        <line x1={padding} y1={height / 2} x2={width - padding} y2={height / 2} stroke="#3f3f46" strokeWidth="1" strokeDasharray="3,3" className="opacity-30" />
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#27272a" strokeWidth="1" />
+        <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="var(--border-primary)" strokeWidth="1" strokeDasharray="3,3" />
+        <line x1={padding} y1={height / 2} x2={width - padding} y2={height / 2} stroke="var(--border-primary)" strokeWidth="1" strokeDasharray="3,3" />
+        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--border-secondary)" strokeWidth="1" />
 
         {/* Gradient fill under sparkline */}
         <polygon points={fillPoints} fill="url(#trendGradient)" />
@@ -62,7 +62,7 @@ export function TrendAnalysisChart({ data, currency }: { data: number[]; currenc
         {/* Sleek Line */}
         <polyline
           fill="none"
-          stroke="#ffffff"
+          stroke="var(--accent-primary)"
           strokeWidth="3"
           points={points}
           strokeLinecap="round"
@@ -79,8 +79,9 @@ export function TrendAnalysisChart({ data, currency }: { data: number[]; currenc
               cx={x}
               cy={y}
               r="4.5"
-              className="fill-[#0c0c0e] stroke-white cursor-pointer hover:r-6 transition-all"
+              style={{ fill: 'var(--bg-card)', stroke: 'var(--accent-primary)' }}
               strokeWidth="3"
+              className="cursor-pointer hover:r-6 transition-all"
             />
           );
         })}
@@ -110,14 +111,14 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
         <div>
           <div className="flex justify-between text-xs mb-1.5">
             <span className="text-zinc-400 font-medium">Monthly Incomes</span>
-            <span className="text-emerald-400 font-mono font-bold">{currency} {income.toLocaleString()} ({incomePct}%)</span>
+            <span className="text-emerald-500 dark:text-emerald-400 font-mono font-bold">{currency} {income.toLocaleString()} ({incomePct}%)</span>
           </div>
-          <div className="w-full h-8 bg-[#050505] border border-zinc-850 rounded-xl overflow-hidden flex items-center relative">
+          <div className="w-full h-8 bg-[#050505] border border-zinc-200 dark:border-zinc-850 rounded-xl overflow-hidden flex items-center relative">
             <div
               className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-r-md transition-all duration-1000"
               style={{ width: `${incomePct || 0}%` }}
             />
-            <span className="absolute left-3 text-[10px] font-mono text-zinc-350 font-bold mix-blend-difference">RECEIPTS</span>
+            <span className="absolute left-3 text-[10px] font-mono text-zinc-350 font-bold mix-blend-difference text-white-forced">RECEIPTS</span>
           </div>
         </div>
 
@@ -125,14 +126,14 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
         <div>
           <div className="flex justify-between text-xs mb-1.5">
             <span className="text-zinc-400 font-medium">Invoices & Bills Expenses</span>
-            <span className="text-rose-400 font-mono font-bold">{currency} {expense.toLocaleString()} ({expensePct}%)</span>
+            <span className="text-rose-500 dark:text-rose-400 font-mono font-bold">{currency} {expense.toLocaleString()} ({expensePct}%)</span>
           </div>
-          <div className="w-full h-8 bg-[#050505] border border-zinc-850 rounded-xl overflow-hidden flex items-center relative">
+          <div className="w-full h-8 bg-[#050505] border border-zinc-200 dark:border-zinc-850 rounded-xl overflow-hidden flex items-center relative">
             <div
               className="h-full bg-gradient-to-r from-rose-600 to-rose-400 rounded-r-md transition-all duration-1000"
               style={{ width: `${expensePct || 0}%` }}
             />
-            <span className="absolute left-3 text-[10px] font-mono text-zinc-350 font-bold mix-blend-difference">CHARGES</span>
+            <span className="absolute left-3 text-[10px] font-mono text-zinc-350 font-bold mix-blend-difference text-white-forced">CHARGES</span>
           </div>
         </div>
       </div>
@@ -185,7 +186,7 @@ export function SpendingByCategoryPie({ categories, currency = 'Rs.' }: { catego
               );
             })}
             {/* Center Cover Card */}
-            <circle cx="50" cy="50" r="23" fill="#0c0c0e" />
+            <circle cx="50" cy="50" r="23" fill="var(--bg-card)" />
             <text x="50" y="52" className="text-[8px] font-mono font-bold text-zinc-400 text-center" textAnchor="middle" transform="rotate(90 50 50)">
               SPENT
             </text>
@@ -230,7 +231,7 @@ export function RepaymentGauge({ totalDebt, remaining, name, currency = 'Rs.' }:
             cx="18"
             cy="18"
             r="15.9155"
-            className="text-zinc-900"
+            className="text-zinc-200 dark:text-zinc-900"
             strokeWidth="3.5"
             stroke="currentColor"
             fill="none"
@@ -245,12 +246,12 @@ export function RepaymentGauge({ totalDebt, remaining, name, currency = 'Rs.' }:
             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
           />
         </svg>
-        <div className="absolute inset-0 flex items-center justify-center text-[10px] font-mono font-bold text-white">
+        <div className="absolute inset-0 flex items-center justify-center text-[10px] font-mono font-bold text-zinc-800 dark:text-white">
           {percentage}%
         </div>
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-xs font-bold text-white truncate">{name} Repaid</div>
+        <div className="text-xs font-bold text-zinc-900 dark:text-white truncate">{name} Repaid</div>
         <div className="text-[10px] font-mono text-zinc-400 mt-0.5">
           Cleared: <span className="text-emerald-400 font-bold">{currency} {repaid.toLocaleString()}</span>
         </div>

@@ -465,11 +465,13 @@ export default function DebtTracker({
             const repaid = debt.totalAmount - debt.remainingAmount;
             const payoffPct = Math.round((repaid / debt.totalAmount) * 100);
             const isFullyPaid = debt.remainingAmount === 0;
+            const isOverdue = !isFullyPaid && new Date(debt.dueDate).getTime() < new Date().setHours(0, 0, 0, 0);
 
             return (
               <div
                 key={debt.id}
                 id={`debt-block-${debt.id}`}
+                data-debt-status={isFullyPaid ? "paid" : (isOverdue ? "overdue" : "outstanding")}
                 className="bg-zinc-900/40 border border-zinc-850 rounded-[28px] p-5 md:p-6 space-y-5 shadow-xl transition-all duration-300 hover:border-zinc-800"
               >
                 
@@ -516,27 +518,27 @@ export default function DebtTracker({
                 </div>
 
                 {/* Progress bar repayment percentage */}
-                <div className="p-4 bg-black/40 border border-zinc-905 rounded-2xl space-y-3.5">
-                  <div className="flex justify-between text-[10px] font-mono text-zinc-400 leading-none">
+                <div className="p-4 bg-muted border border-zinc-200 dark:border-zinc-905 rounded-2xl space-y-3.5">
+                  <div className="flex justify-between text-[10px] font-mono text-muted-foreground leading-none">
                     <span>Payoff Progress</span>
-                    <span className="font-bold text-emerald-400">{payoffPct}% settled</span>
+                    <span className="font-bold text-emerald-500 dark:text-emerald-400">{payoffPct}% settled</span>
                   </div>
                   
-                  <div className="w-full h-2.5 bg-zinc-950 border border-zinc-900 rounded-full overflow-hidden relative">
+                  <div className="w-full h-2.5 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 rounded-full overflow-hidden relative">
                     <div
                       className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000"
                       style={{ width: `${payoffPct || 0}%` }}
                     />
                   </div>
                   
-                  <div className="flex justify-between text-[10px] font-mono font-bold text-zinc-500 leading-none">
-                    <span>Cleared: <span className="text-zinc-400">{currency} {repaid.toLocaleString()}</span></span>
-                    <span>Principal: <span className="text-zinc-400">{currency} {debt.totalAmount.toLocaleString()}</span></span>
+                  <div className="flex justify-between text-[10px] font-mono font-bold text-muted-foreground leading-none">
+                    <span>Cleared: <span className="text-card-foreground">{currency} {repaid.toLocaleString()}</span></span>
+                    <span>Principal: <span className="text-card-foreground">{currency} {debt.totalAmount.toLocaleString()}</span></span>
                   </div>
                 </div>
 
                 {/* Notes and references */}
-                <p className="text-xs bg-[#050505]/60 px-4 py-3 rounded-xl text-zinc-450 text-zinc-400 leading-relaxed italic border border-zinc-900/60 font-medium">
+                <p className="text-xs bg-muted px-4 py-3 rounded-xl text-card-foreground leading-relaxed italic border border-zinc-200 dark:border-zinc-900/60 font-medium">
                   "{debt.notes}"
                 </p>
 
@@ -548,7 +550,7 @@ export default function DebtTracker({
                         setPayingDebtId(debt.id);
                         setPaymentError(null);
                       }}
-                      className="flex-1 py-3 bg-[#0a0a0cf0] border border-zinc-800 rounded-xl font-bold text-xs text-zinc-300 hover:text-white hover:border-zinc-500 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-650 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                     >
                       Settle Partial Payment
                     </button>
@@ -557,7 +559,7 @@ export default function DebtTracker({
                       onClick={() => {
                         setIncreasingDebtId(debt.id);
                       }}
-                      className="flex-1 py-3 bg-[#0a0a0cf0] border border-zinc-800 rounded-xl font-bold text-xs text-zinc-300 hover:text-white hover:border-zinc-500 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-850 text-zinc-800 dark:text-white border border-zinc-200 dark:border-zinc-805 font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                     >
                       Add More Debt
                     </button>
@@ -716,20 +718,20 @@ export default function DebtTracker({
 
                 {/* Sub audit payment track log */}
                 {debt.payments && debt.payments.length > 0 && (
-                  <div className="border-t border-zinc-850/60 pt-4">
-                    <span className="text-[9px] text-[#888888] font-black uppercase tracking-wider block mb-2.5 font-mono">
+                  <div className="border-t border-zinc-200 dark:border-zinc-850/60 pt-4">
+                    <span className="text-[9px] text-muted-foreground font-black uppercase tracking-wider block mb-2.5 font-mono">
                       Repayment Log History ({debt.payments.length})
                     </span>
                     <div className="space-y-2">
                       {debt.payments.map((p) => (
-                        <div key={p.id} className="flex justify-between items-center bg-black/30 px-3.5 py-2.5 border border-zinc-905 rounded-xl text-xs font-mono text-zinc-400">
-                          <span className="flex items-center gap-1.5 text-[9.5px] font-bold text-zinc-500">
-                            <ShieldCheck size={12} className="text-emerald-400 animate-pulse" />
+                        <div key={p.id} className="flex justify-between items-center bg-muted px-3.5 py-2.5 border border-zinc-200 dark:border-zinc-905 rounded-xl text-xs font-mono text-card-foreground">
+                          <span className="flex items-center gap-1.5 text-[9.5px] font-bold text-muted-foreground">
+                            <ShieldCheck size={12} className="text-emerald-500 dark:text-emerald-400 animate-pulse" />
                             DEDUCTED SUCCESSFULLY ({p.paidFromType.toUpperCase()})
                           </span>
                           <div className="flex gap-4 font-semibold shrink-0">
-                            <span className="text-zinc-600">{p.date}</span>
-                            <span className="text-emerald-400">-{currency} {p.amount.toLocaleString()}</span>
+                            <span className="text-muted-foreground">{p.date}</span>
+                            <span className="text-emerald-500 dark:text-emerald-400 font-bold">-{currency} {p.amount.toLocaleString()}</span>
                           </div>
                         </div>
                       ))}

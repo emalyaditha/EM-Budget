@@ -104,7 +104,7 @@ export default function Dashboard({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-2 border-b border-zinc-900/80 pb-6">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 bg-indigo-950/50 border border-indigo-800/45 text-indigo-400 text-[10px] uppercase font-bold tracking-widest rounded-full flex items-center gap-1">
+            <span id="premium-suite-badge" className="px-2 py-0.5 bg-indigo-950/50 border border-indigo-800/45 text-indigo-400 text-[10px] uppercase font-bold tracking-widest rounded-full flex items-center gap-1">
               <Sparkles size={10} className="text-indigo-400" />
               Premium Suite Active
             </span>
@@ -150,7 +150,7 @@ export default function Dashboard({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         
         {/* Apple Wallet Style Card display */}
-        <div className="lg:col-span-7 relative group overflow-hidden bg-gradient-to-tr from-zinc-950 via-neutral-900/95 to-indigo-950/70 rounded-[32px] p-6 sm:p-8 flex flex-col justify-between border border-white/10 shadow-2xl transition-all hover:border-white/20 hover:shadow-indigo-950/10 min-h-[220px] sm:min-h-[240px]">
+        <div id="vault-portfolio-hero" className="lg:col-span-7 relative group overflow-hidden bg-gradient-to-tr from-zinc-950 via-neutral-900/95 to-indigo-950/70 rounded-[32px] p-6 sm:p-8 flex flex-col justify-between border border-white/10 shadow-2xl transition-all hover:border-white/20 hover:shadow-indigo-950/10 min-h-[220px] sm:min-h-[240px]">
           {/* Abstract vector glowing grids inside card */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,_transparent_1px),_linear-gradient(90deg,_rgba(255,255,255,0.015)_1px,_transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
           <div className="absolute -top-24 -left-20 w-56 h-56 rounded-full bg-gradient-to-br from-indigo-500/10 to-transparent blur-3xl pointer-events-none" />
@@ -203,7 +203,7 @@ export default function Dashboard({
 
             <button 
               onClick={() => setActiveTab('accounts')}
-              className="bg-zinc-800 hover:bg-white text-zinc-400 hover:text-black py-2 px-3.5 rounded-xl text-[10px] font-mono font-bold uppercase transition-all duration-300 cursor-pointer border border-zinc-700/60 shadow-lg flex items-center gap-1 shrink-0"
+              className="manage-wallets-btn bg-zinc-800 hover:bg-white text-zinc-400 hover:text-black py-2 px-3.5 rounded-xl text-[10px] font-mono font-bold uppercase transition-all duration-300 cursor-pointer border border-zinc-700/60 shadow-lg flex items-center gap-1 shrink-0"
             >
               <span>Manage Wallets</span>
               <ChevronRight size={12} />

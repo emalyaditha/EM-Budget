@@ -180,29 +180,6 @@ export default function LoansTracker({
   return (
     <div className="space-y-6" id="loans-section-wrapper">
       
-      {/* HEADER AND QUICK STATS */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-2 border-b border-zinc-900/80 pb-6">
-        <div>
-          <span className="text-[10px] tracking-wider text-indigo-400 font-mono font-bold uppercase block mb-1">Vault Asset Ledger</span>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Loans Given (Receivables)</h1>
-          <p className="text-xs text-zinc-500 leading-relaxed max-w-xl">
-            Register and monitor personal funds lent to others. Record individual settle records, and automatically back credit balances back into your ledger account suites.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsGivingLoan(!isGivingLoan)}
-          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-xs py-3 px-5 rounded-2xl md:self-end transition-all cursor-pointer shadow-lg active:scale-95"
-        >
-          {isGivingLoan ? 'Minimize Form' : (
-            <>
-              <Plus size={14} />
-              <span>Lend & Record Asset</span>
-            </>
-          )}
-        </button>
-      </div>
-
       {/* STATISTICS PANEL */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="loans-stats-panel">
         <div className="bg-zinc-900/40 p-5 rounded-2xl border border-zinc-850 flex items-center gap-4">
@@ -356,7 +333,20 @@ export default function LoansTracker({
 
       {/* LOAN REGISTER BOOK */}
       <div className="space-y-4" id="loans-register-book">
-        <h2 className="text-sm font-extrabold text-white uppercase tracking-wider font-mono">Lent Asset Register Book</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-zinc-900/80">
+          <h2 className="text-sm font-extrabold text-white uppercase tracking-wider font-mono">Lent Asset Register Book</h2>
+          <button
+            onClick={() => setIsGivingLoan(!isGivingLoan)}
+            className="flex items-center gap-2 bg-gradient-to-r from-indigo-650 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-xs py-2 bg-indigo-600 px-4 rounded-xl transition-all cursor-pointer shadow-md active:scale-95 shrink-0"
+          >
+            {isGivingLoan ? 'Minimize Dispatch Form' : (
+              <>
+                <Plus size={14} />
+                <span>Lend & Record Asset</span>
+              </>
+            )}
+          </button>
+        </div>
         
         {loans.length === 0 ? (
           <div className="bg-zinc-900/15 border border-zinc-900 rounded-[32px] p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-inner">
@@ -380,6 +370,7 @@ export default function LoansTracker({
               return (
                 <div 
                   key={loan.id}
+                  data-loan-status={loan.status === 'Settled' ? 'completed' : loan.status === 'Partially Settled' ? 'partial' : 'active'}
                   className={`bg-gradient-to-br from-[#0c0c0f] to-[#040405] border rounded-3xl p-6 shadow-xl transition-all relative overflow-hidden ${
                     loan.status === 'Settled' ? 'border-emerald-950/50' : 'border-zinc-850'
                   }`}

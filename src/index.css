@@ -17,86 +17,838 @@
   --zinc-950: #050505;
   --bg-black: #000000;
   --text-white: #ffffff;
+
+  /* Theme Defaults (Dark Mode) */
+  --bg-primary: #050505;
+  --bg-card: #0c0c0e;
+  --bg-sidebar: #070707;
+  --bg-surface: #121214;
+  --text-primary: #F4F4F5;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+  --border-primary: #1C1C1F;
+  --border-secondary: #27272A;
+  --accent-primary: #5B5FE3;
+  --success: #34D399;
+  --danger: #FB7185;
+  --warning: #F59E0B;
+}
+
+@theme {
+  --color-background: var(--bg-primary);
+  --color-card: var(--bg-card);
+  --color-card-foreground: var(--text-primary);
+  --color-muted: var(--bg-surface);
+  --color-muted-foreground: var(--text-secondary);
+  --color-border: var(--border-primary);
+  --color-secondary: var(--bg-surface);
 }
 
 
 .light {
-  --bg-primary: #F5F7FA;
+  --bg-primary: #F7F6F2;
   --bg-card: #FFFFFF;
-  --bg-surface: #EEF2F6;
-  --text-primary: #111827;
-  --text-secondary: #4B5563;
-  --border-primary: #D8E0EA;
-  --border-secondary: #E6EBF2;
-  --accent-primary: #4F46E5;
-  --accent-secondary: #6366F1;
-  --success: #059669;
-  --warning: #D97706;
-  --danger: #DC2626;
+  --bg-sidebar: #FBFAF7;
+  --bg-surface: #F3F4F6;
+  --text-primary: #1F2227;
+  --text-secondary: #6B7280;
+  --text-muted: #9AA1AC;
+  --border-primary: #ECEAE4;
+  --border-secondary: #E2E0D9;
+  --accent-primary: #5B5FE3;
+  --success: #16A37B;
+  --danger: #E0556B;
+  --warning: #D8902A;
 
   background-color: var(--bg-primary) !important;
   color: var(--text-primary) !important;
 }
 
-/* Base structural overrides */
+/* Base Body and Workspace overrides */
+body.light,
 .light #full-workspace-view,
-.light #auth-loading-screen,
-.light header#header-brand-rail,
+.light #auth-loading-screen {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Header and Footers with Soft Warm Border */
+.light header#header-brand-rail {
+  background-color: var(--bg-sidebar) !important;
+  border-bottom: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
 .light footer {
-  background-color: var(--bg-card) !important;
-  border-color: var(--border-primary) !important;
+  background-color: var(--bg-sidebar) !important;
+  border-top: 1px solid var(--border-primary) !important;
   color: var(--text-primary) !important;
 }
 
-/* Cards and surface panels */
-.light .glow-card,
-.light [id*="card"],
-.light .bg-zinc-900,
-.light .bg-zinc-950,
-.light .bg-black,
-.light [class*="bg-zinc-"],
-.light [class*="bg-[#050510]"],
-.light [class*="bg-[#050505]"],
-.light [class*="bg-[#070707]"],
-.light [class*="bg-[#08080c]"],
-.light [class*="bg-[#0a0a0d]"] {
-  background-color: var(--bg-card) !important;
+/* Sidebar / Command Center Section Styling */
+.light #desktop-control-column > div:first-child {
+  background-color: var(--bg-sidebar) !important;
   border: 1px solid var(--border-primary) !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
 }
 
-/* Form inputs & controls */
-.light input,
-.light select,
-.light textarea {
-  background-color: #FAFBFC !important;
-  border: 1px solid var(--border-primary) !important;
-  color: var(--text-primary) !important;
-}
-.light input:focus,
-.light select:focus,
-.light textarea:focus {
-  border-color: var(--accent-primary) !important;
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12) !important;
-  outline: none !important;
-}
-
-/* Text readability */
-.light h1, .light h2, .light h3, .light h4, .light h5, .light h6,
-.light .text-white {
-  color: var(--text-primary) !important;
-}
-.light .text-zinc-400,
-.light .text-zinc-500,
-.light .text-zinc-600 {
+/* Active navigation indicators and hover tabs in Desktop Sidebar */
+.light #web-sidebar-navigation button {
+  background-color: transparent !important;
+  border-color: transparent !important;
   color: var(--text-secondary) !important;
 }
 
-/* Chart SVGs */
-.light svg polyline[stroke="#ffffff"] { stroke: var(--accent-primary) !important; }
-.light svg circle[stroke="white"] { stroke: var(--accent-primary) !important; }
-.light svg text[fill="white"] { fill: var(--text-primary) !important; }
+.light #web-sidebar-navigation button:hover {
+  background-color: #F3F4F6 !important;
+  color: var(--text-primary) !important;
+}
 
-/* Scrollbar */
-.light ::-webkit-scrollbar-track { background: var(--bg-surface); }
-.light ::-webkit-scrollbar-thumb { background: var(--border-primary); }
-.light ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+.light #web-sidebar-navigation button.shadow-lg,
+.light #web-sidebar-navigation button[class*="bg-white"] {
+  background-color: #EEEEFB !important;
+  border-color: #EEEEFB !important;
+  color: var(--accent-primary) !important;
+  box-shadow: 0 1px 3px rgba(91, 95, 227, 0.1) !important;
+}
+
+.light #web-sidebar-navigation button.shadow-lg span,
+.light #web-sidebar-navigation button[class*="bg-white"] span {
+  color: var(--accent-primary) !important;
+}
+
+/* Secure Environment card in Sidebar */
+.light #desktop-control-column div[class*="bg-[#070707]/60"],
+.light #desktop-control-column div[class*="p-5"],
+.light #desktop-control-column div[class*="p-3"] {
+  background-color: var(--bg-sidebar) !important;
+  border-color: var(--border-primary) !important;
+}
+
+/* Mobile bottom nav bar */
+.light nav[class*="fixed bottom-4"] {
+  background-color: rgba(251, 250, 247, 0.8) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--border-primary) !important;
+  box-shadow: 0 4px 20px rgba(20, 20, 30, 0.08) !important;
+}
+
+.light nav[class*="fixed bottom-4"] button .rounded-2xl {
+  background-color: var(--bg-surface) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.light nav[class*="fixed bottom-4"] button:hover .rounded-2xl {
+  background-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.light nav[class*="fixed bottom-4"] button span {
+  color: var(--text-secondary) !important;
+}
+
+.light nav[class*="fixed bottom-4"] button:hover span {
+  color: var(--text-primary) !important;
+}
+
+.light nav[class*="fixed bottom-4"] button .rounded-2xl.bg-indigo-600 {
+  background-color: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+}
+
+.light nav[class*="fixed bottom-4"] button span.text-indigo-600 {
+  color: var(--accent-primary) !important;
+}
+
+.light nav[class*="fixed bottom-4"] button span.bg-indigo-600 {
+  background-color: var(--accent-primary) !important;
+}
+
+/* Cards / panels: #FFFFFF with a very soft shadow 0 1px 3px rgba(20,20,30,0.06) and 1px border #ECEAE4 */
+.light .glow-card,
+.light [id*="card"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+.light .bg-zinc-900:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+.light .bg-zinc-950:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+.light .bg-black:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+.light [class*="bg-zinc-"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+.light [class*="bg-[#0505]"]:not([id*="card-view-"]),
+.light [class*="bg-[#0606]"]:not([id*="card-view-"]),
+.light [class*="bg-[#0707]"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+.light [class*="bg-[#0808]"]:not([id*="card-view-"]),
+.light [class*="bg-[#0a0a]"]:not([id*="card-view-"]):not([class*="fixed bottom-4"]),
+.light [class*="bg-[#0c0c]"]:not([id*="card-view-"]),
+.light [class*="bg-[#0f0f]"]:not([id*="card-view-"]),
+.light [class*="bg-[#1212]"]:not([id*="card-view-"]),
+.light [class*="bg-[#1c1c]"]:not([id*="card-view-"]),
+.light [class*="bg-[#1717]"]:not([id*="card-view-"]),
+.light [class*="bg-[#1818]"]:not([id*="card-view-"]),
+.light [class*="bg-[#050510]"]:not([id*="card-view-"]),
+.light [class*="bg-[#050505]"]:not([id*="card-view-"]),
+.light [class*="bg-[#070707]"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+.light [class*="bg-[#08080c]"]:not([id*="card-view-"]),
+.light [class*="bg-[#0a0a0d]"]:not([id*="card-view-"]),
+.light [class*="bg-black"]:not([id*="card-view-"]),
+.light [class*="bg-zinc-950"]:not([id*="card-view-"]),
+.light [class*="bg-zinc-900"]:not([id*="card-view-"]),
+.light [class*="bg-zinc-850"]:not([id*="card-view-"]),
+.light [class*="bg-zinc-800"]:not([id*="card-view-"]):not([class*="manage-wallets-btn"]),
+.light [class*="bg-neutral-"]:not([id*="card-view-"]),
+.light [class*="bg-gradient-to-br"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]):not([class*="from-blue-900"]):not([class*="from-emerald-950"]):not([class*="from-amber-950"]):not([class*="from-rose-950"]):not([class*="from-zinc-900"]),
+.light [class*="bg-gradient-to-tr"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]) {
+  background-color: var(--bg-card) !important;
+  background-image: none !important;
+  border: 1px solid var(--border-primary) !important;
+  box-shadow: 0 2px 6px rgba(20,20,30,0.04), 0 8px 24px rgba(20,20,30,0.06) !important;
+  color: var(--text-primary) !important;
+  border-radius: 20px !important;
+}
+
+/* Hover effects for Dashboard cards */
+.light .glow-card:hover,
+.light [class*="bg-zinc-900"]:hover,
+.light [class*="bg-zinc-950"]:hover,
+.light [class*="bg-[#070707]"]:hover,
+.light [class*="bg-[#08080c]"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 30px rgba(20,20,30,0.08) !important;
+  transition: all 0.3s ease !important;
+}
+
+/* Keep the dark "Vault Portfolio" hero card as a deep charcoal #15161A accent */
+.light #vault-portfolio-hero {
+  background: #15161A !important;
+  background-image: linear-gradient(135deg, #1A1C23, #15161A) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 10px 35px rgba(20, 20, 30, 0.25) !important;
+  color: #FFFFFF !important;
+  border-radius: 32px !important;
+  transform: none !important;
+}
+
+.light #vault-portfolio-hero * {
+  color: #FFFFFF !important;
+}
+
+.light #vault-portfolio-hero .text-zinc-500,
+.light #vault-portfolio-hero .text-zinc-400,
+.light #vault-portfolio-hero .text-[#8aa8bb] {
+  color: #BAC2DE !important;
+}
+
+.light #vault-portfolio-hero .text-emerald-400 {
+  color: #34D399 !important;
+}
+
+.light #vault-portfolio-hero .text-rose-500 {
+  color: #FB7185 !important;
+}
+
+.light #vault-portfolio-hero button.manage-wallets-btn,
+.light #vault-portfolio-hero button[class*="manage-wallets-btn"] {
+  background-color: #FFFFFF !important;
+  color: #1F2227 !important;
+  border-color: #FFFFFF !important;
+}
+
+.light #vault-portfolio-hero button.manage-wallets-btn *,
+.light #vault-portfolio-hero button[class*="manage-wallets-btn"] * {
+  color: #1F2227 !important;
+}
+
+.light #vault-portfolio-hero button.manage-wallets-btn:hover,
+.light #vault-portfolio-hero button[class*="manage-wallets-btn"]:hover {
+  background-color: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  border-color: var(--accent-primary) !important;
+}
+
+.light #vault-portfolio-hero button.manage-wallets-btn:hover *,
+.light #vault-portfolio-hero button[class*="manage-wallets-btn"]:hover * {
+  color: #FFFFFF !important;
+}
+
+/* Form controls & input fields: background #FFFFFF, border #E2E0D9, focus ring #5B5FE3 at 30% opacity */
+.light input:not([type="checkbox"]):not([type="radio"]),
+.light select,
+.light textarea {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+  border-radius: 12px !important;
+  transition: all 0.2s ease !important;
+}
+
+.light input:not([type="checkbox"]):not([type="radio"]):focus,
+.light select:focus,
+.light textarea:focus {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 4px rgba(91, 95, 227, 0.3) !important;
+  outline: none !important;
+}
+
+/* Placeholder styles */
+.light input::placeholder,
+.light textarea::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 1 !important;
+}
+
+/* Native options */
+.light select option {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+
+.light select optgroup {
+  background-color: var(--bg-card) !important;
+  color: var(--text-secondary) !important;
+  font-weight: 700 !important;
+}
+
+/* Title & Text styling details */
+.light h1, .light h2, .light h3, .light h4, .light h5, .light h6,
+.light .text-white,
+.light .text-zinc-50,
+.light .text-zinc-100,
+.light .text-zinc-200,
+.light .text-zinc-300,
+.light .text-zinc-350,
+.light [class*="text-zinc-50"],
+.light [class*="text-zinc-100"],
+.light [class*="text-zinc-200"],
+.light [class*="text-zinc-300"],
+.light [class*="text-zinc-350"],
+.light [class*="text-[#cbd5e1]"] {
+  color: var(--text-primary) !important;
+}
+
+.light .text-zinc-400,
+.light .text-zinc-500,
+.light .text-zinc-650,
+.light .text-zinc-600,
+.light [class*="text-zinc-400"],
+.light [class*="text-zinc-500"] {
+  color: var(--text-secondary) !important;
+}
+
+.light [class*="text-zinc-650"],
+.light [class*="text-[#8aa8bb]"] {
+  color: var(--text-muted) !important;
+}
+
+/* Primary actions buttons */
+.light .bg-indigo-600,
+.light .bg-indigo-500,
+.light button[class*="bg-indigo-"],
+.light button[class*="bg-violet-"],
+.light button[class*="bg-emerald-600"],
+.light button[class*="bg-rose-600"],
+.light button[class*="bg-red-600"],
+.light [class*="bg-indigo-600"],
+.light [class*="bg-indigo-500"] {
+  background-color: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  border: 1px solid var(--accent-primary) !important;
+}
+
+.light .bg-indigo-600:hover,
+.light .bg-indigo-500:hover,
+.light button[class*="bg-indigo-"]:hover,
+.light button[class*="bg-violet-"]:hover {
+  background-color: #4338CA !important;
+  border-color: #4338CA !important;
+}
+
+/* Safeguards: Preserve high contrast text and icons on active elements that have solid dark backgrounds in Light Mode */
+.light .text-white-forced,
+.light [class*="text-white-forced"],
+.light #vault-portfolio-hero *,
+.light .bg-indigo-600 *,
+.light .bg-indigo-500 *,
+.light button[class*="bg-indigo-"] *,
+.light button[class*="bg-violet-"] *,
+.light button[class*="bg-emerald-600"] *,
+.light button[class*="bg-rose-600"] *,
+.light button[class*="bg-red-600"] *,
+.light [class*="bg-indigo-600"] *,
+.light [class*="bg-indigo-500"] * {
+  color: #FFFFFF !important;
+}
+
+/* Tab & Segmented Selector Overrides based on Apple segmented designs */
+.light #tab-selectors,
+.light #reports-type-selectors,
+.light [id*="-selectors"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.light #tab-selectors button,
+.light #reports-type-selectors button,
+.light [id*="-selectors"] button {
+  color: var(--text-secondary) !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+.light #tab-selectors button:hover,
+.light #reports-type-selectors button:hover,
+.light [id*="-selectors"] button:hover {
+  color: var(--text-primary) !important;
+}
+
+.light #tab-selectors button.bg-zinc-900,
+.light #tab-selectors button[class*="bg-zinc-"],
+.light #reports-type-selectors button.bg-zinc-900,
+.light #reports-type-selectors button[class*="bg-zinc-"],
+.light [id*="-selectors"] button.bg-zinc-900,
+.light [id*="-selectors"] button[class*="bg-zinc-"] {
+  background-color: var(--bg-card) !important;
+  color: var(--accent-primary) !important;
+  border: 1px solid var(--border-secondary) !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
+}
+
+.light #tab-selectors button.bg-zinc-900 *,
+.light #tab-selectors button[class*="bg-zinc-"] *,
+.light #reports-type-selectors button.bg-zinc-900 *,
+.light #reports-type-selectors button[class*="bg-zinc-"] *,
+.light [id*="-selectors"] button.bg-zinc-900 *,
+.light [id*="-selectors"] button[class*="bg-zinc-"] * {
+  color: var(--accent-primary) !important;
+}
+
+/* Secondary actions buttons */
+.light button[class*="bg-zinc-800"],
+.light button[class*="bg-zinc-900"],
+.light button[class*="bg-neutral-800"] {
+  background-color: #F3F4F6 !important;
+  color: #374151 !important;
+  border: 1px solid var(--border-primary) !important;
+}
+
+.light button[class*="bg-zinc-800"]:hover,
+.light button[class*="bg-zinc-900"]:hover {
+  background-color: #E5E7EB !important;
+}
+
+/* Danger actions / badge colors */
+.light .bg-rose-500\/10,
+.light .bg-rose-950\/30,
+.light [class*="bg-rose-950/20"] {
+  background-color: #FEF2F2 !important;
+  border-color: #FEE2E2 !important;
+}
+
+.light .text-rose-400,
+.light .text-rose-500,
+.light [class*="text-rose-400"] {
+  color: var(--danger) !important;
+}
+
+/* Success actions / badge colors */
+.light .bg-emerald-500\/10,
+.light .bg-emerald-950\/30,
+.light [class*="bg-emerald-950/20"] {
+  background-color: #ECFDF5 !important;
+  border-color: #D1FAE5 !important;
+}
+
+.light .text-emerald-400,
+.light [class*="text-emerald-400"] {
+  color: var(--success) !important;
+}
+
+/* Warning / Amber status badges */
+.light .bg-yellow-500\/10,
+.light .bg-amber-500\/10,
+.light .bg-amber-955\/45,
+.light .bg-amber-950\/20,
+.light [class*="bg-amber-955/45"],
+.light [class*="bg-amber-950/20"],
+.light [class*="bg-amber-950/40"],
+.light [class*="bg-amber-950"],
+.light [class*="bg-yellow-950"],
+.light [class*="bg-amber-500/10"],
+.light [class*="bg-amber-950/30"],
+.light [class*="bg-amber-950/10"],
+.light [class*="bg-amber-950/20"] {
+  background-color: #FFFBEB !important;
+  border-color: #FEF3C7 !important;
+}
+
+.light .text-yellow-500,
+.light .text-amber-400,
+.light .text-amber-500,
+.light [class*="text-amber-400"],
+.light [class*="text-amber-500"] {
+  color: var(--warning) !important;
+}
+
+/* Dusty grey/blue general queue labels & badges style */
+.light .bg-[#050510]\/60,
+.light .bg-\[\#050510\]\/60,
+.light [class*="bg-[#050510]/60"],
+.light [class*="bg-[#050510]/30"],
+.light [class*="bg-[#050510]/50"],
+.light [class*="bg-[#050515]"],
+.light [class*="bg-[#0a0a0f]"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.light .text-\[\#8aa8bb\],
+.light [class*="text-[#8aa8bb]"] {
+  color: var(--text-secondary) !important;
+}
+
+/* Liabilities status styling */
+.light [data-debt-status="paid"] {
+  background-color: #ECFDF5 !important;
+  border-left: 4px solid var(--success) !important;
+  border-top-color: var(--border-primary) !important;
+  border-right-color: var(--border-primary) !important;
+  border-bottom-color: var(--border-primary) !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
+}
+
+.light [data-debt-status="overdue"] {
+  background-color: #FEF2F2 !important;
+  border-left: 4px solid var(--danger) !important;
+  border-top-color: var(--border-primary) !important;
+  border-right-color: var(--border-primary) !important;
+  border-bottom-color: var(--border-primary) !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
+}
+
+.light [data-debt-status="outstanding"] {
+  background-color: #FFF7ED !important;
+  border-left: 4px solid var(--warning) !important;
+  border-top-color: var(--border-primary) !important;
+  border-right-color: var(--border-primary) !important;
+  border-bottom-color: var(--border-primary) !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
+}
+
+.light [data-debt-status] * {
+  color: var(--text-primary) !important;
+}
+
+.light [data-debt-status] .text-zinc-550,
+.light [data-debt-status] .text-zinc-500 {
+  color: var(--text-secondary) !important;
+}
+
+/* Loans status styling */
+.light [data-loan-status="completed"] {
+  background-color: #ECFDF5 !important;
+  border-left: 4px solid var(--success) !important;
+  border-top-color: var(--border-primary) !important;
+  border-right-color: var(--border-primary) !important;
+  border-bottom-color: var(--border-primary) !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
+}
+
+.light [data-loan-status="partial"] {
+  background-color: #FFFBEB !important;
+  border-left: 4px solid var(--warning) !important;
+  border-top-color: var(--border-primary) !important;
+  border-right-color: var(--border-primary) !important;
+  border-bottom-color: var(--border-primary) !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
+}
+
+.light [data-loan-status="active"] {
+  background-color: #EFF6FF !important;
+  border-left: 4px solid #0284C7 !important;
+  border-top-color: var(--border-primary) !important;
+  border-right-color: var(--border-primary) !important;
+  border-bottom-color: var(--border-primary) !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
+}
+
+.light [data-loan-status] * {
+  color: var(--text-primary) !important;
+}
+
+.light [data-loan-status] .text-zinc-500,
+.light [data-loan-status] .text-zinc-400 {
+  color: var(--text-secondary) !important;
+}
+
+/* Reports alternating sections */
+.light #central-web-canvas .space-y-6 > div:nth-child(odd) {
+  background-color: #FFFFFF !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
+}
+
+.light #central-web-canvas .space-y-6 > div:nth-child(even) {
+  background-color: #F8FAFC !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
+}
+
+/* Modals overlays styling */
+.light .fixed.inset-0.bg-black\/80,
+.light .fixed.inset-0.bg-black\/60,
+.light .fixed.inset-0.backdrop-blur-sm,
+.light .fixed.inset-0 {
+  background-color: rgba(30, 31, 38, 0.45) !important;
+}
+
+/* Charts grid lines and text markers overrides on light mode */
+.light svg text {
+  fill: var(--text-primary) !important;
+}
+
+.light svg line,
+.light svg path[stroke="#1e1b4b"],
+.light svg path[stroke="#27272a"] {
+  stroke: var(--border-primary) !important;
+}
+
+.light svg polyline {
+  stroke: var(--accent-primary) !important;
+}
+
+/* Grid lines for Recharts */
+.light .recharts-cartesian-grid-horizontal line,
+.light .recharts-cartesian-grid-vertical line {
+  stroke: #E5E7EB !important;
+}
+
+/* Scrollbar styling */
+.light ::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 99px;
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ==========================================================================
+   CUSTOM CONTRAST AND READABILITY OVERRIDES FOR LIGHT MODE
+   ========================================================================== */
+
+/* 1. Electronic Bank Cards Contrast Override */
+/* Keep premium dark aesthetic on dynamic plastic card gradients, but force text contrast to be crystal clear white */
+.light [id*="card-view-"] h1,
+.light [id*="card-view-"] h2,
+.light [id*="card-view-"] h3,
+.light [id*="card-view-"] h4,
+.light [id*="card-view-"] h5,
+.light [id*="card-view-"] h6,
+.light [id*="card-view-"] span,
+.light [id*="card-view-"] div {
+  color: #FFFFFF !important;
+}
+
+.light [id*="card-view-"] .text-white\/50,
+.light [id*="card-view-"] .text-white\/40,
+.light [id*="card-view-"] .text-zinc-550,
+.light [id*="card-view-"] .text-zinc-500,
+.light [id*="card-view-"] .text-zinc-400,
+.light [id*="card-view-"] .text-indigo-305,
+.light [id*="card-view-"] .text-indigo-350 {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.light [id*="card-view-"] button svg,
+.light [id*="card-view-"] button {
+  color: #FFFFFF !important;
+}
+
+.light [id*="card-view-"] button:hover {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+.light [id*="card-view-"] button:hover svg {
+  color: #000000 !important;
+}
+
+/* 2. Wallets list (Cash in Hand Repositories) contrast stylings */
+.light [id*="cash-row-"] {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 3px rgba(20,20,30,0.04) !important;
+}
+
+.light [id*="cash-row-"] h4 {
+  color: var(--text-primary) !important;
+}
+
+.light [id*="cash-row-"] span {
+  color: var(--text-secondary) !important;
+}
+
+.light [id*="cash-row-"] .font-mono.text-white {
+  color: var(--text-primary) !important;
+}
+
+/* Icon box container override */
+.light [id*="cash-row-"] div[class*="bg-zinc-900"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.light [id*="cash-row-"] div[class*="bg-zinc-900"] svg {
+  color: var(--text-secondary) !important;
+}
+
+/* Deposit and withdraw actions */
+.light [id*="cash-row-"] button[class*="bg-emerald-950/20"] {
+  background-color: #ECFDF5 !important;
+  color: var(--success) !important;
+}
+
+.light [id*="cash-row-"] button[class*="bg-rose-950/20"] {
+  background-color: #FEF2F2 !important;
+  color: var(--danger) !important;
+}
+
+/* Trash / Delete button */
+.light [id*="cash-row-"] button[class*="bg-[#050505]"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.light [id*="cash-row-"] button[class*="bg-[#050505]"]:hover {
+  background-color: #FEE2E2 !important;
+  border-color: #FCA5A5 !important;
+  color: var(--danger) !important;
+}
+
+/* 3. Credit Cards Facilities Main Vault override */
+.light #credit-cards-vault {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  color: var(--text-primary) !important;
+}
+
+.light #credit-cards-vault h3,
+.light #credit-cards-vault h4 {
+  color: var(--text-primary) !important;
+}
+
+/* Credit Cards row items */
+.light #credit-cards-vault div[class*="bg-zinc-900/60"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+}
+
+/* Card titles bank name badge */
+.light #credit-cards-vault span[class*="bg-zinc-950"] {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Inputs under Credit Cards Vault list */
+.light #credit-cards-vault input,
+.light #credit-cards-vault select {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Buttons for credit actions */
+.light #credit-cards-vault button[class*="bg-[#050510]"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+}
+
+/* Form recording card purchase */
+.light #credit-cards-vault form {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-primary) !important;
+}
+
+/* 4. Unified Journals (Ledger Audit Track) Panel overrides */
+.light #unified-audits-column {
+  background: var(--bg-card) !important;
+  background-image: none !important;
+  border: 1px solid var(--border-primary) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Heading & specific subtitle */
+.light #unified-audits-column .text-white {
+  color: var(--text-primary) !important;
+}
+
+.light #unified-audits-column .text-zinc-400,
+.light #unified-audits-column .text-zinc-500 {
+  color: var(--text-secondary) !important;
+}
+
+/* Events badge */
+.light #unified-audits-column span[class*="bg-black"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Search input container and text boxes */
+.light #unified-audits-column input {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Type select & Source select dropdown filters */
+.light #unified-audits-column select {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Individual transaction journal cards list */
+.light [id*="reports-audit-card-"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.light [id*="reports-audit-card-"]:hover {
+  background-color: var(--border-secondary) !important;
+}
+
+/* Title and category elements in transaction list card */
+.light [id*="reports-audit-card-"] h4 {
+  color: var(--text-primary) !important;
+}
+
+.light [id*="reports-audit-card-"] span[class*="text-zinc-400"],
+.light [id*="reports-audit-card-"] span[class*="text-zinc-500"],
+.light [id*="reports-audit-card-"] span[class*="text-zinc-550"] {
+  color: var(--text-muted) !important;
+}
+
+.light [id*="reports-audit-card-"] span[class*="bg-zinc-950"] {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Premium Suite Active badge color overrides for crystal-clear contrast in Light Mode */
+.light #premium-suite-badge {
+  background-color: rgba(91, 95, 227, 0.09) !important;
+  border: 1px solid rgba(91, 95, 227, 0.28) !important;
+  color: var(--accent-primary) !important;
+}
+
+.light #premium-suite-badge,
+.light #premium-suite-badge svg,
+.light #premium-suite-badge * {
+  color: var(--accent-primary) !important;
+}
+

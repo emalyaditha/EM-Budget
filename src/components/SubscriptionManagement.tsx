@@ -405,14 +405,14 @@ export default function SubscriptionManagement({
             return (
               <div 
                 key={sub.id} 
-                className={`bg-[#0c0c0f]/80 border rounded-[28px] p-5.5 relative overflow-hidden transition-all duration-350 flex flex-col justify-between ${
+                className={`bg-card text-card-foreground border rounded-[28px] p-5.5 relative overflow-hidden transition-all duration-350 flex flex-col justify-between ${
                   selectedSubId === sub.id 
                     ? 'border-indigo-500 shadow-xl ring-1 ring-indigo-500/20' 
-                    : 'border-zinc-850 hover:border-zinc-800 shadow-md'
+                    : 'border-zinc-850 dark:border-zinc-850 hover:border-zinc-800 shadow-md'
                 }`}
               >
                 {/* Background decorative category tag */}
-                <span className="absolute bottom-2 right-4 text-[32px] font-black font-mono opacity-[0.015] text-white uppercase select-none pointer-events-none">
+                <span className="absolute bottom-2 right-4 text-[32px] font-black font-mono opacity-[0.015] text-white dark:text-zinc-650 uppercase select-none pointer-events-none">
                   {sub.category}
                 </span>
 
@@ -420,12 +420,12 @@ export default function SubscriptionManagement({
                   {/* Top line summary info */}
                   <div className="flex justify-between items-start gap-3">
                     <div>
-                      <h4 className="font-extrabold text-white text-base tracking-tight leading-tight">{sub.name}</h4>
+                      <h4 className="font-extrabold text-card-foreground text-base tracking-tight leading-tight">{sub.name}</h4>
                       <div className="flex gap-2 items-center mt-1">
-                        <span className="text-[8.5px] font-mono bg-zinc-950 text-zinc-400 border border-zinc-900 px-2 py-0.5 rounded-full capitalize font-bold tracking-wide">
+                        <span className="text-[8.5px] font-mono bg-muted text-muted-foreground border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-full capitalize font-bold tracking-wide">
                           {sub.category}
                         </span>
-                        <span className="text-[9.5px] font-sans text-zinc-400 font-bold">• {sub.billingCycle}</span>
+                        <span className="text-[9.5px] font-sans text-muted-foreground font-bold">• {sub.billingCycle}</span>
                       </div>
                     </div>
 
@@ -435,35 +435,35 @@ export default function SubscriptionManagement({
                   </div>
 
                   {/* Pricing Sum */}
-                  <div className="flex justify-between items-baseline pt-2 border-t border-zinc-850/60">
-                    <span className="text-[10px] font-black text-zinc-500 font-mono tracking-wider">CYCLE TOTAL:</span>
-                    <span className="text-lg font-mono font-black text-white">
+                  <div className="flex justify-between items-baseline pt-2 border-t border-zinc-150 dark:border-zinc-850/60">
+                    <span className="text-[10px] font-black text-muted-foreground font-mono tracking-wider">CYCLE TOTAL:</span>
+                    <span className="text-lg font-mono font-black text-card-foreground">
                       {currency}{sub.amount.toLocaleString()}
                     </span>
                   </div>
 
                   {/* Due detail info */}
-                  <div className="space-y-1.5 font-mono text-[10px] text-zinc-400 bg-black/45 p-3 rounded-2xl border border-zinc-905">
+                  <div className="space-y-1.5 font-mono text-[10px] text-muted-foreground bg-muted p-3 rounded-2xl border border-zinc-200 dark:border-zinc-905">
                     <div className="flex justify-between">
-                      <span className="text-zinc-500 uppercase font-bold text-[8.5px]">NEXT BILLING DUE:</span>
-                      <span className="font-bold text-white tracking-tight">{sub.dueDate}</span>
+                      <span className="text-muted-foreground uppercase font-bold text-[8.5px]">NEXT BILLING DUE:</span>
+                      <span className="font-bold text-card-foreground tracking-tight">{sub.dueDate}</span>
                     </div>
                     {sub.lastPaidDate && (
-                      <div className="flex justify-between border-t border-zinc-900/60 pt-1.5 mt-1.5 font-bold text-[8.5px]">
-                        <span className="text-zinc-500 uppercase">LAST SETTLED DATE:</span>
-                        <span className="text-emerald-400 tracking-tight">{sub.lastPaidDate}</span>
+                      <div className="flex justify-between border-t border-zinc-200 dark:border-zinc-900/60 pt-1.5 mt-1.5 font-bold text-[8.5px]">
+                        <span className="text-muted-foreground uppercase">LAST SETTLED DATE:</span>
+                        <span className="text-emerald-500 tracking-tight">{sub.lastPaidDate}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Multi actions triggers footer */}
-                <div className="flex gap-2.5 mt-5 pt-4.5 border-t border-zinc-850">
+                <div className="flex gap-2.5 mt-5 pt-4.5 border-t border-zinc-200 dark:border-zinc-850">
                   {sub.status === 'Active' ? (
                     <button
                       type="button"
                       onClick={() => onToggleSubscriptionStatus(sub.id, 'Active')}
-                      className="px-3 py-2 bg-[#050510]/50 hover:bg-zinc-900 text-zinc-400 hover:text-white rounded-xl border border-zinc-850 flex items-center gap-1.5 cursor-pointer transition text-[9px] font-mono uppercase font-bold"
+                      className="px-3 py-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-card-foreground rounded-xl border border-zinc-200 dark:border-zinc-850 flex items-center gap-1.5 cursor-pointer transition text-[9px] font-mono uppercase font-bold"
                       title="Pause tracking plans temporarily"
                     >
                       <Pause size={10} className="text-amber-500" />
@@ -488,10 +488,10 @@ export default function SubscriptionManagement({
                         setSelectedSubId(selectedSubId === sub.id ? null : sub.id);
                         if (isAdding) setIsAdding(false);
                       }}
-                      className={`flex-1 py-2 font-mono text-[9px] uppercase font-bold rounded-xl border flex items-center justify-center gap-1.5 cursor-pointer transition ${
+                      className={`flex-1 py-1 px-2.5 font-mono text-[9px] uppercase font-bold rounded-xl border flex items-center justify-center gap-1.5 cursor-pointer transition ${
                         selectedSubId === sub.id
                           ? 'bg-amber-500 text-black border-amber-600 font-extrabold shadow-md'
-                          : 'bg-zinc-900 text-white border-zinc-800 hover:border-zinc-700'
+                          : 'bg-muted text-card-foreground border-zinc-200 dark:border-zinc-800 hover:border-zinc-700'
                       }`}
                     >
                       <DollarSign size={10.5} />
