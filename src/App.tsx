@@ -929,6 +929,7 @@ export default function App() {
 
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
+      const newTransactions = [...prev.transactions];
 
       if (updatedDebt.accountId && updatedDebt.accountType) {
         if (updatedDebt.accountType === 'cash') {
@@ -940,12 +941,28 @@ export default function App() {
             c.id === updatedDebt.accountId ? { ...c, currentBalance: c.currentBalance + amount } : c
           );
         }
+
+        // Add transaction for additional borrowed liability funds
+        const txId = `tx_debt_inc_${Date.now()}`;
+        const newTx: Transaction = {
+          id: txId,
+          type: 'income',
+          title: `Borrowed More: ${updatedDebt.debtSource}`,
+          amount: amount,
+          date: new Date().toISOString().split('T')[0],
+          category: 'Other',
+          accountId: updatedDebt.accountId,
+          accountType: updatedDebt.accountType,
+          referenceId: debtId,
+        };
+        newTransactions.unshift(newTx);
       }
 
       return {
         ...prev,
         cashAccounts: updatedCash,
         cards: updatedCards,
+        transactions: newTransactions,
         debts: prev.debts.map(d => d.id === debtId ? updatedDebt : d)
       };
     });
