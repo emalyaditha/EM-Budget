@@ -907,16 +907,46 @@ export default function App() {
       showToast('success', 'Payment recorded successfully!');
   };
 
-  const handleIncreaseDebt = (debtId: string, amount: number) => {
+  const handleIncreaseDebt = (debtId: string, amount: number, newAccountId?: string, newAccountType?: 'cash' | 'card') => {
     updateState(prev => {
+      const debt = prev.debts.find(d => d.id === debtId);
+      if (!debt) return prev;
+
+      let updatedDebt = { 
+        ...debt, 
+        totalAmount: debt.totalAmount + amount,
+        remainingAmount: debt.remainingAmount + amount,
+        status: (debt.remainingAmount + amount) > 0 ? 'Active' : debt.status
+      };
+
+      if (newAccountId && newAccountType && !debt.accountId) {
+        updatedDebt.accountId = newAccountId;
+        updatedDebt.accountType = newAccountType;
+        updatedDebt.accountName = newAccountType === 'cash' 
+          ? prev.cashAccounts.find(c => c.id === newAccountId)?.name 
+          : prev.cards.find(c => c.id === newAccountId)?.bankName;
+      }
+
+      let updatedCash = [...prev.cashAccounts];
+      let updatedCards = [...prev.cards];
+
+      if (updatedDebt.accountId && updatedDebt.accountType) {
+        if (updatedDebt.accountType === 'cash') {
+          updatedCash = updatedCash.map(c =>
+            c.id === updatedDebt.accountId ? { ...c, balance: c.balance + amount } : c
+          );
+        } else {
+          updatedCards = updatedCards.map(c =>
+            c.id === updatedDebt.accountId ? { ...c, currentBalance: c.currentBalance + amount } : c
+          );
+        }
+      }
+
       return {
         ...prev,
-        debts: prev.debts.map(d => d.id === debtId ? { 
-          ...d, 
-          totalAmount: d.totalAmount + amount,
-          remainingAmount: d.remainingAmount + amount,
-          status: (d.remainingAmount + amount) > 0 ? 'Active' : d.status
-        } : d)
+        cashAccounts: updatedCash,
+        cards: updatedCards,
+        debts: prev.debts.map(d => d.id === debtId ? updatedDebt : d)
       };
     });
   };

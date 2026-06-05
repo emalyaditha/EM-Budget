@@ -184,8 +184,8 @@ export default function Dashboard({
             </p>
           </div>
 
-          <div className="flex justify-between items-end border-t border-white/5 pt-4 z-10">
-            <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-t border-white/5 pt-4 z-10 gap-4">
+            <div className="flex gap-4 flex-wrap">
               <div>
                 <p className="text-[9px] text-zinc-500 uppercase font-mono font-bold">Liquid Reserves</p>
                 <p className="font-extrabold text-xs text-emerald-400 font-mono mt-0.5">

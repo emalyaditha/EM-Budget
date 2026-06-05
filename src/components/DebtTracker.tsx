@@ -12,7 +12,12 @@ interface DebtTrackerProps {
   cashAccounts: CashAccount[];
   cards: BankCard[];
   onAddDebt: (debt: Omit<Debt, 'id' | 'payments' | 'remainingAmount'>) => void;
-  onIncreaseDebt: (debtId: string, amount: number) => void;
+  onIncreaseDebt: (
+    debtId: string, 
+    amount: number, 
+    accountId?: string, 
+    accountType?: 'cash' | 'card'
+  ) => void;
   onMakeDebtPayment: (debtId: string, amount: number, paidFromId: string, paidFromType: 'cash' | 'card') => void;
   onDeleteDebt: (debtId: string) => void;
   currency: string;
@@ -43,6 +48,8 @@ export default function DebtTracker({
   const [increasingDebtId, setIncreasingDebtId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState('');
   const [increaseAmount, setIncreaseAmount] = useState('');
+  const [incTargetAccountId, setIncTargetAccountId] = useState('');
+  const [incTargetAccountType, setIncTargetAccountType] = useState<'cash' | 'card' | ''>('');
   const [paySourceId, setPaySourceId] = useState('');
   const [paySourceType, setPaySourceType] = useState<'cash' | 'card'>('cash');
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -201,8 +208,10 @@ export default function DebtTracker({
       return;
     }
 
-    onIncreaseDebt(increasingDebtId, amountNum);
+    onIncreaseDebt(increasingDebtId, amountNum, incTargetAccountId || undefined, incTargetAccountType as 'cash' | 'card' || undefined);
     setIncreaseAmount('');
+    setIncTargetAccountId('');
+    setIncTargetAccountType('');
     setIncreasingDebtId(null);
     showToast('success', 'Additional debt added successfully.');
   };
@@ -573,6 +582,43 @@ export default function DebtTracker({
                         Cancel
                       </button>
                     </div>
+                    {debt.accountName && (
+                      <div className="text-[10px] text-zinc-500 font-mono font-bold">
+                        Adding to: <span className="text-emerald-400">{debt.accountName}</span>
+                      </div>
+                    )}
+                    {!debt.accountId && (
+                      <div>
+                        <label className="text-[9px] text-[#888888] font-bold tracking-wider block mb-1 uppercase font-mono">Select Account</label>
+                        <select
+                          value={incTargetAccountId && incTargetAccountType ? `${incTargetAccountId}:${incTargetAccountType}` : ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (!val) {
+                              setIncTargetAccountId('');
+                              setIncTargetAccountType('');
+                            } else {
+                              const [id, type] = val.split(':');
+                              setIncTargetAccountId(id);
+                              setIncTargetAccountType(type as 'cash' | 'card');
+                            }
+                          }}
+                          className="w-full bg-black border border-zinc-800 text-zinc-300 text-xs rounded-xl px-2.5 py-2.5 focus:outline-none focus:border-zinc-700 font-semibold"
+                        >
+                          <option value="">Select Account</option>
+                          <optgroup label="Cash Vaults" className="bg-[#0c0c0e] text-zinc-400">
+                            {cashAccounts.map(c => (
+                              <option key={c.id} value={`${c.id}:cash`}>{c.name}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Cards Ledger" className="bg-[#0c0c0e] text-zinc-400">
+                            {cards.filter(c => !c.isCanceled).map(card => (
+                              <option key={card.id} value={`${card.id}:card`}>{card.bankName}</option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+                    )}
                     <div>
                         <label className="text-[9px] text-[#888888] font-bold tracking-wider block mb-1 uppercase font-mono">Additional Principal amount ({currency})</label>
                         <input
