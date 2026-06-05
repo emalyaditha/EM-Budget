@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Save, Edit2, ShieldCheck, KeyRound, CreditCard, LogOut } from 'lucide-react';
+import { Mail, Save, Edit2, ShieldCheck, KeyRound, CreditCard, LogOut, X } from 'lucide-react';
 import { AppState } from '../types';
 import { updateAuthAccountName } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
@@ -9,9 +9,10 @@ interface ProfileSectionProps {
   updateState: (updater: (prev: AppState) => AppState) => void;
   onOpenSettings: () => void;
   onLogout: () => void;
+  onClose: () => void;
 }
 
-export default function ProfileSection({ state, updateState, onOpenSettings, onLogout }: ProfileSectionProps) {
+export default function ProfileSection({ state, updateState, onOpenSettings, onLogout, onClose }: ProfileSectionProps) {
   const { showToast } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(state.userProfile?.name || 'User');
@@ -41,30 +42,35 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
     <div className="bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-zinc-850 p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6" id="secure-profile-card">
       
       {/* HEADER SECTION */}
-      <div className="flex justify-between items-center pb-4 border-b border-zinc-900">
+      <div className="flex justify-between items-start pb-4 border-b border-zinc-900">
         <div>
           <span className="text-[10px] tracking-wider text-indigo-400 font-mono font-bold uppercase block mb-0.5">VAULT SUITE SECURE</span>
           <h2 className="text-lg font-extrabold text-white">Vault Account</h2>
         </div>
         
-        <button 
-          onClick={() => {
-            if (isEditing) {
-              setName(state.userProfile.name);
-            }
-            setIsEditing(!isEditing);
-          }} 
-          className="p-2 px-3.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl text-xs font-bold text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
-        >
-          {isEditing ? (
-            <span className="text-rose-400">Cancel</span>
-          ) : (
-            <>
-              <Edit2 size={13} />
-              <span>Modify</span>
-            </>
-          )}
-        </button>
+        <div className="flex flex-col gap-2 items-end">
+          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+          <button 
+            onClick={() => {
+              if (isEditing) {
+                setName(state.userProfile.name);
+              }
+              setIsEditing(!isEditing);
+            }} 
+            className="p-2 px-3.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl text-xs font-bold text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            {isEditing ? (
+              <span className="text-rose-400">Cancel</span>
+            ) : (
+              <>
+                <Edit2 size={13} />
+                <span>Modify</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* AVATAR & NAME DISPLAY */}

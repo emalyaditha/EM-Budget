@@ -1675,6 +1675,7 @@ export default function App() {
                 setIsUnlocked(false);
                 setIsProfileOpen(false);
               }}
+              onClose={() => setIsProfileOpen(false)}
             />
           </div>
         </div>
