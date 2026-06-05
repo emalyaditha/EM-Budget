@@ -150,52 +150,52 @@ export default function Dashboard({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         
         {/* Apple Wallet Style Card display */}
-        <div id="vault-portfolio-hero" className="lg:col-span-7 relative group overflow-hidden bg-gradient-to-tr from-zinc-950 via-neutral-900/95 to-indigo-950/70 rounded-[32px] p-6 sm:p-8 flex flex-col justify-between border border-white/10 shadow-2xl transition-all hover:border-white/20 hover:shadow-indigo-950/10 min-h-[220px] sm:min-h-[240px]">
+        <div id="vault-portfolio-hero" className="lg:col-span-7 relative group overflow-hidden bg-gradient-to-tr from-indigo-50/90 via-indigo-50/30 to-white dark:from-zinc-950 dark:via-neutral-900/95 dark:to-indigo-950/70 rounded-[32px] p-6 sm:p-8 flex flex-col justify-between border border-indigo-100 dark:border-white/10 shadow-xl dark:shadow-2xl transition-all hover:border-indigo-200 dark:hover:border-white/20 hover:shadow-indigo-100/40 dark:hover:shadow-indigo-950/10 min-h-[220px] sm:min-h-[240px]">
           {/* Abstract vector glowing grids inside card */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,_transparent_1px),_linear-gradient(90deg,_rgba(255,255,255,0.015)_1px,_transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(91,95,227,0.03)_1px,_transparent_1px),_linear-gradient(90deg,_rgba(91,95,227,0.03)_1px,_transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.015)_1px,_transparent_1px),_linear-gradient(90deg,_rgba(255,255,255,0.015)_1px,_transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
           <div className="absolute -top-24 -left-20 w-56 h-56 rounded-full bg-gradient-to-br from-indigo-500/10 to-transparent blur-3xl pointer-events-none" />
           <div className="absolute bottom-[-100px] right-[-50px] w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
           
           <div className="flex justify-between items-start z-10">
             <div>
-              <p className="text-[10px] tracking-widest text-[#8aa8bb] uppercase font-mono font-bold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+              <p className="text-[10px] tracking-widest text-[#5B5FE3] dark:text-[#8aa8bb] uppercase font-mono font-extrabold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-500" />
                 EM VAULT PORTFOLIO
               </p>
-              <h3 className="text-xs text-zinc-400 mt-1 font-semibold">Total Net Worth Sum</h3>
+              <h3 className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-semibold">Total Net Worth Sum</h3>
             </div>
             
             {/* Hologram Bank chip decoration */}
             <div className="flex flex-col items-end">
-              <div className="w-8 h-6 rounded-md bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-600/30 border border-amber-500/40 opacity-80 shadow-md relative" />
-              <span className="text-[7px] font-mono tracking-widest text-zinc-500 uppercase mt-1">SECURED CHIP</span>
+              <div className="w-8 h-6 rounded-md bg-gradient-to-r from-amber-500/30 via-yellow-500/20 to-amber-600/45 dark:from-amber-500/20 dark:via-yellow-500/10 dark:to-amber-600/30 border border-amber-500/50 dark:border-amber-500/40 opacity-90 dark:opacity-80 shadow-md relative" />
+              <span className="text-[7.5px] font-mono tracking-widest text-zinc-500 dark:text-zinc-400 uppercase mt-1.5 font-bold">SECURED CHIP</span>
             </div>
           </div>
 
           <div className="my-4.5 z-10">
-            <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white flex items-baseline gap-1.5 font-mono select-all">
-              <span className="text-xl sm:text-2xl font-light text-zinc-500 select-none">{state.currency}</span>
-              <span>{aggregateActiveWealth.toLocaleString()}</span>
-              <span className="text-xs font-mono font-semibold text-indigo-400/80">.00</span>
+            <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-black dark:text-white flex items-baseline gap-1.5 font-mono select-all">
+              <span className="net-worth-currency text-xl sm:text-2xl font-light text-black dark:text-zinc-500 select-none">{state.currency}</span>
+              <span className="net-worth-amount text-black dark:text-white font-extrabold">{aggregateActiveWealth.toLocaleString()}</span>
+              <span className="net-worth-decimals text-xs font-mono font-bold text-black dark:text-indigo-400">.00</span>
             </div>
-            <p className="text-[10px] text-zinc-500 mt-2 font-mono uppercase tracking-wider flex items-center gap-1.5">
-              <span>Account Holder:</span>
-              <span className="font-sans font-bold text-zinc-300">{state.userProfile?.name || 'User'}</span>
+            <p className="text-[10px] text-black dark:text-zinc-400 mt-2 font-mono uppercase tracking-wider flex items-center gap-1.5">
+              <span className="account-holder-label opacity-90 dark:opacity-100">Account Holder:</span>
+              <span className="account-holder-name font-sans font-extrabold text-black dark:text-zinc-300">{state.userProfile?.name || 'User'}</span>
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-t border-white/5 pt-4 z-10 gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-t border-zinc-200 dark:border-white/10 pt-4 z-10 gap-4">
             <div className="flex gap-4 flex-wrap">
               <div>
-                <p className="text-[9px] text-zinc-500 uppercase font-mono font-bold">Liquid Reserves</p>
-                <p className="font-extrabold text-xs text-emerald-400 font-mono mt-0.5">
+                <p className="text-[9px] text-zinc-500 dark:text-zinc-400 uppercase font-mono font-bold">Liquid Reserves</p>
+                <p className="font-extrabold text-xs text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
                   +{state.currency}{(totalCashAmount + totalDebitCardsAmount).toLocaleString()}
                 </p>
               </div>
 
               <div>
-                <p className="text-[9px] text-zinc-500 uppercase font-mono font-bold">Credit/Loans Liability</p>
-                <p className="font-extrabold text-xs text-rose-500 font-mono mt-0.5">
+                <p className="text-[9px] text-zinc-500 dark:text-zinc-400 uppercase font-mono font-bold">Credit/Loans Liability</p>
+                <p className="font-extrabold text-xs text-rose-600 dark:text-rose-400 font-mono mt-0.5">
                   -{state.currency}{(totalCreditCardsAmount + totalDebtsAmount).toLocaleString()}
                 </p>
               </div>
@@ -203,7 +203,7 @@ export default function Dashboard({
 
             <button 
               onClick={() => setActiveTab('accounts')}
-              className="manage-wallets-btn bg-zinc-800 hover:bg-white text-zinc-400 hover:text-black py-2 px-3.5 rounded-xl text-[10px] font-mono font-bold uppercase transition-all duration-300 cursor-pointer border border-zinc-700/60 shadow-lg flex items-center gap-1 shrink-0"
+              className="manage-wallets-btn bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100 py-2 px-3.5 rounded-xl text-[10px] font-mono font-bold uppercase transition-all duration-300 cursor-pointer border border-zinc-950 dark:border-white shadow-lg flex items-center gap-1 shrink-0"
             >
               <span>Manage Wallets</span>
               <ChevronRight size={12} />

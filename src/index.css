@@ -216,57 +216,29 @@ body.light,
   transition: all 0.3s ease !important;
 }
 
-/* Keep the dark "Vault Portfolio" hero card as a deep charcoal #15161A accent */
+/* Keep the dark "Vault Portfolio" hero card as a premium pearl/indigo gradient card in Light Mode */
 .light #vault-portfolio-hero {
-  background: #15161A !important;
-  background-image: linear-gradient(135deg, #1A1C23, #15161A) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 10px 35px rgba(20, 20, 30, 0.25) !important;
-  color: #FFFFFF !important;
+  background: #FFFFFF !important;
+  background-image: linear-gradient(135deg, #FFFFFF 0%, #F5F7FF 50%, #EEF2FF 100%) !important;
+  border: 1px solid rgba(91, 95, 227, 0.16) !important;
+  box-shadow: 0 10px 30px rgba(91, 95, 227, 0.08) !important;
   border-radius: 32px !important;
   transform: none !important;
 }
 
-.light #vault-portfolio-hero * {
-  color: #FFFFFF !important;
+/* Guarantee crystal clear, high-contrast visibility on the pearlish light card in Light Mode */
+.light #vault-portfolio-hero .net-worth-currency,
+.light #vault-portfolio-hero .net-worth-amount,
+.light #vault-portfolio-hero .account-holder-name {
+  color: #000000 !important;
 }
 
-.light #vault-portfolio-hero .text-zinc-500,
-.light #vault-portfolio-hero .text-zinc-400,
-.light #vault-portfolio-hero .text-[#8aa8bb] {
-  color: #BAC2DE !important;
+.light #vault-portfolio-hero .net-worth-decimals {
+  color: #4F46E5 !important; /* Beautiful readable accent indigo color for decimals */
 }
 
-.light #vault-portfolio-hero .text-emerald-400 {
-  color: #34D399 !important;
-}
-
-.light #vault-portfolio-hero .text-rose-500 {
-  color: #FB7185 !important;
-}
-
-.light #vault-portfolio-hero button.manage-wallets-btn,
-.light #vault-portfolio-hero button[class*="manage-wallets-btn"] {
-  background-color: #FFFFFF !important;
-  color: #1F2227 !important;
-  border-color: #FFFFFF !important;
-}
-
-.light #vault-portfolio-hero button.manage-wallets-btn *,
-.light #vault-portfolio-hero button[class*="manage-wallets-btn"] * {
-  color: #1F2227 !important;
-}
-
-.light #vault-portfolio-hero button.manage-wallets-btn:hover,
-.light #vault-portfolio-hero button[class*="manage-wallets-btn"]:hover {
-  background-color: var(--accent-primary) !important;
-  color: #FFFFFF !important;
-  border-color: var(--accent-primary) !important;
-}
-
-.light #vault-portfolio-hero button.manage-wallets-btn:hover *,
-.light #vault-portfolio-hero button[class*="manage-wallets-btn"]:hover * {
-  color: #FFFFFF !important;
+.light #vault-portfolio-hero .account-holder-label {
+  color: #4B5563 !important; /* Safe, elegant dark standard gray for small text label */
 }
 
 /* Form controls & input fields: background #FFFFFF, border #E2E0D9, focus ring #5B5FE3 at 30% opacity */
@@ -364,7 +336,6 @@ body.light,
 /* Safeguards: Preserve high contrast text and icons on active elements that have solid dark backgrounds in Light Mode */
 .light .text-white-forced,
 .light [class*="text-white-forced"],
-.light #vault-portfolio-hero *,
 .light .bg-indigo-600 *,
 .light .bg-indigo-500 *,
 .light button[class*="bg-indigo-"] *,
