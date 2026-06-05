@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Settings, Database, Zap, FileDown, X, Info, Shield, HelpCircle, 
   Cloud, RefreshCw, Check, Copy, Eye, EyeOff, Code, ChevronDown, ChevronUp, AlertCircle,
-  LogOut
+  LogOut, Sun, Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState } from '../types';
@@ -16,6 +16,7 @@ import {
   truncateAllDataInSupabase
 } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export default function SettingsModal({
   onLogout
 }: SettingsModalProps) {
   const { showConfirm, showToast } = useNotifications();
+  const { theme, toggleTheme } = useTheme();
   // Supabase Configuration State
   const [supabaseUrl, setSupabaseUrl] = useState('');
   const [supabaseKey, setSupabaseKey] = useState('');
@@ -648,6 +650,24 @@ class CloudSyncService {
                       <option value="¥">¥ (Japanese Yen)</option>
                       <option value="SAR">SAR (Saudi Riyal)</option>
                     </select>
+                  </div>
+
+                  {/* Theme Mode Selector */}
+                  <div className="space-y-2 pt-3 border-t border-zinc-900">
+                    <span className="text-[10px] text-zinc-400 font-mono block">Visual Theme Mode</span>
+                    <button
+                      type="button"
+                      onClick={toggleTheme}
+                      className="w-full py-2 bg-black/40 border border-zinc-800 rounded-lg font-sans text-xs font-bold text-zinc-300 hover:text-white hover:border-zinc-500 transition-all flex items-center justify-between px-3 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        {theme === 'light' ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-zinc-400" />}
+                        <span>{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span>
+                      </div>
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded font-mono font-bold">
+                        Toggle theme
+                      </span>
+                    </button>
                   </div>
                 </div>
               </div>

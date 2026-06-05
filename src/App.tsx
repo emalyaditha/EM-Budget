@@ -7,7 +7,7 @@ import {
   TrendingUp, User, Lock, Unlock, Settings, HelpCircle, RefreshCw, 
   FileDown, Share2, Landmark, ShieldAlert, ArrowUpRight, ArrowDownLeft,
   DollarSign, CircleDot, Database, CheckSquare, Zap, BadgeCheck, AlertCircle,
-  Cloud, CloudOff, ArrowRightLeft
+  Cloud, CloudOff, ArrowRightLeft, Sun, Moon
 } from 'lucide-react';
 
 import EmailLogin from './components/EmailLogin';
@@ -26,9 +26,11 @@ import SettingsModal from './components/SettingsModal';
 import TransactionEditModal from './components/TransactionEditModal';
 import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase } from './supabase';
 import { useNotifications } from './context/NotificationContext';
+import { useTheme } from './context/ThemeContext';
 
 export default function App() {
   const { showConfirm, showToast } = useNotifications();
+  const { theme, toggleTheme } = useTheme();
   // 1. Core State
   const [state, setState] = useState<AppState>(DEFAULT_APP_STATE);
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -1646,6 +1648,17 @@ export default function App() {
               <span>CLOUD: MANUAL</span>
             </button>
           )}
+
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-500 transition-all cursor-pointer flex items-center justify-center shrink-0"
+            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+            aria-label="Toggle theme"
+            id="theme-toggle"
+          >
+            {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
+          </button>
 
           {/* Profile Mark */}
           <button
