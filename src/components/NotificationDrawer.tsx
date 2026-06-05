@@ -33,29 +33,29 @@ export default function NotificationDrawer({
         <div className="w-12 h-1 bg-zinc-800 rounded-full mx-auto my-3 shrink-0 cursor-pointer" onClick={onClose} />
 
         {/* Header toolbar */}
-        <div className="px-6 pb-4 border-b border-zinc-900 flex justify-between items-center">
-          <div>
-            <h3 className="font-extrabold text-white text-base flex items-center gap-2">
-              <Bell size={18} className="text-zinc-400" />
+        <div className="px-4 sm:px-6 pb-4 border-b border-zinc-900 flex justify-between items-center">
+          <div className="min-w-0">
+            <h3 className="font-extrabold text-white text-sm sm:text-base flex items-center gap-2">
+              <Bell size={16} className="text-zinc-400 shrink-0" />
               Intelligence Center
               {unreadCount > 0 && (
-                <span className="bg-indigo-600 text-white font-black font-mono text-[9px] px-2.5 py-0.5 rounded-full border border-indigo-500 shadow-md">
+                <span className="bg-indigo-600 text-white font-black font-mono text-[9px] px-2 py-0.5 rounded-full border border-indigo-500 shadow-md shrink-0">
                   {unreadCount} NEW
                 </span>
               )}
             </h3>
-            <p className="text-[10.5px] text-zinc-550 block font-semibold text-zinc-500 mt-0.5 font-sans">Run-rates, dues, and transaction records</p>
+            <p className="text-[10px] sm:text-[10.5px] text-zinc-500 font-semibold mt-0.5 font-sans truncate">Run-rates, dues, and transaction records</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2.5 bg-zinc-900 border border-zinc-805 rounded-full text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            className="p-2 sm:p-2.5 bg-zinc-900 border border-zinc-805 rounded-full text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
           >
-            <X size={15} />
+            <X size={14} sm:size={15} />
           </button>
         </div>
 
         {/* Notifications Feed List */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-3.5 style-scroll" style={{ scrollbarWidth: 'thin' }}>
+        <div className="flex-1 overflow-y-auto p-5 space-y-3.5 overscroll-contain touch-auto" style={{ scrollbarWidth: 'thin' }}>
           {notifications.length === 0 ? (
             <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
               <div className="p-4 bg-zinc-950 rounded-full border border-zinc-900">
@@ -69,56 +69,60 @@ export default function NotificationDrawer({
               </div>
             </div>
           ) : (
-            notifications.map((notif) => {
-              const iconColor = 
-                notif.type === 'alert' ? 'text-rose-450 bg-rose-500/10 border border-rose-500/20' :
-                notif.type === 'reminder' ? 'text-amber-405 bg-amber-500/10 border border-amber-500/20' : 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20';
+            <>
+              {notifications.map((notif) => {
+                const iconColor = 
+                  notif.type === 'alert' ? 'text-rose-450 bg-rose-500/10 border border-rose-500/20' :
+                  notif.type === 'reminder' ? 'text-amber-405 bg-amber-500/10 border border-amber-500/20' : 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20';
 
-              return (
-                <div
-                  key={notif.id}
-                  className={`p-4 rounded-2xl border transition-all ${
-                    notif.read 
-                      ? 'bg-black/25 border-zinc-900 opacity-55' 
-                      : 'bg-black/60 border-zinc-850 hover:border-zinc-700 shadow-md ring-1 ring-white/5'
-                  }`}
-                >
-                  <div className="flex gap-3.5">
-                    <div className={`p-2.5 rounded-xl shrink-0 ${iconColor} flex items-center justify-center h-10 w-10`}>
-                      {notif.type === 'alert' && <AlertTriangle size={15} />}
-                      {notif.type === 'reminder' && <Calendar size={15} />}
-                      {notif.type === 'system' && <Info size={15} />}
+                return (
+                  <div
+                    key={notif.id}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      notif.read 
+                        ? 'bg-black/25 border-zinc-900 opacity-55' 
+                        : 'bg-black/60 border-zinc-850 hover:border-zinc-700 shadow-md ring-1 ring-white/5'
+                    }`}
+                  >
+                    <div className="flex gap-3.5">
+                      <div className={`p-2.5 rounded-xl shrink-0 ${iconColor} flex items-center justify-center h-10 w-10`}>
+                        {notif.type === 'alert' && <AlertTriangle size={15} />}
+                        {notif.type === 'reminder' && <Calendar size={15} />}
+                        {notif.type === 'system' && <Info size={15} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-zinc-200 leading-relaxed font-semibold">
+                          {notif.message}
+                        </p>
+                        <span className="text-[9px] font-mono font-bold text-zinc-650 text-zinc-500 block mt-1.5 uppercase">
+                          {notif.date}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-zinc-200 leading-relaxed font-semibold">
-                        {notif.message}
-                      </p>
-                      <span className="text-[9px] font-mono font-bold text-zinc-650 text-zinc-500 block mt-1.5 uppercase">
-                        {notif.date}
-                      </span>
-                    </div>
-                  </div>
 
-                  {/* Actions buttons */}
-                  <div className="flex justify-end gap-3 mt-3 pt-2.5 border-t border-zinc-900">
-                    {!notif.read && (
+                    {/* Actions buttons */}
+                    <div className="flex justify-end gap-3 mt-3 pt-2.5 border-t border-zinc-900">
+                      {!notif.read && (
+                        <button
+                          onClick={() => onMarkRead(notif.id)}
+                          className="text-[10.5px] text-emerald-400 font-bold font-mono uppercase flex items-center gap-1 hover:text-emerald-300 cursor-pointer"
+                        >
+                          <Check size={11} className="stroke-[2.5px]" /> Read
+                        </button>
+                      )}
                       <button
-                        onClick={() => onMarkRead(notif.id)}
-                        className="text-[10.5px] text-emerald-400 font-bold font-mono uppercase flex items-center gap-1 hover:text-emerald-300 cursor-pointer"
+                        onClick={() => onClear(notif.id)}
+                        className="text-[10.5px] text-zinc-500 font-bold font-mono uppercase flex items-center gap-1 hover:text-rose-400 cursor-pointer"
                       >
-                        <Check size={11} className="stroke-[2.5px]" /> Read
+                        <Trash2 size={11.5} /> Clear
                       </button>
-                    )}
-                    <button
-                      onClick={() => onClear(notif.id)}
-                      className="text-[10.5px] text-zinc-500 font-bold font-mono uppercase flex items-center gap-1 hover:text-rose-400 cursor-pointer"
-                    >
-                      <Trash2 size={11.5} /> Clear
-                    </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+              {/* Extra spacing for better scrolling experience */}
+              <div className="h-10" />
+            </>
           )}
         </div>
       </div>
