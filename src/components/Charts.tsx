@@ -113,7 +113,7 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
             <span className="text-zinc-400 font-medium">Monthly Incomes</span>
             <span className="text-emerald-500 dark:text-emerald-400 font-mono font-bold">{currency} {income.toLocaleString()} ({incomePct}%)</span>
           </div>
-          <div className="w-full h-8 bg-[#050505] border border-zinc-200 dark:border-zinc-850 rounded-xl overflow-hidden flex items-center relative">
+          <div className="w-full h-8 bg-[#050505] border border-zinc-200 dark:border-zinc-850 rounded-xl overflow-hidden flex items-center relative chart-progress-track">
             <div
               className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-r-md transition-all duration-1000"
               style={{ width: `${incomePct || 0}%` }}
@@ -128,7 +128,7 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
             <span className="text-zinc-400 font-medium">Invoices & Bills Expenses</span>
             <span className="text-rose-500 dark:text-rose-400 font-mono font-bold">{currency} {expense.toLocaleString()} ({expensePct}%)</span>
           </div>
-          <div className="w-full h-8 bg-[#050505] border border-zinc-200 dark:border-zinc-850 rounded-xl overflow-hidden flex items-center relative">
+          <div className="w-full h-8 bg-[#050505] border border-zinc-200 dark:border-zinc-850 rounded-xl overflow-hidden flex items-center relative chart-progress-track">
             <div
               className="h-full bg-gradient-to-r from-rose-600 to-rose-400 rounded-r-md transition-all duration-1000"
               style={{ width: `${expensePct || 0}%` }}
@@ -207,7 +207,7 @@ export function SpendingByCategoryPie({ categories, currency = 'Rs.' }: { catego
                   <span className="text-zinc-400 font-bold">{currency} {cat.value.toLocaleString()}</span>
                 </div>
               </div>
-              <div className="w-full bg-[#050505] h-1 rounded-full overflow-hidden mt-1">
+              <div className="w-full bg-[#050505] h-1 rounded-full overflow-hidden mt-1 chart-progress-track-mini">
                 <div className="h-full rounded-full" style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }} />
               </div>
             </div>

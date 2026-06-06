@@ -147,7 +147,7 @@ export default function Dashboard({
       </div>
 
       {/* 2. REALISTIC NET WORTH CARD (Inspired by Monzo, Stripe & Apple Wallet) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div id="vault-portfolio-parent" className="grid grid-cols-1 lg:grid-cols-12 gap-0 dark:gap-6 items-stretch p-0 md:p-0 m-0 md:m-0 dark:p-0 dark:m-0">
         
         {/* Apple Wallet Style Card display */}
         <div id="vault-portfolio-hero" className="lg:col-span-7 relative group overflow-hidden bg-gradient-to-tr from-indigo-50/90 via-indigo-50/30 to-white dark:from-zinc-950 dark:via-neutral-900/95 dark:to-indigo-950/70 rounded-[32px] p-6 sm:p-8 flex flex-col justify-between border border-indigo-100 dark:border-white/10 shadow-xl dark:shadow-2xl transition-all hover:border-indigo-200 dark:hover:border-white/20 hover:shadow-indigo-100/40 dark:hover:shadow-indigo-950/10 min-h-[220px] sm:min-h-[240px]">

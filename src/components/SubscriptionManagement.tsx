@@ -192,10 +192,10 @@ export default function SubscriptionManagement({
     <div className="space-y-6 animate-fade-in" id="subscription-management-section">
       
       {/* 1. Header and Add Trigger */}
-      <div className="flex justify-between items-center bg-[#0a0a0f] border border-zinc-850 p-4 rounded-2xl">
+      <div className="flex justify-between items-center bg-card border border-border p-4 rounded-2xl">
         <div className="flex items-center gap-2">
-          <Clock size={16} className="text-indigo-400" />
-          <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">Active Run-Rates & Subscriptions</span>
+          <Clock size={16} className="text-indigo-500 dark:text-indigo-400" />
+          <span className="text-xs font-mono font-bold text-foreground uppercase tracking-wider">Active Run-Rates & Subscriptions</span>
         </div>
         <button
           onClick={() => {

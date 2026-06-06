@@ -32,6 +32,12 @@
   --success: #34D399;
   --danger: #FB7185;
   --warning: #F59E0B;
+
+  /* Semantic Aliases */
+  --card-bg: var(--bg-card);
+  --surface: var(--bg-surface);
+  --input-bg: var(--bg-card);
+  --border-color: var(--border-primary);
 }
 
 @theme {
@@ -59,6 +65,12 @@
   --success: #16A37B;
   --danger: #E0556B;
   --warning: #D8902A;
+
+  /* Semantic Aliases */
+  --card-bg: var(--bg-card);
+  --surface: var(--bg-surface);
+  --input-bg: var(--bg-card);
+  --border-color: var(--border-primary);
 
   background-color: var(--bg-primary) !important;
   color: var(--text-primary) !important;
@@ -549,17 +561,6 @@ body.light,
   color: var(--text-secondary) !important;
 }
 
-/* Reports alternating sections */
-.light #central-web-canvas .space-y-6 > div:nth-child(odd) {
-  background-color: #FFFFFF !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
-}
-
-.light #central-web-canvas .space-y-6 > div:nth-child(even) {
-  background-color: #F8FAFC !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
-}
-
 /* Modals overlays styling */
 .light .fixed.inset-0.bg-black\/80,
 .light .fixed.inset-0.bg-black\/60,
@@ -568,8 +569,37 @@ body.light,
   background-color: rgba(30, 31, 38, 0.45) !important;
 }
 
+/* Progress tracks and inline bar tracks overrides */
+.light .chart-progress-track {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.light .chart-progress-track-mini {
+  background-color: var(--border-primary) !important;
+}
+
+/* Adjust Real-time indicator background specifically */
+.light .bg-emerald-950\/40,
+.light [class*="bg-emerald-950/40"],
+.light .border-emerald-900\/40,
+.light [class*="border-emerald-900/40"] {
+  background-color: #ECFDF5 !important;
+  border-color: #D1FAE5 !important;
+}
+
 /* Charts grid lines and text markers overrides on light mode */
 .light svg text {
+  fill: var(--text-primary) !important;
+}
+
+.light svg text.text-zinc-400,
+.light svg text.text-zinc-500,
+.light svg text.text-zinc-600 {
+  fill: var(--text-secondary) !important;
+}
+
+.light svg text.text-zinc-300 {
   fill: var(--text-primary) !important;
 }
 
@@ -662,6 +692,11 @@ body.light,
 
 .light [id*="cash-row-"] .font-mono.text-white {
   color: var(--text-primary) !important;
+}
+
+/* Force wallet card buttons to be visible in light mode */
+.light #wallet-card-buttons {
+  opacity: 1 !important;
 }
 
 /* Icon box container override */

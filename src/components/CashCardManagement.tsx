@@ -122,7 +122,7 @@ function InteractiveBankCard({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       style={inlineStyle}
-      className={`relative p-5.5 rounded-3xl bg-gradient-to-br ${cardGradientStyle} border shadow-2xl flex flex-col justify-between h-44 overflow-hidden duration-300 group cursor-pointer ${
+      className={`relative p-5.5 rounded-3xl bg-zinc-900 bg-gradient-to-br ${cardGradientStyle} border shadow-2xl flex flex-col justify-between h-44 overflow-hidden duration-300 group cursor-pointer ${
         isCanceled ? 'opacity-50 filter grayscale contrast-75 brightness-90 hover:grayscale-0 hover:opacity-85' : ''
       }`}
     >
@@ -153,43 +153,71 @@ function InteractiveBankCard({
               onUpdateCard({ ...card, isFrozen: false });
               showToast('success', `${card.cardName} un-frozen successfully.`);
             }}
-            className="mt-3 px-4 py-1.5 bg-sky-900/80 hover:bg-white hover:text-black border border-sky-500/30 hover:border-white text-sky-100 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-md"
+            className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-sm transition-colors bg-orange-500/20 border border-orange-500/40 text-white hover:bg-orange-500/30"
           >
-            Unfreeze
+            <Snowflake size={12} />
+            <span>Unfreeze</span>
           </button>
         </div>
       )}
 
       {!isCanceled && !card.isFrozen && (
-        <div className="absolute top-3 right-3 z-25 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingCard(card);
-              setEditCardName(card.cardName);
-              setEditCardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g, '').trim() : '');
-              setEditCardTheme(derivedTheme);
-              setEditCardErrors({});
-              setEditCardSubmitted(false);
-            }}
-            className="bg-black/80 hover:bg-white hover:text-black border border-white/10 text-white rounded-lg p-2 cursor-pointer flex items-center justify-center shadow-lg transition-colors"
-            title="Edit Card Details"
-          >
-            <Edit size={11} />
-          </button>
-          
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const updated = { ...card, isFrozen: true };
-              onUpdateCard(updated);
-              showToast('warning', `${card.cardName} soft-locked and frozen.`);
-            }}
-            className="bg-black/80 hover:bg-sky-900 border border-white/10 text-white hover:text-sky-300 rounded-lg p-2 cursor-pointer flex items-center justify-center shadow-lg transition-colors"
-            title="Freeze Card"
-          >
-            <Snowflake size={11} />
-          </button>
+        <div id="wallet-card-buttons" className="absolute bottom-4 right-4 z-25 flex flex-row gap-2.5 transition-opacity duration-300 bg-transparent rounded-none p-0">
+          {(() => {
+            const isDarkMode = derivedTheme !== 'light';
+            const btnStyle = {
+              background: 'transparent',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : 'none',
+              borderRadius: '8px',
+              padding: '4px 8px',
+              color: '#000000',
+              fontSize: '12px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              justifyContent: 'center',
+            };
+            const iconColor = '#000000';
+
+            return (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingCard(card);
+                    setEditCardName(card.cardName);
+                    setEditCardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g, '').trim() : '');
+                    setEditCardTheme(derivedTheme);
+                    setEditCardErrors({});
+                    setEditCardSubmitted(false);
+                  }}
+                  style={btnStyle}
+                  className="text-black"
+                  title="Edit Card Details"
+                >
+                  <Edit size={12} color={iconColor} strokeWidth={2.5} />
+                  <span style={{ color: iconColor }}>Edit</span>
+                </button>
+                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const updated = { ...card, isFrozen: true };
+                    onUpdateCard(updated);
+                    showToast('warning', `${card.cardName} soft-locked and frozen.`);
+                  }}
+                  style={btnStyle}
+                  className="text-black"
+                  title="Freeze Card"
+                >
+                  <Snowflake size={12} color={iconColor} strokeWidth={2.5} />
+                  <span style={{ color: iconColor }}>Freeze</span>
+                </button>
+              </>
+            );
+          })()}
         </div>
       )}
 

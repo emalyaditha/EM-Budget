@@ -230,25 +230,25 @@ export default function ReportsCentre({
           {/* Render Graphs in Premium Glass Panels */}
           {reportType !== 'debt' ? (
             <div className="space-y-6">
-              <div className="bg-zinc-900/30 border border-zinc-850 p-6 rounded-[28px] shadow-lg">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono mb-4 flex items-center gap-1.5">
-                  <BarChart3 size={13} className="text-indigo-400" />
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono pl-3.5 flex items-center gap-1.5">
+                  <BarChart3 size={13} className="text-indigo-500 dark:text-indigo-400" />
                   Inflows Relative to Outflows
                 </h4>
                 <IncomeVsExpenseBar income={totalIncome} expense={totalExpense} currency={currency} />
               </div>
 
-              <div className="bg-zinc-900/30 border border-zinc-850 p-6 rounded-[28px] shadow-lg">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono mb-4 flex items-center gap-1.5">
-                  <PieChart size={13} className="text-indigo-400" />
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono pl-3.5 flex items-center gap-1.5">
+                  <PieChart size={13} className="text-indigo-500 dark:text-indigo-400" />
                   Disbursed Categories Breakdown Range
                 </h4>
                 <SpendingByCategoryPie categories={categoryChartList} />
               </div>
 
-              <div className="bg-zinc-900/30 border border-zinc-850 p-6 rounded-[28px] shadow-lg">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider font-mono mb-4 flex items-center gap-1.5">
-                  <TrendingUp size={13} className="text-indent-400 text-indigo-400" />
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono pl-3.5 flex items-center gap-1.5">
+                  <TrendingUp size={13} className="text-indigo-500 dark:text-indigo-400" />
                   Repayments Velocity Tracker
                 </h4>
                 <TrendAnalysisChart data={sparklineData} currency={currency} />
