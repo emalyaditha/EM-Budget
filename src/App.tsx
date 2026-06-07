@@ -1875,7 +1875,6 @@ export default function App() {
                 { tab: 'accounts', icon: <Wallet size={15} />, label: 'Wallets Portfolio' },
                 { tab: 'inflow_outflow', icon: <Plus size={15} />, label: 'Ledger Registry' },
                 { tab: 'budgets', icon: <CheckSquare size={15} />, label: 'Smart Budgets' },
-                { tab: 'goals', icon: <TrendingUp size={15} />, label: 'Savings Jars' },
                 { tab: 'debts', icon: <CircleDot size={15} />, label: 'Track Liabilities' },
                 { tab: 'loans', icon: <ArrowUpRight size={15} />, label: 'Track Loans Given' },
                 { tab: 'reports', icon: <TrendingUp size={15} />, label: 'Reports Centre' },
