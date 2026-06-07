@@ -216,43 +216,6 @@ export default function Dashboard({
       {/* 2. PROMINENT FINANCIAL HEALTH INDEX & NET WORTH SUMMARY */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         
-        {/* NEW FINANCIAL HEALTH SCORE & BURN METER */}
-        <div className="lg:col-span-4 bg-[var(--bg-card)] rounded-[24px] p-6 border border-[var(--border-primary)] shadow-[var(--shadow-soft)] flex flex-col justify-between relative overflow-hidden text-left">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-secondary)] font-mono">Financial Health Index</span>
-              <Heart size={14} className="text-[#F87171] fill-[#F87171] animate-pulse" />
-            </div>
-
-            <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-black font-sans text-white font-mono">{finalHealthScore}</span>
-              <span className="text-sm font-bold text-[var(--text-secondary)]">/ 100</span>
-            </div>
-
-            <div className="p-3.5 rounded-xl border border-[var(--border-primary)] bg-slate-900/40 space-y-1">
-              <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase inline-block ${healthState.color}`}>
-                {healthState.label}
-              </span>
-              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed pt-1.5">
-                {healthState.desc}
-              </p>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-[var(--border-primary)] mt-4">
-            <div className="flex justify-between text-[11px] items-center">
-              <span className="text-[var(--text-secondary)] font-mono">Monthly Outflow Rate:</span>
-              <span className="font-bold text-[#F87171] font-mono">
-                {state.currency}{currentMonthOutflow.toLocaleString()}
-              </span>
-            </div>
-            {/* Simple visual Health track bar */}
-            <div className="w-full h-1.5 bg-slate-800 rounded-full mt-2 overflow-hidden">
-              <div className="h-full bg-[#10B981]" style={{ width: `${finalHealthScore}%` }} />
-            </div>
-          </div>
-        </div>
-
         {/* VAULT PORTFOLIO HERO (8 COLS) */}
         <div id="vault-portfolio-hero" className="lg:col-span-8 overflow-hidden bg-[var(--bg-card)] rounded-[24px] p-6 flex flex-col justify-between border border-[var(--border-primary)] shadow-[var(--shadow-soft)] transition-all min-h-[220px] text-left relative">
           
@@ -306,6 +269,43 @@ export default function Dashboard({
               <span>Manage Wallets</span>
               <ChevronRight size={14} />
             </button>
+          </div>
+        </div>
+
+        {/* NEW FINANCIAL HEALTH SCORE & BURN METER */}
+        <div className="lg:col-span-4 bg-[var(--bg-card)] rounded-[24px] p-6 border border-[var(--border-primary)] shadow-[var(--shadow-soft)] flex flex-col justify-between relative overflow-hidden text-left">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-secondary)] font-mono">Financial Health Index</span>
+              <Heart size={14} className="text-[#F87171] fill-[#F87171] animate-pulse" />
+            </div>
+
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-black font-sans text-white font-mono">{finalHealthScore}</span>
+              <span className="text-sm font-bold text-[var(--text-secondary)]">/ 100</span>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-[var(--border-primary)] bg-slate-900/40 space-y-1">
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase inline-block ${healthState.color}`}>
+                {healthState.label}
+              </span>
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed pt-1.5">
+                {healthState.desc}
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-[var(--border-primary)] mt-4">
+            <div className="flex justify-between text-[11px] items-center">
+              <span className="text-[var(--text-secondary)] font-mono">Monthly Outflow Rate:</span>
+              <span className="font-bold text-[#F87171] font-mono">
+                {state.currency}{currentMonthOutflow.toLocaleString()}
+              </span>
+            </div>
+            {/* Simple visual Health track bar */}
+            <div className="w-full h-1.5 bg-slate-800 rounded-full mt-2 overflow-hidden">
+              <div className="h-full bg-[#10B981]" style={{ width: `${finalHealthScore}%` }} />
+            </div>
           </div>
         </div>
 
