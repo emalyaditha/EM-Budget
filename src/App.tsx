@@ -24,6 +24,8 @@ import CreditCardManagement from './components/CreditCardManagement';
 import ReportsCentre from './components/ReportsCentre';
 import SettingsModal from './components/SettingsModal';
 import TransactionEditModal from './components/TransactionEditModal';
+import BudgetsSection from './components/BudgetsSection';
+import GoalsSection from './components/GoalsSection';
 import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
@@ -35,7 +37,7 @@ export default function App() {
   const [state, setState] = useState<AppState>(DEFAULT_APP_STATE);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'inflow_outflow' | 'debts' | 'loans' | 'reports'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'inflow_outflow' | 'budgets' | 'goals' | 'debts' | 'loans' | 'reports'>('dashboard');
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   
   // Modals & Panels Toggles
@@ -153,6 +155,85 @@ export default function App() {
 
     return () => clearTimeout(syncTimeout);
   }, [state, isSettingsOpen, isUnlocked]);
+
+  // Budgets & Savings goals action logic
+  const handleUpdateBudgetLimit = (id: string, limit: number) => {
+    updateState(prev => {
+      const updatedBudgets = (prev.budgets || []).map(b => b.id === id ? { ...b, limit } : b);
+      showToast('Budget allocation limit adjusted successfully', 'success');
+      return { ...prev, budgets: updatedBudgets };
+    });
+  };
+
+  const handleAddBudget = (category: CategoryExpense, limit: number, icon: string) => {
+    updateState(prev => {
+      const existing = (prev.budgets || []).find(b => b.category === category);
+      if (existing) {
+        showToast(`Budget allocation for ${category} already exists. Adjusting limit.`, 'warning');
+        return prev;
+      }
+      const newBudget = {
+        id: 'b' + Date.now(),
+        category,
+        limit,
+        spent: 0,
+        icon,
+        subBreakdown: []
+      };
+      showToast(`Monitoring created for category: ${category}`, 'success');
+      return { ...prev, budgets: [...(prev.budgets || []), newBudget] };
+    });
+  };
+
+  const handleAddGoal = (name: string, target: number, targetDate: string) => {
+    updateState(prev => {
+      const newGoal = {
+        id: 'g' + Date.now(),
+        name,
+        target,
+        current: 0,
+        targetDate
+      };
+      showToast(`Savings Jar: ${name} established!`, 'success');
+      return { ...prev, savingsGoals: [...(prev.savingsGoals || []), newGoal] };
+    });
+  };
+
+  const handleModifyGoalFunds = (id: string, amount: number, cashAccountId: string | null) => {
+    updateState(prev => {
+      const targetGoal = (prev.savingsGoals || []).find(g => g.id === id);
+      if (!targetGoal) return prev;
+
+      let finalCashAccounts = [...prev.cashAccounts];
+      if (cashAccountId) {
+        const account = finalCashAccounts.find(a => a.id === cashAccountId);
+        if (account) {
+          const factor = amount > 0 ? -1 : 1; // saving (amount > 0) decrements wallet, withdrawing (amount < 0) increments wallet
+          const absAmount = Math.abs(amount);
+          if (factor < 0 && account.balance < absAmount) {
+            showToast('Insufficient wallet reserves for allocation transfer', 'error');
+            return prev;
+          }
+          account.balance += (absAmount * factor);
+        }
+      }
+
+      const updatedGoals = (prev.savingsGoals || []).map(g => {
+        if (g.id === id) {
+          const newCurrent = Math.max(0, g.current + amount);
+          return { ...g, current: newCurrent };
+        }
+        return g;
+      });
+
+      showToast(amount > 0 ? 'Reserves transferred into savings jar' : 'Reserves returned back to liquid wallet', 'success');
+      return { 
+        ...prev, 
+        cashAccounts: finalCashAccounts,
+        savingsGoals: updatedGoals 
+      };
+    });
+  };
 
   // 2. FINANCIAL IMPLEMENTATION LOGICS (SMART AUTOMATION RULES)
 
@@ -1552,6 +1633,49 @@ export default function App() {
     .filter(t => t.type === 'expense' && t.date.includes(currentMonthFormat))
     .reduce((sum, t) => sum + t.amount, 0);
 
+  // Compute live budgets dynamically from database transactions and subscriptions
+  const computedBudgets = (state.budgets || []).map(budget => {
+    const budgetCategoryLower = budget.category.toLowerCase().trim();
+    
+    // Sum transactions under this category
+    const matchingTx = state.transactions.filter(t => {
+      if (!t.category) return false;
+      const tCategoryLower = t.category.toLowerCase().trim();
+      return tCategoryLower === budgetCategoryLower && 
+             (t.type === 'expense' || t.amount < 0);
+    });
+
+    const txSpentSum = matchingTx.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    // Sum active subscriptions under this category
+    const matchingSubs = (state.subscriptions || []).filter(s => {
+      if (!s.category || s.status !== 'Active') return false;
+      return s.category.toLowerCase().trim() === budgetCategoryLower;
+    });
+
+    const subsSpentSum = matchingSubs.reduce((sum, s) => sum + s.amount, 0);
+
+    const totalSpent = txSpentSum + subsSpentSum;
+
+    // Map itemized records
+    const subBreakdown = [
+      ...matchingTx.map(t => ({
+        name: t.title || 'Transaction spend',
+        spent: Math.abs(t.amount)
+      })),
+      ...matchingSubs.map(s => ({
+        name: `${s.name} (Subscription)`,
+        spent: s.amount
+      }))
+    ];
+
+    return {
+      ...budget,
+      spent: (matchingTx.length > 0 || matchingSubs.length > 0) ? totalSpent : budget.spent,
+      subBreakdown: subBreakdown.length > 0 ? subBreakdown : (budget.subBreakdown || [])
+    };
+  });
+
   // 4. TRANSACTION FILTERING METHOD
   const filteredHistory = [...state.transactions]
     .filter(t => {
@@ -1752,6 +1876,8 @@ export default function App() {
                 { tab: 'dashboard', icon: <Percent size={15} />, label: 'Overview Hub' },
                 { tab: 'accounts', icon: <Wallet size={15} />, label: 'Wallets Portfolio' },
                 { tab: 'inflow_outflow', icon: <Plus size={15} />, label: 'Ledger Registry' },
+                { tab: 'budgets', icon: <CheckSquare size={15} />, label: 'Smart Budgets' },
+                { tab: 'goals', icon: <TrendingUp size={15} />, label: 'Savings Jars' },
                 { tab: 'debts', icon: <CircleDot size={15} />, label: 'Track Liabilities' },
                 { tab: 'loans', icon: <ArrowUpRight size={15} />, label: 'Track Loans Given' },
                 { tab: 'reports', icon: <TrendingUp size={15} />, label: 'Reports Centre' },
@@ -1816,12 +1942,16 @@ export default function App() {
                 <span className="text-[10px] tracking-widest text-[#8aa8bb] font-mono font-bold uppercase block mr-1 truncate">
                   {activeTab === 'accounts' ? 'Wallets Core' :
                    activeTab === 'inflow_outflow' ? 'Ledger Action' :
+                   activeTab === 'budgets' ? 'Limit Envelopes' :
+                   activeTab === 'goals' ? 'Aspirations & Vaults' :
                    activeTab === 'debts' ? 'Track Liabilities' :
                    activeTab === 'loans' ? 'Vault Asset Ledger' : 'Diagnostics Reports'}
                 </span>
                 <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white capitalize leading-tight truncate">
                   {activeTab === 'accounts' ? 'Wallets' :
                    activeTab === 'inflow_outflow' ? 'Register' :
+                   activeTab === 'budgets' ? 'Smart Budgets' :
+                   activeTab === 'goals' ? 'Savings Jars' :
                    activeTab === 'debts' ? 'Liabilities' :
                    activeTab === 'loans' ? 'Loans Given' : 'Reports'}
                 </h2>
@@ -1890,6 +2020,27 @@ export default function App() {
                   setEditingTransactionId={setEditingTransactionId}
                   onProfileClick={() => setIsProfileOpen(true)}
                   onNotificationClick={() => setIsNotifOpen(true)}
+                />
+              )}
+
+              {/* =================== CASE: TAB: BUDGETS =================== */}
+              {activeTab === 'budgets' && (
+                <BudgetsSection 
+                  budgets={computedBudgets}
+                  currency={state.currency}
+                  onUpdateBudgetLimit={handleUpdateBudgetLimit}
+                  onAddBudget={handleAddBudget}
+                />
+              )}
+
+              {/* =================== CASE: TAB: GOALS =================== */}
+              {activeTab === 'goals' && (
+                <GoalsSection 
+                  goals={state.savingsGoals || []}
+                  currency={state.currency}
+                  cashAccounts={state.cashAccounts}
+                  onAddGoal={handleAddGoal}
+                  onModifyGoalFunds={handleModifyGoalFunds}
                 />
               )}
 

@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-:root {
+:root, .light {
   --zinc-50: #fafafa;
   --zinc-100: #f4f4f5;
   --zinc-200: #e4e4e7;
@@ -18,27 +18,27 @@
   --bg-black: #000000;
   --text-white: #ffffff;
 
-  /* Theme Defaults (Dark Mode) */
-  --bg-primary: #050505;
-  --bg-card: #0c000e;
-  --bg-sidebar: #070707;
-  --bg-surface: #121214;
-  --text-primary: #F4F4F5;
-  --text-secondary: #A1A1AA;
-  --text-muted: #71717A;
-  --border-primary: #1C1C1F;
-  --border-secondary: #27272A;
-  --accent-primary: #0B6B4F;
-  --accent-mint: #D6F1E5;
-  --success: #34D399;
-  --danger: #FB7185;
-  --warning: #F59E0B;
-  --shadow-soft: 0 1px 2px rgba(15,15,20,0.4), 0 8px 24px rgba(15,15,20,0.6);
+  /* Carbon Fiber Black Edition variables (True Black base) */
+  --bg-primary: #000000;
+  --bg-card: #0A0A0A;
+  --bg-sidebar: #000000;
+  --bg-surface: #050505;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A3A3A3;
+  --text-muted: #737373;
+  --border-primary: rgba(255, 255, 255, 0.06);
+  --border-secondary: rgba(255, 255, 255, 0.12);
+  --accent-primary: #00C853;       /* Emerald Accent */
+  --accent-mint: rgba(0, 200, 83, 0.12);
+  --success: #00C853;
+  --danger: #FF5252;
+  --warning: #FFB300;
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.9);
 
   /* Semantic Aliases */
   --card-bg: var(--bg-card);
   --surface: var(--bg-surface);
-  --input-bg: var(--bg-card);
+  --input-bg: #0A0A0A;
   --border-color: var(--border-primary);
 }
 
@@ -51,815 +51,593 @@
   --color-border: var(--border-primary);
   --color-accent-primary: var(--accent-primary);
   --color-accent-mint: var(--accent-mint);
-}
-
-
-.light {
-  --bg-primary: #FAFAF7;
-  --bg-card: #FFFFFF;
-  --bg-sidebar: #FAFAF7;
-  --bg-surface: #F3F4F6;
-  --text-primary: #0E0E10;
-  --text-secondary: #6B7280;
-  --text-muted: #9AA1AC;
-  --border-primary: #ECECE8;
-  --border-secondary: #E2E0D9;
-  --accent-primary: #0B6B4F;
-  --accent-mint: #D6F1E5;
-  --success: #16A37B;
-  --danger: #E0556B;
-  --warning: #D8902A;
-  --shadow-soft: 0 1px 2px rgba(15,15,20,0.04), 0 8px 24px rgba(15,15,20,0.06);
-
-  /* Semantic Aliases */
-  --card-bg: var(--bg-card);
-  --surface: var(--bg-surface);
-  --input-bg: var(--bg-card);
-  --border-color: var(--border-primary);
-
-  background-color: var(--bg-primary) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Base Body and Workspace overrides */
-body.light,
-.light #full-workspace-view,
-.light #auth-loading-screen {
-  background-color: var(--bg-primary) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Header and Footers with Soft Warm Border */
-.light header#header-brand-rail {
-  background-color: var(--bg-sidebar) !important;
-  border-bottom: 1px solid var(--border-primary) !important;
-  color: var(--text-primary) !important;
-}
-
-.light footer {
-  background-color: var(--bg-sidebar) !important;
-  border-top: 1px solid var(--border-primary) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Sidebar / Command Center Section Styling */
-.light #desktop-control-column > div:first-child {
-  background-color: var(--bg-sidebar) !important;
-  border: 1px solid var(--border-primary) !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
-}
-
-/* Active navigation indicators and hover tabs in Desktop Sidebar */
-.light #web-sidebar-navigation button {
-  background-color: transparent !important;
-  border-color: transparent !important;
-  color: var(--text-secondary) !important;
-}
-
-.light #web-sidebar-navigation button:hover {
-  background-color: #F3F4F6 !important;
-  color: var(--text-primary) !important;
-}
-
-.light #web-sidebar-navigation button.shadow-lg,
-.light #web-sidebar-navigation button[class*="bg-white"] {
-  background-color: #EEEEFB !important;
-  border-color: #EEEEFB !important;
-  color: var(--accent-primary) !important;
-  box-shadow: 0 1px 3px rgba(91, 95, 227, 0.1) !important;
-}
-
-.light #web-sidebar-navigation button.shadow-lg span,
-.light #web-sidebar-navigation button[class*="bg-white"] span {
-  color: var(--accent-primary) !important;
-}
-
-/* Secure Environment card in Sidebar */
-.light #desktop-control-column div[class*="bg-[#070707]/60"],
-.light #desktop-control-column div[class*="p-5"],
-.light #desktop-control-column div[class*="p-3"] {
-  background-color: var(--bg-sidebar) !important;
-  border-color: var(--border-primary) !important;
-}
-
-/* Mobile bottom nav bar */
-.light nav[class*="fixed bottom-4"] {
-  background-color: rgba(251, 250, 247, 0.8) !important;
-  backdrop-filter: blur(12px) !important;
-  border: 1px solid var(--border-primary) !important;
-  box-shadow: 0 4px 20px rgba(20, 20, 30, 0.08) !important;
-}
-
-.light nav[class*="fixed bottom-4"] button .rounded-2xl {
-  background-color: var(--bg-surface) !important;
-  border: 1px solid var(--border-primary) !important;
-  color: var(--text-secondary) !important;
-}
-
-.light nav[class*="fixed bottom-4"] button:hover .rounded-2xl {
-  background-color: var(--border-secondary) !important;
-  color: var(--text-primary) !important;
-}
-
-.light nav[class*="fixed bottom-4"] button span {
-  color: var(--text-secondary) !important;
-}
-
-.light nav[class*="fixed bottom-4"] button:hover span {
-  color: var(--text-primary) !important;
-}
-
-.light nav[class*="fixed bottom-4"] button .rounded-2xl.bg-indigo-600 {
-  background-color: var(--accent-primary) !important;
-  border-color: var(--accent-primary) !important;
-  color: #FFFFFF !important;
-}
-
-.light nav[class*="fixed bottom-4"] button span.text-indigo-600 {
-  color: var(--accent-primary) !important;
-}
-
-.light nav[class*="fixed bottom-4"] button span.bg-indigo-600 {
-  background-color: var(--accent-primary) !important;
-}
-
-/* Cards / panels: #FFFFFF with a very soft shadow 0 1px 3px rgba(20,20,30,0.06) and 1px border #ECEAE4 */
-.light .glow-card,
-.light [id*="card"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
-.light .bg-zinc-900:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
-.light .bg-zinc-950:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
-.light .bg-black:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
-.light [class*="bg-zinc-"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
-.light [class*="bg-[#0505]"]:not([id*="card-view-"]),
-.light [class*="bg-[#0606]"]:not([id*="card-view-"]),
-.light [class*="bg-[#0707]"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
-.light [class*="bg-[#0808]"]:not([id*="card-view-"]),
-.light [class*="bg-[#0a0a]"]:not([id*="card-view-"]):not([class*="fixed bottom-4"]),
-.light [class*="bg-[#0c0c]"]:not([id*="card-view-"]),
-.light [class*="bg-[#0f0f]"]:not([id*="card-view-"]),
-.light [class*="bg-[#1212]"]:not([id*="card-view-"]),
-.light [class*="bg-[#1c1c]"]:not([id*="card-view-"]),
-.light [class*="bg-[#1717]"]:not([id*="card-view-"]),
-.light [class*="bg-[#1818]"]:not([id*="card-view-"]),
-.light [class*="bg-[#050510]"]:not([id*="card-view-"]),
-.light [class*="bg-[#050505]"]:not([id*="card-view-"]),
-.light [class*="bg-[#070707]"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
-.light [class*="bg-[#08080c]"]:not([id*="card-view-"]),
-.light [class*="bg-[#0a0a0d]"]:not([id*="card-view-"]),
-.light [class*="bg-black"]:not([id*="card-view-"]),
-.light [class*="bg-zinc-950"]:not([id*="card-view-"]),
-.light [class*="bg-zinc-900"]:not([id*="card-view-"]),
-.light [class*="bg-zinc-850"]:not([id*="card-view-"]),
-.light [class*="bg-zinc-800"]:not([id*="card-view-"]):not([class*="manage-wallets-btn"]),
-.light [class*="bg-neutral-"]:not([id*="card-view-"]),
-.light [class*="bg-gradient-to-br"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]):not([class*="from-blue-900"]):not([class*="from-emerald-950"]):not([class*="from-amber-950"]):not([class*="from-rose-950"]):not([class*="from-zinc-900"]),
-.light [class*="bg-gradient-to-tr"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]) {
-  background-color: var(--bg-card) !important;
-  background-image: none !important;
-  border: 1px solid var(--border-primary) !important;
-  box-shadow: 0 2px 6px rgba(20,20,30,0.04), 0 8px 24px rgba(20,20,30,0.06) !important;
-  color: var(--text-primary) !important;
-  border-radius: 20px !important;
-}
-
-/* Hover effects for Dashboard cards */
-.light .glow-card:hover,
-.light [class*="bg-zinc-900"]:hover,
-.light [class*="bg-zinc-950"]:hover,
-.light [class*="bg-[#070707]"]:hover,
-.light [class*="bg-[#08080c]"]:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 12px 30px rgba(20,20,30,0.08) !important;
-  transition: all 0.3s ease !important;
-}
-
-/* Keep the dark "Vault Portfolio" hero card as a premium pearl/indigo gradient card in Light Mode */
-.light #vault-portfolio-hero {
-  background: #FFFFFF !important;
-  background-image: linear-gradient(135deg, #FFFFFF 0%, #F5F7FF 50%, #EEF2FF 100%) !important;
-  border: 1px solid rgba(91, 95, 227, 0.16) !important;
-  box-shadow: 0 10px 30px rgba(91, 95, 227, 0.08) !important;
-  border-radius: 32px !important;
-  transform: none !important;
-}
-
-/* Guarantee crystal clear, high-contrast visibility on the pearlish light card in Light Mode */
-.light #vault-portfolio-hero .net-worth-currency,
-.light #vault-portfolio-hero .net-worth-amount,
-.light #vault-portfolio-hero .account-holder-name {
-  color: #000000 !important;
-}
-
-.light #vault-portfolio-hero .net-worth-decimals {
-  color: #4F46E5 !important; /* Beautiful readable accent indigo color for decimals */
-}
-
-.light #vault-portfolio-hero .account-holder-label {
-  color: #4B5563 !important; /* Safe, elegant dark standard gray for small text label */
-}
-
-/* Form controls & input fields: background #FFFFFF, border #E2E0D9, focus ring #5B5FE3 at 30% opacity */
-.light input:not([type="checkbox"]):not([type="radio"]),
-.light select,
-.light textarea {
-  background-color: var(--bg-card) !important;
-  border: 1px solid var(--border-secondary) !important;
-  color: var(--text-primary) !important;
-  border-radius: 12px !important;
-  transition: all 0.2s ease !important;
-}
-
-.light input:not([type="checkbox"]):not([type="radio"]):focus,
-.light select:focus,
-.light textarea:focus {
-  border-color: var(--accent-primary) !important;
-  box-shadow: 0 0 0 4px rgba(91, 95, 227, 0.3) !important;
-  outline: none !important;
-}
-
-/* Placeholder styles */
-.light input::placeholder,
-.light textarea::placeholder {
-  color: var(--text-muted) !important;
-  opacity: 1 !important;
-}
-
-/* Native options */
-.light select option {
-  background-color: var(--bg-card) !important;
-  color: var(--text-primary) !important;
-}
-
-.light select optgroup {
-  background-color: var(--bg-card) !important;
-  color: var(--text-secondary) !important;
-  font-weight: 700 !important;
-}
-
-/* Title & Text styling details */
-.light h1, .light h2, .light h3, .light h4, .light h5, .light h6,
-.light .text-white,
-.light .text-zinc-50,
-.light .text-zinc-100,
-.light .text-zinc-200,
-.light .text-zinc-300,
-.light .text-zinc-350,
-.light [class*="text-zinc-50"],
-.light [class*="text-zinc-100"],
-.light [class*="text-zinc-200"],
-.light [class*="text-zinc-300"],
-.light [class*="text-zinc-350"],
-.light [class*="text-[#cbd5e1]"] {
-  color: var(--text-primary) !important;
-}
-
-.light .text-zinc-400,
-.light .text-zinc-500,
-.light .text-zinc-650,
-.light .text-zinc-600,
-.light [class*="text-zinc-400"],
-.light [class*="text-zinc-500"] {
-  color: var(--text-secondary) !important;
-}
-
-.light [class*="text-zinc-650"],
-.light [class*="text-[#8aa8bb]"] {
-  color: var(--text-muted) !important;
-}
-
-/* Primary actions buttons */
-.light .bg-indigo-600,
-.light .bg-indigo-500,
-.light button[class*="bg-indigo-"],
-.light button[class*="bg-violet-"],
-.light button[class*="bg-emerald-600"],
-.light button[class*="bg-rose-600"],
-.light button[class*="bg-red-600"],
-.light [class*="bg-indigo-600"],
-.light [class*="bg-indigo-500"] {
-  background-color: var(--accent-primary) !important;
-  color: #FFFFFF !important;
-  border: 1px solid var(--accent-primary) !important;
-}
-
-.light .bg-indigo-600:hover,
-.light .bg-indigo-500:hover,
-.light button[class*="bg-indigo-"]:hover,
-.light button[class*="bg-violet-"]:hover {
-  background-color: #4338CA !important;
-  border-color: #4338CA !important;
-}
-
-/* Safeguards: Preserve high contrast text and icons on active elements that have solid dark backgrounds in Light Mode */
-.light .text-white-forced,
-.light [class*="text-white-forced"],
-.light .bg-indigo-600 *,
-.light .bg-indigo-500 *,
-.light button[class*="bg-indigo-"] *,
-.light button[class*="bg-violet-"] *,
-.light button[class*="bg-emerald-600"] *,
-.light button[class*="bg-rose-600"] *,
-.light button[class*="bg-red-600"] *,
-.light [class*="bg-indigo-600"] *,
-.light [class*="bg-indigo-500"] * {
-  color: #FFFFFF !important;
-}
-
-/* Tab & Segmented Selector Overrides based on Apple segmented designs */
-.light #tab-selectors,
-.light #reports-type-selectors,
-.light [id*="-selectors"] {
-  background-color: var(--bg-surface) !important;
-  border-color: var(--border-primary) !important;
-}
-
-.light #tab-selectors button,
-.light #reports-type-selectors button,
-.light [id*="-selectors"] button {
-  color: var(--text-secondary) !important;
-  background-color: transparent !important;
-  border-color: transparent !important;
-}
-
-.light #tab-selectors button:hover,
-.light #reports-type-selectors button:hover,
-.light [id*="-selectors"] button:hover {
-  color: var(--text-primary) !important;
-}
-
-.light #tab-selectors button.bg-zinc-900,
-.light #tab-selectors button[class*="bg-zinc-"],
-.light #reports-type-selectors button.bg-zinc-900,
-.light #reports-type-selectors button[class*="bg-zinc-"],
-.light [id*="-selectors"] button.bg-zinc-900,
-.light [id*="-selectors"] button[class*="bg-zinc-"] {
-  background-color: var(--bg-card) !important;
-  color: var(--accent-primary) !important;
-  border: 1px solid var(--border-secondary) !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
-}
-
-.light #tab-selectors button.bg-zinc-900 *,
-.light #tab-selectors button[class*="bg-zinc-"] *,
-.light #reports-type-selectors button.bg-zinc-900 *,
-.light #reports-type-selectors button[class*="bg-zinc-"] *,
-.light [id*="-selectors"] button.bg-zinc-900 *,
-.light [id*="-selectors"] button[class*="bg-zinc-"] * {
-  color: var(--accent-primary) !important;
-}
-
-/* Secondary actions buttons */
-.light button[class*="bg-zinc-800"],
-.light button[class*="bg-zinc-900"],
-.light button[class*="bg-neutral-800"] {
-  background-color: #F3F4F6 !important;
-  color: #374151 !important;
-  border: 1px solid var(--border-primary) !important;
-}
-
-.light button[class*="bg-zinc-800"]:hover,
-.light button[class*="bg-zinc-900"]:hover {
-  background-color: #E5E7EB !important;
-}
-
-/* Danger actions / badge colors */
-.light .bg-rose-500\/10,
-.light .bg-rose-950\/30,
-.light [class*="bg-rose-950/20"] {
-  background-color: #FEF2F2 !important;
-  border-color: #FEE2E2 !important;
-}
-
-.light .text-rose-400,
-.light .text-rose-500,
-.light [class*="text-rose-400"] {
-  color: var(--danger) !important;
-}
-
-/* Success actions / badge colors */
-.light .bg-emerald-500\/10,
-.light .bg-emerald-950\/30,
-.light [class*="bg-emerald-950/20"] {
-  background-color: #ECFDF5 !important;
-  border-color: #D1FAE5 !important;
-}
-
-.light .text-emerald-400,
-.light [class*="text-emerald-400"] {
-  color: var(--success) !important;
-}
-
-/* Warning / Amber status badges */
-.light .bg-yellow-500\/10,
-.light .bg-amber-500\/10,
-.light .bg-amber-955\/45,
-.light .bg-amber-950\/20,
-.light [class*="bg-amber-955/45"],
-.light [class*="bg-amber-950/20"],
-.light [class*="bg-amber-950/40"],
-.light [class*="bg-amber-950"],
-.light [class*="bg-yellow-950"],
-.light [class*="bg-amber-500/10"],
-.light [class*="bg-amber-950/30"],
-.light [class*="bg-amber-950/10"],
-.light [class*="bg-amber-950/20"] {
-  background-color: #FFFBEB !important;
-  border-color: #FEF3C7 !important;
-}
-
-.light .text-yellow-500,
-.light .text-amber-400,
-.light .text-amber-500,
-.light [class*="text-amber-400"],
-.light [class*="text-amber-500"] {
-  color: var(--warning) !important;
-}
-
-/* Dusty grey/blue general queue labels & badges style */
-.light .bg-[#050510]\/60,
-.light .bg-\[\#050510\]\/60,
-.light [class*="bg-[#050510]/60"],
-.light [class*="bg-[#050510]/30"],
-.light [class*="bg-[#050510]/50"],
-.light [class*="bg-[#050515]"],
-.light [class*="bg-[#0a0a0f]"] {
-  background-color: var(--bg-surface) !important;
-  border-color: var(--border-primary) !important;
-}
-
-.light .text-\[\#8aa8bb\],
-.light [class*="text-[#8aa8bb]"] {
-  color: var(--text-secondary) !important;
-}
-
-/* Liabilities status styling */
-.light [data-debt-status="paid"] {
-  background-color: #ECFDF5 !important;
-  border-left: 4px solid var(--success) !important;
-  border-top-color: var(--border-primary) !important;
-  border-right-color: var(--border-primary) !important;
-  border-bottom-color: var(--border-primary) !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
-}
-
-.light [data-debt-status="overdue"] {
-  background-color: #FEF2F2 !important;
-  border-left: 4px solid var(--danger) !important;
-  border-top-color: var(--border-primary) !important;
-  border-right-color: var(--border-primary) !important;
-  border-bottom-color: var(--border-primary) !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
-}
-
-.light [data-debt-status="outstanding"] {
-  background-color: #FFF7ED !important;
-  border-left: 4px solid var(--warning) !important;
-  border-top-color: var(--border-primary) !important;
-  border-right-color: var(--border-primary) !important;
-  border-bottom-color: var(--border-primary) !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
-}
-
-.light [data-debt-status] * {
-  color: var(--text-primary) !important;
-}
-
-.light [data-debt-status] .text-zinc-550,
-.light [data-debt-status] .text-zinc-500 {
-  color: var(--text-secondary) !important;
-}
-
-/* Loans status styling */
-.light [data-loan-status="completed"] {
-  background-color: #ECFDF5 !important;
-  border-left: 4px solid var(--success) !important;
-  border-top-color: var(--border-primary) !important;
-  border-right-color: var(--border-primary) !important;
-  border-bottom-color: var(--border-primary) !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
-}
-
-.light [data-loan-status="partial"] {
-  background-color: #FFFBEB !important;
-  border-left: 4px solid var(--warning) !important;
-  border-top-color: var(--border-primary) !important;
-  border-right-color: var(--border-primary) !important;
-  border-bottom-color: var(--border-primary) !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
-}
-
-.light [data-loan-status="active"] {
-  background-color: #EFF6FF !important;
-  border-left: 4px solid #0284C7 !important;
-  border-top-color: var(--border-primary) !important;
-  border-right-color: var(--border-primary) !important;
-  border-bottom-color: var(--border-primary) !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.06) !important;
-}
-
-.light [data-loan-status] * {
-  color: var(--text-primary) !important;
-}
-
-.light [data-loan-status] .text-zinc-500,
-.light [data-loan-status] .text-zinc-400 {
-  color: var(--text-secondary) !important;
-}
-
-/* Modals overlays styling */
-.light .fixed.inset-0.bg-black\/80,
-.light .fixed.inset-0.bg-black\/60,
-.light .fixed.inset-0.backdrop-blur-sm,
-.light .fixed.inset-0 {
-  background-color: rgba(30, 31, 38, 0.45) !important;
-}
-
-/* Progress tracks and inline bar tracks overrides */
-.light .chart-progress-track {
-  background-color: var(--bg-surface) !important;
-  border-color: var(--border-primary) !important;
-}
-
-.light .chart-progress-track-mini {
-  background-color: var(--border-primary) !important;
-}
-
-/* Adjust Real-time indicator background specifically */
-.light .bg-emerald-950\/40,
-.light [class*="bg-emerald-950/40"],
-.light .border-emerald-900\/40,
-.light [class*="border-emerald-900/40"] {
-  background-color: #ECFDF5 !important;
-  border-color: #D1FAE5 !important;
-}
-
-/* Charts grid lines and text markers overrides on light mode */
-.light svg text {
-  fill: var(--text-primary) !important;
-}
-
-.light svg text.text-zinc-400,
-.light svg text.text-zinc-500,
-.light svg text.text-zinc-600 {
-  fill: var(--text-secondary) !important;
-}
-
-.light svg text.text-zinc-300 {
-  fill: var(--text-primary) !important;
-}
-
-.light svg line,
-.light svg path[stroke="#1e1b4b"],
-.light svg path[stroke="#27272a"] {
-  stroke: var(--border-primary) !important;
-}
-
-.light svg polyline {
-  stroke: var(--accent-primary) !important;
-}
-
-/* Grid lines for Recharts */
-.light .recharts-cartesian-grid-horizontal line,
-.light .recharts-cartesian-grid-vertical line {
-  stroke: #E5E7EB !important;
-}
-
-/* Scrollbar styling */
-.light ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-}
-
-.light ::-webkit-scrollbar-thumb {
-  background: var(--border-primary);
-  border-radius: 99px;
-}
-
-.light ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  --font-sans: "Inter", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 /* ==========================================================================
-   CUSTOM CONTRAST AND READABILITY OVERRIDES FOR LIGHT MODE
+   GLOBAL BACKDROP AND TEXTURED OVERLAYS
    ========================================================================== */
 
-/* 1. Electronic Bank Cards Contrast Override */
-/* Keep premium dark aesthetic on dynamic plastic card gradients, but force text contrast to be crystal clear white */
-.light [id*="card-view-"] h1,
-.light [id*="card-view-"] h2,
-.light [id*="card-view-"] h3,
-.light [id*="card-view-"] h4,
-.light [id*="card-view-"] h5,
-.light [id*="card-view-"] h6,
-.light [id*="card-view-"] span,
-.light [id*="card-view-"] div {
+body, html, #full-workspace-view, #auth-loading-screen {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+  
+  /* Seamless high-fidelity diagonal weave carbon pattern with ultra-subtle 1.5% to 3% opacity lines */
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.005) 1px, transparent 1px) !important;
+  background-size: 10px 10px, 10px 10px, 10px 10px, 10px 10px, 8px 8px !important;
+}
+
+/* Keep the dark body structure overriding .light framework defaults if toggled by layout */
+body.light,
+.light #full-workspace-view,
+.light #auth-loading-screen {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.005) 1px, transparent 1px) !important;
+  background-size: 10px 10px, 10px 10px, 10px 10px, 10px 10px, 8px 8px !important;
+}
+
+/* ==========================================================================
+   CARDS & CONTAINERS (PREMIUM BLACK EDITION MATTE PANELS)
+   ========================================================================== */
+
+[id*="card"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]):not([class*="fixed bottom-4"]),
+.glow-card,
+.bg-zinc-900,
+.bg-zinc-950,
+.bg-slate-900,
+.bg-slate-950,
+.bg-black,
+[class*="bg-zinc-"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]):not([class*="fixed bottom-4"]):not([class*="bg-zinc-800"]):not([class*="bg-zinc-900"]):not([tag="button"]),
+[class*="bg-[#0505]"]:not([id*="card-view-"]),
+[class*="bg-[#0606]"]:not([id*="card-view-"]),
+[class*="bg-[#0707]"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+[class*="bg-[#0808]"]:not([id*="card-view-"]),
+[class*="bg-[#0a0a]"]:not([id*="card-view-"]):not([class*="fixed bottom-4"]),
+[class*="bg-[#0c0c]"]:not([id*="card-view-"]),
+[class*="bg-[#0f0f]"]:not([id*="card-view-"]),
+[class*="bg-[#1212]"]:not([id*="card-view-"]),
+[class*="bg-[#1c1c]"]:not([id*="card-view-"]),
+[class*="bg-[#1717]"]:not([id*="card-view-"]),
+[class*="bg-[#1818]"]:not([id*="card-view-"]),
+[class*="bg-[#050510]"]:not([id*="card-view-"]),
+[class*="bg-[#050505]"]:not([id*="card-view-"]),
+[class*="bg-[#070707]"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+[class*="bg-[#08080c]"]:not([id*="card-view-"]),
+[class*="bg-[#0a0a0d]"]:not([id*="card-view-"]),
+[class*="bg-slate-900/35"] {
+  background-color: #0A0A0A !important;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%) !important;
+  background-size: 8px 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5) !important;
   color: #FFFFFF !important;
 }
 
-.light [id*="card-view-"] .text-white\/50,
-.light [id*="card-view-"] .text-white\/40,
-.light [id*="card-view-"] .text-zinc-550,
-.light [id*="card-view-"] .text-zinc-500,
-.light [id*="card-view-"] .text-zinc-400,
-.light [id*="card-view-"] .text-indigo-305,
-.light [id*="card-view-"] .text-indigo-350 {
-  color: rgba(255, 255, 255, 0.65) !important;
+/* Row elements and active logs lists hover feedback - soft illumination */
+[id*="reports-audit-card-"],
+[id*="cash-row-"],
+div[class*="group p-4 bg-slate-900/30"] {
+  background-color: #050505 !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.light [id*="card-view-"] button svg,
-.light [id*="card-view-"] button {
+[id*="reports-audit-card-"]:hover,
+[id*="cash-row-"]:hover,
+div[class*="group p-4 bg-slate-900/30"]:hover {
+  background-color: #111111 !important;
+  border-color: rgba(0, 200, 83, 0.2) !important;
+}
+
+/* Keep physical asset card representations looking exceptional */
+[id*="card-view-"] {
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 10px 30px rgba(0, 200, 83, 0.15) !important;
+}
+[id*="card-view-"] h1,
+[id*="card-view-"] h2,
+[id*="card-view-"] h3,
+[id*="card-view-"] h4,
+[id*="card-view-"] h5,
+[id*="card-view-"] h6,
+[id*="card-view-"] div,
+[id*="card-view-"] span {
   color: #FFFFFF !important;
 }
 
-.light [id*="card-view-"] button:hover {
-  background-color: #FFFFFF !important;
+/* ==========================================================================
+   NAVIGATION RAILS (PURE BLACK & EMERALD ACTIVE SHADES)
+   ========================================================================== */
+
+header#header-brand-rail,
+.light header#header-brand-rail,
+footer,
+.light footer {
+  background-color: #000000 !important;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%) !important;
+  background-size: 14px 14px !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+#desktop-control-column,
+#desktop-control-column > div:first-child,
+.light #desktop-control-column > div:first-child {
+  background-color: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Left sidebar menu item formatting */
+#web-sidebar-navigation button,
+.light #web-sidebar-navigation button {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: #A3A3A3 !important;
+  font-weight: 500 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+}
+
+#web-sidebar-navigation button:hover,
+.light #web-sidebar-navigation button:hover {
+  background-color: #111111 !important;
+  color: #FFFFFF !important;
+}
+
+/* Sidebar active indicators - Clean Emerald highlights */
+#web-sidebar-navigation button.shadow-lg,
+#web-sidebar-navigation button[class*="bg-white"],
+.light #web-sidebar-navigation button.shadow-lg,
+.light #web-sidebar-navigation button[class*="bg-white"] {
+  background-color: rgba(0, 200, 83, 0.09) !important;
+  border-color: rgba(0, 200, 83, 0.2) !important;
+  border-left: 3px solid #00C853 !important;
+  color: #00C853 !important;
+  box-shadow: 0 4px 12px rgba(0, 200, 83, 0.08) !important;
+}
+
+#web-sidebar-navigation button.shadow-lg span,
+#web-sidebar-navigation button[class*="bg-white"] span,
+.light #web-sidebar-navigation button.shadow-lg span,
+.light #web-sidebar-navigation button[class*="bg-white"] span {
+  color: #00C853 !important;
+  font-weight: 700 !important;
+}
+
+#web-sidebar-navigation button.shadow-lg svg,
+#web-sidebar-navigation button[class*="bg-white"] svg,
+.light #web-sidebar-navigation button.shadow-lg svg,
+.light #web-sidebar-navigation button[class*="bg-white"] svg {
+  color: #00C853 !important;
+}
+
+/* Mobile responsive navigation overrides */
+nav[class*="fixed bottom-4"],
+.light nav[class*="fixed bottom-4"] {
+  background-color: rgba(0, 0, 0, 0.95) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.95) !important;
+}
+
+nav[class*="fixed bottom-4"] button .rounded-2xl {
+  background-color: #0A0A0A !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  color: #A3A3A3 !important;
+}
+
+nav[class*="fixed bottom-4"] button:hover .rounded-2xl {
+  background-color: #111111 !important;
+  color: #FFFFFF !important;
+}
+
+nav[class*="fixed bottom-4"] button .rounded-2xl.bg-indigo-600,
+nav[class*="fixed bottom-4"] button .rounded-2xl[class*="bg-indigo-650"] {
+  background-color: rgba(0, 200, 83, 0.15) !important;
+  border-color: #00C853 !important;
+  color: #00C853 !important;
+}
+
+nav[class*="fixed bottom-4"] button span.text-indigo-600 {
+  color: #00C853 !important;
+}
+
+nav[class*="fixed bottom-4"] button span.bg-indigo-600 {
+  background-color: #00C853 !important;
+}
+
+/* ==========================================================================
+   BUTTONS (PRIMARY EMERALD, SECONDARY MATTE CHARCOAL, DANGER DEEP RED)
+   ========================================================================= */
+
+/* Primary Button Action styles */
+.bg-indigo-600,
+.bg-indigo-500,
+button[class*="bg-[#10B981]"],
+button[class*="bg-emerald-"],
+[class*="bg-[#10B981]"],
+.bg-emerald-600,
+a[class*="bg-indigo-"] {
+  background-color: #00C853 !important;
+  border: 1px solid #00C853 !important;
+  color: #FFFFFF !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.bg-indigo-600:hover,
+.bg-indigo-500:hover,
+button[class*="bg-[#10B981]"]:hover,
+button[class*="bg-emerald-"]:hover,
+[class*="bg-[#10B981]"]:hover,
+.bg-emerald-600:hover,
+a[class*="bg-indigo-"]:hover {
+  background-color: #00E676 !important;
+  border-color: #00E676 !important;
+}
+
+.bg-indigo-600:active,
+.bg-indigo-500:active,
+[class*="bg-[#10B981]"]:active {
+  background-color: #69F0AE !important;
+  border-color: #69F0AE !important;
+}
+
+/* Secondary Button Action styles */
+button[class*="bg-zinc-800"],
+button[class*="bg-zinc-900"],
+button[class*="bg-slate-800"],
+button[class*="bg-slate-900"],
+button[class*="bg-zinc-700"],
+button[class*="bg-neutral-800"],
+button[class*="bg-neutral-900"],
+.light button[class*="bg-zinc-800"],
+.light button[class*="bg-zinc-900"] {
+  background-color: #111111 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #E5E7EB !important;
+  transition: all 0.2s ease !important;
+  border-radius: 10px !important;
+}
+
+button[class*="bg-zinc-800"]:hover,
+button[class*="bg-zinc-900"]:hover,
+button[class*="bg-slate-800"]:hover,
+button[class*="bg-slate-900"]:hover {
+  background-color: #1A1A1A !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #FFFFFF !important;
+}
+
+/* Dynamic orange savings indicators */
+button[class*="bg-[#F59E0B]"],
+[class*="bg-[#F59E0B]"] {
+  background-color: #FFB300 !important;
+  border-color: #FFB300 !important;
   color: #000000 !important;
+  font-weight: 700 !important;
 }
 
-.light [id*="card-view-"] button:hover svg {
-  color: #000000 !important;
+button[class*="bg-[#F59E0B]"]:hover {
+  background-color: #FFC400 !important;
+  border-color: #FFC400 !important;
 }
 
-/* 2. Wallets list (Cash in Hand Repositories) contrast stylings */
-.light [id*="cash-row-"] {
-  background-color: var(--bg-card) !important;
-  border: 1px solid var(--border-primary) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 1px 3px rgba(20,20,30,0.04) !important;
+/* Danger Action style */
+button[class*="bg-rose-600"],
+button[class*="bg-red-600"],
+[class*="bg-rose-600"],
+[class*="bg-red-600"] {
+  background-color: #FF5252 !important;
+  border-color: #FF5252 !important;
+  color: #FFFFFF !important;
 }
 
-.light [id*="cash-row-"] h4 {
-  color: var(--text-primary) !important;
+button[class*="bg-rose-600"]:hover,
+button[class*="bg-red-600"]:hover {
+  background-color: #FF1744 !important;
+  border-color: #FF1744 !important;
 }
 
-.light [id*="cash-row-"] span {
-  color: var(--text-secondary) !important;
+/* ==========================================================================
+   FORMS, DROPDOWNS & MATTE INPUTS
+   ========================================================================== */
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea,
+.light input:not([type="checkbox"]):not([type="radio"]),
+.light select,
+.light textarea {
+  background-color: #050505 !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #FFFFFF !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.light [id*="cash-row-"] .font-mono.text-white {
-  color: var(--text-primary) !important;
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: #00C853 !important;
+  box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.2) !important;
+  outline: none !important;
 }
 
-/* Force wallet card buttons to be visible in light mode */
-.light #wallet-card-buttons {
+select option, select optgroup {
+  background-color: #0A0A0A !important;
+  color: #FFFFFF !important;
+}
+
+::placeholder {
+  color: #737373 !important;
   opacity: 1 !important;
 }
 
-/* Icon box container override */
-.light [id*="cash-row-"] div[class*="bg-zinc-900"] {
-  background-color: var(--bg-surface) !important;
-  border-color: var(--border-primary) !important;
+/* ==========================================================================
+   TABLES & TRANSACTION DATA GRIDS
+   ========================================================================== */
+
+table, .light table {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background-color: #000000 !important;
 }
 
-.light [id*="cash-row-"] div[class*="bg-zinc-900"] svg {
-  color: var(--text-secondary) !important;
+thead th, .light thead th {
+  background-color: #111111 !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-size: 11px !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.08) !important;
+  padding: 12px 16px !important;
+  text-align: left !important;
 }
 
-/* Deposit and withdraw actions */
-.light [id*="cash-row-"] button[class*="bg-emerald-950/20"] {
-  background-color: #ECFDF5 !important;
-  color: var(--success) !important;
+tbody tr, .light tbody tr {
+  transition: background-color 0.15s ease !important;
 }
 
-.light [id*="cash-row-"] button[class*="bg-rose-950/20"] {
-  background-color: #FEF2F2 !important;
-  color: var(--danger) !important;
+tbody tr:nth-child(odd), .light tbody tr:nth-child(odd) {
+  background-color: #050505 !important;
 }
 
-/* Trash / Delete button */
-.light [id*="cash-row-"] button[class*="bg-[#050505]"] {
-  background-color: var(--bg-surface) !important;
-  border-color: var(--border-primary) !important;
-  color: var(--text-secondary) !important;
+tbody tr:nth-child(even), .light tbody tr:nth-child(even) {
+  background-color: #0A0A0A !important;
 }
 
-.light [id*="cash-row-"] button[class*="bg-[#050505]"]:hover {
-  background-color: #FEE2E2 !important;
-  border-color: #FCA5A5 !important;
-  color: var(--danger) !important;
+tbody tr:hover, .light tbody tr:hover {
+  background-color: #111111 !important;
 }
 
-/* 3. Credit Cards Facilities Main Vault override */
-.light #credit-cards-vault {
-  background: var(--bg-card) !important;
-  border: 1px solid var(--border-primary) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
-  color: var(--text-primary) !important;
+td, .light td {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+  color: #E5E7EB !important;
+  font-size: 13px !important;
 }
 
-.light #credit-cards-vault h3,
-.light #credit-cards-vault h4 {
-  color: var(--text-primary) !important;
+/* ==========================================================================
+   DIALOGS & MODAL BACKDROPS (PURE BLACK & FROSTED DARK OVERLAY)
+   ========================================================================== */
+
+.fixed.inset-0.bg-black/80,
+.fixed.inset-0.bg-black/60,
+.fixed.inset-0.backdrop-blur-sm,
+.fixed.inset-0,
+.light .fixed.inset-0.bg-black/80,
+.light .fixed.inset-0.bg-black/60,
+.light .fixed.inset-0.backdrop-blur-sm {
+  background-color: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
 }
 
-/* Credit Cards row items */
-.light #credit-cards-vault div[class*="bg-zinc-900/60"] {
-  background-color: var(--bg-surface) !important;
-  border-color: var(--border-primary) !important;
+div[class*="rounded-3xl"].w-full.max-w-sm,
+div[class*="rounded-3xl"].w-full.max-w-md,
+div[class*="rounded-3xl"].w-full.max-w-lg,
+div[class*="rounded-2xl"].p-6.relative {
+  background-color: #0A0A0A !important;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%) !important;
+  background-size: 8px 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 12px 42px rgba(0, 0, 0, 0.95) !important;
 }
 
-/* Card titles bank name badge */
-.light #credit-cards-vault span[class*="bg-zinc-950"] {
-  background-color: var(--bg-card) !important;
-  border-color: var(--border-primary) !important;
-  color: var(--text-secondary) !important;
+/* ==========================================================================
+   SEGMENTED SELECTORS & TABS
+   ========================================================================== */
+
+#tab-selectors,
+#reports-type-selectors,
+[id*="-selectors"],
+.light #tab-selectors,
+.light #reports-type-selectors {
+  background-color: #050505 !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 12px !important;
+  padding: 4.5px !important;
 }
 
-/* Inputs under Credit Cards Vault list */
-.light #credit-cards-vault input,
-.light #credit-cards-vault select {
-  background-color: var(--bg-card) !important;
-  border-color: var(--border-secondary) !important;
-  color: var(--text-primary) !important;
+#tab-selectors button,
+#reports-type-selectors button,
+[id*="-selectors"] button,
+.light #tab-selectors button {
+  color: #A3A3A3 !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  border-radius: 8px !important;
 }
 
-/* Buttons for credit actions */
-.light #credit-cards-vault button[class*="bg-[#050510]"] {
-  background-color: var(--bg-surface) !important;
-  border-color: var(--border-primary) !important;
+#tab-selectors button:hover,
+#reports-type-selectors button:hover,
+[id*="-selectors"] button:hover {
+  color: #FFFFFF !important;
+  background-color: rgba(255, 255, 255, 0.04) !important;
 }
 
-/* Form recording card purchase */
-.light #credit-cards-vault form {
-  background-color: var(--bg-card) !important;
-  border-color: var(--border-primary) !important;
+/* Active selector overrides - Emerald outline border */
+#tab-selectors button.bg-zinc-900,
+#tab-selectors button[class*="bg-zinc-"],
+#reports-type-selectors button.bg-zinc-900,
+#reports-type-selectors button[class*="bg-zinc-"],
+[id*="-selectors"] button.bg-zinc-900,
+[id*="-selectors"] button[class*="bg-zinc-"] {
+  background-color: #0A0A0A !important;
+  color: #00C853 !important;
+  border: 1px solid rgba(0, 200, 83, 0.18) !important;
+  box-shadow: 0 2px 8px rgba(0, 200, 83, 0.1) !important;
 }
 
-/* 4. Unified Journals (Ledger Audit Track) Panel overrides */
-.light #unified-audits-column {
-  background: var(--bg-card) !important;
-  background-image: none !important;
-  border: 1px solid var(--border-primary) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+#tab-selectors button.bg-zinc-900 *,
+#tab-selectors button[class*="bg-zinc-"] *,
+#reports-type-selectors button.bg-zinc-900 *,
+#reports-type-selectors button[class*="bg-zinc-"] * {
+  color: #00C853 !important;
 }
 
-/* Heading & specific subtitle */
-.light #unified-audits-column .text-white {
-  color: var(--text-primary) !important;
+/* ==========================================================================
+   DASHBOARD WIDGETS & FINANCIAL TEXTUAL CONTRASTS
+   ========================================================================== */
+
+h1, h2, h3, h4, h5, h6,
+.text-white,
+.text-zinc-50,
+.text-zinc-100,
+.text-zinc-200,
+.text-zinc-300,
+.text-zinc-350,
+[class*="text-zinc-50"],
+[class*="text-zinc-100"],
+[class*="text-zinc-200"],
+[class*="text-zinc-300"],
+[class*="text-[#cbd5e1]"] {
+  color: #FFFFFF !important;
 }
 
-.light #unified-audits-column .text-zinc-400,
-.light #unified-audits-column .text-zinc-500 {
-  color: var(--text-secondary) !important;
+.text-zinc-400,
+.text-zinc-500,
+.text-zinc-650,
+[class*="text-zinc-400"],
+[class*="text-zinc-500"],
+[class*="text-zinc-650"] {
+  color: #A3A3A3 !important;
 }
 
-/* Events badge */
-.light #unified-audits-column span[class*="bg-black"] {
-  background-color: var(--bg-surface) !important;
-  border-color: var(--border-primary) !important;
-  color: var(--text-secondary) !important;
+#premium-suite-badge {
+  background-color: rgba(0, 200, 83, 0.1) !important;
+  border: 1px solid rgba(0, 200, 83, 0.2) !important;
+  color: #00C853 !important;
+}
+#premium-suite-badge *,
+#premium-suite-badge svg {
+  color: #00C853 !important;
 }
 
-/* Search input container and text boxes */
-.light #unified-audits-column input {
-  background-color: var(--bg-card) !important;
-  border-color: var(--border-secondary) !important;
-  color: var(--text-primary) !important;
+/* Dynamic loan outstanding states styling */
+[data-debt-status="paid"], 
+[data-loan-status="completed"] {
+  background-color: rgba(0, 200, 83, 0.08) !important;
+  border-left: 4px solid #00C853 !important;
+  border-top-color: rgba(255, 255, 255, 0.04) !important;
+  border-right-color: rgba(255, 255, 255, 0.04) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.04) !important;
 }
 
-/* Type select & Source select dropdown filters */
-.light #unified-audits-column select {
-  background-color: var(--bg-card) !important;
-  border-color: var(--border-secondary) !important;
-  color: var(--text-primary) !important;
+[data-debt-status="overdue"] {
+  background-color: rgba(255, 82, 82, 0.08) !important;
+  border-left: 4px solid #FF5252 !important;
+  border-top-color: rgba(255, 255, 255, 0.04) !important;
+  border-right-color: rgba(255, 255, 255, 0.04) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.04) !important;
 }
 
-/* Individual transaction journal cards list */
-.light [id*="reports-audit-card-"] {
-  background-color: var(--bg-surface) !important;
-  border-color: var(--border-primary) !important;
+[data-debt-status="outstanding"], 
+[data-loan-status="partial"] {
+  background-color: rgba(255, 179, 0, 0.08) !important;
+  border-left: 4px solid #FFB300 !important;
+  border-top-color: rgba(255, 255, 255, 0.04) !important;
+  border-right-color: rgba(255, 255, 255, 0.04) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.04) !important;
 }
 
-.light [id*="reports-audit-card-"]:hover {
-  background-color: var(--border-secondary) !important;
+/* ==========================================================================
+   CHARTS & GRID HARMONIZATION
+   ========================================================================== */
+
+svg text {
+  fill: #A3A3A3 !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 10px !important;
 }
 
-/* Title and category elements in transaction list card */
-.light [id*="reports-audit-card-"] h4 {
-  color: var(--text-primary) !important;
+svg line,
+svg path[stroke="#1e1b4b"],
+svg path[stroke="#27272a"] {
+  stroke: rgba(255, 255, 255, 0.06) !important;
 }
 
-.light [id*="reports-audit-card-"] span[class*="text-zinc-400"],
-.light [id*="reports-audit-card-"] span[class*="text-zinc-500"],
-.light [id*="reports-audit-card-"] span[class*="text-zinc-550"] {
-  color: var(--text-muted) !important;
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(255, 255, 255, 0.05) !important;
 }
 
-.light [id*="reports-audit-card-"] span[class*="bg-zinc-950"] {
-  background-color: var(--bg-card) !important;
-  border-color: var(--border-primary) !important;
-  color: var(--text-secondary) !important;
+.recharts-legend-item-text {
+  color: #FFFFFF !important;
 }
 
-/* Premium Suite Active badge color overrides for crystal-clear contrast in Light Mode */
-.light #premium-suite-badge {
-  background-color: rgba(91, 95, 227, 0.09) !important;
-  border: 1px solid rgba(91, 95, 227, 0.28) !important;
-  color: var(--accent-primary) !important;
+/* ==========================================================================
+   HIGH FIDELITY THIN SCROLLBARS
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
 }
 
-.light #premium-suite-badge,
-.light #premium-suite-badge svg,
-.light #premium-suite-badge * {
-  color: var(--accent-primary) !important;
+::-webkit-scrollbar-track {
+  background: #000000 !important;
 }
 
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 99px !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00C853 !important;
+}

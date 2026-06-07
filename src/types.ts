@@ -143,6 +143,23 @@ export interface Subscription {
   lastPaidDate?: string; // YYYY-MM-DD string
 }
 
+export interface Budget {
+  id: string;
+  category: CategoryExpense;
+  limit: number;
+  spent: number;
+  icon: string;
+  subBreakdown: { name: string; spent: number }[];
+}
+
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  target: number;
+  current: number;
+  targetDate: string;
+}
+
 export interface UserProfile {
   name: string;
   email: string;
@@ -162,6 +179,8 @@ export interface AppState {
   notifications: AppNotification[];
   subscriptions: Subscription[]; // Added subscriptions list
   loansGiven: LoanGiven[];
+  budgets?: Budget[]; // Added premium feature budgets list
+  savingsGoals?: SavingsGoal[]; // Added savings goals list
   pinCode: string;
   pinEnabled: boolean;
   currency: string;

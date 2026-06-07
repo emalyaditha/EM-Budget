@@ -808,34 +808,47 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       console.warn('Could not load profile name from auth_accounts:', e);
     }
 
-    // Load loansGiven from the relational loans_given table first, fallback to ledger_states if missing
+    // Load auxiliary state (budgets, savingsGoals, and fallback loansGiven) from ledger_states first
+    let fetchedBudgets: any[] = [];
+    let fetchedSavingsGoals: any[] = [];
     let fetchedLoansGiven: any[] = [];
     try {
-      const loansResult = await client.from('loans_given').select('*').eq('user_email', email);
-      if (!loansResult.error && loansResult.data) {
-        fetchedLoansGiven = loansResult.data.map(mapDatabaseResultToState);
-      } else {
-        if (loansResult.error) {
-          console.warn('loans_given relational table read error or does not exist, falling back to ledger_states:', loansResult.error);
-        }
-        // Fallback to ledger_states
-        const { data: latestStateData, error: stateErr } = await client
-          .from('ledger_states')
-          .select('state')
-          .eq('user_email', email)
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+      const { data: latestStateData, error: stateErr } = await client
+        .from('ledger_states')
+        .select('state')
+        .eq('user_email', email)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-        if (!stateErr && latestStateData && latestStateData.state) {
-          const fullJsonStateStr = latestStateData.state as any;
-          if (fullJsonStateStr.loansGiven) {
+      if (!stateErr && latestStateData && latestStateData.state) {
+        const fullJsonStateStr = typeof latestStateData.state === 'string'
+          ? JSON.parse(latestStateData.state)
+          : latestStateData.state;
+        if (fullJsonStateStr) {
+          if (Array.isArray(fullJsonStateStr.budgets)) {
+            fetchedBudgets = fullJsonStateStr.budgets;
+          }
+          if (Array.isArray(fullJsonStateStr.savingsGoals)) {
+            fetchedSavingsGoals = fullJsonStateStr.savingsGoals;
+          }
+          if (Array.isArray(fullJsonStateStr.loansGiven)) {
             fetchedLoansGiven = fullJsonStateStr.loansGiven;
           }
         }
       }
     } catch (e) {
-      console.warn('Could not restore loans_given from database or ledger_states:', e);
+      console.warn('Could not restore auxiliary fields from ledger_states:', e);
+    }
+
+    // Load active loansGiven from the relational loans_given table first, fallback to the ledger_states list
+    try {
+      const loansResult = await client.from('loans_given').select('*').eq('user_email', email);
+      if (!loansResult.error && loansResult.data && loansResult.data.length > 0) {
+        fetchedLoansGiven = loansResult.data.map(mapDatabaseResultToState);
+      }
+    } catch (e) {
+      console.warn('Could not restore loans_given from database:', e);
     }
 
     // Construct the AppState from individual tables with mapping applied
@@ -853,7 +866,9 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       expenses: expenses.map(mapDatabaseResultToState),
       notifications: notifications.map(mapDatabaseResultToState),
       subscriptions: fetchedSubs.map(mapDatabaseResultToState),
-      loansGiven: fetchedLoansGiven
+      loansGiven: fetchedLoansGiven,
+      budgets: fetchedBudgets.length > 0 ? fetchedBudgets : DEFAULT_APP_STATE.budgets,
+      savingsGoals: fetchedSavingsGoals.length > 0 ? fetchedSavingsGoals : DEFAULT_APP_STATE.savingsGoals
     };
 
     const cacheKey = email.trim().toLowerCase();
