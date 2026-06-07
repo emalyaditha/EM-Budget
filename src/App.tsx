@@ -1717,21 +1717,19 @@ export default function App() {
     <div id="full-workspace-view" className="min-h-screen bg-[#050505] text-white flex flex-col justify-between font-sans selection:bg-white selection:text-black antialiased">
       
       {/* 1. TOP HEADER BRAND RAIL */}
-      <header className="px-6 py-4 bg-[#050505] border-b border-zinc-900 flex justify-between items-center z-20" id="header-brand-rail">
+      <header className="px-6 py-4 bg-[var(--bg-sidebar)] border-b border-[var(--border-primary)] flex justify-between items-center z-20" id="header-brand-rail">
         <div className="flex items-center gap-3">
-          <svg viewBox="0 0 100 100" className="w-9 h-9 shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100" height="100" rx="22" fill="black" stroke="#27272a" strokeWidth="4px" />
-            <text x="50" y="63" fill="white" fontSize="42" fontWeight="900" fontFamily='"Inter", ui-sans-serif, system-ui, sans-serif' textAnchor="middle">
-              <tspan fill="#ffffff" fontWeight="bold" fontFamily="monospace">{"{"}</tspan>
-              <tspan fill="white" fontWeight="900" fontFamily="sans-serif">EM</tspan>
-              <tspan fill="#ffffff" fontWeight="bold" fontFamily="monospace">{"}"}</tspan>
+          <svg viewBox="0 0 100 100" className="w-9 h-9 shrink-0 select-none animate-fade-in" fill="none" xmlns="http://www.w3.org/2000/svg" id="em-logo">
+            <rect width="100" height="100" rx="24" className="fill-black stroke-zinc-800" strokeWidth="4px" />
+            <text x="52" y="65" fill="#10B981" fontSize="46" fontWeight="950" fontFamily='"Inter", ui-sans-serif, system-ui, sans-serif' textAnchor="middle" letterSpacing="-0.04em">
+              EM
             </text>
           </svg>
           <div>
-            <h1 className="text-sm font-black tracking-tight text-white uppercase flex items-center gap-1.5 leading-none">
+            <h1 className="text-sm font-black tracking-tight text-[var(--text-primary)] uppercase flex items-center gap-1.5 leading-none">
               EM Budget
             </h1>
-            <p className="text-[9px] text-zinc-500 font-mono mt-1">Owner Device Secured</p>
+            <p className="text-[9px] text-[var(--text-secondary)] font-mono mt-1">Owner Device Secured</p>
           </div>
         </div>
 
@@ -2234,13 +2232,13 @@ export default function App() {
       )}
 
       {/* 3. WORKSPACE FOOTER CORE STATUS */}
-      <footer className="bg-[#050505] border-t border-zinc-900 px-6 py-3.5 z-10 flex flex-col md:flex-row justify-between items-center text-[11px] text-zinc-500 font-mono gap-3">
+      <footer className="bg-[var(--bg-sidebar)] border-t border-[var(--border-primary)] px-6 py-3.5 z-10 flex flex-col md:flex-row justify-between items-center text-[11px] text-[var(--text-secondary)] font-mono gap-3">
         <div className="flex items-center gap-2">
           <CircleDot size={12} className="text-emerald-400 animate-pulse" />
           <span>Local database mirror synchronized fully.</span>
         </div>
         <div className="flex gap-4">
-          <span>© 2026 — Designed & Developed by <a href="https://emalyaditha.com/" target="_blank" rel="noopener noreferrer" className="text-zinc-300 hover:text-white transition-colors underline">Emal Yaditha</a>. All rights reserved.</span>
+          <span>© 2026 — Designed & Developed by <a href="https://emalyaditha.com/" target="_blank" rel="noopener noreferrer" className="text-[var(--text-primary)] hover:underline transition-colors">Emal Yaditha</a>. All rights reserved.</span>
         </div>
       </footer>
 

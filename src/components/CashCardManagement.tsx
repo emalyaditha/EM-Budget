@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CashAccount, BankCard } from '../types';
-import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronRight, CornerDownRight, Landmark, ArrowUpRight, ArrowDownLeft, Snowflake } from 'lucide-react';
+import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronRight, CornerDownRight, Landmark, ArrowUpRight, ArrowDownLeft, Snowflake, RefreshCw } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
 interface CashCardManagementProps {
@@ -328,6 +328,7 @@ export default function CashCardManagement({
   const [editCardTheme, setEditCardTheme] = useState('obsidian');
   const [editCardErrors, setEditCardErrors] = useState<Record<string, string>>({});
   const [editCardSubmitted, setEditCardSubmitted] = useState(false);
+  const [showCanceled, setShowCanceled] = useState(false);
 
   // Quick action states
   const [selectedCashId, setSelectedCashId] = useState<string | null>(null);
@@ -985,29 +986,92 @@ export default function CashCardManagement({
 
         {/* Display Beautiful Physical Card Previews */}
         <div className="space-y-4">
-          {cards.length === 0 ? (
-            <div className="p-8 text-center text-zinc-500 text-xs border border-dashed border-zinc-800 rounded-xl">
-              No active cards. Add a credit/debit card.
-            </div>
-          ) : (
-            cards.map((card, idx) => (
-              <InteractiveBankCard
-                key={card.id}
-                card={card}
-                idx={idx}
-                currency={currency}
-                onUpdateCard={onUpdateCard}
-                onDeleteCard={onDeleteCard}
-                getCardGradient={getCardGradient}
-                setEditingCard={setEditingCard}
-                setEditCardName={setEditCardName}
-                setEditCardNumber={setEditCardNumber}
-                setEditCardTheme={setEditCardTheme}
-                setEditCardErrors={setEditCardErrors}
-                setEditCardSubmitted={setEditCardSubmitted}
-              />
-            ))
-          )}
+          {(() => {
+            const activeCards = cards.filter(c => !c.isCanceled && !(c as any).is_canceled);
+            const canceledCards = cards.filter(c => c.isCanceled || (c as any).is_canceled);
+
+            return (
+              <>
+                {activeCards.length === 0 ? (
+                  <div className="p-8 text-center text-zinc-500 text-xs border border-dashed border-zinc-800 rounded-xl">
+                    No active cards. Add a credit/debit card.
+                  </div>
+                ) : (
+                  activeCards.map((card, idx) => (
+                    <InteractiveBankCard
+                      key={card.id}
+                      card={card}
+                      idx={idx}
+                      currency={currency}
+                      onUpdateCard={onUpdateCard}
+                      onDeleteCard={onDeleteCard}
+                      getCardGradient={getCardGradient}
+                      setEditingCard={setEditingCard}
+                      setEditCardName={setEditCardName}
+                      setEditCardNumber={setEditCardNumber}
+                      setEditCardTheme={setEditCardTheme}
+                      setEditCardErrors={setEditCardErrors}
+                      setEditCardSubmitted={setEditCardSubmitted}
+                    />
+                  ))
+                )}
+
+                {canceledCards.length > 0 && (
+                  <div className="mt-8 pt-5 border-t border-zinc-900/80">
+                    <button
+                      type="button"
+                      onClick={() => setShowCanceled(!showCanceled)}
+                      className="w-full py-2.5 bg-[#080808] hover:bg-[#0c0c0c] text-[10px] text-zinc-500 hover:text-zinc-300 font-mono font-bold tracking-wider rounded-xl uppercase flex items-center justify-between px-4 border border-zinc-900 transition-all duration-300 shadow-inner"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse" />
+                        Archived / Canceled Cards ({canceledCards.length})
+                      </span>
+                      <span>{showCanceled ? 'Hide Archive' : 'Show Archive'}</span>
+                    </button>
+
+                    {showCanceled && (
+                      <div className="space-y-4 mt-4 animate-fade-in">
+                        {canceledCards.map((card, idx) => (
+                          <div key={card.id} className="relative">
+                            <InteractiveBankCard
+                              card={card}
+                              idx={idx}
+                              currency={currency}
+                              onUpdateCard={onUpdateCard}
+                              onDeleteCard={onDeleteCard}
+                              getCardGradient={getCardGradient}
+                              setEditingCard={setEditingCard}
+                              setEditCardName={setEditCardName}
+                              setEditCardNumber={setEditCardNumber}
+                              setEditCardTheme={setEditCardTheme}
+                              setEditCardErrors={setEditCardErrors}
+                              setEditCardSubmitted={setEditCardSubmitted}
+                            />
+                            {/* Floating Premium Restore Controller Action */}
+                            <div className="absolute top-4 right-4 z-30">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onUpdateCard({ ...card, isCanceled: false });
+                                  showToast('success', `${card.cardName} has been fully reactivated.`);
+                                }}
+                                className="px-3 py-1.5 text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition-all rounded-lg font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer"
+                              >
+                                <RefreshCw size={10} className="stroke-[2.5px] animate-spin-reverse" />
+                                <span>Reactivate</span>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
       {/* Edit Card AJAX/Popup Modal */}

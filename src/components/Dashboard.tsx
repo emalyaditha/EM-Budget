@@ -514,7 +514,7 @@ export default function Dashboard({
                           <div className={`p-3 rounded-xl shrink-0 transition-colors ${
                             isInc 
                               ? 'bg-[#10B981]/15 text-[#10B981]' 
-                              : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border-primary)]'
+                              : 'bg-rose-600/15 text-rose-500 border border-rose-600/20'
                           }`}>
                             {isInc ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
                           </div>
@@ -532,7 +532,7 @@ export default function Dashboard({
   
                         <div className="text-right pl-4 shrink-0 font-mono">
                           <span className={`text-xs font-bold block ${
-                            isInc ? 'text-[#10B981]' : 'text-white'
+                            isInc ? 'text-[#10B981]' : 'text-rose-500'
                           }`}>
                             {isInc ? '+' : '-'}{state.currency}{absAmt.toLocaleString()}
                           </span>
