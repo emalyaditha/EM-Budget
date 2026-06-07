@@ -17,7 +17,7 @@ interface ConfirmOptions {
 }
 
 interface NotificationContextType {
-  showToast: (type: ToastType, message: string) => void;
+  showToast: (first: any, second?: any) => void;
   showConfirm: (options: ConfirmOptions) => void;
 }
 
@@ -27,7 +27,22 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [confirm, setConfirm] = useState<ConfirmOptions | null>(null);
 
-  const showToast = (type: ToastType, message: string) => {
+  const showToast = (first: any, second?: any) => {
+    let type: ToastType = 'info';
+    let message = '';
+    const validTypes: ToastType[] = ['success', 'error', 'warning', 'info'];
+
+    if (validTypes.includes(first as ToastType)) {
+      type = first as ToastType;
+      message = typeof second === 'string' ? second : String(second || '');
+    } else if (second && validTypes.includes(second as ToastType)) {
+      type = second as ToastType;
+      message = typeof first === 'string' ? first : String(first || '');
+    } else {
+      message = typeof first === 'string' ? first : String(first || '');
+      type = 'info';
+    }
+
     const id = Date.now().toString();
     setToasts((prev) => [...prev, { id, type, message }]);
     if (type !== 'error') {

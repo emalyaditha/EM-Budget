@@ -4,12 +4,15 @@ import App from './App.tsx';
 import './index.css';
 import { NotificationProvider } from './context/NotificationContext.tsx';
 import { ThemeProvider } from './context/ThemeContext.tsx';
+import ErrorBoundary from './components/ErrorBoundary.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <NotificationProvider>
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
       </NotificationProvider>
     </ThemeProvider>
   </StrictMode>,

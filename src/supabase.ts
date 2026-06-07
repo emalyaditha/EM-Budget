@@ -1614,6 +1614,16 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 12. ADD DATABASE INTEGRITY CONSTRAINTS (FOREIGN KEYS AND CASCADE DELETIONS)
+-- Clean up any duplicate ledger_states rows, keeping only the most recently updated one per user_email
+delete from public.ledger_states
+where id in (
+  select id from (
+    select id, row_number() over (partition by user_email order by updated_at desc) as rnum
+    from public.ledger_states
+  ) t
+  where t.rnum > 1
+);
+
 alter table public.ledger_states drop constraint if exists ledger_states_user_email_key cascade;
 alter table public.ledger_states add constraint ledger_states_user_email_key unique (user_email);
 
@@ -2231,6 +2241,16 @@ create policy "Secure insert on auth_accounts" on public.auth_accounts for inser
 with check (public.verify_system_signature(nullif(current_setting('request.headers', true), '')::json));
 
 -- Add Unique database constraint to allow server ledger state upserts
+-- Clean up any duplicate ledger_states rows, keeping only the most recently updated one per user_email
+delete from public.ledger_states
+where id in (
+  select id from (
+    select id, row_number() over (partition by user_email order by updated_at desc) as rnum
+    from public.ledger_states
+  ) t
+  where t.rnum > 1
+);
+
 alter table public.ledger_states drop constraint if exists ledger_states_user_email_key cascade;
 alter table public.ledger_states add constraint ledger_states_user_email_key unique (user_email);
 

@@ -133,7 +133,7 @@ export default function DebtTracker({
       dueDate,
       notes: notes || 'No extra notes provided.',
       accountId: targetAccountId || undefined,
-      accountType: targetAccountId ? targetAccountType : undefined,
+      accountType: (targetAccountId && targetAccountType) ? (targetAccountType as 'cash' | 'card') : undefined,
       accountName,
     });
 
