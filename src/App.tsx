@@ -997,9 +997,9 @@ export default function App() {
 
       let updatedDebt = { 
         ...debt, 
-        totalAmount: debt.totalAmount + amount,
-        remainingAmount: debt.remainingAmount + amount,
-        status: (debt.remainingAmount + amount) > 0 ? 'Active' : debt.status
+        totalAmount: Number(debt.totalAmount || 0) + Number(amount || 0),
+        remainingAmount: Number(debt.remainingAmount || 0) + Number(amount || 0),
+        status: (Number(debt.remainingAmount || 0) + Number(amount || 0)) > 0 ? 'Active' : debt.status
       };
 
       if (newAccountId && newAccountType && !debt.accountId) {
@@ -1017,11 +1017,11 @@ export default function App() {
       if (updatedDebt.accountId && updatedDebt.accountType) {
         if (updatedDebt.accountType === 'cash') {
           updatedCash = updatedCash.map(c =>
-            c.id === updatedDebt.accountId ? { ...c, balance: c.balance + amount } : c
+            c.id === updatedDebt.accountId ? { ...c, balance: Number(c.balance) + Number(amount) } : c
           );
         } else {
           updatedCards = updatedCards.map(c =>
-            c.id === updatedDebt.accountId ? { ...c, currentBalance: c.currentBalance + amount } : c
+            c.id === updatedDebt.accountId ? { ...c, currentBalance: Number(c.currentBalance) + Number(amount) } : c
           );
         }
 
@@ -1088,7 +1088,7 @@ export default function App() {
             paidFromId,
             paidFromType,
           };
-          const nextRemaining = Math.max(0, debt.remainingAmount - amount);
+          const nextRemaining = Math.max(0, Number(debt.remainingAmount || 0) - Number(amount || 0));
           return {
             ...debt,
             remainingAmount: nextRemaining,

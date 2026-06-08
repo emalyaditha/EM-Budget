@@ -490,56 +490,52 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
         lastSyncedStatesCache[cacheKey] = currentStateString;
         return { success: true };
       }
-
-      const errMsg = (rpcErr.message || '').toLowerCase();
-      const errCode = String(rpcErr.code || '');
-      const isMissingRpc = 
-        errCode === 'PGRST501' ||
-        errCode === '42883' ||
-        errCode === 'PGRST601' ||
-        errMsg.includes('does not exist') ||
-        errMsg.includes('could not find') ||
-        errMsg.includes('schema cache') ||
-        errMsg.includes('function');
-
-      if (!isMissingRpc) {
-        console.error('[TRANSACTIONAL SYNC ENGINE] Transactional RPC execution failed on DB:', rpcErr);
-        throw rpcErr;
-      }
-      console.warn('[TRANSACTIONAL SYNC ENGINE] sync_complete_ledger RPC is not defined in distant DB. Falling back to sequential client table-sync...');
+      console.error('[TRANSACTIONAL SYNC ENGINE] RPC error:', rpcErr);
+      console.warn('[TRANSACTIONAL SYNC ENGINE] sync_complete_ledger SQL function had an issue. Falling back to robust sequential client-side table sync...');
     } catch (rpcExecErr: any) {
-      const errMsg = (rpcExecErr.message || '').toLowerCase();
-      const errCode = String(rpcExecErr.code || '');
-      const isMissingRpc = 
-        errCode === 'PGRST501' ||
-        errCode === '42883' ||
-        errCode === 'PGRST601' ||
-        errMsg.includes('does not exist') ||
-        errMsg.includes('could not find') ||
-        errMsg.includes('schema cache') ||
-        errMsg.includes('function');
-
-      if (!isMissingRpc) {
-        throw rpcExecErr;
-      }
+      console.error('[TRANSACTIONAL SYNC ENGINE] Transactional RPC execution failed with exception:', rpcExecErr);
+      console.warn('[TRANSACTIONAL SYNC ENGINE] Falling back to robust sequential client-side table-by-table sync...');
     }
 
     // 3. FALLBACK BACKWARD-COMPATIBILITY: CHUNKED PARALLEL CLIENT SYNCHRONIZER
+    console.log('[SYNC] Upserting state to ledger_states...');
     const { error: stateError } = await client
       .from('ledger_states')
-      .insert({ 
+      .upsert({ 
         user_email: email, 
         state: state,
         updated_at: new Date().toISOString()
-      });
+      }, { onConflict: 'user_email' });
 
-    if (stateError) throw stateError;
+    if (stateError) {
+      console.error('[SYNC] State Upsert Error:', stateError);
+      throw stateError;
+    }
 
     // A. Sync Bank Cards
     if (cardsCols.length > 0) {
       if (recordsCards.length > 0) {
-        const { error: cardErr } = await client.from('bank_cards').upsert(recordsCards, { onConflict: 'id' });
-        if (cardErr) errorDetails.push(`Cards: ${cardErr.message}`);
+        console.log(`[SYNC] Upserting ${recordsCards.length} cards...`);
+        let { error: cardErr } = await client.from('bank_cards').upsert(recordsCards, { onConflict: 'id' });
+        
+        if (cardErr && cardErr.message && cardErr.message.toLowerCase().includes('could not find')) {
+          console.warn('[TRANSACTIONAL SYNC ENGINE] Schema mismatch on bank_cards identified. Stripping new experimental columns and retrying natively...');
+          const fallbackRecords = recordsCards.map(r => {
+            const safe = { ...r };
+            delete safe.limit;
+            delete safe.is_limit_locked;
+            delete safe.is_frozen;
+            delete safe.card_theme;
+            return safe;
+          });
+          const retryRes = await client.from('bank_cards').upsert(fallbackRecords, { onConflict: 'id' });
+          cardErr = retryRes.error;
+        }
+
+        if (cardErr) {
+          console.error('[SYNC] Card Upsert Error:', cardErr);
+          errorDetails.push(`Cards: ${cardErr.message}`);
+        }
       }
       const activeCardIds = (state.cards || []).map(c => c.id);
       const emailField = cardsCols.includes('user_email') ? 'user_email' : 'userEmail';
@@ -576,8 +572,25 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
     // C. Sync Transactions
     if (txCols.length > 0) {
       if (recordsTx.length > 0) {
-        const { error: txErr } = await client.from('transactions').upsert(recordsTx, { onConflict: 'id' });
-        if (txErr) errorDetails.push(`Transactions: ${txErr.message}`);
+        console.log(`[SYNC] Upserting ${recordsTx.length} transactions...`);
+        let { error: txErr } = await client.from('transactions').upsert(recordsTx, { onConflict: 'id' });
+        
+        if (txErr && txErr.message && txErr.message.toLowerCase().includes('could not find')) {
+          console.warn('[TRANSACTIONAL SYNC ENGINE] Schema mismatch on transactions identified. Stripping new experimental columns and retrying natively...');
+          const fallbackRecords = recordsTx.map(r => {
+            const safe = { ...r };
+            delete safe.charge;
+            delete safe.transfer_charge;
+            return safe;
+          });
+          const retryRes = await client.from('transactions').upsert(fallbackRecords, { onConflict: 'id' });
+          txErr = retryRes.error;
+        }
+
+        if (txErr) {
+          console.error('[SYNC] Transaction Upsert Error:', txErr);
+          errorDetails.push(`Transactions: ${txErr.message}`);
+        }
       }
       const activeTxIds = (state.transactions || []).map(t => t.id);
       const emailField = txCols.includes('user_email') ? 'user_email' : 'userEmail';
@@ -597,8 +610,26 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
     // D. Sync Debts
     if (debtsCols.length > 0) {
       if (recordsDebts.length > 0) {
-        const { error: debtsErr } = await client.from('debts').upsert(recordsDebts, { onConflict: 'id' });
-        if (debtsErr) errorDetails.push(`Debts: ${debtsErr.message}`);
+        console.log(`[SYNC] Upserting ${recordsDebts.length} debts...`);
+        let { error: debtsErr } = await client.from('debts').upsert(recordsDebts, { onConflict: 'id' });
+        
+        if (debtsErr && debtsErr.message && debtsErr.message.toLowerCase().includes('could not find')) {
+          console.warn('[TRANSACTIONAL SYNC ENGINE] Schema mismatch on debts identified. Stripping new experimental columns and retrying natively...');
+          const fallbackRecords = recordsDebts.map(r => {
+            const safe = { ...r };
+            delete safe.account_id;
+            delete safe.account_type;
+            delete safe.account_name;
+            return safe;
+          });
+          const retryRes = await client.from('debts').upsert(fallbackRecords, { onConflict: 'id' });
+          debtsErr = retryRes.error;
+        }
+
+        if (debtsErr) {
+          console.error('[SYNC] Debt Upsert Error:', debtsErr);
+          errorDetails.push(`Debts: ${debtsErr.message}`);
+        }
       }
       const activeDebtIds = (state.debts || []).map(d => d.id);
       const emailField = debtsCols.includes('user_email') ? 'user_email' : 'userEmail';
@@ -726,9 +757,27 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
  */
 function mapDatabaseResultToState(item: any): any {
   const result: any = {};
+  const numericFields = new Set([
+    'totalAmount', 'remainingAmount', 'amount', 'balance', 
+    'currentBalance', 'limit', 'charge', 'transferCharge'
+  ]);
+
   for (const key of Object.keys(item)) {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    result[camelKey] = item[key];
+    
+    let val = item[key];
+    if (numericFields.has(camelKey)) {
+      if (typeof val === 'string') {
+        const parsed = Number(val);
+        val = isNaN(parsed) ? 0 : parsed;
+      } else if (typeof val === 'number' && isNaN(val)) {
+        val = 0;
+      } else if (val === null || val === undefined) {
+        val = 0;
+      }
+    }
+    
+    result[camelKey] = val;
   }
   
   // Safe-guard aliases for common typos and boolean transformations
