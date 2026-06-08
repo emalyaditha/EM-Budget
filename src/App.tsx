@@ -154,7 +154,7 @@ export default function App() {
     }, 1500);
 
     return () => clearTimeout(syncTimeout);
-  }, [state, isSettingsOpen, isUnlocked]);
+  }, [state, isSettingsOpen, isUnlocked, userEmail]);
 
   // Budgets & Savings goals action logic
   const handleUpdateBudgetLimit = (id: string, limit: number) => {

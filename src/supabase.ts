@@ -37,7 +37,16 @@ export function getSupabaseConfig() {
   
   const storedAutoSync = localStorage.getItem(AUTO_SYNC_KEY);
   const autoSync = storedAutoSync === null ? true : storedAutoSync === 'true';
+  if (!url) {
+      console.error('[CONFIG] Supabase URL is missing!');
+  }
+  if (!key) {
+      console.error('[CONFIG] Supabase ANON Key is missing!');
+  }
+  console.log(`[CONFIG] Using Supabase URL: ${url}`);
+  
   return { url, key, autoSync };
+
 }
 
 export function saveSupabaseConfig(url: string, key: string, autoSync: boolean) {
@@ -485,13 +494,17 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
         p_loans_given: recordsLoans
       });
 
-      if (!rpcErr) {
+      const rpcSuccess = !rpcErr && rpcRes && (rpcRes as any).success !== false;
+
+      if (rpcSuccess) {
         console.log('[TRANSACTIONAL SYNC ENGINE] Successfully synced entire ledger atomically using single-trip Postgres Transaction!');
         lastSyncedStatesCache[cacheKey] = currentStateString;
         return { success: true };
       }
-      console.error('[TRANSACTIONAL SYNC ENGINE] RPC error:', rpcErr);
-      console.warn('[TRANSACTIONAL SYNC ENGINE] sync_complete_ledger SQL function had an issue. Falling back to robust sequential client-side table sync...');
+
+      const rpcErrorMsg = rpcErr ? rpcErr.message : (rpcRes ? (rpcRes as any).error : 'Unknown RPC result structure');
+      console.error('[TRANSACTIONAL SYNC ENGINE] RPC call failed:', rpcErr || rpcRes);
+      console.warn(`[TRANSACTIONAL SYNC ENGINE] sync_complete_ledger SQL function had an issue: ${rpcErrorMsg}. Falling back to robust sequential client-side table sync...`);
     } catch (rpcExecErr: any) {
       console.error('[TRANSACTIONAL SYNC ENGINE] Transactional RPC execution failed with exception:', rpcExecErr);
       console.warn('[TRANSACTIONAL SYNC ENGINE] Falling back to robust sequential client-side table-by-table sync...');
@@ -499,18 +512,23 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
 
     // 3. FALLBACK BACKWARD-COMPATIBILITY: CHUNKED PARALLEL CLIENT SYNCHRONIZER
     console.log('[SYNC] Upserting state to ledger_states...');
-    const { error: stateError } = await client
-      .from('ledger_states')
-      .upsert({ 
+    
+    const payload = { 
         user_email: email, 
         state: state,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'user_email' });
+    };
+    console.log('[SYNC] ledger_states payload:', payload);
+
+    const { error: stateError } = await client
+      .from('ledger_states')
+      .upsert(payload, { onConflict: 'user_email' });
 
     if (stateError) {
       console.error('[SYNC] State Upsert Error:', stateError);
       throw stateError;
     }
+    console.log('[SYNC] ledger_states upsert successful.');
 
     // A. Sync Bank Cards
     if (cardsCols.length > 0) {
@@ -518,20 +536,6 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
         console.log(`[SYNC] Upserting ${recordsCards.length} cards...`);
         let { error: cardErr } = await client.from('bank_cards').upsert(recordsCards, { onConflict: 'id' });
         
-        if (cardErr && cardErr.message && cardErr.message.toLowerCase().includes('could not find')) {
-          console.warn('[TRANSACTIONAL SYNC ENGINE] Schema mismatch on bank_cards identified. Stripping new experimental columns and retrying natively...');
-          const fallbackRecords = recordsCards.map(r => {
-            const safe = { ...r };
-            delete safe.limit;
-            delete safe.is_limit_locked;
-            delete safe.is_frozen;
-            delete safe.card_theme;
-            return safe;
-          });
-          const retryRes = await client.from('bank_cards').upsert(fallbackRecords, { onConflict: 'id' });
-          cardErr = retryRes.error;
-        }
-
         if (cardErr) {
           console.error('[SYNC] Card Upsert Error:', cardErr);
           errorDetails.push(`Cards: ${cardErr.message}`);
@@ -540,13 +544,26 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
       const activeCardIds = (state.cards || []).map(c => c.id);
       const emailField = cardsCols.includes('user_email') ? 'user_email' : 'userEmail';
       if (activeCardIds.length > 0) {
-        const { data: existing } = await client.from('bank_cards').select('id').eq(emailField, email);
+        const { data: existing, error: fetchErr } = await client.from('bank_cards').select('id').eq(emailField, email);
+        if (fetchErr) {
+            console.error('[SYNC] Card Fetch for Delete Error:', fetchErr);
+            errorDetails.push(`Cards fetch for delete: ${fetchErr.message}`);
+        }
+        
         const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeCardIds.includes(id));
         if (toDelete.length > 0) {
-          await client.from('bank_cards').delete().in('id', toDelete);
+          const { error: delErr } = await client.from('bank_cards').delete().in('id', toDelete);
+          if (delErr) {
+            console.error('[SYNC] Card Delete Error:', delErr);
+            errorDetails.push(`Cards delete error: ${delErr.message}`);
+          }
         }
       } else {
-        await client.from('bank_cards').delete().eq(emailField, email);
+        const { error: delAllErr } = await client.from('bank_cards').delete().eq(emailField, email);
+        if (delAllErr) {
+          console.error('[SYNC] Card Delete All Error:', delAllErr);
+          errorDetails.push(`Cards delete all error: ${delAllErr.message}`);
+        }
       }
     }
 
@@ -967,8 +984,8 @@ begin
   end if;
   
   -- Extracted headers from connection
-  token := headers->>'x-session-token';
-  email := headers->>'x-user-email';
+  token := coalesce(headers->>'x-session-token', headers->>'X-Session-Token', headers->>'x-Session-Token');
+  email := coalesce(headers->>'x-user-email', headers->>'X-User-Email', headers->>'x-User-Email');
   if token is null or email is null then
     return null;
   end if;
@@ -1003,7 +1020,7 @@ begin
   
   -- Clean validated email response
   if lower(payload->>'email') = lower(email) then
-    return email;
+    return lower(email);
   end if;
   
   return null;
@@ -2109,8 +2126,8 @@ begin
   end if;
   
   -- Extracted headers from connection
-  token := headers->>'x-session-token';
-  email := headers->>'x-user-email';
+  token := coalesce(headers->>'x-session-token', headers->>'X-Session-Token', headers->>'x-Session-Token');
+  email := coalesce(headers->>'x-user-email', headers->>'X-User-Email', headers->>'x-User-Email');
   if token is null or email is null then
     return null;
   end if;
@@ -2145,7 +2162,7 @@ begin
   
   -- Clean validated email response
   if lower(payload->>'email') = lower(email) then
-    return email;
+    return lower(email);
   end if;
   
   return null;
