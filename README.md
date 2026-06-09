@@ -1,6 +1,6 @@
 # 💳 EM Budget — Secure Personal Finance & Ledger Manager
 
-EM Budget is a premium, minimalist, and mobile-oriented personal finance application designed for meticulous cash flow logging, bank card limits management, subscription tracking, debt payback cycles, and secure ledger database synchronizations. Built with **React 19**, **TypeScript**, **Tailwind CSS**, and an **Express+Vite full-stack architecture**, it combines speed with robust security features.
+EM Budget is a premium, minimalist, and mobile-oriented personal finance application designed for meticulous cash flow logging, bank card limits management, subscription tracking, debt payback cycles, and secure ledger database synchronizations. Built with a robust **React 19**, **TypeScript**, **Tailwind CSS**, and **Express+Vite full-stack architecture**, it integrates high-fidelity financial features with state-of-the-art security patterns.
 
 ---
 
@@ -25,8 +25,25 @@ EM Budget is a premium, minimalist, and mobile-oriented personal finance applica
 - **Cash Accounts & Card Management**: Dynamic balances listing for both physical cash drawers and debit/credit cards with interactive credit limits and soft-cancel protections.
 - **Unified Journal Logs**: High-density, real-time audit list showing interactive historical entries, searchable categories, and granular source filters (Salary, Freelance, Food, Utilities, Medical, etc.).
 - **Debts Track & Payback Ledger**: Structured overview for outstanding loans or credits with progress meters, targeted paydown actions, and associated amortization logs.
-- **Auto-Sorted Subscriptions**: Interactive manager tracking recurring active, paused, or cancelled monthly and yearly plans (Netflix, AWS, Rent, etc.) sorted automatically by impending due dates.
+- **Auto Sorted Subscriptions**: Interactive manager tracking recurring active, closed, or paused monthly and yearly plans (Netflix, AWS, Rent, etc.) sorted automatically by impending due dates.
 - **Smart Asset Transfers**: Securely transfer funds between cash containers and digital credit/debit bank cards.
+
+---
+
+## 🔒 Deep Dive: Cryptographic RLS Sync Engine
+
+To secure user data across client/server boundaries without forcing full OAuth sign-ins inside minimalist workflows, EM Budget employs a **custom cryptographic signature verification system** running at the database level inside PostgreSQL Row-Level Security (RLS) policies.
+
+### ⚙️ How It Works:
+1. **Token Generation**: On successful OTP verification, the backend generates an ephemeral session token consisting of a base64url-encoded payload signed via an HMAC-SHA256 signature using a server-side `session_secret`.
+2. **Secure Transport**: The client attaches the current session credentials to all database sync requests under the extra headers `X-Session-Token` and `X-User-Email`.
+3. **DB-Level Verification (`verify_user_token`)**: When the query is evaluated by PostgreSQL, RLS policies call the custom `verify_user_token(headers)` function to reconstruct, parse, and verify the token signature cryptographically via `pgcrypto`.
+
+### 🛠️ Key Bugfixes & Intermittent Failure Resolutions:
+During a rigorous root-cause investigation, several deep-seated middleware and transport-layer compatibility issues were resolved to guarantee **100% reliable upserts and deletes**:
+- **Case-Insensitive Header Resolution**: PostgreSQL custom settings headers from PostgREST/Supabase are occasionally transformed into mixed-case or lowercase counterparts (e.g., `X-Session-Token` vs `x-session-token`). The cryptographic analyzer now uses a safe, multi-case `COALESCE` pattern (extracting `x-session-token`, `X-Session-Token`, and `x-Session-Token`) to guarantee authentication succeeds across all environments.
+- **Case-Insensitive Email Normalization**: Emails supplied as login credentials could vary in case depending on mobile autocomplete features. The RLS policies and verification engine now strictly force lower-case comparison (`return lower(email)`) when matching the token's authenticated owner against row ownership, avoiding silent auth denials.
+- **Zero-Failure RPC Transaction Engine**: Implemented seamless transactional fallbacks. If single-trip Postgres bulk synchronization (`sync_complete_ledger`) experiences locks or schema drifts, the client seamlessly downgrades to safe, row-by-row table synchronizations with detailed, structural logs.
 
 ---
 
@@ -100,5 +117,5 @@ npm run start
 
 All styles conform strictly to modern functional standards:
 - Runs static TypeScript validations natively on CLI compile routines.
-- Uses named imports for types and strict object-destructuring safeguards (e.g. `import { useNotifications } from './context/NotificationContext'`).
+- Uses named imports for types and strict object-destructuring safeguards.
 - Follows rigorous mobile-first responsive layout structures mapped continuously with Tailwind units.
