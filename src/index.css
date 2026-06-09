@@ -28,10 +28,20 @@
   --text-muted: #737373;
   --border-primary: rgba(255, 255, 255, 0.06);
   --border-secondary: rgba(255, 255, 255, 0.12);
-  --accent-primary: #00C853;       /* Emerald Accent */
-  --accent-mint: rgba(0, 200, 83, 0.12);
-  --success: #00C853;
-  --danger: #FF5252;
+  --accent-primary: #00A3FF;       /* Primary Blue Accent */
+  --blue-50: #e0f2ff;
+  --blue-100: #bae6fd;
+  --blue-200: #7dd3fc;
+  --blue-300: #38bdf8;
+  --blue-400: #0ea5e9;
+  --blue-500: #00A3FF;
+  --blue-600: #0284c7;
+  --blue-700: #0369a1;
+  --blue-800: #075985;
+  --blue-900: #0c4a6e;
+  --accent-mint: rgba(0, 163, 255, 0.12);
+  --success: #00A3FF;
+  --danger: #DC2626;
   --warning: #FFB300;
   --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.9);
 
@@ -73,10 +83,20 @@
   --text-muted: #9CA3AF;
   --border-primary: #E0E6ED; /* Borders: #E0E6ED */
   --border-secondary: #D1D5DB;
-  --accent-primary: #00C853;       /* Same premium emerald Green */
-  --accent-mint: rgba(0, 200, 83, 0.08);
-  --success: #00C853;
-  --danger: #FF5252;
+  --accent-primary: #00A3FF;       /* Primary Blue Accent */
+  --blue-50: #e0f2ff;
+  --blue-100: #bae6fd;
+  --blue-200: #7dd3fc;
+  --blue-300: #38bdf8;
+  --blue-400: #0ea5e9;
+  --blue-500: #00A3FF;
+  --blue-600: #0284c7;
+  --blue-700: #0369a1;
+  --blue-800: #075985;
+  --blue-900: #0c4a6e;
+  --accent-mint: rgba(0, 163, 255, 0.08);
+  --success: #00A3FF;
+  --danger: #DC2626;
   --warning: #FFB300;
   --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05);
 
@@ -100,6 +120,16 @@
   --color-border: var(--border-primary);
   --color-accent-primary: var(--accent-primary);
   --color-accent-mint: var(--accent-mint);
+  --color-blue-50: var(--blue-50);
+  --color-blue-100: var(--blue-100);
+  --color-blue-200: var(--blue-200);
+  --color-blue-300: var(--blue-300);
+  --color-blue-400: var(--blue-400);
+  --color-blue-500: var(--blue-500);
+  --color-blue-600: var(--blue-600);
+  --color-blue-700: var(--blue-700);
+  --color-blue-800: var(--blue-800);
+  --color-blue-900: var(--blue-900);
   --font-sans: "Inter", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
@@ -273,23 +303,23 @@ footer,
   color: var(--text-primary) !important;
 }
 
-/* Sidebar active indicators - Clean Emerald highlights */
+/* Sidebar active indicators - Clean Blue highlights */
 #web-sidebar-navigation button.shadow-lg,
 #web-sidebar-navigation button[class*="bg-white"],
 .light #web-sidebar-navigation button.shadow-lg,
 .light #web-sidebar-navigation button[class*="bg-white"] {
-  background-color: rgba(0, 200, 83, 0.09) !important;
-  border-color: rgba(0, 200, 83, 0.2) !important;
-  border-left: 3px solid #00C853 !important;
-  color: #00C853 !important;
-  box-shadow: 0 4px 12px rgba(0, 200, 83, 0.08) !important;
+  background-color: var(--accent-primary) !important;
+  border-color: rgba(0, 163, 255, 0.2) !important;
+  border-left: 3px solid var(--accent-primary) !important;
+  color: var(--accent-primary) !important;
+  box-shadow: 0 4px 12px rgba(0, 163, 255, 0.08) !important;
 }
 
 #web-sidebar-navigation button.shadow-lg span,
 #web-sidebar-navigation button[class*="bg-white"] span,
 .light #web-sidebar-navigation button.shadow-lg span,
 .light #web-sidebar-navigation button[class*="bg-white"] span {
-  color: #00C853 !important;
+  color: var(--accent-primary) !important;
   font-weight: 700 !important;
 }
 
@@ -297,7 +327,7 @@ footer,
 #web-sidebar-navigation button[class*="bg-white"] svg,
 .light #web-sidebar-navigation button.shadow-lg svg,
 .light #web-sidebar-navigation button[class*="bg-white"] svg {
-  color: #00C853 !important;
+  color: var(--accent-primary) !important;
 }
 
 /* Mobile responsive navigation overrides */
@@ -323,17 +353,17 @@ nav[class*="fixed bottom-4"] button:hover .rounded-2xl {
 
 nav[class*="fixed bottom-4"] button .rounded-2xl.bg-indigo-600,
 nav[class*="fixed bottom-4"] button .rounded-2xl[class*="bg-indigo-650"] {
-  background-color: rgba(0, 200, 83, 0.15) !important;
-  border-color: #00C853 !important;
-  color: #00C853 !important;
+  background-color: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  color: var(--accent-primary) !important;
 }
 
 nav[class*="fixed bottom-4"] button span.text-indigo-600 {
-  color: #00C853 !important;
+  color: var(--accent-primary) !important;
 }
 
 nav[class*="fixed bottom-4"] button span.bg-indigo-600 {
-  background-color: #00C853 !important;
+  background-color: var(--accent-primary) !important;
 }
 
 /* ==========================================================================
@@ -343,33 +373,33 @@ nav[class*="fixed bottom-4"] button span.bg-indigo-600 {
 /* Primary Button Action styles */
 .bg-indigo-600,
 .bg-indigo-500,
-button[class*="bg-[#10B981]"],
-button[class*="bg-emerald-"],
-[class*="bg-[#10B981]"],
-.bg-emerald-600,
+button[class*="bg-[var(--accent-primary)]"],
+button[class*="bg-blue-"],
+[class*="bg-[var(--accent-primary)]"],
+.bg-[var(--accent-primary)],
 a[class*="bg-indigo-"] {
-  background-color: #00C853 !important;
-  border: 1px solid #00C853 !important;
+  background-color: var(--accent-primary) !important;
+  border: 1px solid var(--accent-primary) !important;
   color: #FFFFFF !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .bg-indigo-600:hover,
 .bg-indigo-500:hover,
-button[class*="bg-[#10B981]"]:hover,
-button[class*="bg-emerald-"]:hover,
-[class*="bg-[#10B981]"]:hover,
-.bg-emerald-600:hover,
+button[class*="bg-[var(--accent-primary)]"]:hover,
+button[class*="bg-[var(--accent-primary)]"]:hover,
+[class*="bg-[var(--accent-primary)]"]:hover,
+.bg-[var(--accent-primary)]:hover,
 a[class*="bg-indigo-"]:hover {
-  background-color: #00E676 !important;
-  border-color: #00E676 !important;
+  background-color: var(--blue-600) !important;
+  border-color: var(--blue-600) !important;
 }
 
 .bg-indigo-600:active,
 .bg-indigo-500:active,
-[class*="bg-[#10B981]"]:active {
-  background-color: #69F0AE !important;
-  border-color: #69F0AE !important;
+[class*="bg-[var(--accent-primary)]"]:active {
+  background-color: var(--blue-700) !important;
+  border-color: var(--blue-700) !important;
 }
 
 /* Secondary Button Action styles */
@@ -450,8 +480,8 @@ textarea,
 input:not([type="checkbox"]):not([type="radio"]):focus,
 select:focus,
 textarea:focus {
-  border-color: #00C853 !important;
-  box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.2) !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 3px rgba(0, 163, 255, 0.2) !important;
   outline: none !important;
 }
 
@@ -602,8 +632,8 @@ div[class*="rounded-2xl"].p-6.relative {
 [id*="-selectors"] button.bg-zinc-900,
 [id*="-selectors"] button[class*="bg-zinc-"] {
   background-color: var(--bg-card) !important;
-  color: #00C853 !important;
-  border: 1px solid rgba(0, 200, 83, 0.18) !important;
+  color: var(--accent-primary) !important;
+  border: 1px solid rgba(0, 163, 255, 0.18) !important;
   box-shadow: var(--shadow-soft) !important;
 }
 
@@ -611,7 +641,7 @@ div[class*="rounded-2xl"].p-6.relative {
 #tab-selectors button[class*="bg-zinc-"] *,
 #reports-type-selectors button.bg-zinc-900 *,
 #reports-type-selectors button[class*="bg-zinc-"] * {
-  color: #00C853 !important;
+  color: var(--accent-primary) !important;
 }
 
 /* ==========================================================================
@@ -643,13 +673,13 @@ h1, h2, h3, h4, h5, h6,
 }
 
 #premium-suite-badge {
-  background-color: rgba(0, 200, 83, 0.1) !important;
-  border: 1px solid rgba(0, 200, 83, 0.2) !important;
-  color: #00C853 !important;
+  background-color: var(--accent-primary)/0.1 !important;
+  border: 1px solid var(--accent-primary)/0.2 !important;
+  color: var(--accent-primary) !important;
 }
 #premium-suite-badge *,
 #premium-suite-badge svg {
-  color: #00C853 !important;
+  color: var(--accent-primary) !important;
 }
 
 /* Dynamic loan outstanding states styling */
@@ -1013,6 +1043,6 @@ svg path[stroke="#27272a"] {
 }
 
 .light #vault-portfolio-hero [class*="bg-clip-text"] span[class*="text-[#10B981]"] {
-  color: #059669 !important; /* Keep crisp green for decimals in light mode */
+  color: #059669 !important; /* Keep crisp blue for decimals in light mode */
 }
 

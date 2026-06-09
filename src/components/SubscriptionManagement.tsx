@@ -232,7 +232,7 @@ export default function SubscriptionManagement({
                 errors.name
                   ? 'border-rose-500 focus:border-rose-500'
                   : subName && !errors.name
-                  ? 'border-emerald-500 focus:border-emerald-500'
+                  ? 'border-blue-500 focus:border-emerald-500'
                   : 'border-zinc-850 hover:border-zinc-700 focus:border-zinc-500'
               }`}
             />
@@ -258,7 +258,7 @@ export default function SubscriptionManagement({
                   errors.amount
                     ? 'border-rose-500 focus:border-rose-500'
                     : subAmount && !errors.amount
-                    ? 'border-emerald-500 focus:border-emerald-500'
+                    ? 'border-[var(--accent-primary)] focus:border-[var(--accent-primary)]'
                     : 'border-zinc-850 focus:border-zinc-550 focus:border-zinc-500'
                 }`}
               />
@@ -314,7 +314,7 @@ export default function SubscriptionManagement({
             type="submit"
             className="w-full py-3.5 bg-white text-black font-mono font-bold uppercase tracking-widest text-[10px] rounded-xl hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 mt-2 cursor-pointer shadow-lg"
           >
-            <Plus size={14} className="text-emerald-600" />
+            <Plus size={14} className="text-[var(--accent-primary)]" />
             Establish Subscription
           </button>
         </form>
@@ -343,7 +343,7 @@ export default function SubscriptionManagement({
             </div>
             <div className="text-right">
               <span className="text-zinc-550 text-[9px] font-mono font-bold uppercase block text-zinc-500">SUM DUE</span>
-              <span className="text-emerald-400 text-sm font-mono font-black">{currency}{selectedSubscription.amount.toLocaleString()}</span>
+              <span className="text-[var(--accent-primary)] text-sm font-mono font-black">{currency}{selectedSubscription.amount.toLocaleString()}</span>
             </div>
           </div>
 
@@ -451,7 +451,7 @@ export default function SubscriptionManagement({
                     {sub.lastPaidDate && (
                       <div className="flex justify-between border-t border-zinc-200 dark:border-zinc-900/60 pt-1.5 mt-1.5 font-bold text-[8.5px]">
                         <span className="text-muted-foreground uppercase">LAST SETTLED DATE:</span>
-                        <span className="text-emerald-500 tracking-tight">{sub.lastPaidDate}</span>
+                        <span className="text-[var(--accent-primary)] tracking-tight">{sub.lastPaidDate}</span>
                       </div>
                     )}
                   </div>
@@ -473,10 +473,10 @@ export default function SubscriptionManagement({
                     <button
                       type="button"
                       onClick={() => onToggleSubscriptionStatus(sub.id, 'Paused')}
-                      className="px-3 py-2 bg-emerald-950/20 text-emerald-450 hover:bg-emerald-950/35 rounded-xl border border-emerald-900/40 flex items-center gap-1.5 cursor-pointer transition text-[9px] font-mono uppercase font-bold animate-pulse"
+                      className="px-3 py-2 bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/35 rounded-xl border border-[var(--accent-primary)]/40 flex items-center gap-1.5 cursor-pointer transition text-[9px] font-mono uppercase font-bold animate-pulse"
                       title="Resume tracking membership cycle"
                     >
-                      <Play size={10} className="text-emerald-500" />
+                      <Play size={10} className="text-[var(--accent-primary)]" />
                       Resume
                     </button>
                   )}

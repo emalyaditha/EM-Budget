@@ -13,6 +13,21 @@ export function clearSyncedStatesCache() {
   lastSyncedStatesCache = {};
 }
 
+// Session safety guard to prevent background pushes with empty state before a successful fetch
+let loadedFromCloudEmails = new Set<string>();
+
+export function markEmailAsLoadedFromCloud(email: string) {
+  loadedFromCloudEmails.add(email.trim().toLowerCase());
+}
+
+export function isEmailLoadedFromCloud(email: string): boolean {
+  return loadedFromCloudEmails.has(email.trim().toLowerCase());
+}
+
+export function resetLoadedFromCloud() {
+  loadedFromCloudEmails.clear();
+}
+
 // Default provided by the user
 const DEFAULT_SUPABASE_URL = 'https://iivdlgbztzthjbjzzjna.supabase.co';
 
@@ -103,7 +118,8 @@ const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
   expenses: ['id', 'user_email', 'title', 'description', 'amount', 'date', 'category', 'payment_method_id', 'payment_method_type', 'updated_at'],
   notifications: ['id', 'user_email', 'type', 'message', 'date', 'read', 'updated_at'],
   subscriptions: ['id', 'user_email', 'name', 'amount', 'billing_cycle', 'due_date', 'category', 'status', 'payment_method_id', 'payment_method_type', 'last_paid_date', 'updated_at'],
-  loans_given: ['id', 'user_email', 'borrower_name', 'total_amount', 'remaining_amount', 'date_given', 'source_account_id', 'source_account_type', 'source_account_name', 'status', 'notes', 'settlements', 'updated_at']
+  loans_given: ['id', 'user_email', 'borrower_name', 'total_amount', 'remaining_amount', 'date_given', 'source_account_id', 'source_account_type', 'source_account_name', 'status', 'notes', 'settlements', 'updated_at'],
+  spending_envelopes: ['id', 'user_email', 'category', 'limit', 'spent', 'icon', 'sub_breakdown', 'updated_at']
 };
 
 let detectedColumnsCache: { [tableName: string]: string[] } | null = null;
@@ -311,7 +327,7 @@ export async function truncateAllDataInSupabase(email: string): Promise<{ succes
   }
 
   try {
-    const tables = ['ledger_states', 'bank_cards', 'cash_accounts', 'transactions', 'debts', 'incomes', 'expenses', 'notifications', 'subscriptions'];
+    const tables = ['ledger_states', 'bank_cards', 'cash_accounts', 'transactions', 'debts', 'incomes', 'expenses', 'notifications', 'subscriptions', 'spending_envelopes'];
     
     for (const table of tables) {
       let emailCol = 'user_email';
@@ -335,7 +351,13 @@ export async function truncateAllDataInSupabase(email: string): Promise<{ succes
  * Pushes the current application state to the supabase ledger_states table
  * AND synchronizes all relational tables: bank_cards, cash_accounts, transactions
  */
-export async function syncStateToSupabase(email: string, state: AppState): Promise<{ success: boolean; error?: string }> {
+export async function syncStateToSupabase(email: string, state: AppState, bypassSafetyGuard = false): Promise<{ success: boolean; error?: string }> {
+  // 0. Safety check: prevent overwriting the database if the state was never loaded in this session
+  if (!bypassSafetyGuard && !isEmailLoadedFromCloud(email)) {
+    console.warn('[SYNC SAFETY GUARD] Aborted push/auto-sync because the database state has not been successfully pulled or synchronized in this session yet. This prevents blank local state from destroying existing user data.');
+    return { success: false, error: 'Database state has not been successfully fetched in this session.' };
+  }
+
   const client = getSupabaseClient();
   if (!client) {
     return { success: false, error: 'Supabase URL or Anon Key is missing or invalid.' };
@@ -353,6 +375,17 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
   try {
     // 1. Map all arrays for modern transactional database sync
     const cardsCols = await getColumnsForTable('bank_cards');
+    const spendingEnvelopesCols = await getColumnsForTable('spending_envelopes');
+    
+    const recordsSpendingEnvelopes = (state.budgets || []).map(b => mapObjectToColumns(b, spendingEnvelopesCols, email, {
+      id: b.id,
+      category: b.category,
+      limit: b.limit,
+      spent: b.spent || 0,
+      icon: b.icon || 'TrendingUp',
+      sub_breakdown: b.subBreakdown || []
+    }));
+
     const recordsCards = (state.cards || []).map(card => {
       const mapped = mapObjectToColumns(card, cardsCols, email, {
         id: card.id,
@@ -491,7 +524,8 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
         p_expenses: recordsExpenses,
         p_notifications: recordsNotifications,
         p_subscriptions: recordsSubscriptions,
-        p_loans_given: recordsLoans
+        p_loans_given: recordsLoans,
+        p_spending_envelopes: recordsSpendingEnvelopes
       });
 
       const rpcSuccess = !rpcErr && rpcRes && (rpcRes as any).success !== false;
@@ -756,6 +790,25 @@ export async function syncStateToSupabase(email: string, state: AppState): Promi
       }
     }
 
+    // J. Sync Spending Envelopes
+    if (spendingEnvelopesCols.length > 0) {
+      if (recordsSpendingEnvelopes.length > 0) {
+        const { error: seErr } = await client.from('spending_envelopes').upsert(recordsSpendingEnvelopes, { onConflict: 'id' });
+        if (seErr) errorDetails.push(`Spending Envelopes: ${seErr.message}`);
+      }
+      const activeSeIds = (state.budgets || []).map(b => b.id);
+      const emailField = spendingEnvelopesCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeSeIds.length > 0) {
+        const { data: existing } = await client.from('spending_envelopes').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeSeIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('spending_envelopes').delete().in('id', toDelete);
+        }
+      } else {
+        await client.from('spending_envelopes').delete().eq(emailField, email);
+      }
+    }
+
     if (errorDetails.length > 0) {
       return { success: false, error: errorDetails.join('; ') };
     }
@@ -825,13 +878,17 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
     
     const fetchTable = async (tableName: string) => {
       const cols = await getColumnsForTable(tableName);
+      if (!cols || cols.length === 0) {
+        console.warn(`Table ${tableName} does not exist in the remote database yet, skipping query.`);
+        return [];
+      }
       // More robust column detection (case-insensitive check)
       const userCol = cols.find(c => c.toLowerCase() === 'user_email' || c.toLowerCase() === 'useremail');
       const emailField = userCol || 'user_email'; // Default to user_email
       
       const { data, error } = await client.from(tableName).select('*').eq(emailField, email);
       if (error) {
-        if (error.code === '42P01') {
+        if (error.code === '42P01' || (error.message && (error.message.includes('does not exist') || error.message.includes('schema cache')))) {
           console.warn(`Table ${tableName} does not exist, skipped.`);
           return [];
         }
@@ -840,14 +897,15 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       return data || [];
     };
 
-    const [cards, cash, transactions, debts, incomes, expenses, notifications] = await Promise.all([
+    const [cards, cash, transactions, debts, incomes, expenses, notifications, envelopes] = await Promise.all([
       fetchTable('bank_cards'),
       fetchTable('cash_accounts'),
       fetchTable('transactions'),
       fetchTable('debts'),
       fetchTable('incomes'),
       fetchTable('expenses'),
-      fetchTable('notifications')
+      fetchTable('notifications'),
+      fetchTable('spending_envelopes')
     ]);
 
     // Fault-tolerant loading for subscriptions
@@ -875,9 +933,10 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
     }
 
     // Load auxiliary state (budgets, savingsGoals, and fallback loansGiven) from ledger_states first
-    let fetchedBudgets: any[] = [];
-    let fetchedSavingsGoals: any[] = [];
-    let fetchedLoansGiven: any[] = [];
+    let fetchedBudgets: any[] | null = null;
+    let fetchedSavingsGoals: any[] | null = null;
+    let fetchedLoansGiven: any[] | null = null;
+    let hasLedgerStateRecord = false;
     try {
       const { data: latestStateData, error: stateErr } = await client
         .from('ledger_states')
@@ -887,19 +946,28 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
         .limit(1)
         .maybeSingle();
 
-      if (!stateErr && latestStateData && latestStateData.state) {
-        const fullJsonStateStr = typeof latestStateData.state === 'string'
-          ? JSON.parse(latestStateData.state)
-          : latestStateData.state;
-        if (fullJsonStateStr) {
-          if (Array.isArray(fullJsonStateStr.budgets)) {
-            fetchedBudgets = fullJsonStateStr.budgets;
-          }
-          if (Array.isArray(fullJsonStateStr.savingsGoals)) {
-            fetchedSavingsGoals = fullJsonStateStr.savingsGoals;
-          }
-          if (Array.isArray(fullJsonStateStr.loansGiven)) {
-            fetchedLoansGiven = fullJsonStateStr.loansGiven;
+      if (!stateErr && latestStateData) {
+        hasLedgerStateRecord = true;
+        if (latestStateData.state) {
+          const fullJsonStateStr = typeof latestStateData.state === 'string'
+            ? JSON.parse(latestStateData.state)
+            : latestStateData.state;
+          if (fullJsonStateStr) {
+            if (Array.isArray(fullJsonStateStr.budgets)) {
+              fetchedBudgets = fullJsonStateStr.budgets;
+            } else {
+              fetchedBudgets = [];
+            }
+            if (Array.isArray(fullJsonStateStr.savingsGoals)) {
+              fetchedSavingsGoals = fullJsonStateStr.savingsGoals;
+            } else {
+              fetchedSavingsGoals = [];
+            }
+            if (Array.isArray(fullJsonStateStr.loansGiven)) {
+              fetchedLoansGiven = fullJsonStateStr.loansGiven;
+            } else {
+              fetchedLoansGiven = [];
+            }
           }
         }
       }
@@ -917,6 +985,13 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       console.warn('Could not restore loans_given from database:', e);
     }
 
+    // Determine if the user has a real database setup (to differentiate new users from loaded empty states)
+    const hasUserDatabaseRecords = hasLedgerStateRecord || 
+                                   cards.length > 0 || 
+                                   cash.length > 0 || 
+                                   transactions.length > 0 || 
+                                   debts.length > 0;
+
     // Construct the AppState from individual tables with mapping applied
     const reconstructedState: AppState = {
       ...DEFAULT_APP_STATE, // Use initial structure
@@ -932,13 +1007,18 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       expenses: expenses.map(mapDatabaseResultToState),
       notifications: notifications.map(mapDatabaseResultToState),
       subscriptions: fetchedSubs.map(mapDatabaseResultToState),
-      loansGiven: fetchedLoansGiven,
-      budgets: fetchedBudgets.length > 0 ? fetchedBudgets : DEFAULT_APP_STATE.budgets,
-      savingsGoals: fetchedSavingsGoals.length > 0 ? fetchedSavingsGoals : DEFAULT_APP_STATE.savingsGoals
+      loansGiven: fetchedLoansGiven !== null ? fetchedLoansGiven : [],
+      budgets: envelopes && envelopes.length > 0 
+        ? envelopes.map(mapDatabaseResultToState) 
+        : (fetchedBudgets !== null ? fetchedBudgets : (hasUserDatabaseRecords ? [] : DEFAULT_APP_STATE.budgets)),
+      savingsGoals: fetchedSavingsGoals !== null 
+        ? fetchedSavingsGoals 
+        : (hasUserDatabaseRecords ? [] : DEFAULT_APP_STATE.savingsGoals)
     };
 
     const cacheKey = email.trim().toLowerCase();
     lastSyncedStatesCache[cacheKey] = JSON.stringify(reconstructedState);
+    markEmailAsLoadedFromCloud(email);
 
     return { success: true, state: reconstructedState };
   } catch (err: any) {
@@ -1143,6 +1223,20 @@ create table if not exists public.loans_given (
 
 alter table public.loans_given enable row level security;
 
+-- Upgrade script for spending_envelopes (budgets / spending limits):
+create table if not exists public.spending_envelopes (
+  id text not null primary key,
+  user_email text not null,
+  category text not null,
+  "limit" numeric not null default 0,
+  spent numeric not null default 0,
+  icon text not null,
+  sub_breakdown jsonb not null default '[]'::jsonb,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.spending_envelopes enable row level security;
+
 -- 1. CREATE CORE STATE MATRIX FOR FLUTTER <-> REACT STATE SYNC (Appends row-by-row history list)
 create table if not exists public.ledger_states (
   id uuid default gen_random_uuid() primary key,
@@ -1260,6 +1354,7 @@ alter table public.incomes enable row level security;
 alter table public.expenses enable row level security;
 alter table public.notifications enable row level security;
 alter table public.loans_given enable row level security;
+alter table public.spending_envelopes enable row level security;
 
 -- 10. CREATE RELATIONAL AUTH ACCOUNTS TABLE
 create table if not exists public.auth_accounts (
@@ -1328,6 +1423,11 @@ create policy "Secure insert on loans_given" on public.loans_given for insert wi
 create policy "Secure update on loans_given" on public.loans_given for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 create policy "Secure delete on loans_given" on public.loans_given for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 
+create policy "Secure select on envelopes" on public.spending_envelopes for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on envelopes" on public.spending_envelopes for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on envelopes" on public.spending_envelopes for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on envelopes" on public.spending_envelopes for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+
 -- CRYPTOGRAPHICALLY SECURED SINGLE-TRIP TRANSACTIONAL LEDGER SYNC ENGINE
 CREATE OR REPLACE FUNCTION public.sync_complete_ledger(
   p_email text,
@@ -1340,7 +1440,8 @@ CREATE OR REPLACE FUNCTION public.sync_complete_ledger(
   p_expenses jsonb,
   p_notifications jsonb,
   p_subscriptions jsonb,
-  p_loans_given jsonb
+  p_loans_given jsonb,
+  p_spending_envelopes jsonb
 ) RETURNS jsonb AS $$
 DECLARE
   v_caller_email text;
@@ -1670,6 +1771,36 @@ BEGIN
     END LOOP;
   ELSE
     DELETE FROM public.loans_given WHERE user_email = p_email;
+  END IF;
+
+  -- 11. Synchronize Spending Envelopes
+  IF p_spending_envelopes IS NOT NULL THEN
+    DELETE FROM public.spending_envelopes
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_spending_envelopes)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_spending_envelopes) LOOP
+      INSERT INTO public.spending_envelopes (
+        id, user_email, category, "limit", spent, icon, sub_breakdown, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'category',
+        (v_item->>'limit')::numeric,
+        (v_item->>'spent')::numeric,
+        v_item->>'icon',
+        coalesce((v_item->'sub_breakdown'), '[]'::jsonb),
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        category = EXCLUDED.category,
+        "limit" = EXCLUDED."limit",
+        spent = EXCLUDED.spent,
+        icon = EXCLUDED.icon,
+        sub_breakdown = EXCLUDED.sub_breakdown,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.spending_envelopes WHERE user_email = p_email;
   END IF;
 
   RETURN jsonb_build_object('success', true);
@@ -1744,6 +1875,148 @@ export function getSupabaseUpgradeSQLScript(): string {
   return `-- ⚠️ DATABASE UPGRADE MIGRATION
 -- To update your live Supabase database instantly, go to your Supabase Dashboard > SQL Editor and copy-paste the matching upgrade migration query below:
 
+-- =========================================================================
+-- 1. BASE MODULE: EXTENSIONS & CRYPTOGRAPHIC VERIFICATION ENGINE (MUST BE FIRST)
+-- =========================================================================
+
+-- ENABLE CRYPTO EXTENSION
+create extension if not exists pgcrypto;
+
+-- CREATE CRYPTOGRAPHIC SESSION VERIFIER
+create or replace function public.verify_user_token(headers json) returns text as $$
+declare
+  token text;
+  email text;
+  parts text[];
+  payload_str text;
+  signature text;
+  expected_signature text;
+  payload json;
+  expires_at bigint;
+  secret text;
+begin
+  if headers is null then
+    return null;
+  end if;
+  
+  -- Extracted headers from connection
+  token := coalesce(headers->>'x-session-token', headers->>'X-Session-Token', headers->>'x-Session-Token');
+  email := coalesce(headers->>'x-user-email', headers->>'X-User-Email', headers->>'x-User-Email');
+  if token is null or email is null then
+    return null;
+  end if;
+  
+  -- Split token by '.' which divides HMAC text payload and signature
+  parts := string_to_array(token, '.');
+  if array_length(parts, 1) != 2 then
+    return null;
+  end if;
+  
+  payload_str := parts[1];
+  signature := parts[2];
+  
+  -- Get secret from database configuration or local fallback
+  secret := coalesce(nullif(current_setting('app.settings.session_secret', true), ''), 'vault_secure_suite_signature_key_2026_x92');
+  
+  -- Compute the expected cryptographic signature
+  expected_signature := encode(hmac(payload_str, secret, 'sha256'), 'hex');
+  if signature != expected_signature then
+    return null;
+  end if;
+  
+  -- Translate the base64url payload safe conversion
+  payload_str := rpad(replace(replace(payload_str, '-', '+'), '_', '/'), (ceil(length(payload_str) / 4.0) * 4)::integer, '=');
+  payload := convert_from(decode(payload_str, 'base64'), 'utf-8')::json;
+  
+  -- Prevent session replay expiration bounds
+  expires_at := (payload->>'expiresAt')::bigint;
+  if expires_at < (date_part('epoch', now()) * 1000)::bigint then
+    return null;
+  end if;
+  
+  -- Clean validated email response
+  if lower(payload->>'email') = lower(email) then
+    return lower(email);
+  end if;
+  
+  return null;
+exception
+  when others then
+    return null;
+end;
+$$ language plpgsql security definer;
+
+
+-- =========================================================================
+-- 2. SCHEMA ADDITIONS: STRUCTURAL COLUMNS & TABLES (MUST BE BEFORE VIEW/FUNC COMPILATION)
+-- =========================================================================
+
+alter table public.bank_cards add column if not exists "limit" numeric;
+alter table public.bank_cards add column if not exists is_limit_locked boolean default true;
+alter table public.bank_cards add column if not exists card_theme text default 'obsidian';
+alter table public.transactions add column if not exists charge numeric default 0;
+alter table public.transactions add column if not exists transfer_charge numeric default 0;
+alter table public.auth_accounts add column if not exists name text;
+alter table public.debts add column if not exists account_id text;
+alter table public.debts add column if not exists account_type text;
+alter table public.debts add column if not exists account_name text;
+
+-- Upgrade script for subscriptions:
+create table if not exists public.subscriptions (
+  id text not null primary key,
+  user_email text not null,
+  name text not null,
+  amount numeric not null default 0,
+  billing_cycle text not null, -- 'Monthly' | 'Yearly'
+  due_date text not null, -- YYYY-MM-DD or standard date format
+  category text not null,
+  status text not null, -- 'Active' | 'Paused' | 'Cancelled'
+  payment_method_id text,
+  payment_method_type text,
+  last_paid_date text,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.subscriptions enable row level security;
+
+-- Upgrade script for loans_given:
+create table if not exists public.loans_given (
+  id text not null primary key,
+  user_email text not null,
+  borrower_name text not null,
+  total_amount numeric not null default 0,
+  remaining_amount numeric not null default 0,
+  date_given text not null,
+  source_account_id text not null,
+  source_account_type text not null,
+  source_account_name text not null,
+  status text not null, -- 'Active' | 'Partially Settled' | 'Settled'
+  notes text,
+  settlements jsonb not null default '[]'::jsonb,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.loans_given enable row level security;
+
+-- Upgrade script for spending_envelopes (budgets / spending limits):
+create table if not exists public.spending_envelopes (
+  id text not null primary key,
+  user_email text not null,
+  category text not null,
+  "limit" numeric not null default 0,
+  spent numeric not null default 0,
+  icon text not null,
+  sub_breakdown jsonb not null default '[]'::jsonb,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.spending_envelopes enable row level security;
+
+
+-- =========================================================================
+-- 3. REGISTER CENTRALIZED HIGH-PERFORMANCE BACKEND UPSERT SYNC ENGINE
+-- =========================================================================
+
 -- ADD HIGH-PERFORMANCE TRANSACTION TRANSACTION ENGINE TO PREVIOUS DATABASES
 CREATE OR REPLACE FUNCTION public.sync_complete_ledger(
   p_email text,
@@ -1756,7 +2029,8 @@ CREATE OR REPLACE FUNCTION public.sync_complete_ledger(
   p_expenses jsonb,
   p_notifications jsonb,
   p_subscriptions jsonb,
-  p_loans_given jsonb
+  p_loans_given jsonb,
+  p_spending_envelopes jsonb
 ) RETURNS jsonb AS $$
 DECLARE
   v_caller_email text;
@@ -2088,6 +2362,36 @@ BEGIN
     DELETE FROM public.loans_given WHERE user_email = p_email;
   END IF;
 
+  -- 11. Synchronize Spending Envelopes
+  IF p_spending_envelopes IS NOT NULL THEN
+    DELETE FROM public.spending_envelopes
+    WHERE user_email = p_email 
+      AND id NOT IN (SELECT jsonb_array_elements(p_spending_envelopes)->>'id');
+
+    FOR v_item IN SELECT jsonb_array_elements(p_spending_envelopes) LOOP
+      INSERT INTO public.spending_envelopes (
+        id, user_email, category, "limit", spent, icon, sub_breakdown, updated_at
+      ) VALUES (
+        v_item->>'id',
+        p_email,
+        v_item->>'category',
+        (v_item->>'limit')::numeric,
+        (v_item->>'spent')::numeric,
+        v_item->>'icon',
+        coalesce((v_item->'sub_breakdown'), '[]'::jsonb),
+        timezone('utc'::text, now())
+      ) ON CONFLICT (id) DO UPDATE SET
+        category = EXCLUDED.category,
+        "limit" = EXCLUDED."limit",
+        spent = EXCLUDED.spent,
+        icon = EXCLUDED.icon,
+        sub_breakdown = EXCLUDED.sub_breakdown,
+        updated_at = EXCLUDED.updated_at;
+    END LOOP;
+  ELSE
+    DELETE FROM public.spending_envelopes WHERE user_email = p_email;
+  END IF;
+
   RETURN jsonb_build_object('success', true);
 EXCEPTION
   WHEN OTHERS THEN
@@ -2095,119 +2399,10 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-alter table public.bank_cards add column if not exists "limit" numeric;
-alter table public.bank_cards add column if not exists is_limit_locked boolean default true;
-alter table public.bank_cards add column if not exists card_theme text default 'obsidian';
-alter table public.transactions add column if not exists charge numeric default 0;
-alter table public.transactions add column if not exists transfer_charge numeric default 0;
-alter table public.auth_accounts add column if not exists name text;
-alter table public.debts add column if not exists account_id text;
-alter table public.debts add column if not exists account_type text;
-alter table public.debts add column if not exists account_name text;
 
--- ENABLE CRYPTO EXTENSION
-create extension if not exists pgcrypto;
-
--- CREATE CRYPTOGRAPHIC SESSION VERIFIER
-create or replace function public.verify_user_token(headers json) returns text as $$
-declare
-  token text;
-  email text;
-  parts text[];
-  payload_str text;
-  signature text;
-  expected_signature text;
-  payload json;
-  expires_at bigint;
-  secret text;
-begin
-  if headers is null then
-    return null;
-  end if;
-  
-  -- Extracted headers from connection
-  token := coalesce(headers->>'x-session-token', headers->>'X-Session-Token', headers->>'x-Session-Token');
-  email := coalesce(headers->>'x-user-email', headers->>'X-User-Email', headers->>'x-User-Email');
-  if token is null or email is null then
-    return null;
-  end if;
-  
-  -- Split token by '.' which divides HMAC text payload and signature
-  parts := string_to_array(token, '.');
-  if array_length(parts, 1) != 2 then
-    return null;
-  end if;
-  
-  payload_str := parts[1];
-  signature := parts[2];
-  
-  -- Get secret from database configuration or local fallback
-  secret := coalesce(nullif(current_setting('app.settings.session_secret', true), ''), 'vault_secure_suite_signature_key_2026_x92');
-  
-  -- Compute the expected cryptographic signature
-  expected_signature := encode(hmac(payload_str, secret, 'sha256'), 'hex');
-  if signature != expected_signature then
-    return null;
-  end if;
-  
-  -- Translate the base64url payload safe conversion
-  payload_str := rpad(replace(replace(payload_str, '-', '+'), '_', '/'), (ceil(length(payload_str) / 4.0) * 4)::integer, '=');
-  payload := convert_from(decode(payload_str, 'base64'), 'utf-8')::json;
-  
-  -- Prevent session replay expiration bounds
-  expires_at := (payload->>'expiresAt')::bigint;
-  if expires_at < (date_part('epoch', now()) * 1000)::bigint then
-    return null;
-  end if;
-  
-  -- Clean validated email response
-  if lower(payload->>'email') = lower(email) then
-    return lower(email);
-  end if;
-  
-  return null;
-exception
-  when others then
-    return null;
-end;
-$$ language plpgsql security definer;
-
--- Upgrade script for subscriptions:
-create table if not exists public.subscriptions (
-  id text not null primary key,
-  user_email text not null,
-  name text not null,
-  amount numeric not null default 0,
-  billing_cycle text not null, -- 'Monthly' | 'Yearly'
-  due_date text not null, -- YYYY-MM-DD or standard date format
-  category text not null,
-  status text not null, -- 'Active' | 'Paused' | 'Cancelled'
-  payment_method_id text,
-  payment_method_type text,
-  last_paid_date text,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
-alter table public.subscriptions enable row level security;
-
--- Upgrade script for loans_given:
-create table if not exists public.loans_given (
-  id text not null primary key,
-  user_email text not null,
-  borrower_name text not null,
-  total_amount numeric not null default 0,
-  remaining_amount numeric not null default 0,
-  date_given text not null,
-  source_account_id text not null,
-  source_account_type text not null,
-  source_account_name text not null,
-  status text not null, -- 'Active' | 'Partially Settled' | 'Settled'
-  notes text,
-  settlements jsonb not null default '[]'::jsonb,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
-alter table public.loans_given enable row level security;
+-- =========================================================================
+-- 4. TENANT PRIVACY PRESERVATION POLICIES SETUP
+-- =========================================================================
 
 -- DROP AND RE-CREATE SECURED RLS tenant isolation policies
 drop policy if exists "Secure select on subscriptions" on public.subscriptions;
@@ -2239,6 +2434,21 @@ create policy "Secure select on loans_given" on public.loans_given for select us
 create policy "Secure insert on loans_given" on public.loans_given for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 create policy "Secure update on loans_given" on public.loans_given for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 create policy "Secure delete on loans_given" on public.loans_given for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+
+drop policy if exists "Secure select on envelopes" on public.spending_envelopes;
+drop policy if exists "Secure insert on envelopes" on public.spending_envelopes;
+drop policy if exists "Secure update on envelopes" on public.spending_envelopes;
+drop policy if exists "Secure delete on envelopes" on public.spending_envelopes;
+
+create policy "Secure select on envelopes" on public.spending_envelopes for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure insert on envelopes" on public.spending_envelopes for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure update on envelopes" on public.spending_envelopes for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure delete on envelopes" on public.spending_envelopes for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+
+
+-- =========================================================================
+-- 5. OTHER MISC INFRASTRUCTURAL REPAIR MECHANISMS
+-- =========================================================================
 
 -- DATABASE UPGRADE - SYSTEM BYPASS VERIFIER, RATE LIMIT TABLE, FOREIGN KEYS, CASCADE DELETE AND PERFORMANCE INDEXES
 create or replace function public.verify_system_signature(headers json) returns boolean as $$
@@ -2351,6 +2561,9 @@ alter table public.subscriptions add constraint subscriptions_user_email_fkey fo
 alter table public.loans_given drop constraint if exists loans_given_user_email_fkey cascade;
 alter table public.loans_given add constraint loans_given_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
 
+alter table public.spending_envelopes drop constraint if exists spending_envelopes_user_email_fkey cascade;
+alter table public.spending_envelopes add constraint spending_envelopes_user_email_fkey foreign key (user_email) references public.auth_accounts(email) on delete cascade;
+
 -- Performance indexes setup
 create index if not exists idx_ledger_states_user_email on public.ledger_states(user_email);
 create index if not exists idx_bank_cards_user_email on public.bank_cards(user_email);
@@ -2362,5 +2575,6 @@ create index if not exists idx_expenses_user_email on public.expenses(user_email
 create index if not exists idx_notifications_user_email on public.notifications(user_email);
 create index if not exists idx_subscriptions_user_email on public.subscriptions(user_email);
 create index if not exists idx_loans_given_user_email on public.loans_given(user_email);
+create index if not exists idx_spending_envelopes_user_email on public.spending_envelopes(user_email);
 `;
 }

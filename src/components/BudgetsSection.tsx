@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Budget, CategoryExpense } from '../types';
 import { 
-  Plus, Edit2, TrendingUp, AlertTriangle, CheckCircle, 
+  Plus, Edit2, Trash2, TrendingUp, AlertTriangle, CheckCircle, 
   ChevronRight, Calendar, Sparkles, X, Info, HelpCircle 
 } from 'lucide-react';
 
@@ -11,19 +11,25 @@ interface BudgetsSectionProps {
   currency: string;
   onUpdateBudgetLimit: (id: string, limit: number) => void;
   onAddBudget: (category: CategoryExpense, limit: number, icon: string) => void;
+  onRemoveBudget?: (id: string) => void;
+  onClearAllBudgets?: () => void;
 }
 
 export default function BudgetsSection({ 
   budgets, 
   currency, 
   onUpdateBudgetLimit,
-  onAddBudget 
+  onAddBudget,
+  onRemoveBudget,
+  onClearAllBudgets
 }: BudgetsSectionProps) {
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(budgets[0]?.id || null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [modalBudgetId, setModalBudgetId] = useState<string | null>(null);
   const [editLimitVal, setEditLimitVal] = useState<string>('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   
   // States for adding a new budget
   const [newCategory, setNewCategory] = useState<CategoryExpense>('Food');
@@ -79,14 +85,14 @@ export default function BudgetsSection({
     const ratio = spent / limit;
     if (ratio >= 0.95) return 'bg-[#F87171]'; // soft coral / red
     if (ratio >= 0.70) return 'bg-[#F59E0B]'; // amber / gold
-    return 'bg-[#10B981]'; // emerald green
+    return 'bg-[var(--accent-primary)]'; // blue blue
   };
 
   const getProgressBgColor = (spent: number, limit: number) => {
     const ratio = spent / limit;
     if (ratio >= 0.95) return 'bg-red-500/10 text-[#F87171] border-red-500/20';
     if (ratio >= 0.70) return 'bg-amber-500/10 text-[#F59E0B] border-amber-500/20';
-    return 'bg-emerald-500/10 text-[#10B981] border-emerald-500/20';
+    return 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-[var(--accent-primary)]/20';
   };
 
   const availableIcons = ['🍔', '🚗', '🍿', '⚡', '🛍️', '🎓', '🏥', '✈️', '🎮', '🏠'];
@@ -96,23 +102,47 @@ export default function BudgetsSection({
       
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[var(--bg-card)] border border-[var(--border-primary)] p-6 rounded-[24px] shadow-[var(--shadow-soft)]">
-        <div>
-          <span className="text-[10px] tracking-widest text-[#10B981] font-mono font-bold uppercase block mb-1">
+        <div className="space-y-1">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-primary)] font-sans block">
             Financial Health Limits
           </span>
-          <h3 className="text-xl font-bold text-[var(--text-primary)] leading-tight">Master Budget Ledger</h3>
-          <p className="text-xs text-[var(--text-secondary)] mt-1.5 leading-relaxed">
+          <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)] leading-tight">Master Budget Ledger</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1.5 leading-relaxed">
             Monitor limits across monthly spend channels. Set controls to curb unnecessary outflows.
           </p>
         </div>
         
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 bg-[#10B981] hover:bg-emerald-600 text-white font-bold py-2.5 px-5 rounded-[12px] text-xs transition-all cursor-pointer shadow-[0_4px_16px_rgba(16,185,129,0.3)] shadow-emerald-555 hover:scale-[1.03]"
-        >
-          <Plus size={15} />
-          <span>Create Budget</span>
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          {budgets.length > 0 && onClearAllBudgets && (
+            <button
+              onClick={() => {
+                if (showClearConfirm) {
+                  onClearAllBudgets();
+                  setShowClearConfirm(false);
+                } else {
+                  setShowClearConfirm(true);
+                  setTimeout(() => setShowClearConfirm(false), 4000);
+                }
+              }}
+              className={`flex items-center gap-1.5 border font-bold py-2.5 px-4 rounded-[12px] text-xs transition-all cursor-pointer ${
+                showClearConfirm 
+                  ? 'border-red-500 bg-red-600 text-white animate-pulse'
+                  : 'border-red-500/20 hover:bg-red-500/5 hover:border-red-500/40 text-red-500 hover:scale-[1.03]'
+              }`}
+            >
+              <Trash2 size={13} />
+              <span>{showClearConfirm ? 'Confirm Clear?' : 'Clear All'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white font-bold py-2.5 px-5 rounded-[12px] text-xs transition-all cursor-pointer shadow-[0_4px_12px_rgba(0,163,255,0.2)] hover:scale-[1.03]"
+          >
+            <Plus size={15} />
+            <span>Create Budget</span>
+          </button>
+        </div>
       </div>
 
       {/* OVERVIEW PANEL - CIRCULAR PROGRESS */}
@@ -122,7 +152,7 @@ export default function BudgetsSection({
         <div className="lg:col-span-5 bg-[var(--bg-card)] border border-[var(--border-primary)] p-8 rounded-[24px] flex flex-col md:flex-row items-center justify-center gap-8 shadow-[var(--shadow-soft)] relative overflow-hidden">
           {/* Subtle Ambient BG glow */}
           <div className="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-[var(--accent-primary)]/10 blur-3xl pointer-events-none" />
 
           {/* SVG Circular Donut Chart */}
           <div className="relative flex items-center justify-center shrink-0 w-36 h-36">
@@ -141,7 +171,7 @@ export default function BudgetsSection({
                 cx="72"
                 cy="72"
                 r={radius}
-                className={percentSpent >= 95 ? 'stroke-[#F87171]' : percentSpent >= 70 ? 'stroke-[#F59E0B]' : 'stroke-[#10B981]'}
+                className={percentSpent >= 95 ? 'stroke-[#F87171]' : percentSpent >= 70 ? 'stroke-[#F59E0B]' : 'stroke-[var(--accent-primary)]'}
                 strokeWidth={strokeWidth}
                 fill="transparent"
                 strokeDasharray={circumference}
@@ -177,7 +207,7 @@ export default function BudgetsSection({
 
               <div className="px-3.5 py-2 bg-slate-900/40 border border-slate-800 rounded-xl">
                 <span className="text-[9px] text-[var(--text-secondary)] uppercase block font-medium">Safe To Spend</span>
-                <span className="text-sm font-extrabold text-[#10B981] font-mono mt-0.5">
+                <span className="text-sm font-extrabold text-[var(--accent-primary)] font-mono mt-0.5">
                   {currency}{Math.max(0, Math.round((totalBudgeted - totalSpent) / (daysRemaining || 1))).toLocaleString()}/d
                 </span>
               </div>
@@ -206,7 +236,7 @@ export default function BudgetsSection({
                   </div>
                 </div>
               ) : (
-                <div className="flex gap-3 bg-[#10B981]/15 border border-[#10B981]/30 p-3.5 rounded-xl text-xs text-emerald-400 leading-relaxed">
+                <div className="flex gap-3 bg-[var(--accent-primary)]/15 border border-[var(--accent-primary)]/30 p-3.5 rounded-xl text-xs text-[var(--accent-primary)] leading-relaxed">
                   <CheckCircle size={18} className="shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold block">Budget Envelope Healthy!</span>
@@ -246,81 +276,118 @@ export default function BudgetsSection({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {budgets.map((budget) => {
-              const isSelected = selectedBudgetId === budget.id;
-              const ratio = budget.spent / budget.limit;
-              const isOver = ratio > 1;
-              const barColor = getProgressBarColor(budget.spent, budget.limit);
-              const statusPill = getProgressBgColor(budget.spent, budget.limit);
+            {budgets.length > 0 ? (
+              budgets.map((budget) => {
+                const isSelected = selectedBudgetId === budget.id;
+                const ratio = budget.spent / budget.limit;
+                const isOver = ratio > 1;
+                const barColor = getProgressBarColor(budget.spent, budget.limit);
+                const statusPill = getProgressBgColor(budget.spent, budget.limit);
 
-              return (
-                <motion.div
-                  key={budget.id}
-                  onClick={() => setSelectedBudgetId(budget.id)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`p-5 rounded-[20px] border cursor-pointer text-left transition-all relative ${
-                    isSelected
-                      ? 'bg-gradient-to-br from-[var(--bg-card)] to-slate-900/60 border-slate-500'
-                      : 'bg-[var(--bg-card)] border-[var(--border-primary)] hover:border-slate-700/60'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-slate-800/80 rounded-xl flex items-center justify-center text-xl shadow-inner">
-                        {budget.icon}
+                return (
+                  <motion.div
+                    key={budget.id}
+                    onClick={() => setSelectedBudgetId(budget.id)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`p-5 rounded-[20px] border cursor-pointer text-left transition-all relative ${
+                      isSelected
+                        ? 'bg-gradient-to-br from-[var(--bg-card)] to-slate-900/60 border-slate-500'
+                        : 'bg-[var(--bg-card)] border-[var(--border-primary)] hover:border-slate-700/60'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-800/80 rounded-xl flex items-center justify-center text-xl shadow-inner">
+                          {budget.icon}
+                        </div>
+                        <div>
+                          <h5 className="text-sm font-bold text-[var(--text-primary)]">{budget.category}</h5>
+                          <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wide">envelope</p>
+                        </div>
                       </div>
-                      <div>
-                        <h5 className="text-sm font-bold text-[var(--text-primary)]">{budget.category}</h5>
-                        <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wide">envelope</p>
+
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(budget);
+                          }}
+                          className="p-1.5 hover:bg-slate-705 bg-slate-800/80 border border-slate-750 rounded-lg text-[var(--text-secondary)] hover:text-white transition-colors cursor-pointer"
+                          title="Adjust limit"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+
+                        {onRemoveBudget && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (deleteConfirmId === budget.id) {
+                                onRemoveBudget(budget.id);
+                                setDeleteConfirmId(null);
+                              } else {
+                                setDeleteConfirmId(budget.id);
+                                // Reset back to normal after 4 seconds if they don't click again
+                                setTimeout(() => {
+                                  setDeleteConfirmId(current => current === budget.id ? null : current);
+                                }, 4000);
+                              }
+                            }}
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                              deleteConfirmId === budget.id
+                                ? 'bg-red-600 border border-red-500 text-white font-bold animate-pulse px-2'
+                                : 'hover:bg-red-950/40 hover:border-red-500/40 hover:text-red-400 bg-slate-800/80 border border-slate-750 text-[var(--text-secondary)]'
+                            }`}
+                            title={deleteConfirmId === budget.id ? 'Click again to confirm delete' : 'Delete envelope'}
+                          >
+                            <Trash2 size={12} />
+                            {deleteConfirmId === budget.id && <span className="text-[10px] font-bold">Confirm?</span>}
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenEdit(budget);
-                      }}
-                      className="p-1.5 hover:bg-slate-705 bg-slate-800/80 border border-slate-750 rounded-lg text-[var(--text-secondary)] hover:text-white transition-colors cursor-pointer"
-                      title="Adjust limit"
-                    >
-                      <Edit2 size={12} />
-                    </button>
-                  </div>
+                    <div className="space-y-2 mt-4">
+                      <div className="flex justify-between text-xs font-mono">
+                        <span className="text-[var(--text-secondary)]">Spent</span>
+                        <span className={`font-bold ${isOver ? 'text-[#F87171]' : 'text-[var(--text-primary)]'}`}>
+                          {currency}{budget.spent} <span className="text-[10px] text-[var(--text-secondary)] font-normal">/ {currency}{budget.limit}</span>
+                        </span>
+                      </div>
 
-                  <div className="space-y-2 mt-4">
-                    <div className="flex justify-between text-xs font-mono">
-                      <span className="text-[var(--text-secondary)]">Spent</span>
-                      <span className={`font-bold ${isOver ? 'text-[#F87171]' : 'text-[var(--text-primary)]'}`}>
-                        {currency}{budget.spent} <span className="text-[10px] text-[var(--text-secondary)] font-normal">/ {currency}{budget.limit}</span>
-                      </span>
-                    </div>
+                      {/* Progress Bar Container */}
+                      <div className="w-full h-2 bg-slate-800/60 rounded-full overflow-hidden border border-slate-800/20">
+                        <motion.div
+                          className={`h-full ${barColor}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(100, Math.round((budget.spent / budget.limit) * 100))}%` }}
+                          transition={{ duration: 1.2, ease: 'easeOut' }}
+                        />
+                      </div>
 
-                    {/* Progress Bar Container */}
-                    <div className="w-full h-2 bg-slate-800/60 rounded-full overflow-hidden border border-slate-800/20">
-                      <motion.div
-                        className={`h-full ${barColor}`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(100, Math.round((budget.spent / budget.limit) * 100))}%` }}
-                        transition={{ duration: 1.2, ease: 'easeOut' }}
-                      />
+                      <div className="flex justify-between items-center pt-2 text-[10px]">
+                        <span className="text-[var(--text-secondary)] font-mono">
+                          {isOver 
+                            ? `Over budget by ${currency}${budget.spent - budget.limit}` 
+                            : `${currency}${budget.limit - budget.spent} remaining`}
+                        </span>
+                        
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${statusPill}`}>
+                          {ratio >= 1 ? 'OVER' : ratio >= 0.7 ? 'WARNING' : 'HEALTHY'}
+                        </span>
+                      </div>
                     </div>
-
-                    <div className="flex justify-between items-center pt-2 text-[10px]">
-                      <span className="text-[var(--text-secondary)] font-mono">
-                        {isOver 
-                          ? `Over budget by ${currency}${budget.spent - budget.limit}` 
-                          : `${currency}${budget.limit - budget.spent} remaining`}
-                      </span>
-                      
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${statusPill}`}>
-                        {ratio >= 1 ? 'OVER' : ratio >= 0.7 ? 'WARNING' : 'HEALTHY'}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+                  </motion.div>
+                );
+              })
+            ) : (
+              <div className="col-span-1 md:col-span-2 p-8 text-center border border-dashed border-slate-800/60 text-slate-500 rounded-3xl bg-slate-900/10">
+                <HelpCircle className="mx-auto text-slate-600 mb-2" size={32} />
+                <p className="text-sm font-bold text-slate-300">No Spending Envelopes Active</p>
+                <p className="text-xs text-slate-500 mt-1">Click "Create Budget" above to start tracking monthly allocations!</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -418,12 +485,12 @@ export default function BudgetsSection({
                 <X size={16} />
               </button>
 
-              <h4 className="text-base font-bold text-[var(--text-primary)] mb-1">Adjust Category Cap</h4>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Adjust Category Cap</h3>
               <p className="text-xs text-[var(--text-secondary)] mb-6">Modify Monthly Target limit allocation.</p>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-muted)] block">New Limit Cap ({currency})</label>
+                  <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1">New Limit Cap ({currency})</label>
                   <input
                     type="number"
                     value={editLimitVal}
@@ -443,7 +510,7 @@ export default function BudgetsSection({
                   </button>
                   <button
                     onClick={handleSaveEdit}
-                    className="py-2.5 px-5 bg-[#10B981] hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-[0_4px_12px_rgba(16,185,129,0.2)]"
+                    className="py-2.5 px-5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-[0_4px_12px_rgba(0,163,255,0.2)]"
                   >
                     Save limit
                   </button>
@@ -471,12 +538,12 @@ export default function BudgetsSection({
                 <X size={16} />
               </button>
 
-              <h4 className="text-base font-bold text-[var(--text-primary)] mb-1">Create Budget Wrapper</h4>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Create Budget Wrapper</h3>
               <p className="text-xs text-[var(--text-secondary)] mb-6">Allocate a new monthly spend target budget.</p>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-muted)] block">Spend Category</label>
+                  <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1">Spend Category</label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value as CategoryExpense)}
@@ -497,7 +564,7 @@ export default function BudgetsSection({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-muted)] block">Category Icon</label>
+                  <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1">Category Icon</label>
                   <div className="grid grid-cols-5 gap-2">
                     {availableIcons.map((ico) => (
                       <button
@@ -505,7 +572,7 @@ export default function BudgetsSection({
                         onClick={() => setNewIcon(ico)}
                         className={`p-2.5 rounded-xl text-lg flex items-center justify-center transition-all ${
                           newIcon === ico 
-                            ? 'bg-[#10B981] border border-[#10B981]' 
+                            ? 'bg-[var(--accent-primary)] border border-[var(--accent-primary)]' 
                             : 'bg-slate-900 hover:bg-slate-850 border border-slate-800'
                         }`}
                       >
@@ -516,7 +583,7 @@ export default function BudgetsSection({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-muted)] block">Monthly limit target ({currency})</label>
+                  <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1">Monthly limit target ({currency})</label>
                   <input
                     type="number"
                     value={newLimit}
@@ -535,7 +602,7 @@ export default function BudgetsSection({
                   </button>
                   <button
                     onClick={handleCreateBudget}
-                    className="py-2 px-5 bg-[#10B981] hover:bg-emerald-600 text-white rounded-xl text-[11px] font-bold cursor-pointer shadow-md"
+                    className="py-2 px-5 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white rounded-xl text-[11px] font-bold cursor-pointer shadow-md"
                   >
                     Start Monitoring
                   </button>

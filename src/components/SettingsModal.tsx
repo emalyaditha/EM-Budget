@@ -104,7 +104,7 @@ export default function SettingsModal({
     setSyncStatus('loading');
     setSyncMessage('Syncing active Ledger index upward to cloud database...');
 
-    const res = await syncStateToSupabase(userEmail, state);
+    const res = await syncStateToSupabase(userEmail, state, true);
     if (res.success) {
       setSyncStatus('success');
       setSyncMessage('Vault backup published successfully to Supabase! Flutter ready.');
@@ -490,7 +490,7 @@ class CloudSyncService {
                 {syncMessage && (
                   <div className={`p-3 rounded-xl border text-[11px] font-sans flex items-start gap-2 ${
                     syncStatus === 'success' 
-                      ? 'bg-emerald-950/20 border-emerald-900/60 text-emerald-400' 
+                      ? 'bg-blue-950/20 border-emerald-900/60 text-emerald-400' 
                       : syncStatus === 'error'
                       ? 'bg-red-950/20 border-red-900/60 text-red-400'
                       : 'bg-zinc-950/40 border-zinc-850 text-zinc-400'

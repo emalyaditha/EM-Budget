@@ -191,7 +191,7 @@ export default function TransferFunds({
               errors.from
                 ? 'border-rose-500 focus:border-rose-500'
                 : fromAccount && !errors.from
-                ? 'border-emerald-500'
+                ? 'border-blue-500'
                 : 'border-zinc-850 hover:border-zinc-700'
             }`}
           >

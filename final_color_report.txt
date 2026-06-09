@@ -1,0 +1,185 @@
+src/context/NotificationContext.tsx:5:type ToastType = 'success' | 'error' | 'warning' | 'info';
+src/context/NotificationContext.tsx:33:    const validTypes: ToastType[] = ['success', 'error', 'warning', 'info'];
+src/context/NotificationContext.tsx:73:                ${toast.type === 'success' ? 'bg-blue-900/80 border-emerald-500 text-emerald-100' : 
+src/context/NotificationContext.tsx:78:              {toast.type === 'success' && <CheckCircle size={20} />}
+src/context/NotificationContext.tsx:108:                  className="flex-1 px-4 py-2 bg-emerald-500 text-neutral-950 rounded-lg hover:bg-emerald-600 transition"
+src/components/CashCardManagement.tsx:154:              showToast('success', `${card.cardName} un-frozen successfully.`);
+src/components/CashCardManagement.tsx:320:  const [cardTheme, setCardTheme] = useState('obsidian'); // obsidian, sapphire, emerald, copper, ruby
+src/components/CashCardManagement.tsx:475:    showToast('success', 'Cash workspace holdings recorded securely.');
+src/components/CashCardManagement.tsx:527:    showToast('success', 'Your bank asset card is certified.');
+src/components/CashCardManagement.tsx:579:    showToast('success', 'Card details updated successfully.');
+src/components/CashCardManagement.tsx:610:    showToast('success', 'Holdings recalculated instantly.');
+src/components/CashCardManagement.tsx:616:      case 'emerald': return 'from-blue-950 via-zinc-950 to-indigo-900 border-[var(--accent-primary)]/30';
+src/components/CashCardManagement.tsx:700:                <CornerDownRight size={12} className="text-emerald-400 animate-pulse" />
+src/components/CashCardManagement.tsx:729:                      ? 'border-emerald-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500'
+src/components/CashCardManagement.tsx:766:                    ? 'border-emerald-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-550'
+src/components/CashCardManagement.tsx:790:                    ? 'border-emerald-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-550'
+src/components/CashCardManagement.tsx:860:                      ? 'border-emerald-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500'
+src/components/CashCardManagement.tsx:883:                      ? 'border-emerald-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500'
+src/components/CashCardManagement.tsx:920:                      ? 'border-emerald-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500'
+src/components/CashCardManagement.tsx:946:                    ? 'border-emerald-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500'
+src/components/CashCardManagement.tsx:962:                  { name: 'emerald', color: 'bg-emerald-600 ring-emerald-400' },
+src/components/CashCardManagement.tsx:1058:                                  showToast('success', `${card.cardName} has been fully reactivated.`);
+src/components/CashCardManagement.tsx:1060:                                className="px-3 py-1.5 text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition-all rounded-lg font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer"
+src/components/CashCardManagement.tsx:1083:                <Edit size={14} className="text-emerald-400" />
+src/components/CashCardManagement.tsx:1145:                    { name: 'emerald', color: 'bg-emerald-600 ring-emerald-400' },
+src/components/ErrorBoundary.tsx:49:        <div className="min-h-screen bg-[#070708] flex items-center justify-center p-6 text-white font-sans selection:bg-blue-500/30 selection:text-emerald-400">
+src/components/TransactionEditModal.tsx:115:      showToast('success', 'Transaction updated successfully!');
+src/components/TransactionEditModal.tsx:168:                  ? 'border-blue-500 focus:border-emerald-500'
+src/components/TransactionEditModal.tsx:193:                  ? 'border-emerald-500 focus:border-emerald-500'
+src/components/TransactionEditModal.tsx:218:                    ? 'border-emerald-500 focus:border-emerald-500'
+src/components/SettingsModal.tsx:51:  const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+src/components/SettingsModal.tsx:88:    setSyncStatus('success');
+src/components/SettingsModal.tsx:89:    setSyncMessage('Supabase credentials registered successfully.');
+src/components/SettingsModal.tsx:108:    if (res.success) {
+src/components/SettingsModal.tsx:109:      setSyncStatus('success');
+src/components/SettingsModal.tsx:110:      setSyncMessage('Vault backup published successfully to Supabase! Flutter ready.');
+src/components/SettingsModal.tsx:132:    if (res.success && res.state) {
+src/components/SettingsModal.tsx:135:      setSyncStatus('success');
+src/components/SettingsModal.tsx:136:      setSyncMessage('Cloud state fetched successfully! UI synchronized.');
+src/components/SettingsModal.tsx:169:      if (data.success) {
+src/components/SettingsModal.tsx:176:        setSyncStatus('success');
+src/components/SettingsModal.tsx:178:        showToast('success', 'Passcode dispatched! Complete your verification code below.');
+src/components/SettingsModal.tsx:215:      if (!response.ok || !data.success) {
+src/components/SettingsModal.tsx:225:      // 2FA code verified successfully! Now purge only this user's data from Supabase
+src/components/SettingsModal.tsx:246:      if (!result.success) {
+src/components/SettingsModal.tsx:253:      setSyncStatus('success');
+src/components/SettingsModal.tsx:255:      showToast('success', 'LEDGER PURGED COMPLETELY!');
+src/components/SettingsModal.tsx:492:                    syncStatus === 'success' 
+src/components/SettingsModal.tsx:493:                      ? 'bg-blue-950/20 border-emerald-900/60 text-emerald-400' 
+src/components/SettingsModal.tsx:499:                    {syncStatus === 'success' && <Check size={13} className="shrink-0 mt-0.5" />}
+src/components/SettingsModal.tsx:530:                        <pre className="p-3 bg-zinc-950 rounded-xl overflow-x-auto text-[10px] text-emerald-400/90 font-mono border border-zinc-900 whitespace-pre scrollbar-none" style={{ maxHeight: '180px' }}>
+src/components/SettingsModal.tsx:538:                          {sqlCopied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+src/components/SettingsModal.tsx:572:                          {flutterCopied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+src/components/SettingsModal.tsx:598:                        <pre className="p-3 bg-zinc-950 rounded-xl overflow-x-auto text-[10px] text-emerald-400/90 font-mono border border-zinc-900 whitespace-pre scrollbar-none" style={{ maxHeight: '180px' }}>
+src/components/SettingsModal.tsx:606:                          {upgradeCopied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+src/components/SettingsModal.tsx:629:                    <div className="flex items-center gap-2 text-xs text-emerald-400 font-semibold font-mono bg-emerald-950/20 py-2 px-3 border border-emerald-950/35 rounded-lg">
+src/components/SettingsModal.tsx:630:                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+src/components/TransferFunds.tsx:161:    showToast('success', 'Funds successfully transferred and balances adjusted!');
+src/components/TransferFunds.tsx:223:                ? 'border-emerald-500'
+src/components/TransferFunds.tsx:257:                ? 'border-emerald-500'
+src/components/TransferFunds.tsx:282:                ? 'border-emerald-500'
+src/components/LoansTracker.tsx:131:    showToast('success', 'Smart Loan tracked successfully! Account balances auto-debited.');
+src/components/LoansTracker.tsx:167:    showToast('success', `Logged settlement of ${currency} ${amt.toLocaleString()} successfully credited into ${destName}.`);
+src/components/LoansTracker.tsx:375:                    loan.status === 'Settled' ? 'border-emerald-950/50' : 'border-zinc-850'
+src/components/LoansTracker.tsx:380:                    loan.status === 'Settled' ? 'bg-emerald-500' : loan.status === 'Partially Settled' ? 'bg-yellow-500' : 'bg-rose-500'
+src/components/LoansTracker.tsx:390:                            ? 'bg-emerald-950/30 text-emerald-400 border-emerald-900/50' 
+src/components/LoansTracker.tsx:454:                          className="bg-gradient-to-r from-indigo-500 to-emerald-500 h-full rounded-full transition-all duration-700" 
+src/components/LoansTracker.tsx:518:                            className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-extrabold text-xs py-2.5 px-4 rounded-lg shadow-md hover:shadow-emerald-950/20 transition-all cursor-pointer text-center"
+src/components/LoansTracker.tsx:552:                                  <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono font-bold uppercase">
+src/components/EmailLogin.tsx:89:      if (!resp.ok || !data.success) throw new Error(data.error || 'Failed to check account');
+src/components/EmailLogin.tsx:112:    if (!resp.ok || !data.success) throw new Error(data.error || 'Failed to dispatch verification code.');
+src/components/EmailLogin.tsx:154:      if (!response.ok || !data.success) throw new Error(data.error || 'The code entered could not be verified.');
+src/components/EmailLogin.tsx:176:      if (!response.ok || !data.success) throw new Error(data.error);
+src/components/EmailLogin.tsx:209:      if (!response.ok || !data.success) throw new Error(data.error);
+src/components/InflowsOutflows.tsx:203:      showToast('success', 'Income received and ledger balanced successfully!');
+src/components/InflowsOutflows.tsx:245:      showToast('success', 'Invoice payment settled automatically! Account balance reduced.');
+src/components/InflowsOutflows.tsx:330:                    ? 'border-emerald-500 focus:border-emerald-500'
+src/components/InflowsOutflows.tsx:355:                      ? 'border-emerald-500 focus:border-emerald-500'
+src/components/InflowsOutflows.tsx:426:              {isProcessing ? 'Processing Inflow...' : <><PlusCircle size={14} className="text-emerald-600 stroke-[2.5px]" /> Log Inflow & Increase Balance</>}
+src/components/InflowsOutflows.tsx:448:                    ? 'border-emerald-500 focus:border-emerald-500'
+src/components/InflowsOutflows.tsx:488:                      ? 'border-emerald-500 focus:border-emerald-500'
+src/components/InflowsOutflows.tsx:540:                      ? 'border-emerald-500'
+src/components/NotificationDrawer.tsx:109:                          className="text-[10.5px] text-blue-600 dark:text-emerald-400 font-bold font-mono uppercase flex items-center gap-1 hover:text-emerald-500 cursor-pointer"
+src/components/DebtTracker.tsx:151:    showToast('success', 'Outstanding Debt registered successfully! Tracks updated.');
+src/components/DebtTracker.tsx:196:      showToast('success', 'Debt Fully Repaid Successfully');
+src/components/DebtTracker.tsx:198:      showToast('success', 'Repayment logged! Debt ledger balances correctly.');
+src/components/DebtTracker.tsx:217:    showToast('success', 'Additional debt added successfully.');
+src/components/DebtTracker.tsx:267:              <span className="text-xs text-blue-400 bg-emerald-950/30 px-2 py-0.5 rounded-lg font-mono font-black">{overallClearedPercent}%</span>
+src/components/DebtTracker.tsx:275:                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-450 rounded-full transition-all duration-1000"
+src/components/DebtTracker.tsx:346:                    ? 'border-emerald-500 focus:border-emerald-500'
+src/components/DebtTracker.tsx:371:                      ? 'border-emerald-500'
+src/components/DebtTracker.tsx:426:                      ? 'border-emerald-500'
+src/components/DebtTracker.tsx:554:                      className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000"
+src/components/CreditCardManagement.tsx:166:    showToast('success', 'Purchase details logged and card statement updated.');
+src/components/CreditCardManagement.tsx:223:                      <span className="font-mono font-black text-blue-450 text-emerald-400">
+src/components/CreditCardManagement.tsx:245:                            showToast('success', `Limit of ${currency}${c.limit || 0} locked & synchronized!`);
+src/components/CreditCardManagement.tsx:259:                            showToast('success', `Limit of ${currency}${c.limit || 0} locked & synchronized!`);
+src/components/CreditCardManagement.tsx:286:                            ? 'border-emerald-500'
+src/components/CreditCardManagement.tsx:302:                            ? 'border-emerald-500'
+src/components/CreditCardManagement.tsx:391:                ? 'border-emerald-500 focus:border-emerald-500'
+src/components/CreditCardManagement.tsx:418:                ? 'border-emerald-500 focus:border-emerald-500'
+src/components/CreditCardManagement.tsx:441:                ? 'border-emerald-500 focus:border-emerald-500'
+src/components/ReportsCentre.tsx:226:                <span className="text-sm font-mono font-extrabold text-blue-600 dark:text-emerald-400 mt-0.5 block">+{currency}{totalIncome.toLocaleString()}</span>
+src/components/ReportsCentre.tsx:496:                      <span className={`text-xs font-mono font-black shrink-0 ${isInc ? 'text-emerald-450 text-emerald-400' : 'text-rose-455 text-rose-400'}`}>
+src/components/SubscriptionManagement.tsx:118:    showToast('success', 'Subscription plan registered successfully!');
+src/components/SubscriptionManagement.tsx:235:                  ? 'border-blue-500 focus:border-emerald-500'
+src/components/GoalsSection.tsx:198:            <div className="bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border border-amber-505/30 border-amber-500/40 p-6 rounded-[24px] flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left justify-between relative shadow-xl">
+src/components/GoalsSection.tsx:205:                    You have successfully matched 100% of the financial goal target. This capital is successfully secured!
+src/components/GoalsSection.tsx:347:                          : 'bg-[#10B981]/20 hover:bg-[#10B981] text-emerald-400 hover:text-white border border-[#10B981]/30 hover:border-emerald-600'
+src/components/GoalsSection.tsx:502:                    className="py-2.5 px-5 bg-[#10B981] hover:bg-emerald-600 text-white rounded-xl text-xs font-bold cursor-pointer shadow-md"
+src/components/Charts.tsx:138:            <span className="text-blue-500 dark:text-emerald-400 font-mono font-bold">{currency} {income.toLocaleString()} ({incomePct}%)</span>
+src/components/Charts.tsx:142:              className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-r-md transition-all duration-1000"
+src/components/Charts.tsx:264:            className="text-emerald-400 transition-all duration-1000"
+src/components/Charts.tsx:280:          Cleared: <span className="text-emerald-400 font-bold">{currency} {repaid.toLocaleString()}</span>
+src/components/ProfileSection.tsx:32:        showToast('success', 'Profile name synced with secure cloud record.');
+src/components/ProfileSection.tsx:112:            <span className="px-2.5 py-0.5 bg-emerald-950/40 border border-emerald-900/40 text-emerald-400 text-[9px] uppercase font-bold tracking-widest rounded-full inline-block mt-2 font-mono">
+src/components/ProfileSection.tsx:168:          <ShieldCheck size={14} className="text-emerald-500 mr-1" />
+src/index.css:43:  --success: #00A3FF;
+src/index.css:98:  --success: #00A3FF;
+src/index.css:357:  border-color: #00C853 !important;
+src/index.css:358:  color: #00C853 !important;
+src/index.css:362:  color: #00C853 !important;
+src/index.css:366:  background-color: #00C853 !important;
+src/index.css:678:  color: #00C853 !important;
+src/index.css:682:  color: #00C853 !important;
+src/index.css:689:  border-left: 4px solid #00C853 !important;
+src/index.css:804:.light [data-loan-status] span:not([class*="text-rose"]):not([class*="text-indigo"]):not([class*="text-emerald"]):not([class*="text-amber"]) {
+src/index.css:1027:  background: #00C853 !important;
+src/validators/index.ts:120:export function validateData<T>(schema: z.Schema<T>, data: unknown): { success: true; data: T } | { success: false; error: string } {
+src/validators/index.ts:122:  if (result.success) {
+src/validators/index.ts:123:    return { success: true, data: result.data };
+src/validators/index.ts:126:    return { success: false, error: formattedError };
+src/App.tsx:89:          if (result.success && result.state) {
+src/App.tsx:140:          if (!res.success) {
+src/App.tsx:145:            console.log('Real-time Supabase Auto-sync success!');
+src/App.tsx:164:      showToast('Budget allocation limit adjusted successfully', 'success');
+src/App.tsx:184:      showToast(`Monitoring created for category: ${category}`, 'success');
+src/App.tsx:192:      showToast('Budget category deleted successfully', 'success');
+src/App.tsx:206:      showToast(`Savings Jar: ${name} established!`, 'success');
+src/App.tsx:238:      showToast(amount > 0 ? 'Reserves transferred into savings jar' : 'Reserves returned back to liquid wallet', 'success');
+src/App.tsx:250:      showToast('Savings jar goal deleted successfully', 'success');
+src/App.tsx:259:    showToast('All spending envelopes deleted successfully', 'success');
+src/App.tsx:266:    showToast('All savings jars deleted successfully', 'success');
+src/App.tsx:545:        message: `Liability to ${debtToDelete.debtSource} was deleted. Balance adjustments successfully reversed.`,
+src/App.tsx:986:    showToast('success', 'Purchase recorded successfully!');
+src/App.tsx:1021:      showToast('success', 'Payment recorded successfully!');
+src/App.tsx:1576:        showToast('success', 'Ledger re-seeded beautifully.');
+src/App.tsx:1620:            showToast('success', `Personal ledger belonging to ${originalOwner} imported successfully! All records linked to your active identity.`);
+src/App.tsx:1622:            showToast('success', 'Database restored successfully! Ledger tracks have re-balanced.');
+src/App.tsx:1629:              if (res.success) {
+src/App.tsx:1630:                showToast('success', 'Imported data pushed to cloud automatically!');
+src/App.tsx:1863:              // Fetch from Supabase immediately after successful login
+src/App.tsx:1865:              if (result.success && result.state) {
+src/App.tsx:2001:                  <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-400 border-2 border-zinc-900 rounded-full animate-pulse" />
+src/App.tsx:2273:          <CircleDot size={12} className="text-emerald-400 animate-pulse" />
+src/financial.test.ts:14:      expect(result.success).toBe(true);
+src/financial.test.ts:15:      if (result.success) {
+src/financial.test.ts:29:      expect(result.success).toBe(false);
+src/financial.test.ts:30:      if (result.success === false) {
+src/financial.test.ts:45:      expect(result.success).toBe(false);
+src/financial.test.ts:46:      if (result.success === false) {
+src/supabase.ts:16:// Session safety guard to prevent background pushes with empty state before a successful fetch
+src/supabase.ts:323:export async function truncateAllDataInSupabase(email: string): Promise<{ success: boolean; error?: string }> {
+src/supabase.ts:326:    return { success: false, error: 'Supabase URL or Anon Key is missing or invalid.' };
+src/supabase.ts:344:    return { success: true };
+src/supabase.ts:346:    return { success: false, error: err.message || JSON.stringify(err) };
+src/supabase.ts:354:export async function syncStateToSupabase(email: string, state: AppState, bypassSafetyGuard = false): Promise<{ success: boolean; error?: string }> {
+src/supabase.ts:357:    console.warn('[SYNC SAFETY GUARD] Aborted push/auto-sync because the database state has not been successfully pulled or synchronized in this session yet. This prevents blank local state from destroying existing user data.');
+src/supabase.ts:358:    return { success: false, error: 'Database state has not been successfully fetched in this session.' };
+src/supabase.ts:363:    return { success: false, error: 'Supabase URL or Anon Key is missing or invalid.' };
+src/supabase.ts:370:    return { success: true };
+src/supabase.ts:531:      const rpcSuccess = !rpcErr && rpcRes && (rpcRes as any).success !== false;
+src/supabase.ts:536:        return { success: true };
+src/supabase.ts:565:    console.log('[SYNC] ledger_states upsert successful.');
+src/supabase.ts:813:      return { success: false, error: errorDetails.join('; ') };
+src/supabase.ts:817:    return { success: true };
+src/supabase.ts:820:    return { success: false, error: err.message || 'Database transaction error.' };
+src/supabase.ts:869:export async function syncStateFromSupabase(email: string): Promise<{ success: boolean; state?: AppState; error?: string }> {
+src/supabase.ts:872:    return { success: false, error: 'Supabase URL or Anon Key is missing or invalid.' };
+src/supabase.ts:1023:    return { success: true, state: reconstructedState };
+src/supabase.ts:1026:    return { success: false, error: err.message || 'Database transaction error.' };
+src/supabase.ts:1806:  RETURN jsonb_build_object('success', true);
+src/supabase.ts:1809:    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+src/supabase.ts:2395:  RETURN jsonb_build_object('success', true);
+src/supabase.ts:2398:    RETURN jsonb_build_object('success', false, 'error', SQLERRM);

@@ -51,17 +51,129 @@ export default function Dashboard({
     : 0;
   const displaySavingsRate = Math.max(0, netSavingsRate);
 
-  // Calculate a Dynamic "Financial Health" Score based on savings rate, credit limits, debt ratios
-  let healthScore = 75; // baseline
-  if (displaySavingsRate > 30) healthScore += 15;
-  else if (displaySavingsRate > 15) healthScore += 10;
-  else if (displaySavingsRate < 5) healthScore -= 10;
+  // Calculate high-fidelity, fully data-driven Financial Health Score across 5 metrics
+  const healthMetrics = React.useMemo(() => {
+    const hasAnyData = state.cashAccounts.length > 0 || state.cards.length > 0 || state.transactions.length > 0 || state.debts.length > 0;
+    if (!hasAnyData) {
+      return {
+        netWorthScore: 0,
+        liquidityScore: 0,
+        debtScore: 0,
+        cashFlowScore: 0,
+        savingsRateScore: 0,
+        totalScore: 0,
+        hasData: false
+      };
+    }
 
-  const debtRatio = aggregateActiveWealth > 0 ? (totalDebtsAmount / aggregateActiveWealth) : 0;
-  if (debtRatio > 0.5) healthScore -= 15;
-  else if (debtRatio < 0.1) healthScore += 8;
+    // 1. Net Worth Score (max 30)
+    let netWorthScore = 0;
+    if (aggregateActiveWealth > 0) {
+      netWorthScore = Math.min(30, Math.round(15 + (aggregateActiveWealth / 50000) * 15));
+    } else if (aggregateActiveWealth < 0) {
+      netWorthScore = Math.max(0, Math.round(10 - (Math.abs(aggregateActiveWealth) / 10000) * 10));
+    } else {
+      netWorthScore = 0;
+    }
 
-  const finalHealthScore = Math.min(100, Math.max(20, healthScore));
+    // 2. Liquidity Score (max 25)
+    let liquidityScore = 0;
+    const liquidAssets = totalCashAmount + totalDebitCardsAmount;
+    if (currentMonthOutflow > 0) {
+      const ratio = liquidAssets / currentMonthOutflow;
+      if (ratio >= 3) liquidityScore = 25;
+      else if (ratio >= 1.5) liquidityScore = 20;
+      else if (ratio >= 1.0) liquidityScore = 15;
+      else liquidityScore = Math.min(15, Math.round(5 + ratio * 10));
+    } else {
+      if (liquidAssets >= 5000) liquidityScore = 25;
+      else if (liquidAssets >= 2000) liquidityScore = 20;
+      else if (liquidAssets >= 500) liquidityScore = 15;
+      else if (liquidAssets > 0) liquidityScore = 10;
+      else liquidityScore = 0;
+    }
+
+    // 3. Debt Ratio Score (max 20)
+    let debtScore = 20;
+    const totalAssets = totalCashAmount + totalDebitCardsAmount;
+    if (totalDebtsAmount > 0) {
+      const dRatio = totalDebtsAmount / (totalAssets || 1);
+      if (dRatio <= 0.1) debtScore = 18;
+      else if (dRatio <= 0.3) debtScore = 15;
+      else if (dRatio <= 0.5) debtScore = 10;
+      else debtScore = Math.max(0, Math.round(10 - (dRatio - 0.5) * 20));
+    } else {
+      debtScore = totalAssets > 0 ? 20 : 0;
+    }
+
+    // 4. Cash Flow Score (max 15)
+    let cashFlowScore = 0;
+    const netCashFlow = currentMonthInflow - currentMonthOutflow;
+    if (currentMonthInflow > 0) {
+      if (netCashFlow > 0) {
+        const margin = netCashFlow / currentMonthInflow;
+        if (margin >= 0.3) cashFlowScore = 15;
+        else if (margin >= 0.15) cashFlowScore = 12;
+        else cashFlowScore = Math.round(5 + margin * 20);
+      } else {
+        cashFlowScore = Math.max(0, Math.round(5 + (netCashFlow / currentMonthInflow) * 10));
+      }
+    } else if (currentMonthOutflow > 0) {
+      cashFlowScore = 0;
+    } else {
+      cashFlowScore = 0;
+    }
+
+    // 5. Savings Rate Score (max 10)
+    let savingsRateScore = 0;
+    if (displaySavingsRate > 0) {
+      if (displaySavingsRate >= 30) savingsRateScore = 10;
+      else if (displaySavingsRate >= 20) savingsRateScore = 8;
+      else if (displaySavingsRate >= 10) savingsRateScore = 6;
+      else if (displaySavingsRate >= 5) savingsRateScore = 4;
+      else savingsRateScore = 2;
+    } else {
+      savingsRateScore = 0;
+    }
+
+    const totalScore = netWorthScore + liquidityScore + debtScore + cashFlowScore + savingsRateScore;
+
+    console.log(`[DATA-DRIVEN METRICS CALCULATION LOG]`);
+    console.log(`- Cash balances: ${totalCashAmount}, Debit card balances: ${totalDebitCardsAmount}, Credit card liability: ${totalCreditCardsAmount}, Debts: ${totalDebtsAmount}`);
+    console.log(`- Inflow: ${currentMonthInflow}, Outflow: ${currentMonthOutflow}, Savings Rate: ${displaySavingsRate}%`);
+    console.log(`- Metric Weighting Breakdown:`);
+    console.log(`  * Net Worth Score: ${netWorthScore}/30`);
+    console.log(`  * Liquidity Score: ${liquidityScore}/25`);
+    console.log(`  * Debt Ratio Score: ${debtScore}/20`);
+    console.log(`  * Cash Flow Score: ${cashFlowScore}/15`);
+    console.log(`  * Savings Rate Score: ${savingsRateScore}/10`);
+    console.log(`  * Cumulative health score: ${totalScore}/100`);
+
+    return {
+      netWorthScore,
+      liquidityScore,
+      debtScore,
+      cashFlowScore,
+      savingsRateScore,
+      totalScore,
+      hasData: true
+    };
+  }, [
+    state.cashAccounts,
+    state.cards,
+    state.transactions,
+    state.debts,
+    aggregateActiveWealth,
+    totalCashAmount,
+    totalDebitCardsAmount,
+    totalCreditCardsAmount,
+    totalDebtsAmount,
+    currentMonthInflow,
+    currentMonthOutflow,
+    displaySavingsRate
+  ]);
+
+  const finalHealthScore = healthMetrics.totalScore;
 
   const getHealthStatus = (score: number) => {
     if (score >= 85) return { label: 'Excellent', color: 'text-[#10B981] bg-[#10B981]/10', desc: 'Your savings speed and wallet leverage are optimized.' };
@@ -92,13 +204,7 @@ export default function Dashboard({
 
   // Horizontal Scroll spend categories list with linear progress bar style
   // Using standard mock budget category values if no explicit budgets configured
-  const categoriesBudgets = state.budgets || [
-    { id: 'b1', category: 'Food', limit: 500, spent: 240, icon: '🍔' },
-    { id: 'b2', category: 'Transport', limit: 150, spent: 45, icon: '🚗' },
-    { id: 'b3', category: 'Entertainment', limit: 200, spent: 180, icon: '🍿' },
-    { id: 'b4', category: 'Bills', limit: 400, spent: 350, icon: '⚡' },
-    { id: 'b5', category: 'Shopping', limit: 300, spent: 335, icon: '🛍️' }
-  ];
+  const categoriesBudgets = state.budgets && state.budgets.length > 0 ? state.budgets : [];
 
   // Map category spent dynamically from actual transactions and subscriptions to reflect live state
   const liveBudgetTray = categoriesBudgets.map(b => {
@@ -132,10 +238,83 @@ export default function Dashboard({
     };
   });
 
-  // Trend analysis data mapping 
-  const sparklineData = state.transactions.length > 0
-    ? [...state.transactions].reverse().slice(0, 6).map(t => Math.abs(t.amount))
-    : [2000, 4500, 2900, 6100, 4200, 8500]; // high fidelity fallback
+  // Helper to extract transaction impact on aggregateActiveWealth
+  const getTransactionImpact = (t: any) => {
+    if (t.type === 'income') return Math.abs(t.amount);
+    if (t.type === 'expense') return -Math.abs(t.amount);
+    return 0;
+  };
+
+  // Find actual historical unique transaction dates
+  const transactionDates = React.useMemo(() => {
+    return Array.from(
+      new Set(
+        state.transactions
+          .filter(t => t.date)
+          .map(t => t.date.split('T')[0])
+      )
+    ).sort();
+  }, [state.transactions]);
+
+  const sparklineData = React.useMemo(() => {
+    const hasAnyRecords = state.cashAccounts.length > 0 || state.cards.length > 0 || state.transactions.length > 0 || state.debts.length > 0;
+    if (!hasAnyRecords || transactionDates.length === 0) {
+      return [];
+    }
+
+    // Take up to last 6 distinct historical dates where records occur
+    const last6Dates = transactionDates.slice(-6);
+
+    const orderedTxs = [...state.transactions].sort((a, b) => {
+      if (!a.date || !b.date) return 0;
+      return a.date.localeCompare(b.date);
+    });
+
+    const totalImpact = orderedTxs.reduce((sum, t) => sum + getTransactionImpact(t), 0);
+    const baseNetWorth = aggregateActiveWealth - totalImpact;
+
+    return last6Dates.map(dateStr => {
+      const impactUpToDate = orderedTxs
+        .filter(t => t.date && t.date.split('T')[0] <= dateStr)
+        .reduce((sum, t) => sum + getTransactionImpact(t), 0);
+      return {
+        date: dateStr,
+        value: baseNetWorth + impactUpToDate
+      };
+    });
+  }, [state.transactions, transactionDates, aggregateActiveWealth, state.cashAccounts.length, state.cards.length, state.debts.length]);
+
+  // Calculate dynamic trend for hero component
+  const trendLabel = React.useMemo(() => {
+    if (sparklineData.length === 0) {
+      console.log(`[TREND CALCULATION] No data available for trend calculation.`);
+      return "No Data";
+    }
+    if (sparklineData.length < 2) {
+      console.log(`[TREND CALCULATION] Insufficient data (N=${sparklineData.length}) for trend calculation.`);
+      return "Insufficient Data";
+    }
+
+    const lastVal = sparklineData[sparklineData.length - 1].value;
+    const prevVal = sparklineData[sparklineData.length - 2].value;
+
+    if (prevVal === 0) {
+      console.log(`[TREND CALCULATION] Missing previous value (prevVal=0).`);
+      return "—";
+    }
+    
+    const trend = ((lastVal - prevVal) / prevVal) * 100;
+    return `${trend >= 0 ? '+' : ''}${trend.toFixed(1)}% trend`;
+  }, [sparklineData]);
+
+  const trendColorClass = React.useMemo(() => {
+     if (typeof trendLabel !== 'string' || trendLabel.includes('%')) {
+        const value = parseFloat(trendLabel);
+        if (value >= 0) return 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20';
+        return 'bg-rose-500/10 text-rose-500 border-rose-500/20';
+     }
+     return 'bg-zinc-800 text-zinc-400 border-zinc-700';
+  }, [trendLabel]);
 
   // Fetch subscription due warning status
   const getSubDueDays = (dueDateStr: string, status: string) => {
@@ -165,7 +344,7 @@ export default function Dashboard({
       {/* ======================= FLOATING PLUS "+" BUTTON ADD TRANSACTION ======================= */}
       <motion.button
         onClick={() => setActiveTab('inflow_outflow')}
-        className="fixed bottom-24 right-5 sm:right-10 z-40 w-14 h-14 bg-gradient-to-tr from-[#10B981] to-emerald-400 text-white rounded-full flex items-center justify-center shadow-[0_8px_32px_rgba(16,185,129,0.4)] hover:scale-110 cursor-pointer active:scale-95 duration-200 border border-emerald-300/20 group"
+        className="fixed bottom-24 right-5 sm:right-10 z-40 w-14 h-14 bg-gradient-to-tr from-[var(--accent-primary)] to-blue-400 text-white rounded-full flex items-center justify-center shadow-[0_8px_32px_rgba(0,163,255,0.4)] hover:scale-110 cursor-pointer active:scale-95 duration-200 border border-[var(--accent-primary)]/20 group"
         whileHover={{ rotate: 90 }}
         title="Quick Record Transaction"
       >
@@ -173,16 +352,16 @@ export default function Dashboard({
       </motion.button>
 
       {/* 1. TOP PERSONALIZED BANNER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-2 border-b border-[var(--border-primary)] pb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-4 border-b border-[var(--border-primary)] pb-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span id="premium-suite-badge" className="px-3 py-1 bg-[#10B981]/15 border border-[#10B981]/25 text-[#10B981] text-[10px] uppercase font-bold tracking-widest rounded-full flex items-center gap-1.5 shadow-sm">
-              <Sparkles size={11} className="text-[#10B981] animate-pulse" />
+            <span id="premium-suite-badge" className="px-3 py-1 bg-[var(--accent-primary)]/15 border border-[var(--accent-primary)]/25 text-[var(--accent-primary)] text-[11px] uppercase font-semibold tracking-wider rounded-full flex items-center gap-1.5 shadow-sm">
+              <Sparkles size={11} className="text-[var(--accent-primary)] animate-pulse" />
               Premium Suite Active
             </span>
-            <span className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-ping" />
+            <span className="w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-ping" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text-primary)] flex items-center gap-2 leading-none">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)] flex items-center gap-2 leading-none">
             Hello, {state.userProfile?.name || 'User'}
             <span className="text-2xl hover:scale-125 duration-155 cursor-pointer">👋</span>
           </h1>
@@ -193,7 +372,7 @@ export default function Dashboard({
             onClick={onProfileClick}
             className="flex items-center gap-2.5 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] px-4 py-2 rounded-xl text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
           >
-            <div className="w-6 h-6 bg-[#10B981] rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-inner">
+            <div className="w-8 h-8 bg-[var(--accent-primary)] rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg">
               {state.userProfile?.name?.charAt(0) || 'U'}
             </div>
             <span>Profile Settings</span>
@@ -207,7 +386,7 @@ export default function Dashboard({
           >
             <Bell size={18} />
             {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[#10B981] rounded-full ring-2 ring-[var(--bg-card)]" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--accent-primary)] rounded-full ring-2 ring-[var(--bg-card)]" />
             )}
           </button>
         </div>
@@ -224,16 +403,16 @@ export default function Dashboard({
 
           <div className="flex justify-between items-start z-10">
             <div>
-              <p className="text-[10px] tracking-widest text-[#10B981] uppercase font-bold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                EM VAULT PORTFOLIO
-              </p>
-              <h3 className="text-xs text-[var(--text-secondary)] mt-0.5 font-medium">Aggregate Active Wealth Reserves</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" />
+                Vault Portfolio
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-1 font-medium">Aggregate Active Wealth Reserves</p>
             </div>
 
-            <div className="flex items-center gap-1 bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20 py-1 px-2 rounded-full text-[10px] font-bold font-mono">
+            <div className={`flex items-center gap-1 border py-1 px-2 rounded-full text-[10px] font-bold font-mono ${trendColorClass}`}>
               <TrendingUp size={11} />
-              <span>+3.2% trend</span>
+              <span>{trendLabel}</span>
             </div>
           </div>
 
@@ -273,11 +452,11 @@ export default function Dashboard({
         </div>
 
         {/* NEW FINANCIAL HEALTH SCORE & BURN METER */}
-        <div className="lg:col-span-4 bg-[var(--bg-card)] rounded-[24px] p-6 border border-[var(--border-primary)] shadow-[var(--shadow-soft)] flex flex-col justify-between relative overflow-hidden text-left">
+        <div className="lg:col-span-4 bg-[var(--bg-card)] rounded-[24px] p-6 border border-[var(--border-primary)] shadow-[var(--shadow-soft)] flex flex-col justify-between relative overflow-hidden text-left" id="financial-health-card">
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-secondary)] font-mono">Financial Health Index</span>
-              <Heart size={14} className="text-[#F87171] fill-[#F87171] animate-pulse" />
+            <div className="flex justify-between items-center pb-1">
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Financial Health Index</h3>
+              <Heart size={15} className="text-[#F87171] fill-[#F87171] animate-pulse" />
             </div>
 
             <div className="flex items-baseline gap-2">
@@ -292,6 +471,83 @@ export default function Dashboard({
               <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed pt-1.5">
                 {healthState.desc}
               </p>
+            </div>
+
+            {/* Score Component Breakdown */}
+            <div className="pt-3 border-t border-[var(--border-primary)] space-y-2.5">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--accent-primary)] font-mono">Index Components</span>
+                <span className="text-[9px] text-zinc-500 font-mono font-bold">TOTAL: 100 max</span>
+              </div>
+
+              {/* Component: Net Worth Score */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-zinc-400 font-medium">Net Worth Weight</span>
+                  <span className="font-mono font-bold text-white">
+                    {healthMetrics.netWorthScore}<span className="text-zinc-650 font-normal"> / 30</span>
+                  </span>
+                </div>
+                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-[var(--accent-primary)] h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.netWorthScore / 30) * 100}%` }} />
+                </div>
+              </div>
+
+              {/* Component: Liquidity Score */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-zinc-400 font-medium font-sans">Liquidity Weight</span>
+                  <span className="font-mono font-bold text-white">
+                    {healthMetrics.liquidityScore}<span className="text-zinc-650 font-normal"> / 25</span>
+                  </span>
+                </div>
+                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-cyan-500 h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.liquidityScore / 25) * 100}%` }} />
+                </div>
+              </div>
+
+              {/* Component: Debt Ratio Score */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-zinc-400 font-medium font-sans">Debt Ratio Weight</span>
+                  <span className="font-mono font-bold text-white">
+                    {healthMetrics.debtScore}<span className="text-zinc-650 font-normal"> / 20</span>
+                  </span>
+                </div>
+                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-amber-400 h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.debtScore / 20) * 100}%` }} />
+                </div>
+              </div>
+
+              {/* Component: Cash Flow Score */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-zinc-400 font-medium font-sans">Cash Flow Weight</span>
+                  <span className="font-mono font-bold text-white">
+                    {healthMetrics.cashFlowScore}<span className="text-zinc-650 font-normal"> / 15</span>
+                  </span>
+                </div>
+                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-indigo-400 h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.cashFlowScore / 15) * 100}%` }} />
+                </div>
+              </div>
+
+              {/* Component: Savings Rate Score */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-zinc-400 font-medium font-sans">Savings Speed Weight</span>
+                  <span className="font-mono font-bold text-white">
+                    {healthMetrics.savingsRateScore}<span className="text-zinc-650 font-normal"> / 10</span>
+                  </span>
+                </div>
+                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.savingsRateScore / 10) * 100}%` }} />
+                </div>
+              </div>
+
+              <div className="text-[10px] text-zinc-550 italic leading-snug pt-1">
+                Formula: Index = Net Worth (30) + Cash Liquidity (25) + Liability Safety (20) + Flow Margin (15) + Savings Delta (10)
+              </div>
             </div>
           </div>
 
@@ -313,14 +569,14 @@ export default function Dashboard({
 
       {/* 3. HORIZONTAL SCROLLABLE "SPENDING BY CATEGORY" TRADIING CARD LISTS */}
       <div className="space-y-4">
-        <div className="flex justify-between items-center px-1">
-          <div className="text-left">
-            <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Spending Envelopes</h4>
-            <p className="text-[10px] text-[var(--text-secondary)]">Horizontal monitor caps</p>
+        <div className="flex justify-between items-end px-1">
+          <div className="text-left space-y-1">
+            <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Spending Envelopes</h2>
+            <p className="text-xs text-[var(--text-secondary)]">Active monthly envelope controls and limits</p>
           </div>
           <button 
             onClick={() => setActiveTab('budgets')}
-            className="text-[11px] font-bold text-[#10B981] hover:underline flex items-center gap-1"
+            className="text-xs font-semibold text-[var(--accent-primary)] hover:underline flex items-center gap-1"
           >
             <span>Budgets Tab</span>
             <ArrowRight size={12} />
@@ -328,61 +584,68 @@ export default function Dashboard({
         </div>
 
         {/* Categories scroll tracker */}
-        <div className="flex overflow-x-auto gap-4 pb-2 scrollbar-none snap-x" id="category-spend-slider-tray">
-          {liveBudgetTray.map((category) => {
-            const ratio = category.spent / category.limit;
-            const isOver = ratio > 1;
-            return (
-              <motion.div
-                key={category.id}
-                whileHover={{ y: -3 }}
-                className="min-w-[195px] sm:min-w-[210px] snap-start bg-[var(--bg-card)] border border-[var(--border-primary)] p-4 rounded-2xl flex flex-col justify-between h-34 shadow-sm text-left"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg w-8 h-8 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center">{category.icon}</span>
-                    <span className="text-xs font-bold text-white max-w-[100px] truncate">{category.category}</span>
-                  </div>
-                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                    isOver ? 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/20' : ratio >= 0.8 ? 'bg-amber-400/10 text-amber-400 border border-amber-400/15' : 'bg-slate-900 text-slate-400'
-                  }`}>
-                    {category.percent}%
-                  </span>
-                </div>
-
-                <div className="mt-4 space-y-1.5">
-                  <div className="flex justify-between text-[10px] font-mono text-[var(--text-secondary)]">
-                    <span>Spent</span>
-                    <span className="font-extrabold text-white">
-                      {state.currency}{category.spent.toLocaleString()}
+        <div className="flex overflow-x-auto gap-4 pb-2 scrollbar-none snap-x w-full" id="category-spend-slider-tray">
+          {liveBudgetTray.length > 0 ? (
+            liveBudgetTray.map((category) => {
+              const ratio = category.spent / category.limit;
+              const isOver = ratio > 1;
+              return (
+                <motion.div
+                  key={category.id}
+                  whileHover={{ y: -3 }}
+                  className="min-w-[195px] sm:min-w-[210px] snap-start bg-[var(--bg-card)] border border-[var(--border-primary)] p-4 rounded-2xl flex flex-col justify-between h-34 shadow-sm text-left"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg w-8 h-8 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center">{category.icon}</span>
+                      <span className="text-xs font-bold text-white max-w-[100px] truncate">{category.category}</span>
+                    </div>
+                    <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                      isOver ? 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/20' : ratio >= 0.8 ? 'bg-amber-400/10 text-amber-400 border border-amber-400/15' : 'bg-slate-900 text-slate-400'
+                    }`}>
+                      {category.percent}%
                     </span>
                   </div>
 
-                  {/* Linear mini budget bar */}
-                  <div className="w-full h-1.5 bg-slate-850 rounded-full overflow-hidden border border-slate-800/10">
-                    <div 
-                      className={`h-full ${isOver ? 'bg-[#F87171]' : ratio >= 0.8 ? 'bg-[#F59E0B]' : 'bg-[#10B981]'}`}
-                      style={{ width: `${category.percent}%` }}
-                    />
-                  </div>
+                  <div className="mt-4 space-y-1.5">
+                    <div className="flex justify-between text-[10px] font-mono text-[var(--text-secondary)]">
+                      <span>Spent</span>
+                      <span className="font-extrabold text-white">
+                        {state.currency}{category.spent.toLocaleString()}
+                      </span>
+                    </div>
 
-                  <div className="flex justify-between text-[8px] uppercase tracking-wide text-[var(--text-secondary)] pt-0.5 font-mono">
-                    <span>Limit: {state.currency}{category.limit}</span>
-                    <span className={isOver ? 'text-[#F87171] font-bold' : 'text-[#10B981]'}>
-                      {isOver ? 'DEFICIT' : `${state.currency}${category.remaining} left`}
-                    </span>
+                    {/* Linear mini budget bar */}
+                    <div className="w-full h-1.5 bg-slate-850 rounded-full overflow-hidden border border-slate-800/10">
+                      <div 
+                        className={`h-full ${isOver ? 'bg-[#F87171]' : ratio >= 0.8 ? 'bg-[#F59E0B]' : 'bg-[#10B981]'}`}
+                        style={{ width: `${category.percent}%` }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between text-[8px] uppercase tracking-wide text-[var(--text-secondary)] pt-0.5 font-mono">
+                      <span>Limit: {state.currency}{category.limit}</span>
+                      <span className={isOver ? 'text-[#F87171] font-bold' : 'text-[#10B981]'}>
+                        {isOver ? 'DEFICIT' : `${state.currency}${category.remaining} left`}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            );
-          })}
+                </motion.div>
+              );
+            })
+          ) : (
+            <div className="w-full py-6 px-4 text-center border border-dashed border-slate-800/60 text-slate-500 rounded-2xl bg-slate-900/10">
+              <p className="text-xs font-semibold text-slate-300">No active spending envelopes configured</p>
+              <p className="text-[10px] text-slate-500 mt-1">Navigate to the Smart Budgets tab to setup envelope control limits.</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* 4. SHORTCUT MONZO STYLED ACTIONS */}
       <div className="bg-slate-900/35 border border-[var(--border-primary)] rounded-[24px] p-5 flex flex-col justify-between shadow-inner text-left" id="monzo-shortcuts-tray">
         <div className="pb-3 border-b border-[var(--border-primary)] mb-4 flex justify-between items-center">
-          <span className="text-[10px] tracking-wider text-[#10B981] font-mono font-bold uppercase">HOTKEY SHORTCUT TIMEFRAMES</span>
+          <span className="text-[10px] tracking-wider text-[var(--accent-primary)] font-mono font-bold uppercase">HOTKEY SHORTCUT TIMEFRAMES</span>
           <span className="text-[9px] text-[var(--text-secondary)] font-mono">1-TAP SYNC CONNECTORS</span>
         </div>
 
@@ -417,7 +680,7 @@ export default function Dashboard({
             onClick={() => setActiveTab('accounts')}
             className="group p-4 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl text-left transition-all cursor-pointer flex items-center gap-3"
           >
-            <div className="p-2.5 rounded-xl bg-indigo-505 bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20">
+            <div className="p-2.5 rounded-xl bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)]/20">
               <Send size={15} />
             </div>
             <div>
@@ -457,13 +720,13 @@ export default function Dashboard({
         {/* RECENT TRANSACTIONS FEED PANEL */}
         <div className="lg:col-span-7 bg-[var(--bg-card)] border border-[var(--border-primary)] p-6 rounded-[24px] shadow-[var(--shadow-soft)] w-full text-left">
           <div className="flex justify-between items-center mb-6">
-            <div>
-              <h4 className="text-sm font-bold text-[var(--text-primary)]">Recent Transactions Feed</h4>
-              <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Continuous ledger operations registered securely</p>
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Recent Transactions Feed</h3>
+              <p className="text-xs text-[var(--text-secondary)]">Continuous ledger operations registered securely</p>
             </div>
             <button
               onClick={() => setActiveTab('reports')}
-              className="text-[11px] font-bold text-[#10B981] uppercase hover:underline"
+              className="text-[11px] font-bold text-[var(--accent-primary)] uppercase hover:underline"
             >
               See All logs
             </button>
@@ -513,7 +776,7 @@ export default function Dashboard({
                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
                           <div className={`p-3 rounded-xl shrink-0 transition-colors ${
                             isInc 
-                              ? 'bg-[#10B981]/15 text-[#10B981]' 
+                              ? 'bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]' 
                               : 'bg-rose-600/15 text-rose-500 border border-rose-600/20'
                           }`}>
                             {isInc ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
@@ -532,7 +795,7 @@ export default function Dashboard({
   
                         <div className="text-right pl-4 shrink-0 font-mono">
                           <span className={`text-xs font-bold block ${
-                            isInc ? 'text-[#10B981]' : 'text-rose-500'
+                            isInc ? 'text-[var(--accent-primary)]' : 'text-rose-500'
                           }`}>
                             {isInc ? '+' : '-'}{state.currency}{absAmt.toLocaleString()}
                           </span>
@@ -550,13 +813,13 @@ export default function Dashboard({
         {/* BILLS MONITOR */}
         <div className="lg:col-span-5 bg-[var(--bg-card)] border border-[var(--border-primary)] p-6 rounded-[24px] shadow-[var(--shadow-soft)] w-full text-left">
           <div className="flex justify-between items-center mb-6">
-            <div>
-              <h4 className="text-sm font-bold text-[var(--text-primary)]">Upcoming Bills</h4>
-              <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Recurring subscription plans in monitor queue</p>
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Upcoming Bills</h3>
+              <p className="text-xs text-[var(--text-secondary)]">Recurring subscription plans in monitor queue</p>
             </div>
             <button
               onClick={() => setActiveTab('inflow_outflow')}
-              className="text-[11px] font-bold text-[#10B981] uppercase hover:underline"
+              className="text-[11px] font-bold text-[var(--accent-primary)] uppercase hover:underline"
             >
               Configure
             </button>

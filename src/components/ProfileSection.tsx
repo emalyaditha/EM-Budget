@@ -84,7 +84,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
           <div className="relative w-20 h-20 bg-zinc-950 border-2 border-zinc-800 rounded-full flex items-center justify-center text-white text-3xl font-extrabold shadow-xl">
             {firstLetter}
           </div>
-          <span className="absolute bottom-0 right-1 w-5.5 h-5.5 bg-emerald-500 border-4 border-zinc-950 rounded-full" title="Identity Verified Status" />
+          <span className="absolute bottom-0 right-1 w-5.5 h-5.5 bg-blue-500 border-4 border-zinc-950 rounded-full" title="Identity Verified Status" />
         </div>
 
         {isEditing ? (

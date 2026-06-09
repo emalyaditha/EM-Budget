@@ -70,7 +70,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className={`p-4 rounded-xl shadow-lg border flex items-center gap-3 backdrop-blur-sm w-full max-w-[300px]
-                ${toast.type === 'success' ? 'bg-emerald-900/80 border-emerald-500 text-emerald-100' : 
+                ${toast.type === 'success' ? 'bg-blue-900/80 border-emerald-500 text-emerald-100' : 
                   toast.type === 'error' ? 'bg-red-900/80 border-red-500 text-red-100' :
                   toast.type === 'warning' ? 'bg-amber-900/80 border-amber-500 text-amber-100' :
                   'bg-blue-900/80 border-blue-500 text-blue-100'}`}

@@ -141,7 +141,7 @@ export default function TransactionEditModal({
           <div>
             <span className="text-[9px] font-mono tracking-widest text-[#a1a1a9] font-black uppercase bg-zinc-950 px-2 py-0.5 rounded-full border border-zinc-900">AUDIT EDITOR</span>
             <h3 className="text-sm font-extrabold text-white mt-1.5 flex items-center gap-1.5 leading-none">
-              <Edit3 size={14} className="text-indigo-400" />
+              <Edit3 size={14} className="text-[var(--accent-primary)]" />
               Adjust Transaction Ledger
             </h3>
           </div>
@@ -165,7 +165,7 @@ export default function TransactionEditModal({
                 errors.title
                   ? 'border-rose-500 focus:border-rose-500'
                   : title && !errors.title
-                  ? 'border-emerald-500 focus:border-emerald-500'
+                  ? 'border-blue-500 focus:border-emerald-500'
                   : 'border-zinc-85c border-zinc-850 focus:border-zinc-550 focus:border-zinc-500'
               }`} 
             />
@@ -202,7 +202,7 @@ export default function TransactionEditModal({
           <div>
             <label className="block text-[9px] font-bold text-zinc-400 font-mono uppercase tracking-widest mb-1.5 pl-0.5">Calendar Date</label>
             <div className="relative flex items-center">
-              <Calendar size={13} className="text-indigo-400 absolute left-3 pointer-events-none" />
+              <Calendar size={13} className="text-[var(--accent-primary)] absolute left-3 pointer-events-none" />
               <input 
                 ref={dateInputRef}
                 type="date" 
@@ -232,7 +232,7 @@ export default function TransactionEditModal({
               required
               value={category} 
               onChange={e => setCategory(e.target.value)}
-              className="w-full bg-[#050510]/55 border border-zinc-850 text-white rounded-xl px-4 py-3 text-xs focus:ring-1 focus:ring-indigo-500 transition-all font-bold" 
+              className="w-full bg-[#050510]/55 border border-zinc-850 text-white rounded-xl px-4 py-3 text-xs focus:ring-1 focus:ring-[var(--accent-primary)] transition-all font-bold" 
             />
           </div>
 
@@ -283,21 +283,23 @@ export default function TransactionEditModal({
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowDeleteConfirm(true); }}
-                className="flex-1 py-3 bg-rose-500/10 hover:bg-rose-550/20 text-rose-400 font-mono font-bold text-[9px] uppercase rounded-xl transition-all border border-rose-950/20 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-              >
-                <Trash2 size={12} /> Dismiss
-              </button>
+              <div className="flex-1 flex gap-3">
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowDeleteConfirm(true); }}
+                  className="flex-1 py-3 bg-rose-500/10 hover:bg-rose-550/20 text-rose-400 font-mono font-bold text-[9px] uppercase rounded-xl transition-all border border-rose-950/20 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Trash2 size={12} /> Dismiss
+                </button>
+                <button
+                  type="submit"
+                  disabled={isProcessing}
+                  className="flex-[1.5] py-3 bg-white text-black font-mono font-bold text-[9px] uppercase rounded-xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg disabled:opacity-55"
+                >
+                  {isProcessing ? 'Saving...' : <><Save size={12} /> Save Entries</>}
+                </button>
+              </div>
             )}
-            <button
-              type="submit"
-              disabled={isProcessing}
-              className="flex-1 py-3 bg-white text-black font-mono font-bold text-[9px] uppercase rounded-xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg disabled:opacity-55"
-            >
-              {isProcessing ? 'Saving...' : <><Save size={12} /> Save Entries</>}
-            </button>
           </div>
         </form>
       </div>

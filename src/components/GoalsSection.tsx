@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { SavingsGoal, CashAccount } from '../types';
 import { 
   Plus, Sparkles, TrendingUp, HelpCircle, X, ChevronRight, 
-  PlusCircle, MinusCircle, Award, Target, Calendar 
+  PlusCircle, MinusCircle, Award, Target, Calendar, Trash2
 } from 'lucide-react';
 
 interface GoalsSectionProps {
@@ -12,6 +12,8 @@ interface GoalsSectionProps {
   cashAccounts: CashAccount[];
   onAddGoal: (name: string, target: number, targetDate: string) => void;
   onModifyGoalFunds: (id: string, amount: number, cashAccountId: string | null) => void;
+  onRemoveGoal?: (id: string) => void;
+  onClearAllGoals?: () => void;
 }
 
 export default function GoalsSection({ 
@@ -19,11 +21,15 @@ export default function GoalsSection({
   currency, 
   cashAccounts = [],
   onAddGoal,
-  onModifyGoalFunds 
+  onModifyGoalFunds,
+  onRemoveGoal,
+  onClearAllGoals
 }: GoalsSectionProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isFundModalOpen, setIsFundModalOpen] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   
   // Create Goal fields
   const [goalName, setGoalName] = useState('');
@@ -123,20 +129,44 @@ export default function GoalsSection({
               </div>
             </div>
 
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-5 py-3 bg-[#F59E0B] hover:bg-amber-600 border border-[#F59E0B] text-slate-950 font-bold rounded-xl text-xs uppercase cursor-pointer transition-all hover:scale-[1.03] shadow-[0_4px_16px_rgba(245,158,11,0.25)] flex items-center gap-2 shrink-0"
-            >
-              <Plus size={14} className="stroke-slate-950" />
-              <span>Establish Jar</span>
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              {goals.length > 0 && onClearAllGoals && (
+                <button
+                  onClick={() => {
+                    if (showClearConfirm) {
+                      onClearAllGoals();
+                      setShowClearConfirm(false);
+                    } else {
+                      setShowClearConfirm(true);
+                      setTimeout(() => setShowClearConfirm(false), 4400);
+                    }
+                  }}
+                  className={`px-4 py-3 border font-bold rounded-xl text-xs uppercase cursor-pointer transition-all hover:scale-[1.03] flex items-center gap-1.5 ${
+                    showClearConfirm
+                      ? 'border-red-500 bg-red-600 text-white animate-pulse'
+                      : 'border-red-500/20 hover:bg-red-500/5 hover:border-red-500/40 text-red-400'
+                  }`}
+                >
+                  <Trash2 size={13} />
+                  <span>{showClearConfirm ? 'Confirm Clear?' : 'Clear All'}</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="px-5 py-3 bg-[#F59E0B] hover:bg-amber-600 border border-[#F59E0B] text-slate-950 font-bold rounded-xl text-xs uppercase cursor-pointer transition-all hover:scale-[1.03] shadow-[0_4px_16px_rgba(245,158,11,0.25)] flex items-center gap-2"
+              >
+                <Plus size={14} className="stroke-slate-950" />
+                <span>Establish Jar</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* FUN QUICK SUMMARY CARD (4 COLS) */}
         <div className="lg:col-span-4 bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-slate-800 rounded-[24px] p-6 flex flex-col justify-between text-left shadow-lg relative overflow-hidden">
           {/* Jar Backdrop Line-art */}
-          <div className="absolute right-2 bottom-0 text-[100px] text-emerald-500/5 select-none font-sans pointer-events-none">🏺</div>
+          <div className="absolute right-2 bottom-0 text-[100px] text-blue-500/5 select-none font-sans pointer-events-none">🏺</div>
           
           <div>
             <span className="text-[10px] tracking-wider text-amber-400 font-mono font-bold uppercase block mb-1">Savings Strategy</span>
@@ -230,19 +260,45 @@ export default function GoalsSection({
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
                         <span className="text-[9px] uppercase tracking-wider text-slate-400 font-mono block">Jar Allocation</span>
-                        <h4 className="text-sm font-bold text-[var(--text-primary)] leading-tight max-w-[180px] truncate">{goal.name}</h4>
+                        <h4 className="text-sm font-bold text-[var(--text-primary)] leading-tight max-w-[150px] truncate">{goal.name}</h4>
                       </div>
                       
-                      {isFinished ? (
-                        <span className="text-xs font-bold text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/20 py-1 px-2.5 rounded-full uppercase shrink-0 flex items-center gap-1 font-mono">
-                          <Sparkles size={11} />
-                          Saved
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold font-mono text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20 py-1 px-2 rounded-full uppercase shrink-0">
-                          {percent}%
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isFinished ? (
+                          <span className="text-xs font-bold text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/20 py-1 px-2.5 rounded-full uppercase shrink-0 flex items-center gap-1 font-mono">
+                            <Sparkles size={11} />
+                            Saved
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold font-mono text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20 py-1 px-2 rounded-full uppercase shrink-0">
+                            {percent}%
+                          </span>
+                        )}
+
+                        {onRemoveGoal && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (deleteConfirmId === goal.id) {
+                                onRemoveGoal(goal.id);
+                                setDeleteConfirmId(null);
+                              } else {
+                                setDeleteConfirmId(goal.id);
+                                setTimeout(() => {
+                                  setDeleteConfirmId(current => current === goal.id ? null : current);
+                                }, 4000);
+                              }
+                            }}
+                            className={`p-1 hover:bg-slate-800 rounded transition-colors cursor-pointer flex items-center gap-1 ${
+                              deleteConfirmId === goal.id ? 'bg-red-600 hover:bg-red-700 text-white font-bold px-2' : 'text-slate-400 hover:text-red-400'
+                            }`}
+                            title={deleteConfirmId === goal.id ? 'Confirm deletion' : 'Delete Savings Jar'}
+                          >
+                            <Trash2 size={13} />
+                            {deleteConfirmId === goal.id && <span className="text-[10px] font-bold">Confirm?</span>}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-1.5 pt-2">

@@ -285,7 +285,7 @@ export default function InflowsOutflows({
               : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
-          <PlusCircle size={14} className="text-emerald-400" />
+          <PlusCircle size={14} className="text-blue-400" />
           Capture Inflow Income
         </button>
 

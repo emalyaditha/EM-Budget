@@ -80,10 +80,23 @@ export default function ReportsCentre({
     };
   }).sort((a, b) => b.value - a.value);
 
-  // Sparkline vector data from filtered list
-  const sparklineData = filteredTransactions.length > 0 
-    ? filteredTransactions.slice(-6).map(t => t.amount)
-    : [10000, 15000, 12000, 19000, 25000, 22000]; // fallback
+  // Sparkline vector data from filtered list of transaction operations
+  const sparklineData = React.useMemo(() => {
+    if (filteredTransactions.length === 0) return [];
+
+    const uniqueDates = Array.from(new Set(filteredTransactions.map(t => t.date.split('T')[0]))).sort();
+    const last6Dates = uniqueDates.slice(-6);
+
+    return last6Dates.map(dateStr => {
+      const totalAmtOnDate = filteredTransactions
+        .filter(t => t.date.split('T')[0] === dateStr)
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      return {
+        date: dateStr,
+        value: totalAmtOnDate
+      };
+    });
+  }, [filteredTransactions]);
 
   // Search, filter types & dates states for Reports tab Journals
   const [searchQuery, setSearchQuery] = useState('');
@@ -194,11 +207,11 @@ export default function ReportsCentre({
           {/* Executive Net Savings card */}
           <div className="bg-card text-card-foreground border border-zinc-200 dark:border-zinc-850 rounded-[32px] p-6 shadow-2xl relative overflow-hidden">
             {/* Ambient lighting ring */}
-            <div className="absolute top-0 right-0 p-4 text-indigo-500/10 pointer-events-none">
+            <div className="absolute top-0 right-0 p-4 text-[var(--accent-primary)]/10 pointer-events-none">
               <Award size={80} className="stroke-[1.5px] opacity-15" />
             </div>
 
-            <span className="text-[9px] font-mono uppercase tracking-widest text-indigo-500 dark:text-indigo-400 font-bold block mb-1">Executive Summary</span>
+            <span className="text-[9px] font-mono uppercase tracking-widest text-[var(--accent-primary)] dark:text-[var(--accent-primary)] font-bold block mb-1">Executive Summary</span>
             <span className="text-[10px] uppercase font-bold text-muted-foreground block">Period Net Surplus</span>
             <h2 className="text-3xl font-extrabold text-card-foreground tracking-tight font-mono mt-1 select-all">
               {currency}{netSavings.toLocaleString()}
@@ -210,7 +223,7 @@ export default function ReportsCentre({
             <div className="grid grid-cols-3 gap-3 mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-900 text-center">
               <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-3 rounded-2xl">
                 <span className="text-[8px] text-muted-foreground block uppercase font-mono font-bold">Collected</span>
-                <span className="text-sm font-mono font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5 block">+{currency}{totalIncome.toLocaleString()}</span>
+                <span className="text-sm font-mono font-extrabold text-blue-600 dark:text-emerald-400 mt-0.5 block">+{currency}{totalIncome.toLocaleString()}</span>
               </div>
 
               <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-3 rounded-2xl">
@@ -232,7 +245,7 @@ export default function ReportsCentre({
             <div className="space-y-6">
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono pl-3.5 flex items-center gap-1.5">
-                  <BarChart3 size={13} className="text-indigo-500 dark:text-indigo-400" />
+                  <BarChart3 size={13} className="text-[var(--accent-primary)] dark:text-[var(--accent-primary)]" />
                   Inflows Relative to Outflows
                 </h4>
                 <IncomeVsExpenseBar income={totalIncome} expense={totalExpense} currency={currency} />
@@ -240,7 +253,7 @@ export default function ReportsCentre({
 
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono pl-3.5 flex items-center gap-1.5">
-                  <PieChart size={13} className="text-indigo-500 dark:text-indigo-400" />
+                  <PieChart size={13} className="text-[var(--accent-primary)] dark:text-[var(--accent-primary)]" />
                   Disbursed Categories Breakdown Range
                 </h4>
                 <SpendingByCategoryPie categories={categoryChartList} />
@@ -248,7 +261,7 @@ export default function ReportsCentre({
 
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono pl-3.5 flex items-center gap-1.5">
-                  <TrendingUp size={13} className="text-indigo-500 dark:text-indigo-400" />
+                  <TrendingUp size={13} className="text-[var(--accent-primary)] dark:text-[var(--accent-primary)]" />
                   Repayments Velocity Tracker
                 </h4>
                 <TrendAnalysisChart data={sparklineData} currency={currency} />
@@ -260,7 +273,7 @@ export default function ReportsCentre({
               <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
                 <div>
                   <h4 className="text-sm font-bold text-white font-sans flex items-center gap-2">
-                    <Landmark size={15} className="text-indigo-400" />
+                    <Landmark size={15} className="text-[var(--accent-primary)]" />
                     Passive Liabilities Ratio Track
                   </h4>
                   <span className="text-[10px] text-zinc-550 block mt-0.5 text-zinc-500 font-mono">Comparing remaining values to original principles</span>
@@ -306,7 +319,7 @@ export default function ReportsCentre({
               onClick={handleExcelExport}
               className="py-4 bg-zinc-950 border border-zinc-850 hover:border-zinc-700 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-center hover:scale-[1.01]"
             >
-              <FileDown size={14} className="text-indigo-400" />
+              <FileDown size={14} className="text-[var(--accent-primary)]" />
               Export CSV Ledger
             </button>
 
@@ -325,7 +338,7 @@ export default function ReportsCentre({
           
           <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
             <div>
-              <span className="text-[9px] font-mono tracking-wider text-indigo-400 font-bold block uppercase">LEDGER AUDIT TRACK</span>
+              <span className="text-[9px] font-mono tracking-wider text-[var(--accent-primary)] font-bold block uppercase">LEDGER AUDIT TRACK</span>
               <p className="text-base font-extrabold text-white">Unified Journals</p>
             </div>
             <span className="text-[9.5px] font-mono bg-black px-2.5 py-1 border border-zinc-850 rounded-xl text-zinc-400 font-bold uppercase shrink-0">
@@ -478,7 +491,7 @@ export default function ReportsCentre({
                     <div className="flex justify-between items-center gap-2.5">
                        <div className="flex items-center gap-2 min-w-0 max-w-[190px]">
                          <h4 className="text-xs font-bold text-white truncate font-sans">{t.title}</h4>
-                         <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-indigo-950 border border-indigo-900 text-indigo-300 text-[8px] px-1.5 py-0.5 rounded-md font-bold shrink-0">VIEW</span>
+                         <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)] text-[var(--accent-primary)] text-[8px] px-1.5 py-0.5 rounded-md font-bold shrink-0">VIEW</span>
                        </div>
                       <span className={`text-xs font-mono font-black shrink-0 ${isInc ? 'text-emerald-450 text-emerald-400' : 'text-rose-455 text-rose-400'}`}>
                         {isInc ? '+' : '-'}{currency}{absAmount.toLocaleString()}

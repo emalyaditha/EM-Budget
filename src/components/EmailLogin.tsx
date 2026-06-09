@@ -229,17 +229,17 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
 
       <div className="w-full max-w-md bg-zinc-900/40 border border-zinc-850 backdrop-blur-xl rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden">
         {/* Sleek top edge highlight */}
-        <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--accent-primary)]/40 to-transparent" />
         
         <div className="flex flex-col items-center text-center">
-          <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-805 shadow-inner mb-6 relative text-indigo-400">
-            <div className="absolute inset-0 bg-indigo-500/5 rounded-2xl blur-sm" />
+          <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-805 shadow-inner mb-6 relative text-[var(--accent-primary)]">
+            <div className="absolute inset-0 bg-[var(--accent-primary)]/5 rounded-2xl blur-sm" />
             {renderIcon()}
           </div>
 
           <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
             Vault Suite Secure
-            <span className="text-[9px] py-0.5 px-2 rounded-full font-mono text-indigo-400 bg-indigo-950/40 border border-indigo-900/30 font-bold uppercase tracking-wider flex items-center gap-1">
+            <span className="text-[9px] py-0.5 px-2 rounded-full font-mono text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/30 font-bold uppercase tracking-wider flex items-center gap-1">
               <Sparkles size={9} /> PORTAL
             </span>
           </h1>

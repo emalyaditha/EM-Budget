@@ -57,6 +57,7 @@ export default function DebtTracker({
   // Validation States
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Focus Refs
   const sourceInputRef = React.useRef<HTMLInputElement>(null);
@@ -242,28 +243,28 @@ export default function DebtTracker({
           <div className="absolute -top-12 -right-12 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
           
           <div className="space-y-1">
-            <span className="text-[10px] tracking-wider text-amber-400 font-mono font-bold uppercase block">SECURED PASSIVE LIABILITY</span>
-            <h2 className="text-xl font-extrabold text-white">Outstanding Debt Vault</h2>
-            <p className="text-[11px] text-zinc-500 leading-relaxed max-w-md">
+            <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider block">Secured Liability</span>
+            <h2 className="text-2xl font-semibold tracking-tight text-white leading-none">Outstanding Debt Vault</h2>
+            <p className="text-xs text-zinc-400 leading-relaxed max-w-md mt-1">
               Complete index tracking of physical loans, peer debts, and outstanding non-card financial records requiring due payoff.
             </p>
           </div>
 
           <div className="mt-6 flex flex-wrap items-baseline gap-2">
             <span className="text-sm font-semibold text-zinc-550 font-mono">{currency}</span>
-            <span className="text-3xl font-extrabold text-white font-mono tracking-tight select-all">
+            <span className="text-3xl font-bold text-white font-mono tracking-tight select-all">
               {totalRemainingDebt.toLocaleString()}
             </span>
-            <span className="text-xs font-mono font-bold text-zinc-500">.00 total remaining due</span>
+            <span className="text-xs font-mono font-semibold text-zinc-400">.00 total remaining due</span>
           </div>
         </div>
 
-        {/* Metric B: Clear progress gauge */}
+             {/* Metric B: Clear progress gauge */}
         <div className="md:col-span-4 bg-zinc-900/40 p-6 rounded-[28px] border border-zinc-850 flex flex-col justify-between shadow-lg">
           <div>
             <div className="flex justify-between items-start mb-2">
               <span className="text-[10px] text-zinc-500 uppercase font-mono font-bold block">Overall Repaid Index</span>
-              <span className="text-xs text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded-lg font-mono font-black">{overallClearedPercent}%</span>
+              <span className="text-xs text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded-lg font-mono font-black">{overallClearedPercent}%</span>
             </div>
             <h4 className="text-xs font-bold text-zinc-400 leading-snug">Clearance Velocity</h4>
           </div>
@@ -271,7 +272,7 @@ export default function DebtTracker({
           <div className="space-y-2 mt-4">
             <div className="w-full h-2 bg-neutral-950 border border-zinc-900 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-450 rounded-full transition-all duration-1000"
+                className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-blue-400 rounded-full transition-all duration-1000"
                 style={{ width: `${overallClearedPercent}%` }}
               />
             </div>
@@ -287,7 +288,7 @@ export default function DebtTracker({
       <div className="flex justify-between items-center bg-[#070707]/30 p-2 border-b border-zinc-900 pb-3">
         <div>
           <h3 className="text-xs text-zinc-400 font-extrabold flex items-center gap-1.5 font-sans leading-none">
-            <Landmark size={14} className="text-indigo-400" />
+            <Landmark size={14} className="text-[var(--accent-primary)]" />
             Creditor Accounts Registry
           </h3>
           <span className="text-[9.5px] text-zinc-500 font-mono mt-1 block">Live balance records: {activeDebts.length} outstanding accounts</span>
@@ -296,7 +297,7 @@ export default function DebtTracker({
         {!isAddingDebt && (
           <button
             onClick={() => setIsAddingDebt(true)}
-            className="text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 border border-indigo-550 px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-lg hover:scale-[1.01]"
+            className="text-[10px] font-bold text-white bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 border border-[var(--accent-primary)]/50 px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-lg hover:scale-[1.01]"
           >
             <Plus size={13} /> Add Debt Record
           </button>
@@ -310,7 +311,7 @@ export default function DebtTracker({
           
           <div className="flex justify-between items-center border-b border-zinc-905 pb-3">
             <span className="text-xs font-bold text-white uppercase flex items-center gap-2 tracking-wider font-mono">
-              <Plus size={13} className="text-indigo-400" />
+              <Plus size={13} className="text-[var(--accent-primary)]" />
               Register New Liability
             </span>
             <button
@@ -328,7 +329,7 @@ export default function DebtTracker({
 
           <div className="space-y-4">
             <div>
-              <label className="text-[9px] text-zinc-400 font-black block mb-1.5 uppercase font-mono tracking-widest">Creditor / Debt Source</label>
+              <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Creditor / Debt Source</label>
               <input
                 ref={sourceInputRef}
                 type="text"
@@ -342,7 +343,7 @@ export default function DebtTracker({
                   errors.source
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
                     : source && !errors.source
-                    ? 'border-emerald-500 focus:border-emerald-500'
+                    ? 'border-[var(--accent-primary)] focus:border-[var(--accent-primary)]'
                     : 'border-zinc-800 focus:border-zinc-700'
                 }`}
               />
@@ -353,7 +354,7 @@ export default function DebtTracker({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-[9px] text-zinc-400 font-black block mb-1.5 uppercase font-mono tracking-widest">Principal Amount ({currency})</label>
+                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Principal Amount ({currency})</label>
                 <input
                   ref={amountInputRef}
                   type="number"
@@ -367,7 +368,7 @@ export default function DebtTracker({
                     errors.amount
                       ? 'border-rose-500 focus:border-rose-500'
                       : totalDebt && !errors.amount
-                      ? 'border-emerald-500'
+                      ? 'border-[var(--accent-primary)]'
                       : 'border-zinc-800 focus:border-zinc-700'
                   }`}
                 />
@@ -377,7 +378,7 @@ export default function DebtTracker({
               </div>
 
               <div>
-                <label className="text-[9px] text-zinc-400 font-black block mb-1.5 uppercase font-mono tracking-widest">Account Target (Funds added here)</label>
+                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Account Target (Funds added here)</label>
                 <select
                   value={targetAccountId && targetAccountType ? `${targetAccountId}:${targetAccountType}` : ''}
                   onChange={(e) => {
@@ -409,7 +410,7 @@ export default function DebtTracker({
             </div>
 
             <div>
-                <label className="text-[9px] text-zinc-400 font-black block mb-1.5 uppercase font-mono tracking-widest">Pay-off Due Date</label>
+                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Pay-off Due Date</label>
                 <input
                   ref={dateInputRef}
                   type="date"
@@ -422,7 +423,7 @@ export default function DebtTracker({
                     errors.dueDate
                       ? 'border-rose-500'
                       : dueDate && !errors.dueDate
-                      ? 'border-emerald-500'
+                      ? 'border-[var(--accent-primary)]'
                       : 'border-zinc-800 focus:border-zinc-700'
                   }`}
                 />
@@ -432,7 +433,7 @@ export default function DebtTracker({
               </div>
 
             <div>
-              <label className="text-[9px] text-zinc-400 font-black block mb-1.5 uppercase font-mono tracking-widest">Special Notes / Accord terms (Optional)</label>
+              <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Special Notes / Accord terms (Optional)</label>
               <input
                 type="text"
                 placeholder="e.g. Zero-interest repayment plan..."
@@ -481,7 +482,7 @@ export default function DebtTracker({
                     <h4 className="text-sm sm:text-base font-extrabold text-white flex flex-wrap items-center gap-2 leading-none font-sans">
                       {debt.debtSource}
                       {isFullyPaid && (
-                        <span className="bg-emerald-950/50 text-emerald-450 text-emerald-400 border border-emerald-900/40 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold flex items-center gap-0.5 leading-none">
+                        <span className="bg-blue-950/50 text-blue-400 border border-blue-900/40 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold flex items-center gap-0.5 leading-none">
                           <CheckCircle2 size={10} /> REPAID
                         </span>
                       )}
@@ -490,8 +491,8 @@ export default function DebtTracker({
                       <Calendar size={12} className="text-zinc-600" /> Payoff Due Date: <span className="font-mono text-zinc-300">{debt.dueDate}</span>
                     </span>
                     {debt.accountName && (
-                      <div className="text-[10px] text-indigo-400 font-mono font-bold flex items-center gap-1.5 mt-0.5">
-                        <Wallet size={11} className="text-indigo-400 shrink-0" />
+                      <div className="text-[10px] text-[var(--accent-primary)] font-mono font-bold flex items-center gap-1.5 mt-0.5">
+                        <Wallet size={11} className="text-[var(--accent-primary)] shrink-0" />
                         Target Account: <span className="text-zinc-300 font-sans font-bold">{debt.accountName}</span>
                       </div>
                     )}
@@ -504,16 +505,40 @@ export default function DebtTracker({
                         {currency} {debt.remainingAmount.toLocaleString()}
                       </span>
                     </div>
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`Are you sure you want to delete this liability to "${debt.debtSource}"? This will reverse the initial account balance addition of ${currency}${debt.totalAmount.toLocaleString()} and refund any repayments made.`)) {
-                          onDeleteDebt(debt.id);
-                        }
-                      }}
-                      className="text-[9px] text-rose-500 hover:text-rose-400 font-mono font-bold uppercase tracking-wider underline cursor-pointer"
-                    >
-                      Delete Liability
-                    </button>
+                    {deleteConfirmId === debt.id ? (
+                      <div className="flex gap-2 items-center mt-2">
+                        <span className="text-[10px] text-rose-400 font-mono uppercase bg-rose-950/40 px-2 py-1 rounded border border-rose-900/60 animate-pulse">
+                          Reverses balances. Confirm?
+                        </span>
+                        <button
+                          onClick={() => {
+                            onDeleteDebt(debt.id);
+                            setDeleteConfirmId(null);
+                          }}
+                          className="text-[9.5px] bg-rose-600 hover:bg-rose-700 text-white font-mono font-bold uppercase tracking-wider px-2 py-1 rounded cursor-pointer"
+                        >
+                          Yes, Delete
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          className="text-[9.5px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-mono font-bold uppercase tracking-wider px-2 py-1 rounded cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setDeleteConfirmId(debt.id);
+                          setTimeout(() => {
+                            setDeleteConfirmId(current => current === debt.id ? null : current);
+                          }, 6000);
+                        }}
+                        className="text-[9px] text-rose-500 hover:text-rose-400 font-mono font-bold uppercase tracking-wider underline cursor-pointer"
+                      >
+                        Delete Liability
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -521,12 +546,12 @@ export default function DebtTracker({
                 <div className="p-4 bg-muted border border-zinc-200 dark:border-zinc-905 rounded-2xl space-y-3.5">
                   <div className="flex justify-between text-[10px] font-mono text-muted-foreground leading-none">
                     <span>Payoff Progress</span>
-                    <span className="font-bold text-emerald-500 dark:text-emerald-400">{payoffPct}% settled</span>
+                    <span className="font-bold text-blue-500 dark:text-blue-400">{payoffPct}% settled</span>
                   </div>
                   
                   <div className="w-full h-2.5 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 rounded-full overflow-hidden relative">
                     <div
-                      className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000"
+                      className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-blue-400 rounded-full transition-all duration-1000"
                       style={{ width: `${payoffPct || 0}%` }}
                     />
                   </div>
@@ -550,7 +575,7 @@ export default function DebtTracker({
                         setPayingDebtId(debt.id);
                         setPaymentError(null);
                       }}
-                      className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-650 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                      className="flex-1 py-3 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                     >
                       Settle Partial Payment
                     </button>
@@ -559,7 +584,7 @@ export default function DebtTracker({
                       onClick={() => {
                         setIncreasingDebtId(debt.id);
                       }}
-                      className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-850 text-zinc-800 dark:text-white border border-zinc-200 dark:border-zinc-805 font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                      className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                     >
                       Add More Debt
                     </button>
@@ -586,12 +611,12 @@ export default function DebtTracker({
                     </div>
                     {debt.accountName && (
                       <div className="text-[10px] text-zinc-500 font-mono font-bold">
-                        Adding to: <span className="text-emerald-400">{debt.accountName}</span>
+                        Adding to: <span className="text-blue-400">{debt.accountName}</span>
                       </div>
                     )}
                     {!debt.accountId && (
                       <div>
-                        <label className="text-[9px] text-[#888888] font-bold tracking-wider block mb-1 uppercase font-mono">Select Account</label>
+                        <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Select Account</label>
                         <select
                           value={incTargetAccountId && incTargetAccountType ? `${incTargetAccountId}:${incTargetAccountType}` : ''}
                           onChange={(e) => {
@@ -622,7 +647,7 @@ export default function DebtTracker({
                       </div>
                     )}
                     <div>
-                        <label className="text-[9px] text-[#888888] font-bold tracking-wider block mb-1 uppercase font-mono">Additional Principal amount ({currency})</label>
+                        <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Additional Principal amount ({currency})</label>
                         <input
                           type="number"
                           placeholder="e.g. 500"
@@ -645,7 +670,7 @@ export default function DebtTracker({
                 {payingDebtId === debt.id && (
                   <form onSubmit={handlePayDebtSubmit} className="bg-[#050505]/40 border border-zinc-800 p-4 rounded-2xl space-y-4 animation-fade-in shadow-xl">
                     <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-                      <span className="text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5 text-emerald-400 font-mono">
+                      <span className="text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5 text-blue-400 font-mono">
                         <CornerDownRight size={12} className="animate-pulse" />
                         Disburse Repayment Funds
                       </span>
@@ -663,7 +688,7 @@ export default function DebtTracker({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       <div>
-                        <label className="text-[9px] text-[#888888] font-bold tracking-wide block mb-1 uppercase font-mono">Pay Amount ({currency})</label>
+                        <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Pay Amount ({currency})</label>
                         <input
                           type="number"
                           placeholder="e.g. 10000"
@@ -678,7 +703,7 @@ export default function DebtTracker({
                       </div>
 
                       <div>
-                        <label className="text-[9px] text-[#888888] font-bold tracking-wide block mb-1 uppercase font-mono">Deduct From Account</label>
+                        <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Deduct From Account</label>
                         <select
                           value={`${paySourceId}:${paySourceType}`}
                           onChange={(e) => handleSelectPaymentSource(e.target.value)}
@@ -726,12 +751,12 @@ export default function DebtTracker({
                       {debt.payments.map((p) => (
                         <div key={p.id} className="flex justify-between items-center bg-muted px-3.5 py-2.5 border border-zinc-200 dark:border-zinc-905 rounded-xl text-xs font-mono text-card-foreground">
                           <span className="flex items-center gap-1.5 text-[9.5px] font-bold text-muted-foreground">
-                            <ShieldCheck size={12} className="text-emerald-500 dark:text-emerald-400 animate-pulse" />
+                            <ShieldCheck size={12} className="text-blue-500 dark:text-blue-400 animate-pulse" />
                             DEDUCTED SUCCESSFULLY ({p.paidFromType.toUpperCase()})
                           </span>
                           <div className="flex gap-4 font-semibold shrink-0">
                             <span className="text-muted-foreground">{p.date}</span>
-                            <span className="text-emerald-500 dark:text-emerald-400 font-bold">-{currency} {p.amount.toLocaleString()}</span>
+                            <span className="text-blue-500 dark:text-blue-400 font-bold">-{currency} {p.amount.toLocaleString()}</span>
                           </div>
                         </div>
                       ))}

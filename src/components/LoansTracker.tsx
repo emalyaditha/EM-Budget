@@ -195,7 +195,7 @@ export default function LoansTracker({
         </div>
 
         <div className="bg-zinc-900/40 p-5 rounded-2xl border border-zinc-850 flex items-center gap-4">
-          <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-950/40">
+          <div className="p-3 bg-[var(--accent-primary)]/10 rounded-xl text-[var(--accent-primary)] border border-[var(--accent-primary)]/40">
             <ArrowUpRight size={20} />
           </div>
           <div>
@@ -207,12 +207,12 @@ export default function LoansTracker({
         </div>
 
         <div className="bg-zinc-900/40 p-5 rounded-2xl border border-zinc-850 flex items-center gap-4">
-          <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-950/40">
+          <div className="p-3 bg-blue-500/10 rounded-xl text-[var(--accent-primary)] border border-[var(--accent-primary)]/40">
             <ArrowDownLeft size={20} />
           </div>
           <div>
             <span className="text-[10px] text-zinc-500 font-bold uppercase block font-mono">Total Recovered Vaults</span>
-            <span className="text-xl font-extrabold text-emerald-400 font-bold">
+            <span className="text-xl font-extrabold text-emerald-500 font-bold">
               {currency} {totalRecoveredAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </span>
           </div>
@@ -221,11 +221,11 @@ export default function LoansTracker({
 
       {/* NEW LOAN ENTRY FORM */}
       {isGivingLoan && (
-        <form onSubmit={handleGiveLoanSubmit} className="bg-zinc-905/30 bg-zinc-950/15 border border-indigo-950/70 p-6 rounded-2xl space-y-4 animate-fade-in relative overflow-hidden" id="add-loan-form-panel">
-          <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
-          <div className="flex items-center gap-2 mb-2 text-indigo-405 text-indigo-450">
-            <Sparkles size={14} className="text-indigo-400 animate-spin" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-400 font-mono">Vault Asset Loan Dispatch Agreement</h3>
+        <form onSubmit={handleGiveLoanSubmit} className="bg-zinc-905/30 bg-zinc-950/15 border border-[var(--accent-primary)]/30 p-6 rounded-2xl space-y-4 animate-fade-in relative overflow-hidden" id="add-loan-form-panel">
+          <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--accent-primary)]/30 to-transparent" />
+          <div className="flex items-center gap-2 mb-2 text-[var(--accent-primary)]">
+            <Sparkles size={14} className="text-[var(--accent-primary)] animate-spin" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--accent-primary)] font-mono">Vault Asset Loan Dispatch Agreement</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -269,7 +269,7 @@ export default function LoansTracker({
                   setSourceAccountId(id);
                   setSourceAccountType(type as 'cash' | 'card');
                 }}
-                className="w-full bg-[#050507] border border-zinc-850 rounded-xl py-3 px-3 text-xs font-medium text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                className="w-full bg-[#050507] border border-zinc-850 rounded-xl py-3 px-3 text-xs font-medium text-white focus:outline-none focus:border-[var(--accent-primary)] transition-colors cursor-pointer"
               >
                 {availableAccounts.length === 0 ? (
                   <option value="">No Accounts Found</option>
@@ -322,7 +322,7 @@ export default function LoansTracker({
             </button>
             <button
               type="submit"
-              className="bg-white hover:bg-zinc-200 text-black py-2.5 px-6 rounded-xl text-xs font-extrabold transition-all duration-300 cursor-pointer shadow-lg active:scale-95 flex items-center gap-1.5"
+              className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white py-2.5 px-6 rounded-xl text-xs font-extrabold transition-all duration-300 cursor-pointer shadow-lg active:scale-95 flex items-center gap-1.5"
             >
               <Receipt size={13} />
               <span>Authorize & Log Dispatch</span>
@@ -337,7 +337,7 @@ export default function LoansTracker({
           <h2 className="text-sm font-extrabold text-white uppercase tracking-wider font-mono">Lent Asset Register Book</h2>
           <button
             onClick={() => setIsGivingLoan(!isGivingLoan)}
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-650 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-xs py-2 bg-indigo-600 px-4 rounded-xl transition-all cursor-pointer shadow-md active:scale-95 shrink-0"
+            className="flex items-center gap-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white font-extrabold text-xs py-2 px-4 rounded-xl transition-all cursor-pointer shadow-md active:scale-95 shrink-0"
           >
             {isGivingLoan ? 'Minimize Dispatch Form' : (
               <>
@@ -372,12 +372,12 @@ export default function LoansTracker({
                   key={loan.id}
                   data-loan-status={loan.status === 'Settled' ? 'completed' : loan.status === 'Partially Settled' ? 'partial' : 'active'}
                   className={`bg-gradient-to-br from-[#0c0c0f] to-[#040405] border rounded-3xl p-6 shadow-xl transition-all relative overflow-hidden ${
-                    loan.status === 'Settled' ? 'border-emerald-950/50' : 'border-zinc-850'
+                    loan.status === 'Settled' ? 'border-[var(--accent-primary)]/50' : 'border-zinc-850'
                   }`}
                 >
                   {/* Subtle right glow line depending on status */}
                   <div className={`absolute top-0 right-0 bottom-0 w-1 ${
-                    loan.status === 'Settled' ? 'bg-emerald-500' : loan.status === 'Partially Settled' ? 'bg-yellow-500' : 'bg-rose-500'
+                    loan.status === 'Settled' ? 'bg-[var(--accent-primary)]' : loan.status === 'Partially Settled' ? 'bg-yellow-500' : 'bg-rose-500'
                   }`} />
 
                   {/* Header Row */}
@@ -408,7 +408,7 @@ export default function LoansTracker({
                             setSettlementAmount(loan.remainingAmount.toString());
                             setSettlementError(null);
                           }}
-                          className="bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-950/60 hover:border-indigo-500 py-1.5 px-3.5 rounded-xl text-[10px] font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                          className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white border border-[var(--accent-primary)] py-1.5 px-3.5 rounded-xl text-[10px] font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
                         >
                           <CheckCircle2 size={12} />
                           <span>Receive Repayment</span>
@@ -515,7 +515,7 @@ export default function LoansTracker({
                         <div className="flex items-end">
                           <button
                             type="submit"
-                            className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-extrabold text-xs py-2.5 px-4 rounded-lg shadow-md hover:shadow-emerald-950/20 transition-all cursor-pointer text-center"
+                            className="w-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white font-extrabold text-xs py-2.5 px-4 rounded-lg shadow-md hover:shadow-[var(--accent-primary)]/20 transition-all cursor-pointer text-center"
                           >
                             Post Repay Receipt
                           </button>

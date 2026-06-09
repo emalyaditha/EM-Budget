@@ -10,21 +10,29 @@ export interface CategorySum {
 }
 
 // Sparkline Trend Line SVG Chart
-export function TrendAnalysisChart({ data, currency }: { data: number[]; currency: string }) {
-  if (data.length === 0) return <div className="text-zinc-500 text-sm">No transaction data available</div>;
+export function TrendAnalysisChart({ data, currency }: { data: { date: string; value: number }[]; currency: string }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full bg-zinc-900/50 border border-zinc-850 rounded-[28px] p-8 shadow-xl text-center flex flex-col items-center justify-center min-h-[160px]">
+        <span className="text-zinc-500 text-sm font-medium">No trend data available</span>
+        <span className="text-zinc-650 text-xs mt-1">Add transaction logs to map assets over time.</span>
+      </div>
+    );
+  }
 
   const width = 500;
   const height = 120;
-  const padding = 15;
+  const padding = 25;
 
-  const minVal = Math.min(...data);
-  const maxVal = Math.max(...data);
+  const values = data.map(d => d.value);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
   const range = maxVal - minVal || 1;
 
-  const points = data.map((val, idx) => {
+  const points = data.map((d, idx) => {
     const x = padding + (idx / (data.length - 1 || 1)) * (width - padding * 2);
     // Invert Y so high levels are at top
-    const y = height - padding - ((val - minVal) / range) * (height - padding * 2);
+    const y = height - padding - ((d.value - minVal) / range) * (height - padding * 2);
     return `${x},${y}`;
   }).join(' ');
 
@@ -38,7 +46,7 @@ export function TrendAnalysisChart({ data, currency }: { data: number[]; currenc
     <div className="w-full bg-zinc-900/50 border border-zinc-850 rounded-[28px] p-6 shadow-xl">
       <div className="flex justify-between items-center mb-4">
         <span className="text-xs font-bold text-white font-sans">Net Asset Trend (6 Days)</span>
-        <span className="text-[10px] text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-900/40 font-mono font-bold flex items-center gap-1">
+        <span className="text-[10px] text-blue-400 bg-blue-950/40 px-2.5 py-1 rounded-md border border-blue-900/40 font-mono font-bold flex items-center gap-1">
           <TrendingUp size={11} className="animate-pulse" /> Real Time
         </span>
       </div>
@@ -46,8 +54,8 @@ export function TrendAnalysisChart({ data, currency }: { data: number[]; currenc
         {/* Gradient Fill */}
         <defs>
           <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#c0c0c0" stopOpacity="0.15" />
-            <stop offset="100%" stopColor="#c0c0c0" stopOpacity="0.0" />
+            <stop offset="0%" stopColor="var(--accent-primary)" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="var(--accent-primary)" stopOpacity="0.0" />
           </linearGradient>
         </defs>
 
@@ -69,26 +77,42 @@ export function TrendAnalysisChart({ data, currency }: { data: number[]; currenc
           strokeLinejoin="round"
         />
 
-        {/* Circles on Nodes */}
-        {data.map((val, idx) => {
+        {/* Circles on Nodes with balance hover titles */}
+        {data.map((d, idx) => {
           const x = padding + (idx / (data.length - 1 || 1)) * (width - padding * 2);
-          const y = height - padding - ((val - minVal) / range) * (height - padding * 2);
+          const y = height - padding - ((d.value - minVal) / range) * (height - padding * 2);
           return (
-            <circle
-              key={idx}
-              cx={x}
-              cy={y}
-              r="4.5"
-              style={{ fill: 'var(--bg-card)', stroke: 'var(--accent-primary)' }}
-              strokeWidth="3"
-              className="cursor-pointer hover:r-6 transition-all"
-            />
+            <g key={idx} className="group cursor-pointer">
+              <circle
+                cx={x}
+                cy={y}
+                r="4.5"
+                className="transition-all duration-300 group-hover:r-6"
+                style={{ fill: 'var(--bg-card)', stroke: 'var(--accent-primary)' }}
+                strokeWidth="3"
+              />
+              <title>{`${d.date}: ${currency} ${d.value.toLocaleString()}`}</title>
+            </g>
           );
         })}
       </svg>
-      <div className="flex justify-between text-[10px] text-zinc-500 font-mono mt-2.5 px-1">
-        <span>Start Balance</span>
-        <span className="font-semibold text-zinc-400">Latest Pulse</span>
+      <div className="flex justify-between text-[10px] text-zinc-500 font-mono mt-3 px-1.5">
+        {data.map((d, idx) => {
+          let label = d.date;
+          try {
+            const dateObj = new Date(d.date);
+            if (!isNaN(dateObj.getTime())) {
+              const month = dateObj.toLocaleString('default', { month: 'short' });
+              const day = dateObj.getDate();
+              label = `${day} ${month}`;
+            }
+          } catch (e) {}
+          return (
+            <span key={idx} className="text-zinc-400 font-semibold text-center" title={d.date}>
+              {label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -111,11 +135,11 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
         <div>
           <div className="flex justify-between text-xs mb-1.5">
             <span className="text-zinc-400 font-medium">Monthly Incomes</span>
-            <span className="text-emerald-500 dark:text-emerald-400 font-mono font-bold">{currency} {income.toLocaleString()} ({incomePct}%)</span>
+            <span className="text-emerald-500 font-mono font-bold">{currency} {income.toLocaleString()} ({incomePct}%)</span>
           </div>
           <div className="w-full h-8 bg-[#050505] border border-zinc-200 dark:border-zinc-850 rounded-xl overflow-hidden flex items-center relative chart-progress-track">
             <div
-              className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-r-md transition-all duration-1000"
+              className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-blue-400 rounded-r-md transition-all duration-1000"
               style={{ width: `${incomePct || 0}%` }}
             />
             <span className="absolute left-3 text-[10px] font-mono text-zinc-350 font-bold mix-blend-difference text-white-forced">RECEIPTS</span>
@@ -237,7 +261,7 @@ export function RepaymentGauge({ totalDebt, remaining, name, currency = 'Rs.' }:
             fill="none"
           />
           <path
-            className="text-emerald-400 transition-all duration-1000"
+            className="text-[var(--accent-primary)] transition-all duration-1000"
             strokeDasharray={`${percentage}, 100`}
             strokeWidth="3.5"
             strokeLinecap="round"
@@ -253,7 +277,7 @@ export function RepaymentGauge({ totalDebt, remaining, name, currency = 'Rs.' }:
       <div className="min-w-0 flex-1">
         <div className="text-xs font-bold text-zinc-900 dark:text-white truncate">{name} Repaid</div>
         <div className="text-[10px] font-mono text-zinc-400 mt-0.5">
-          Cleared: <span className="text-emerald-400 font-bold">{currency} {repaid.toLocaleString()}</span>
+          Cleared: <span className="text-[var(--accent-primary)] font-bold">{currency} {repaid.toLocaleString()}</span>
         </div>
         <div className="text-[10px] font-mono text-zinc-500">
           Outstanding: {currency} {remaining.toLocaleString()}

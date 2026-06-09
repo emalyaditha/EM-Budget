@@ -50,7 +50,7 @@ function InteractiveBankCard({
   const [isHovered, setIsHovered] = useState(false);
   const cardRef = React.useRef<HTMLDivElement>(null);
 
-  const themesCodes = ['obsidian', 'sapphire', 'emerald', 'copper', 'ruby'];
+  const themesCodes = ['obsidian', 'sapphire', 'blue', 'copper', 'ruby'];
   const derivedTheme = card.cardTheme || themesCodes[idx % themesCodes.length];
   const isCanceled = card.isCanceled || (card as any).is_canceled;
 
@@ -613,7 +613,7 @@ export default function CashCardManagement({
   const getCardGradient = (theme: string) => {
     switch (theme) {
       case 'sapphire': return 'from-blue-900 via-zinc-950 to-indigo-900 border-blue-500/30';
-      case 'emerald': return 'from-emerald-950 via-zinc-950 to-teal-900 border-emerald-500/30';
+      case 'emerald': return 'from-blue-950 via-zinc-950 to-indigo-900 border-[var(--accent-primary)]/30';
       case 'copper': return 'from-amber-950 via-zinc-950 to-orange-950 border-amber-600/30';
       case 'ruby': return 'from-rose-950 via-zinc-950 to-red-950 border-rose-500/30';
       default: return 'from-zinc-900 via-neutral-950 to-zinc-900 border-zinc-800';
@@ -626,12 +626,12 @@ export default function CashCardManagement({
       {/* 1. Cash Accounts Drawer Setup */}
       <div className="bg-zinc-900/50 border border-zinc-850 rounded-[28px] p-6 shadow-xl">
         <div className="flex justify-between items-center mb-5">
-          <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Wallet size={16} className="text-zinc-400" />
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2.5">
+              <Wallet size={18} className="text-zinc-400" />
               Cash in Hand Repositories
             </h3>
-            <p className="text-[10px] text-zinc-500">Add physical cash holdings (e.g., wallet cash, home savings safe)</p>
+            <p className="text-xs text-[var(--text-secondary)]">Add physical cash holdings (e.g., wallet cash, home savings safe)</p>
           </div>
         </div>
 
@@ -660,7 +660,7 @@ export default function CashCardManagement({
                         setSelectedCashId(account.id);
                         setActionType('deposit');
                       }}
-                      className="text-[9px] font-bold text-emerald-400 hover:underline px-2 py-0.5 rounded bg-emerald-950/20 uppercase tracking-widest"
+                      className="text-[9px] font-bold text-[var(--accent-primary)] hover:underline px-2 py-0.5 rounded bg-[var(--accent-primary)]/20 uppercase tracking-widest"
                     >
                       + Deposit
                     </button>
@@ -749,7 +749,7 @@ export default function CashCardManagement({
         <form onSubmit={handleCreateCash} className="border-t border-zinc-800/80 pt-4 flex flex-col gap-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] text-[#888888] font-mono font-bold uppercase block">Wallet/Holding Name</label>
+              <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Wallet/Holding Name</label>
               <input
                 ref={cashNameInputRef}
                 type="text"
@@ -773,7 +773,7 @@ export default function CashCardManagement({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] text-[#888888] font-mono font-bold uppercase block">Starting Sum ({currency})</label>
+              <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Starting Sum ({currency})</label>
               <input
                 ref={cashBalanceInputRef}
                 type="number"
@@ -809,12 +809,12 @@ export default function CashCardManagement({
       {/* 2. Cards Setup and Displays */}
       <div className="bg-zinc-900/50 border border-zinc-850 rounded-[28px] p-6 shadow-xl">
         <div className="flex justify-between items-center mb-5">
-          <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <CreditCard size={16} className="text-zinc-400" />
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2.5">
+              <CreditCard size={18} className="text-zinc-400" />
               Debit & Credit Bank Cards
             </h3>
-            <p className="text-[10px] text-zinc-500">Manage unlimited electronic bank card accounts</p>
+            <p className="text-xs text-[var(--text-secondary)]">Manage unlimited electronic bank card accounts</p>
           </div>
           {!isAddingCard && (
             <button
@@ -843,7 +843,7 @@ export default function CashCardManagement({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] text-[#888888] font-bold block mb-1 uppercase tracking-wider">Card Nickname</label>
+                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Card Nickname</label>
                 <input
                   ref={cardNameInputRef}
                   type="text"
@@ -866,7 +866,7 @@ export default function CashCardManagement({
                 )}
               </div>
               <div>
-                <label className="text-[10px] text-[#888888] font-bold block mb-1 uppercase tracking-wider">Bank Issuer Name</label>
+                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Bank Issuer Name</label>
                 <input
                   ref={bankNameInputRef}
                   type="text"
@@ -892,7 +892,7 @@ export default function CashCardManagement({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] text-[#888888] font-bold block mb-1 uppercase tracking-wider">Card Type</label>
+                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Card Type</label>
                 <select
                   value={cardType}
                   onChange={(e) => setCardType(e.target.value as 'Debit' | 'Credit')}
@@ -903,7 +903,7 @@ export default function CashCardManagement({
                 </select>
               </div>
               <div>
-                <label className="text-[10px] text-[#888888] font-bold block mb-1 uppercase tracking-wider">Starting Balance ({currency})</label>
+                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Starting Balance ({currency})</label>
                 <input
                   ref={cardBalanceInputRef}
                   type="number"
@@ -928,7 +928,7 @@ export default function CashCardManagement({
             </div>
 
             <div>
-              <label className="text-[10px] text-[#888888] font-bold block mb-1 uppercase tracking-wider">Card Number (Optional)</label>
+              <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Card Number (Optional)</label>
               <input
                 ref={cardNumberInputRef}
                 type="text"
@@ -1093,7 +1093,7 @@ export default function CashCardManagement({
 
             <form onSubmit={handleSaveEditCard} className="space-y-4">
               <div>
-                <label className="text-[10px] text-[#888888] font-bold block mb-1 uppercase tracking-wider">Card Nickname</label>
+                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Card Nickname</label>
                 <input
                   type="text"
                   placeholder="e.g. Travel Silver Black"
@@ -1114,7 +1114,7 @@ export default function CashCardManagement({
               </div>
 
               <div>
-                <label className="text-[10px] text-[#888888] font-bold block mb-1 uppercase tracking-wider">Card Number (digits only)</label>
+                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Card Number (digits only)</label>
                 <input
                   type="text"
                   placeholder="e.g. 4201 9283 (optional)"

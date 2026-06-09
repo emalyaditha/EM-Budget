@@ -26,7 +26,7 @@ import SettingsModal from './components/SettingsModal';
 import TransactionEditModal from './components/TransactionEditModal';
 import BudgetsSection from './components/BudgetsSection';
 import GoalsSection from './components/GoalsSection';
-import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase } from './supabase';
+import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 
@@ -61,14 +61,18 @@ export default function App() {
   // Verify remembered device on mount
   useEffect(() => {
     const verifyDevice = async () => {
-      // Load system-provided environments on mount
+      // Load system-provided environments on mount ONLY if not already customized by user in localStorage
       try {
-        const confResp = await fetch('/api/config');
-        if (confResp.ok) {
-          const confData = await confResp.json();
-          if (confData.supabaseUrl && confData.supabaseKey) {
-            localStorage.setItem('cashflow_supabase_url_v1', confData.supabaseUrl);
-            localStorage.setItem('cashflow_supabase_key_v1', confData.supabaseKey);
+        const urlOverride = localStorage.getItem('cashflow_supabase_url_v1');
+        const keyOverride = localStorage.getItem('cashflow_supabase_key_v1');
+        if (!urlOverride || !keyOverride) {
+          const confResp = await fetch('/api/config');
+          if (confResp.ok) {
+            const confData = await confResp.json();
+            if (confData.supabaseUrl && confData.supabaseKey) {
+              localStorage.setItem('cashflow_supabase_url_v1', confData.supabaseUrl);
+              localStorage.setItem('cashflow_supabase_key_v1', confData.supabaseKey);
+            }
           }
         }
       } catch (err) {
@@ -86,15 +90,12 @@ export default function App() {
             setState(result.state);
             setIsUnlocked(true);
           } else {
-            console.warn("Could not sync from database:", result.error);
-            localStorage.removeItem('auth_user_email');
-            localStorage.removeItem('auth_session_token');
-            localStorage.removeItem('auth_device_token');
-            setIsUnlocked(false);
+            console.warn("Could not sync from database, allowing offline fallback mode:", result.error);
+            setIsUnlocked(true);
           }
         } catch (err) {
           console.warn("Fatal error syncing from database, continuing offline...", err);
-          setIsUnlocked(false);
+          setIsUnlocked(true);
         }
       } else {
         setIsUnlocked(false);
@@ -185,6 +186,14 @@ export default function App() {
     });
   };
 
+  const handleRemoveBudget = (id: string) => {
+    updateState(prev => {
+      const updatedBudgets = (prev.budgets || []).filter(b => b.id !== id);
+      showToast('Budget category deleted successfully', 'success');
+      return { ...prev, budgets: updatedBudgets };
+    });
+  };
+
   const handleAddGoal = (name: string, target: number, targetDate: string) => {
     updateState(prev => {
       const newGoal = {
@@ -233,6 +242,28 @@ export default function App() {
         savingsGoals: updatedGoals 
       };
     });
+  };
+
+  const handleRemoveGoal = (id: string) => {
+    updateState(prev => {
+      const updatedGoals = (prev.savingsGoals || []).filter(g => g.id !== id);
+      showToast('Savings jar goal deleted successfully', 'success');
+      return { ...prev, savingsGoals: updatedGoals };
+    });
+  };
+
+  const handleClearAllBudgets = () => {
+    updateState(prev => {
+      return { ...prev, budgets: [] };
+    });
+    showToast('All spending envelopes deleted successfully', 'success');
+  };
+
+  const handleClearAllGoals = () => {
+    updateState(prev => {
+      return { ...prev, savingsGoals: [] };
+    });
+    showToast('All savings jars deleted successfully', 'success');
   };
 
   // 2. FINANCIAL IMPLEMENTATION LOGICS (SMART AUTOMATION RULES)
@@ -957,16 +988,20 @@ export default function App() {
 
   const handlePayCreditCard = (cardId: string, amount: number, fromId: string, fromType: 'cash' | 'card') => {
       updateState(prev => {
-          let updatedCash = [...prev.cashAccounts];
-          let updatedCards = [...prev.cards];
+          let updatedCash = prev.cashAccounts.map(c => 
+            (fromType === 'cash' && c.id === fromId) ? { ...c, balance: c.balance - amount } : c
+          );
           
-          if (fromType === 'cash') {
-              updatedCash = updatedCash.map(c => c.id === fromId ? { ...c, balance: c.balance - amount } : c);
-          } else {
-              updatedCards = updatedCards.map(c => c.id === fromId ? { ...c, currentBalance: c.currentBalance - amount } : c);
-          }
-          
-          const updatedCardsFinal = updatedCards.map(c => c.id === cardId ? { ...c, currentBalance: c.currentBalance - amount } : c);
+          let updatedCards = prev.cards.map(c => {
+            let cBal = c.currentBalance;
+            if (fromType === 'card' && c.id === fromId) {
+                cBal += amount; // We paid using this card, so its debt increases
+            }
+            if (c.id === cardId) {
+                cBal -= amount; // We paid off this card, so its debt decreases
+            }
+            return { ...c, currentBalance: cBal };
+          });
           
           const targetCard = prev.cards.find(c => c.id === cardId);
           const newTransaction: Transaction = {
@@ -983,7 +1018,7 @@ export default function App() {
           return {
               ...prev,
               cashAccounts: updatedCash,
-              cards: updatedCardsFinal,
+              cards: updatedCards,
               transactions: [newTransaction, ...prev.transactions]
           };
       });
@@ -1594,7 +1629,7 @@ export default function App() {
           // Trigger manual push to ensure data is synced to cloud immediately
           const { autoSync } = getSupabaseConfig();
           if (autoSync && userEmail) {
-            syncStateToSupabase(userEmail, stateToLoad).then(res => {
+            syncStateToSupabase(userEmail, stateToLoad, true).then(res => {
               if (res.success) {
                 showToast('success', 'Imported data pushed to cloud automatically!');
               } else {
@@ -1702,7 +1737,7 @@ export default function App() {
       <div id="auth-loading-screen" className="min-h-screen bg-[#050505] text-white flex flex-col justify-center items-center p-6 font-mono select-none">
         <div className="flex flex-col items-center gap-4 text-center animate-pulse">
           <div className="w-12 h-12 bg-zinc-950/80 border border-zinc-800 rounded-2xl flex items-center justify-center">
-            <div className="w-6 h-6 border-2 border-zinc-700 rounded-full border-t-emerald-400 animate-spin" />
+            <div className="w-6 h-6 border-2 border-zinc-700 rounded-full border-t-blue-400 animate-spin" />
           </div>
           <div>
             <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Secure Connection</span>
@@ -1743,7 +1778,7 @@ export default function App() {
           )}
 
           {realtimeSyncStatus === 'synced' && (
-            <div className="px-2.5 py-1.5 rounded-lg border border-emerald-950/20 border-emerald-900/50 text-emerald-400 text-[10px] font-bold flex items-center gap-1.5 font-mono">
+            <div className="px-2.5 py-1.5 rounded-lg border border-[var(--accent-primary)]/20 border-[var(--accent-primary)]/50 text-[var(--accent-primary)] text-[10px] font-bold flex items-center gap-1.5 font-mono">
               <Cloud size={11} />
               <span>CLOUD SYNCED</span>
             </div>
@@ -1785,7 +1820,7 @@ export default function App() {
           {/* Profile Mark */}
           <button
             onClick={() => setIsProfileOpen(true)}
-            className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold hover:bg-indigo-700 transition-all cursor-pointer"
+            className="w-8 h-8 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-white font-bold hover:bg-[var(--accent-primary)]/90 transition-all cursor-pointer"
             title="Profile"
             id="header-profile-trigger"
           >
@@ -1806,6 +1841,7 @@ export default function App() {
                 localStorage.removeItem('auth_user_email');
                 localStorage.removeItem('auth_session_token');
                 localStorage.removeItem('auth_device_token');
+                resetLoadedFromCloud();
                 setState(DEFAULT_APP_STATE);
                 setIsUnlocked(false);
                 setIsProfileOpen(false);
@@ -1884,12 +1920,12 @@ export default function App() {
                   onClick={() => setActiveTab(item.tab as any)}
                   className={`w-full py-3.5 px-4 rounded-2xl font-sans font-bold text-xs flex items-center gap-3.5 transition-all duration-300 cursor-pointer border ${
                     activeTab === item.tab
-                      ? 'bg-white border-white text-black shadow-lg hover:scale-[1.01]'
+                      ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white shadow-lg hover:scale-[1.01]'
                       : 'text-zinc-400 bg-transparent border-transparent hover:text-white hover:border-zinc-800 hover:bg-zinc-900/60'
                   } ${isNavCollapsed ? 'justify-center px-1' : ''}`}
                   title={isNavCollapsed ? item.label : undefined}
                 >
-                  <span className={`shrink-0 ${activeTab === item.tab ? 'text-black scale-110' : 'text-zinc-500'}`}>
+                  <span className={`shrink-0 ${activeTab === item.tab ? 'text-white scale-110' : 'text-zinc-500'}`}>
                     {item.icon}
                   </span>
                   {!isNavCollapsed && <span className="truncate">{item.label}</span>}
@@ -1900,13 +1936,13 @@ export default function App() {
 
           {/* Secure Environment Security Vault Identity Card */}
           {isNavCollapsed ? (
-            <div className="bg-zinc-900/50 border border-zinc-850 p-3 rounded-2xl shadow-sm hidden lg:flex items-center justify-center animate-fade-in text-emerald-400 hover:scale-105 duration-200 cursor-pointer" title={`Secured Connection for ${userEmail}`}>
+            <div className="bg-zinc-900/50 border border-zinc-850 p-3 rounded-2xl shadow-sm hidden lg:flex items-center justify-center animate-fade-in text-blue-400 hover:scale-105 duration-200 cursor-pointer" title={`Secured Connection for ${userEmail}`}>
               <Lock size={14} className="animate-pulse" />
             </div>
           ) : (
             <div className="bg-card text-card-foreground border border-zinc-200 dark:border-zinc-850 p-5 rounded-[24px] space-y-4 shadow-xl hidden lg:block animate-fade-in">
-              <h3 className="text-[10px] tracking-wider text-emerald-500 dark:text-emerald-400 font-mono font-bold uppercase flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              <h3 className="text-[10px] tracking-wider text-blue-500 dark:text-blue-400 font-mono font-bold uppercase flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
                 SECURITY VAULT ACTIVE
               </h3>
               <div className="space-y-3">
@@ -1916,7 +1952,7 @@ export default function App() {
                 </div>
                 <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono border-t border-zinc-200 dark:border-zinc-900 pt-3">
                   <span>State Syncing</span>
-                  <span className="text-emerald-500 dark:text-emerald-400 font-bold uppercase">Active</span>
+                  <span className="text-blue-500 dark:text-blue-400 font-bold uppercase">Active</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono">
                   <span>Status Indicator</span>
@@ -1934,9 +1970,9 @@ export default function App() {
           
           {/* Header block for current active tab */}
           {activeTab !== 'dashboard' && (
-            <div className="flex justify-between items-center bg-zinc-900/50 border border-zinc-850 p-4 sm:p-6 rounded-[28px] shadow-xl">
-              <div className="min-w-0 pr-3">
-                <span className="text-[10px] tracking-widest text-[#8aa8bb] font-mono font-bold uppercase block mr-1 truncate">
+            <div className="flex justify-between items-center bg-zinc-900/50 border border-zinc-850 p-6 rounded-[28px] shadow-xl">
+              <div className="min-w-0 pr-3 space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] font-sans">
                   {activeTab === 'accounts' ? 'Wallets Core' :
                    activeTab === 'inflow_outflow' ? 'Ledger Action' :
                    activeTab === 'budgets' ? 'Limit Envelopes' :
@@ -1944,16 +1980,16 @@ export default function App() {
                    activeTab === 'debts' ? 'Track Liabilities' :
                    activeTab === 'loans' ? 'Vault Asset Ledger' : 'Diagnostics Reports'}
                 </span>
-                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white capitalize leading-tight truncate">
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)] capitalize leading-none">
                   {activeTab === 'accounts' ? 'Wallets' :
-                   activeTab === 'inflow_outflow' ? 'Register' :
+                   activeTab === 'inflow_outflow' ? 'Register & Recurring' :
                    activeTab === 'budgets' ? 'Smart Budgets' :
                    activeTab === 'goals' ? 'Savings Jars' :
                    activeTab === 'debts' ? 'Liabilities' :
                    activeTab === 'loans' ? 'Loans Given' : 'Reports'}
-                </h2>
+                </h1>
                 {activeTab === 'loans' && (
-                  <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed max-w-xl hidden md:block">
+                  <p className="text-xs text-[var(--text-secondary)] mt-1.5 leading-relaxed max-w-xl hidden md:block">
                     Register and monitor personal funds lent to others. Record individual settle records, and automatically back credit balances back into your ledger account suites.
                   </p>
                 )}
@@ -2027,6 +2063,8 @@ export default function App() {
                   currency={state.currency}
                   onUpdateBudgetLimit={handleUpdateBudgetLimit}
                   onAddBudget={handleAddBudget}
+                  onRemoveBudget={handleRemoveBudget}
+                  onClearAllBudgets={handleClearAllBudgets}
                 />
               )}
 
@@ -2038,6 +2076,8 @@ export default function App() {
                   cashAccounts={state.cashAccounts}
                   onAddGoal={handleAddGoal}
                   onModifyGoalFunds={handleModifyGoalFunds}
+                  onRemoveGoal={handleRemoveGoal}
+                  onClearAllGoals={handleClearAllGoals}
                 />
               )}
 
@@ -2166,20 +2206,20 @@ export default function App() {
                   >
                     <div className={`p-2.5 rounded-2xl transition-all duration-300 flex items-center justify-center ${
                       isActive 
-                        ? 'bg-indigo-600 text-white shadow-md scale-105 border border-indigo-505 dark:border-indigo-500' 
+                        ? 'bg-[var(--accent-primary)] text-white shadow-md scale-105 border border-[var(--accent-primary)]' 
                         : 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-805 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800 group-hover:text-zinc-800 dark:group-hover:text-zinc-200'
                     }`}>
                       {item.icon}
                     </div>
                     <span className={`text-[8.5px] uppercase tracking-wider transition-colors duration-300 ${
                       isActive 
-                        ? 'text-indigo-600 dark:text-indigo-400 font-extrabold font-sans' 
+                        ? 'text-[var(--accent-primary)] font-extrabold font-sans' 
                         : 'text-zinc-500 dark:text-zinc-400 font-medium font-sans group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
                     }`}>
                       {item.label}
                     </span>
                     {isActive && (
-                      <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-indigo-600 dark:bg-indigo-400 rounded-full animate-pulse" />
+                      <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-pulse" />
                     )}
                   </button>
                 );
@@ -2208,6 +2248,7 @@ export default function App() {
                 localStorage.removeItem('auth_user_email');
                 localStorage.removeItem('auth_session_token');
                 localStorage.removeItem('auth_device_token');
+                resetLoadedFromCloud();
                 setState(DEFAULT_APP_STATE);
                 setIsUnlocked(false);
                 setIsSettingsOpen(false);

@@ -46,7 +46,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-[#070708] flex items-center justify-center p-6 text-white font-sans selection:bg-emerald-500/30 selection:text-emerald-400">
+        <div className="min-h-screen bg-[#070708] flex items-center justify-center p-6 text-white font-sans selection:bg-blue-500/30 selection:text-emerald-400">
           <div className="max-w-md w-full bg-[#0c0c0e] border border-red-500/20 rounded-2xl p-6 shadow-2xl relative overflow-hidden text-left">
             {/* Glow backing layout ornamentations */}
             <div className="absolute -top-12 -right-12 w-24 h-24 bg-red-500/10 rounded-full blur-2xl pointer-events-none" />

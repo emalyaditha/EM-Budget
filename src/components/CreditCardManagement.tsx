@@ -220,7 +220,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold text-zinc-400 flex justify-between">
                       <span>Available Card Limit:</span>
-                      <span className="font-mono font-black text-emerald-450 text-emerald-400">
+                      <span className="font-mono font-black text-blue-450 text-emerald-400">
                         {currency} {((c.limit ?? 0) - c.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </p>
@@ -245,7 +245,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             showToast('success', `Limit of ${currency}${c.limit || 0} locked & synchronized!`);
                           }
                         }}
-                        className={`w-24 bg-black border border-zinc-850 hover:border-zinc-700 rounded-xl px-2.5 py-1 text-[11px] text-white font-mono font-bold transition-all ${c.isLimitLocked ?? true ? 'opacity-55' : 'border-emerald-500 ring-1 ring-emerald-500/10'}`}
+                        className={`w-24 bg-black border border-zinc-850 hover:border-zinc-700 rounded-xl px-2.5 py-1 text-[11px] text-white font-mono font-bold transition-all ${c.isLimitLocked ?? true ? 'opacity-55' : 'border-blue-500 ring-1 ring-blue-500/10'}`}
                       />
                       
                       <button 
@@ -262,7 +262,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                         className="p-1.5 hover:bg-zinc-950 text-zinc-500 hover:text-white rounded-lg border border-zinc-900 transition cursor-pointer"
                         title={c.isLimitLocked ?? true ? "Unlock limit editing" : "Lock limit"}
                       >
-                        {c.isLimitLocked ?? true ? <Lock size={12} className="text-zinc-500" /> : <Unlock size={12} className="text-emerald-500 animate-pulse" />}
+                        {c.isLimitLocked ?? true ? <Lock size={12} className="text-zinc-500" /> : <Unlock size={12} className="text-blue-500 animate-pulse" />}
                       </button>
                     </div>
                   </div>
@@ -321,12 +321,14 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                               showToast('error', payErrors[c.id] || 'Select funding source and make sure balance is available.');
                               return;
                             }
-                            onPayCard(c.id, c.currentBalance, srcSelected.split('-')[1], srcSelected.split('-')[0] as 'cash' | 'card');
+                            const [srcType, ...srcIdParts] = srcSelected.split('-');
+                            const srcId = srcIdParts.join('-');
+                            onPayCard(c.id, c.currentBalance, srcId, srcType as 'cash' | 'card');
                             setPayAmounts(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                             setPaySources(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                             setPayErrors(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                           }}
-                          className="bg-indigo-600 hover:bg-indigo-700 p-2.5 rounded-xl text-white font-extrabold font-mono text-[9px] uppercase tracking-wider flex-1 sm:flex-none transition shadow-lg cursor-pointer"
+                          className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 p-2.5 rounded-xl text-white font-extrabold font-mono text-[9px] uppercase tracking-wider flex-1 sm:flex-none transition shadow-lg cursor-pointer"
                         >
                           Settle Full
                         </button>
@@ -341,7 +343,9 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                               showToast('error', payErrors[c.id] || 'Please input custom amount and select source.');
                               return;
                             }
-                            onPayCard(c.id, parseFloat(amtTyped), srcSelected.split('-')[1], srcSelected.split('-')[0] as 'cash' | 'card');
+                            const [srcType, ...srcIdParts] = srcSelected.split('-');
+                            const srcId = srcIdParts.join('-');
+                            onPayCard(c.id, parseFloat(amtTyped), srcId, srcType as 'cash' | 'card');
                             setPayAmounts(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                             setPaySources(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                             setPayErrors(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
@@ -460,7 +464,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
           />
         </div>
 
-        <button type="submit" className="sm:col-span-2 bg-indigo-650 bg-indigo-600 hover:bg-indigo-700 text-white font-mono font-bold uppercase tracking-wider text-[10.5px] py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2">
+        <button type="submit" className="sm:col-span-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white font-mono font-bold uppercase tracking-wider text-[10.5px] py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2">
           <Plus size={14} className="stroke-[2.5px]" /> 
           Record verified Purchase
         </button>
