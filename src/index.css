@@ -311,7 +311,7 @@ footer,
   background-color: var(--accent-primary) !important;
   border-color: rgba(0, 163, 255, 0.2) !important;
   border-left: 3px solid var(--accent-primary) !important;
-  color: var(--accent-primary) !important;
+  color: #FFFFFF !important;
   box-shadow: 0 4px 12px rgba(0, 163, 255, 0.08) !important;
 }
 
@@ -319,7 +319,7 @@ footer,
 #web-sidebar-navigation button[class*="bg-white"] span,
 .light #web-sidebar-navigation button.shadow-lg span,
 .light #web-sidebar-navigation button[class*="bg-white"] span {
-  color: var(--accent-primary) !important;
+  color: #FFFFFF !important;
   font-weight: 700 !important;
 }
 
@@ -327,7 +327,7 @@ footer,
 #web-sidebar-navigation button[class*="bg-white"] svg,
 .light #web-sidebar-navigation button.shadow-lg svg,
 .light #web-sidebar-navigation button[class*="bg-white"] svg {
-  color: var(--accent-primary) !important;
+  color: #FFFFFF !important;
 }
 
 /* Mobile responsive navigation overrides */

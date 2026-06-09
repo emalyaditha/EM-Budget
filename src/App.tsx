@@ -26,9 +26,11 @@ import SettingsModal from './components/SettingsModal';
 import TransactionEditModal from './components/TransactionEditModal';
 import BudgetsSection from './components/BudgetsSection';
 import GoalsSection from './components/GoalsSection';
+import { SpendingByCategoryPie } from './components/Charts';
 import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
+import { EXPENSE_COLORS } from './utils';
 
 export default function App() {
   const { showConfirm, showToast } = useNotifications();
@@ -1748,6 +1750,25 @@ export default function App() {
     );
   }
 
+  // Spend category calculations for Category Spread Analysis
+  const expensesByCategory: Record<string, number> = {};
+  state.transactions
+    .filter(t => t.type === 'expense')
+    .forEach(t => {
+      expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + Math.abs(t.amount);
+    });
+
+  const totalExpenseCategorySum = Object.values(expensesByCategory).reduce((s, v) => s + v, 0) || 1;
+  const appCategoryChartList = Object.entries(expensesByCategory).map(([name, val]) => {
+    const percentage = Math.round((val / totalExpenseCategorySum) * 100);
+    return {
+      name,
+      value: val,
+      percentage,
+      color: EXPENSE_COLORS[name] || '#6B7280',
+    };
+  }).sort((a, b) => b.value - a.value).slice(0, 4);
+
   return (
     <div id="full-workspace-view" className="min-h-screen bg-[#050505] text-white flex flex-col justify-between font-sans selection:bg-white selection:text-black antialiased">
       
@@ -1891,8 +1912,8 @@ export default function App() {
           <div className={`bg-zinc-900/50 border border-zinc-850 backdrop-blur-md p-4 sm:p-5 rounded-[28px] space-y-4 shadow-2xl hidden lg:block animate-fade-in transition-all duration-300`}>
             <div className="flex items-center justify-between pointer-events-auto">
               {!isNavCollapsed && (
-                <span className="text-[10px] sm:text-[11px] font-mono tracking-widest text-[#8aa8bb] uppercase font-bold flex items-center gap-1.5 animate-fade-in">
-                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                <span className="text-[10px] sm:text-[11px] font-mono tracking-widest text-[var(--text-secondary)] uppercase font-bold flex items-center gap-1.5 animate-fade-in">
+                  <span className="w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-pulse" />
                   COMMAND CENTER
                 </span>
               )}
@@ -1961,6 +1982,12 @@ export default function App() {
                   </span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {!isNavCollapsed && activeTab === 'dashboard' && (
+            <div className="hidden lg:block animate-fade-in pt-6">
+              <SpendingByCategoryPie categories={appCategoryChartList} currency={state.currency} />
             </div>
           )}
         </section>
@@ -2106,8 +2133,8 @@ export default function App() {
 
               {/* =================== CASE: TAB: INFLOWS_OUTFLOWS =================== */}
               {activeTab === 'inflow_outflow' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 xl:grid-cols-1 gap-6 items-start">
-                  <div className="col-span-1 lg:col-span-5 xl:col-span-12 w-full">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  <div className="col-span-1 lg:col-span-5 w-full">
                     <InflowsOutflows
                       cashAccounts={state.cashAccounts}
                       cards={state.cards}
@@ -2116,7 +2143,7 @@ export default function App() {
                       currency={state.currency}
                     />
                   </div>
-                  <div className="col-span-1 lg:col-span-7 xl:col-span-12 w-full">
+                  <div className="col-span-1 lg:col-span-7 w-full">
                     <SubscriptionManagement
                       subscriptions={state.subscriptions || []}
                       cashAccounts={state.cashAccounts}

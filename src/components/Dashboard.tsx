@@ -6,7 +6,7 @@ import {
   Wallet, PieChart, Landmark, TrendingUp, Sparkles, AlertTriangle, 
   CheckCircle2, Flame, RefreshCw, Calendar, ChevronRight, UserCheck, Heart, ArrowRight
 } from 'lucide-react';
-import { TrendAnalysisChart, SpendingByCategoryPie } from './Charts';
+import { TrendAnalysisChart } from './Charts';
 import { EXPENSE_COLORS } from '../utils';
 
 interface DashboardProps {
@@ -182,25 +182,6 @@ export default function Dashboard({
   };
 
   const healthState = getHealthStatus(finalHealthScore);
-
-  // Spend category calculations for original layout
-  const expensesByCategory: Record<string, number> = {};
-  state.transactions
-    .filter(t => t.type === 'expense')
-    .forEach(t => {
-      expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + Math.abs(t.amount);
-    });
-
-  const totalExpenseCategorySum = Object.values(expensesByCategory).reduce((s, v) => s + v, 0) || 1;
-  const categoryChartList = Object.entries(expensesByCategory).map(([name, val]) => {
-    const percentage = Math.round((val / totalExpenseCategorySum) * 100);
-    return {
-      name,
-      value: val,
-      percentage,
-      color: EXPENSE_COLORS[name] || '#6B7280',
-    };
-  }).sort((a, b) => b.value - a.value).slice(0, 4); // top 4 categories
 
   // Horizontal Scroll spend categories list with linear progress bar style
   // Using standard mock budget category values if no explicit budgets configured
@@ -393,10 +374,11 @@ export default function Dashboard({
       </div>
 
       {/* 2. PROMINENT FINANCIAL HEALTH INDEX & NET WORTH SUMMARY */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* VAULT PORTFOLIO HERO (8 COLS) */}
-        <div id="vault-portfolio-hero" className="lg:col-span-8 overflow-hidden bg-[var(--bg-card)] rounded-[24px] p-6 flex flex-col justify-between border border-[var(--border-primary)] shadow-[var(--shadow-soft)] transition-all min-h-[220px] text-left relative">
+        <div className="lg:col-span-8 flex flex-col gap-6 w-full">
+          {/* VAULT PORTFOLIO HERO (8 COLS) */}
+          <div id="vault-portfolio-hero" className="overflow-hidden bg-[var(--bg-card)] rounded-[24px] p-6 flex flex-col justify-between border border-[var(--border-primary)] shadow-[var(--shadow-soft)] transition-all min-h-[220px] text-left relative">
           
           {/* Subtle decoration lines */}
           <div className="absolute right-0 bottom-0 text-[100px] text-slate-800/10 pointer-events-none select-none font-black leading-none">EM VAULT</div>
@@ -451,8 +433,78 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* NEW FINANCIAL HEALTH SCORE & BURN METER */}
-        <div className="lg:col-span-4 bg-[var(--bg-card)] rounded-[24px] p-6 border border-[var(--border-primary)] shadow-[var(--shadow-soft)] flex flex-col justify-between relative overflow-hidden text-left" id="financial-health-card">
+        {/* 4. SHORTCUT MONZO STYLED ACTIONS */}
+        <div className="bg-slate-900/35 border border-[var(--border-primary)] rounded-[24px] p-5 flex flex-col justify-between shadow-inner text-left" id="monzo-shortcuts-tray">
+          <div className="pb-3 border-b border-[var(--border-primary)] mb-4 flex justify-between items-center">
+            <span className="text-[10px] tracking-wider text-[var(--accent-primary)] font-mono font-bold uppercase">HOTKEY SHORTCUT TIMEFRAMES</span>
+            <span className="text-[9px] text-[var(--text-secondary)] font-mono">1-TAP SYNC CONNECTORS</span>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <button
+              onClick={() => setActiveTab('inflow_outflow')}
+              className="group p-4 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl text-left transition-all cursor-pointer flex items-center gap-3"
+            >
+              <div className="p-2.5 rounded-xl bg-[#10B981]/15 text-[#10B981] group-hover:bg-[#10B981]/25">
+                <Plus size={16} />
+              </div>
+              <div>
+                <h5 className="text-xs font-bold text-white leading-none">Add Income</h5>
+                <span className="text-[9px] text-[var(--text-secondary)] mt-1 block">Inflow Ledger</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('inflow_outflow')}
+              className="group p-4 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl text-left transition-all cursor-pointer flex items-center gap-3"
+            >
+              <div className="p-2.5 rounded-xl bg-[#F87171]/15 text-[#F87171] group-hover:bg-[#F87171]/25">
+                <ArrowUpRight size={16} />
+              </div>
+              <div>
+                <h5 className="text-xs font-bold text-white leading-none">Add Expense</h5>
+                <span className="text-[9px] text-[var(--text-secondary)] mt-1 block">Outflow Ledger</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('accounts')}
+              className="group p-4 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl text-left transition-all cursor-pointer flex items-center gap-3"
+            >
+              <div className="p-2.5 rounded-xl bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)]/20">
+                <Send size={15} />
+              </div>
+              <div>
+                <h5 className="text-xs font-bold text-white leading-none">Transfer</h5>
+                <span className="text-[9px] text-[var(--text-secondary)] mt-1 block">Cross-wallet Sync</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('budgets')}
+              className="group p-4 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl text-left transition-all cursor-pointer flex items-center gap-3"
+            >
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/15">
+                <PieChart size={15} />
+              </div>
+              <div>
+                <h5 className="text-xs font-bold text-white leading-none">Limits</h5>
+                <span className="text-[9px] text-[var(--text-secondary)] mt-1 block">Configure Caps</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* 5. METRIC ANALYTIC GRAPHS BLOCK */}
+        <div className="w-full">
+          <TrendAnalysisChart data={sparklineData} currency={state.currency} />
+        </div>
+        </div>
+
+        <div className="lg:col-span-4 flex flex-col gap-6 w-full">
+          {/* NEW FINANCIAL HEALTH SCORE & BURN METER */}
+          <div className="bg-[var(--bg-card)] rounded-[24px] p-6 border border-[var(--border-primary)] shadow-[var(--shadow-soft)] flex flex-col justify-between relative overflow-hidden text-left" id="financial-health-card">
+
           <div className="space-y-4">
             <div className="flex justify-between items-center pb-1">
               <h3 className="text-lg font-semibold text-[var(--text-primary)]">Financial Health Index</h3>
@@ -564,6 +616,7 @@ export default function Dashboard({
             </div>
           </div>
         </div>
+        </div>
 
       </div>
 
@@ -642,77 +695,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* 4. SHORTCUT MONZO STYLED ACTIONS */}
-      <div className="bg-slate-900/35 border border-[var(--border-primary)] rounded-[24px] p-5 flex flex-col justify-between shadow-inner text-left" id="monzo-shortcuts-tray">
-        <div className="pb-3 border-b border-[var(--border-primary)] mb-4 flex justify-between items-center">
-          <span className="text-[10px] tracking-wider text-[var(--accent-primary)] font-mono font-bold uppercase">HOTKEY SHORTCUT TIMEFRAMES</span>
-          <span className="text-[9px] text-[var(--text-secondary)] font-mono">1-TAP SYNC CONNECTORS</span>
-        </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-          <button
-            onClick={() => setActiveTab('inflow_outflow')}
-            className="group p-4 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl text-left transition-all cursor-pointer flex items-center gap-3"
-          >
-            <div className="p-2.5 rounded-xl bg-[#10B981]/15 text-[#10B981] group-hover:bg-[#10B981]/25">
-              <Plus size={16} />
-            </div>
-            <div>
-              <h5 className="text-xs font-bold text-white leading-none">Add Income</h5>
-              <span className="text-[9px] text-[var(--text-secondary)] mt-1 block">Inflow Ledger</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('inflow_outflow')}
-            className="group p-4 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl text-left transition-all cursor-pointer flex items-center gap-3"
-          >
-            <div className="p-2.5 rounded-xl bg-[#F87171]/15 text-[#F87171] group-hover:bg-[#F87171]/25">
-              <ArrowUpRight size={16} />
-            </div>
-            <div>
-              <h5 className="text-xs font-bold text-white leading-none">Add Expense</h5>
-              <span className="text-[9px] text-[var(--text-secondary)] mt-1 block">Outflow Ledger</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('accounts')}
-            className="group p-4 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl text-left transition-all cursor-pointer flex items-center gap-3"
-          >
-            <div className="p-2.5 rounded-xl bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)]/20">
-              <Send size={15} />
-            </div>
-            <div>
-              <h5 className="text-xs font-bold text-white leading-none">Transfer</h5>
-              <span className="text-[9px] text-[var(--text-secondary)] mt-1 block">Cross-wallet Sync</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('budgets')}
-            className="group p-4 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl text-left transition-all cursor-pointer flex items-center gap-3"
-          >
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/15">
-              <PieChart size={15} />
-            </div>
-            <div>
-              <h5 className="text-xs font-bold text-white leading-none">Limits</h5>
-              <span className="text-[9px] text-[var(--text-secondary)] mt-1 block">Configure Caps</span>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* 5. METRIC ANALYTIC GRAPHS BLOCK */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        <div className="lg:col-span-8 w-full">
-          <TrendAnalysisChart data={sparklineData} currency={state.currency} />
-        </div>
-        <div className="lg:col-span-4 w-full">
-          <SpendingByCategoryPie categories={categoryChartList} currency={state.currency} />
-        </div>
-      </div>
 
       {/* 6. TIMELINE TRANSACTION FEEDS & RECORDED SCHEDULE ITEMS */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -770,8 +753,7 @@ export default function Dashboard({
                   return (
                       <div 
                         key={`${t.logType}-${t.id}`}
-                        onClick={() => setEditingTransactionId(t.id)}
-                        className="group p-4 bg-slate-900/30 hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] hover:border-slate-700/50 rounded-xl flex justify-between items-center cursor-pointer transition-all duration-200"
+                        className="group p-4 bg-slate-900/30 border border-[var(--border-primary)] rounded-xl flex justify-between items-center transition-all duration-200"
                       >
                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
                           <div className={`p-3 rounded-xl shrink-0 transition-colors ${
