@@ -26,7 +26,7 @@ import SettingsModal from './components/SettingsModal';
 import TransactionEditModal from './components/TransactionEditModal';
 import BudgetsSection from './components/BudgetsSection';
 import GoalsSection from './components/GoalsSection';
-import { SpendingByCategoryPie } from './components/Charts';
+import { CategorySpreadAnalysis } from './components/Charts';
 import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
@@ -1987,7 +1987,7 @@ export default function App() {
 
           {!isNavCollapsed && activeTab === 'dashboard' && (
             <div className="hidden lg:block animate-fade-in pt-6">
-              <SpendingByCategoryPie categories={appCategoryChartList} currency={state.currency} />
+              <CategorySpreadAnalysis categories={appCategoryChartList} currency={state.currency} layout="vertical" />
             </div>
           )}
         </section>

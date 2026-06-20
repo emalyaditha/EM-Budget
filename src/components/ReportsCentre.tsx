@@ -6,7 +6,7 @@ import {
   DollarSign, PieChart, Landmark, Search, ChevronDown, ChevronUp, 
   Filter, CheckSquare, Sparkles, BookOpen
 } from 'lucide-react';
-import { IncomeVsExpenseBar, SpendingByCategoryPie, TrendAnalysisChart } from './Charts';
+import { IncomeVsExpenseBar, CategorySpreadAnalysis, TrendAnalysisChart } from './Charts';
 
 interface ReportsCentreProps {
   transactions: Transaction[];
@@ -256,7 +256,7 @@ export default function ReportsCentre({
                   <PieChart size={13} className="text-[var(--accent-primary)] dark:text-[var(--accent-primary)]" />
                   Disbursed Categories Breakdown Range
                 </h4>
-                <SpendingByCategoryPie categories={categoryChartList} />
+                <CategorySpreadAnalysis categories={categoryChartList} />
               </div>
 
               <div className="space-y-2">

@@ -166,73 +166,85 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
 }
 
 // Category Distribution Custom Donut Chart & Legend
-export function SpendingByCategoryPie({ categories, currency = 'Rs.' }: { categories: CategorySum[]; currency?: string }) {
+export function CategorySpreadAnalysis({ 
+  categories, 
+  currency = 'Rs.', 
+  layout = 'auto' 
+}: { 
+  categories: CategorySum[]; 
+  currency?: string; 
+  layout?: 'auto' | 'vertical' | 'horizontal' 
+}) {
   if (categories.length === 0) {
     return (
-      <div className="p-8 text-center text-zinc-500 text-xs border border-dashed border-zinc-800 rounded-2xl">
+      <div className="p-8 text-center text-zinc-500 text-xs border border-dashed border-zinc-700/50 rounded-2xl bg-zinc-950/20">
         No expense data logged to build category distributions
       </div>
     );
   }
 
-  // Draw SVG concentric circles or simple bar percentage lists
+  // Calculate total for percentage if not already proportional
+  const total = categories.reduce((sum, cat) => sum + cat.value, 0);
+  const isVertical = layout === 'vertical';
+
   return (
-    <div className="bg-zinc-900/50 border border-zinc-850 rounded-[28px] p-6 flex flex-col gap-4 shadow-xl">
-      <div className="flex justify-between items-center">
-        <h4 className="text-sm font-bold text-white font-sans">Category Spread Analysis</h4>
-        <span className="text-[9px] text-zinc-400 font-mono uppercase tracking-wider">By amount</span>
+    <div className="bg-zinc-900/50 border border-zinc-850 rounded-[24px] p-6 shadow-xl">
+      <div className="mb-6">
+        <h3 className="text-sm font-bold text-white">Category Spread Analysis</h3>
+        <p className="text-[11px] text-zinc-400 mt-0.5">Breakdown of expenses by category</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-        {/* Dynamic visual representation */}
-        <div className="flex justify-center py-2">
-          <svg width="150" height="150" viewBox="0 0 100 100" className="transform -rotate-90">
-            {categories.map((cat, idx) => {
-              // Calculate cumulative offsets
-              let offset = 0;
-              for (let i = 0; i < idx; i++) {
-                offset += categories[i].percentage;
-              }
-              const strokeDash = `${cat.percentage} ${100 - cat.percentage}`;
-              return (
-                <circle
-                  key={cat.name}
-                  cx="50"
-                  cy="50"
-                  r="35"
-                  fill="transparent"
-                  stroke={cat.color}
-                  strokeWidth="11"
-                  strokeDasharray={strokeDash}
-                  strokeDashoffset={-offset}
-                  className="transition-all duration-1000 hover:stroke-[14] cursor-pointer"
-                />
-              );
-            })}
-            {/* Center Cover Card */}
-            <circle cx="50" cy="50" r="23" fill="var(--bg-card)" />
-            <text x="50" y="52" className="text-[8px] font-mono font-bold text-zinc-400 text-center" textAnchor="middle" transform="rotate(90 50 50)">
-              SPENT
-            </text>
-          </svg>
+      <div className={isVertical ? "flex flex-col gap-6 items-center w-full" : "flex flex-col sm:flex-row gap-8 items-center"}>
+        {/* Donut Chart */}
+        <div className="flex justify-center shrink-0">
+          <div className="relative w-36 h-36">
+            <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                {/* Background circle */}
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#18181b" strokeWidth="15" />
+                
+                {categories.map((cat, idx) => {
+                  let offset = 0;
+                  for (let i = 0; i < idx; i++) {
+                    offset += (categories[i].value / total) * 100;
+                  }
+                  // Using value ratio for accuracy
+                  const percentage = (cat.value / total) * 100;
+                  const strokeDash = `${percentage} ${100 - percentage}`;
+                  
+                  return (
+                    <circle
+                      key={cat.name}
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke={cat.color}
+                      strokeWidth="15"
+                      strokeDasharray={strokeDash}
+                      strokeDashoffset={-offset}
+                      className="transition-all duration-500 hover:opacity-80"
+                    />
+                  );
+                })}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-[9px] text-zinc-500 font-medium uppercase">Total</span>
+                <span className="text-sm font-bold text-white font-mono leading-none mt-0.5">{currency}{total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Legend Panel */}
-        <div className="space-y-2">
+        {/* Legend List */}
+        <div className={`space-y-3 w-full ${isVertical ? '' : 'sm:flex-1'}`}>
           {categories.map((cat) => (
-            <div key={cat.name} id={`legend-${cat.name}`} className="flex flex-col">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                  <span className="text-zinc-300 font-medium truncate">{cat.name}</span>
+            <div key={cat.name} className="flex items-center gap-3 w-full">
+              <span className="w-2 rounded-full h-2 shrink-0 animate-pulse" style={{ backgroundColor: cat.color }} />
+              <div className="flex-1 flex justify-between items-center text-xs min-w-0">
+                <span className="text-zinc-300 font-medium truncate pr-2">{cat.name}</span>
+                <div className="flex items-center gap-2 font-mono text-zinc-100 shrink-0">
+                  <span className="font-bold text-white text-[11px]">{Math.round((cat.value / total) * 100)}%</span>
+                  <span className="text-zinc-500 text-[10px]">{currency}{cat.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
-                <div className="flex items-center gap-2 font-mono shrink-0">
-                  <span className="text-zinc-500 text-[10px]">{cat.percentage}%</span>
-                  <span className="text-zinc-400 font-bold">{currency} {cat.value.toLocaleString()}</span>
-                </div>
-              </div>
-              <div className="w-full bg-[#050505] h-1 rounded-full overflow-hidden mt-1 chart-progress-track-mini">
-                <div className="h-full rounded-full" style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }} />
               </div>
             </div>
           ))}
