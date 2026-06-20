@@ -211,7 +211,7 @@ export default function TransactionEditModal({
                   setDate(e.target.value);
                   validateTxForm(title, amount, e.target.value, submitted);
                 }}
-                className={`w-full bg-[#050510]/55 border text-white rounded-xl pl-9 pr-3 py-3 text-xs focus:outline-none font-mono transition-all cursor-pointer ${
+                className={`w-full bg-[#050510]/55 border text-white rounded-xl !pl-10 !pr-3 py-3 text-xs focus:outline-none font-mono transition-all cursor-pointer ${
                   errors.date
                     ? 'border-rose-500 focus:border-rose-500'
                     : date && !errors.date

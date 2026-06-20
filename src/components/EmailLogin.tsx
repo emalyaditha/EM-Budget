@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mail, ShieldCheck, KeyRound, AlertCircle, RefreshCw, Lock, ArrowRight, Sparkles, Key } from 'lucide-react';
+import { Mail, ShieldCheck, KeyRound, AlertCircle, RefreshCw, Lock, ArrowRight, Sparkles, Key, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getSupabaseConfig } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
@@ -17,6 +17,8 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [otpValue, setOtpValue] = useState('');
   
@@ -267,7 +269,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                     <input
                       type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter verified email..."
-                      className="w-full bg-[#060608]/90 border border-zinc-855 text-white rounded-xl py-3.5 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors placeholder-zinc-700 font-sans"
+                      className="w-full bg-[#060608]/90 border border-zinc-855 text-white rounded-xl py-3.5 !pl-12 !pr-6 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors placeholder-zinc-700 font-sans"
                     />
                   </div>
                 </div>
@@ -289,10 +291,17 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"><Lock size={16} /></span>
                     <input
-                      type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+                      type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-[#060608]/90 border border-zinc-855 text-white tracking-[3px] rounded-xl py-3.5 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full bg-[#060608]/90 border border-zinc-855 text-white tracking-[3px] rounded-xl py-3.5 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                   <div className="flex items-center gap-2 mt-3.5">
                     <input
@@ -329,7 +338,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                     <input
                       type="password" required value={otpValue} onChange={(e) => setOtpValue(e.target.value)}
                       placeholder="Input 6-digit OTP"
-                      className="w-full bg-[#060608]/90 border border-indigo-950 text-indigo-405 tracking-[8px] font-mono text-center text-lg font-bold rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full bg-[#060608]/90 border border-indigo-950 text-indigo-405 tracking-[8px] font-mono text-center text-lg font-bold rounded-xl py-3.5 !pl-12 !pr-12 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                     />
                   </div>
                 </div>
@@ -361,21 +370,41 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                   <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
                     New Secure Password
                   </label>
-                  <input
-                    type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-[#060608]/90 border border-zinc-850 text-white rounded-xl py-3.5 px-4 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"><Lock size={16} /></span>
+                    <input
+                      type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-[#060608]/90 border border-zinc-850 text-white tracking-[3px] rounded-xl py-3.5 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
                     Confirm Secure Password
                   </label>
-                  <input
-                    type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-[#060608]/90 border border-zinc-850 text-white rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"><Lock size={16} /></span>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-[#060608]/90 border border-zinc-850 text-white tracking-[3px] rounded-xl py-3 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
                 <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-sm py-4 rounded-xl shadow-lg transition-all duration-300 active:scale-[0.99] disabled:opacity-50 mt-2">
                   {loading ? <RefreshCw className="animate-spin text-white mx-auto" size={16} /> : <span>{step === 'reset-password' ? 'Reset and Terminate Lock' : 'Seal Account and Authenticate'}</span>}

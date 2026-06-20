@@ -355,7 +355,7 @@ export default function ReportsCentre({
                 placeholder="Lookup journals, categories, descriptions..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black text-xs px-10 py-3.5 rounded-xl border border-zinc-850 focus:border-zinc-700 focus:outline-none text-white font-medium transition-all"
+                className="w-full bg-black text-xs !pl-11 !pr-4 py-3.5 rounded-xl border border-zinc-850 focus:border-zinc-700 focus:outline-none text-white font-medium transition-all"
               />
             </div>
 
@@ -411,7 +411,7 @@ export default function ReportsCentre({
                         e.currentTarget.showPicker();
                       } catch (err) {}
                     }}
-                    className="w-full bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 rounded-xl text-xs pl-8 pr-2.5 py-3 focus:outline-none focus:border-amber-500/40 cursor-pointer text-left font-mono scheme-dark"
+                    className="w-full bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 rounded-xl text-xs !pl-9 !pr-2.5 py-3 focus:outline-none focus:border-amber-500/40 cursor-pointer text-left font-mono scheme-dark"
                   />
                 </div>
               </div>
@@ -429,7 +429,7 @@ export default function ReportsCentre({
                         e.currentTarget.showPicker();
                       } catch (err) {}
                     }}
-                    className="w-full bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 rounded-xl text-xs pl-8 pr-2.5 py-3 focus:outline-none focus:border-amber-500/40 cursor-pointer text-left font-mono scheme-dark"
+                    className="w-full bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 rounded-xl text-xs !pl-9 !pr-2.5 py-3 focus:outline-none focus:border-amber-500/40 cursor-pointer text-left font-mono scheme-dark"
                   />
                 </div>
               </div>
