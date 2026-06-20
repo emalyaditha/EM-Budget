@@ -381,7 +381,7 @@ export default function Dashboard({
           <div id="vault-portfolio-hero" className="overflow-hidden bg-[var(--bg-card)] rounded-[24px] p-6 flex flex-col justify-between border border-[var(--border-primary)] shadow-[var(--shadow-soft)] transition-all min-h-[220px] text-left relative">
           
           {/* Subtle decoration lines */}
-          <div className="absolute right-0 bottom-0 text-[100px] text-slate-800/10 pointer-events-none select-none font-black leading-none">EM VAULT</div>
+          <div className="absolute right-0 bottom-0 text-[100px] text-slate-800/10 dark:text-zinc-700/25 pointer-events-none select-none font-black leading-none">EM VAULT</div>
 
           <div className="flex justify-between items-start z-10">
             <div>
