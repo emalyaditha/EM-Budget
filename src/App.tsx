@@ -1776,8 +1776,10 @@ export default function App() {
       <header className="px-6 py-4 bg-[var(--bg-sidebar)] border-b border-[var(--border-primary)] flex justify-between items-center z-20" id="header-brand-rail">
         <div className="flex items-center gap-3">
           <svg viewBox="0 0 100 100" className="w-9 h-9 shrink-0 select-none animate-fade-in" fill="none" xmlns="http://www.w3.org/2000/svg" id="em-logo">
-            <rect width="100" height="100" rx="24" className="fill-black stroke-zinc-800" strokeWidth="4px" />
-            <text x="52" y="65" fill="#10B981" fontSize="46" fontWeight="950" fontFamily='"Inter", ui-sans-serif, system-ui, sans-serif' textAnchor="middle" letterSpacing="-0.04em">
+            <rect width="100" height="100" rx="22" fill="black" stroke="#27272a" strokeWidth="4px" />
+            <path d="M 34 22 C 26 22, 22 26, 22 34 L 22 44 C 22 48, 18 50, 14 50 C 18 50, 22 52, 22 56 L 22 66 C 22 74, 26 78, 34 78" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <path d="M 66 22 C 74 22, 78 26, 78 34 L 78 44 C 78 48, 82 50, 86 50 C 82 50, 78 52, 78 56 L 78 66 C 78 74, 74 78, 66 78" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <text x="50" y="58" fill="white" fontSize="22" fontWeight="900" fontFamily='"Inter", ui-sans-serif, system-ui, sans-serif' textAnchor="middle" letterSpacing="-0.02em">
               EM
             </text>
           </svg>

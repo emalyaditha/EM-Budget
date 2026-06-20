@@ -978,11 +978,11 @@ svg:not(#em-logo) text {
    BRAND LOGO ICON SPECIFIC STYLES
    ========================================================================== */
 #em-logo text {
-  fill: #10B981 !important;
+  fill: #ffffff !important;
   font-family: "Inter", "Plus Jakarta Sans", ui-sans-serif, sans-serif !important;
-  font-size: 44px !important;
-  font-weight: 950 !important;
-  letter-spacing: -0.04em !important;
+  font-size: 22px !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.02em !important;
 }
 
 #em-logo rect {
