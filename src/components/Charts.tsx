@@ -165,6 +165,40 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
   );
 }
 
+// Category colors palette
+const CATEGORY_COLORS: Record<string, string> = {
+  Utilities: '#8B5CF6',
+  Food: '#F59E0B',
+  Other: '#64748B',
+  Loan: '#EF4444',
+  Entertainment: '#EC4899',
+  Transport: '#0EA5E9',
+  'Transaction Deletion': '#F97316',
+  'Transfer Fee': '#10B981',
+  Shopping: '#EC4899',
+  Rent: '#F43F5E',
+  Medical: '#10B981',
+  Education: '#6366F1'
+};
+
+// Dynamic color helper to guarantee every category has its own distinct bright color
+function getCategoryColor(name: string): string {
+  if (CATEGORY_COLORS[name]) return CATEGORY_COLORS[name];
+  if (CATEGORY_COLORS[name.trim()]) return CATEGORY_COLORS[name.trim()];
+  
+  const defaultColors = [
+    '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', 
+    '#0EA5E9', '#F97316', '#10B981', '#6366F1', 
+    '#14B8A6', '#F43F5E', '#D946EF', '#84CC16'
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % defaultColors.length;
+  return defaultColors[idx];
+}
+
 // Category Distribution Custom Donut Chart & Legend
 export function CategorySpreadAnalysis({ 
   categories, 
@@ -177,77 +211,157 @@ export function CategorySpreadAnalysis({
 }) {
   if (categories.length === 0) {
     return (
-      <div className="p-8 text-center text-zinc-500 text-xs border border-dashed border-zinc-700/50 rounded-2xl bg-zinc-950/20">
-        No expense data logged to build category distributions
+      <div 
+        className="border border-white/[0.08] rounded-[28px] p-8 text-center flex flex-col items-center justify-center min-h-[220px]"
+        style={{
+          background: 'rgba(15,15,18,0.9)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: '0 12px 40px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.04)'
+        }}
+      >
+        <span className="text-white/40 text-[14px] font-bold tracking-[2px] uppercase">Category Spread Analysis</span>
+        <span className="text-white/60 text-xs mt-3 max-w-[240px]">No expense data logged to build category distributions</span>
       </div>
     );
   }
 
   // Calculate total for percentage if not already proportional
   const total = categories.reduce((sum, cat) => sum + cat.value, 0);
-  const isVertical = layout === 'vertical';
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-850 rounded-[24px] p-6 shadow-xl">
-      <div className="mb-6">
-        <h3 className="text-sm font-bold text-white">Category Spread Analysis</h3>
-        <p className="text-[11px] text-zinc-400 mt-0.5">Breakdown of expenses by category</p>
+    <div 
+      className="border border-white/[0.08] rounded-[28px] p-8 w-full relative overflow-hidden transition-all duration-300 text-left select-none"
+      style={{
+        background: 'rgba(15,15,18,0.9)',
+        backdropFilter: 'blur(20px)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.04)'
+      }}
+    >
+      {/* Title & Subtitle */}
+      <div className="mb-8">
+        <h3 className="text-[20px] sm:text-[25.2px] md:text-[28px] font-bold text-white tracking-tight leading-tight select-all">
+          Category Spread Analysis
+        </h3>
+        <p className="text-[13px] sm:text-[14.4px] md:text-[16px] font-normal text-white/70 mt-1 select-all">
+          Breakdown of expenses by category
+        </p>
       </div>
 
-      <div className={isVertical ? "flex flex-col gap-6 items-center w-full" : "flex flex-col sm:flex-row gap-8 items-center"}>
+      <div className="flex flex-col items-center w-full">
         {/* Donut Chart */}
-        <div className="flex justify-center shrink-0">
-          <div className="relative w-36 h-36">
+        <div className="flex justify-center items-center shrink-0 mb-8 w-full">
+          <div className="relative w-[180px] h-[180px] sm:w-[220px] sm:h-[220px] md:w-[260px] md:h-[260px] transition-all duration-300">
             <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                {/* Background circle */}
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#18181b" strokeWidth="15" />
+                {/* Background circle of the ring */}
+                <circle 
+                  cx="50" 
+                  cy="50" 
+                  r="38" 
+                  fill="transparent" 
+                  stroke="rgba(255, 255, 255, 0.03)" 
+                  strokeWidth="12" 
+                />
                 
                 {categories.map((cat, idx) => {
-                  let offset = 0;
-                  for (let i = 0; i < idx; i++) {
-                    offset += (categories[i].value / total) * 100;
-                  }
-                  // Using value ratio for accuracy
+                  const catColor = getCategoryColor(cat.name);
                   const percentage = (cat.value / total) * 100;
-                  const strokeDash = `${percentage} ${100 - percentage}`;
+                  
+                  const radius = 38;
+                  const circumference = 2 * Math.PI * radius;
+                  
+                  const prevPercentage = categories.slice(0, idx).reduce((sum, c) => sum + (c.value / total) * 100, 0);
+                  const strokeLength = (percentage / 100) * circumference;
+                  
+                  // Deduct a tiny gap for premium segment spacing if multiple categories
+                  const hasMultiple = categories.length > 1;
+                  const gap = hasMultiple ? 1.5 : 0;
+                  const adjustedLength = Math.max(0.5, strokeLength - gap);
+                  
+                  const strokeDash = `${adjustedLength} ${circumference - adjustedLength}`;
+                  const strokeOffset = -((prevPercentage / 100) * circumference);
                   
                   return (
                     <circle
                       key={cat.name}
                       cx="50"
                       cy="50"
-                      r="40"
+                      r="38"
                       fill="transparent"
-                      stroke={cat.color}
-                      strokeWidth="15"
+                      stroke={catColor}
+                      strokeWidth="12"
                       strokeDasharray={strokeDash}
-                      strokeDashoffset={-offset}
-                      className="transition-all duration-500 hover:opacity-80"
+                      strokeDashoffset={strokeOffset}
+                      strokeLinecap="round"
+                      className="transition-all duration-500 hover:opacity-95"
+                      style={{
+                        transition: 'stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.3s ease',
+                        filter: `drop-shadow(0 0 8px ${catColor})`
+                      }}
                     />
                   );
                 })}
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[9px] text-zinc-500 font-medium uppercase">Total</span>
-                <span className="text-sm font-bold text-white font-mono leading-none mt-0.5">{currency}{total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            
+            {/* Center Information */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
+                <span className="text-[10px] sm:text-[12.6px] md:text-[14px] text-white/65 font-bold uppercase tracking-[2px] leading-none mb-1.5">
+                  TOTAL
+                </span>
+                <span className="text-[18px] sm:text-[28.8px] md:text-[32px] font-bold text-white font-mono leading-none tracking-tight select-all">
+                  {currency}{total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </span>
             </div>
           </div>
         </div>
 
-        {/* Legend List */}
-        <div className={`space-y-3 w-full ${isVertical ? '' : 'sm:flex-1'}`}>
-          {categories.map((cat) => (
-            <div key={cat.name} className="flex items-center gap-3 w-full">
-              <span className="w-2 rounded-full h-2 shrink-0 animate-pulse" style={{ backgroundColor: cat.color }} />
-              <div className="flex-1 flex justify-between items-center text-xs min-w-0">
-                <span className="text-zinc-300 font-medium truncate pr-2">{cat.name}</span>
-                <div className="flex items-center gap-2 font-mono text-zinc-100 shrink-0">
-                  <span className="font-bold text-white text-[11px]">{Math.round((cat.value / total) * 100)}%</span>
-                  <span className="text-zinc-500 text-[10px]">{currency}{cat.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+        {/* Legend Redesign */}
+        <div className="w-full flex flex-col divide-y divide-white/[0.04] mt-2 select-all">
+          {categories.map((cat, idx) => {
+            const catColor = getCategoryColor(cat.name);
+            const percentage = Math.round((cat.value / total) * 100);
+            
+            return (
+              <div 
+                key={cat.name} 
+                className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-[14px] py-3 border-b border-white/[0.04] last:border-0 hover:translate-x-1.5 hover:bg-white/[0.03] transition-all duration-300 ease-out cursor-pointer rounded-xl px-3 -mx-3 animate-brand-fade-up select-all"
+                style={{
+                  animationDelay: `${idx * 70}ms`
+                }}
+              >
+                {/* Dot Indicator */}
+                <div className="flex items-center justify-center">
+                  <div 
+                    className="w-[14px] h-[14px] rounded-full shrink-0" 
+                    style={{ 
+                      backgroundColor: catColor,
+                      boxShadow: `0 0 10px ${catColor}`
+                    }} 
+                  />
                 </div>
+                
+                {/* Category Name */}
+                <span 
+                  className="text-[14px] sm:text-[16.2px] md:text-[18px] font-semibold text-white truncate pr-2 select-all"
+                  style={{
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {cat.name}
+                </span>
+
+                {/* Percentage */}
+                <span className="text-[14px] sm:text-[16.2px] md:text-[18px] font-bold text-white pr-4 text-right select-all">
+                  {percentage}%
+                </span>
+
+                {/* Amount */}
+                <span className="text-[14px] sm:text-[16.2px] md:text-[18px] font-medium text-white/80 font-mono text-right select-all">
+                  {currency}{cat.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </span>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

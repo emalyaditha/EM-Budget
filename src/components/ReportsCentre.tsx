@@ -220,20 +220,24 @@ export default function ReportsCentre({
               Aggregated balance calculation of recorded inflows deducting logged settling charges and liabilities paydowns for selected dates bounds.
             </p>
 
-            <div className="grid grid-cols-3 gap-3 mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-900 text-center">
-              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-3 rounded-2xl">
-                <span className="text-[8px] text-muted-foreground block uppercase font-mono font-bold">Collected</span>
-                <span className="text-sm font-mono font-extrabold text-blue-600 dark:text-emerald-400 mt-0.5 block">+{currency}{totalIncome.toLocaleString()}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-900 items-stretch">
+              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-4 rounded-2xl flex flex-col items-center justify-center text-center h-24 w-full transition-all hover:bg-muted/80">
+                <span className="text-[10px] text-muted-foreground uppercase font-mono font-bold tracking-wider block mb-1.5 leading-none">Collected</span>
+                <span className="text-base xs:text-lg sm:text-[11px] md:text-sm lg:text-[11px] xl:text-sm font-mono font-extrabold text-blue-600 dark:text-emerald-400 truncate max-w-full leading-none select-all">
+                  +{currency}{totalIncome.toLocaleString()}
+                </span>
               </div>
 
-              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-3 rounded-2xl">
-                <span className="text-[8px] text-muted-foreground block uppercase font-mono font-bold">Settled</span>
-                <span className="text-sm font-mono font-extrabold text-rose-600 dark:text-rose-400 mt-0.5 block">-{currency}{totalExpense.toLocaleString()}</span>
+              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-4 rounded-2xl flex flex-col items-center justify-center text-center h-24 w-full transition-all hover:bg-muted/80">
+                <span className="text-[10px] text-muted-foreground uppercase font-mono font-bold tracking-wider block mb-1.5 leading-none">Settled</span>
+                <span className="text-base xs:text-lg sm:text-[11px] md:text-sm lg:text-[11px] xl:text-sm font-mono font-extrabold text-rose-600 dark:text-rose-400 truncate max-w-full leading-none select-all">
+                  -{currency}{totalExpense.toLocaleString()}
+                </span>
               </div>
 
-              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-3 rounded-2xl">
-                <span className="text-[8px] text-muted-foreground block uppercase font-mono font-bold">Surplus Match</span>
-                <span className="text-sm font-mono font-extrabold text-card-foreground mt-0.5 block">
+              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-4 rounded-2xl flex flex-col items-center justify-center text-center h-24 w-full transition-all hover:bg-muted/80">
+                <span className="text-[10px] text-muted-foreground uppercase font-mono font-bold tracking-wider block mb-1.5 leading-none">Surplus Match</span>
+                <span className="text-base xs:text-lg sm:text-[11px] md:text-sm lg:text-[11px] xl:text-sm font-mono font-extrabold text-card-foreground truncate max-w-full leading-none select-all">
                   {savingsRate > 0 ? `+${savingsRate}%` : `${savingsRate}%`}
                 </span>
               </div>

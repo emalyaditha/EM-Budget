@@ -1046,3 +1046,24 @@ svg path[stroke="#27272a"] {
   color: #059669 !important; /* Keep crisp blue for decimals in light mode */
 }
 
+/* ==========================================================================
+   FINTECH BRAND PREMIUM REDESIGN TRANSITIONS
+   ========================================================================== */
+
+@keyframes brandFadeUp {
+  0% {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-brand-fade-up {
+  opacity: 0;
+  animation: brandFadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+
