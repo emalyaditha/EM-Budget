@@ -212,15 +212,15 @@ export function CategorySpreadAnalysis({
   if (categories.length === 0) {
     return (
       <div 
-        className="border border-white/[0.08] rounded-[28px] p-8 text-center flex flex-col items-center justify-center min-h-[220px]"
+        className="border border-white/[0.08] rounded-[28px] p-5 text-center flex flex-col items-center justify-center min-h-[180px]"
         style={{
           background: 'rgba(15,15,18,0.9)',
           backdropFilter: 'blur(20px)',
           boxShadow: '0 12px 40px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.04)'
         }}
       >
-        <span className="text-white/40 text-[14px] font-bold tracking-[2px] uppercase">Category Spread Analysis</span>
-        <span className="text-white/60 text-xs mt-3 max-w-[240px]">No expense data logged to build category distributions</span>
+        <span className="text-white/45 text-[11px] font-bold tracking-[2px] uppercase">Category Spread Analysis</span>
+        <span className="text-white/60 text-xs mt-2 max-w-[200px]">No expense data logged to build category distributions</span>
       </div>
     );
   }
@@ -230,43 +230,43 @@ export function CategorySpreadAnalysis({
 
   return (
     <div 
-      className="border border-white/[0.08] rounded-[28px] p-8 w-full relative overflow-hidden transition-all duration-300 text-left select-none"
+      className="border border-white/[0.08] rounded-[20px] p-4.5 w-full max-w-[380px] mx-auto sm:mx-0 relative overflow-hidden transition-all duration-300 text-left select-none flex flex-col justify-between"
       style={{
         background: 'rgba(15,15,18,0.9)',
         backdropFilter: 'blur(20px)',
         boxShadow: '0 12px 40px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.04)'
       }}
     >
-      {/* Title & Subtitle */}
-      <div className="mb-8">
-        <h3 className="text-[20px] sm:text-[25.2px] md:text-[28px] font-bold text-white tracking-tight leading-tight select-all">
+      {/* Title & Subtitle Section */}
+      <div className="mb-3">
+        <h3 className="text-[14px] sm:text-[15px] font-bold text-white tracking-tight leading-tight select-all">
           Category Spread Analysis
         </h3>
-        <p className="text-[13px] sm:text-[14.4px] md:text-[16px] font-normal text-white/70 mt-1 select-all">
+        <p className="text-[11px] font-normal text-white/50 select-all">
           Breakdown of expenses by category
         </p>
       </div>
 
       <div className="flex flex-col items-center w-full">
         {/* Donut Chart */}
-        <div className="flex justify-center items-center shrink-0 mb-8 w-full">
-          <div className="relative w-[180px] h-[180px] sm:w-[220px] sm:h-[220px] md:w-[260px] md:h-[260px] transition-all duration-300">
+        <div className="flex justify-center items-center shrink-0 mb-4 w-full">
+          <div className="relative w-[130px] h-[130px] sm:w-[140px] sm:h-[140px] transition-all duration-300">
             <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
                 {/* Background circle of the ring */}
                 <circle 
                   cx="50" 
                   cy="50" 
-                  r="38" 
+                  r="39.5" 
                   fill="transparent" 
                   stroke="rgba(255, 255, 255, 0.03)" 
-                  strokeWidth="12" 
+                  strokeWidth="11" 
                 />
                 
                 {categories.map((cat, idx) => {
                   const catColor = getCategoryColor(cat.name);
                   const percentage = (cat.value / total) * 100;
                   
-                  const radius = 38;
+                  const radius = 39.5;
                   const circumference = 2 * Math.PI * radius;
                   
                   const prevPercentage = categories.slice(0, idx).reduce((sum, c) => sum + (c.value / total) * 100, 0);
@@ -285,10 +285,10 @@ export function CategorySpreadAnalysis({
                       key={cat.name}
                       cx="50"
                       cy="50"
-                      r="38"
+                      r="39.5"
                       fill="transparent"
                       stroke={catColor}
-                      strokeWidth="12"
+                      strokeWidth="11"
                       strokeDasharray={strokeDash}
                       strokeDashoffset={strokeOffset}
                       strokeLinecap="round"
@@ -303,19 +303,19 @@ export function CategorySpreadAnalysis({
             </svg>
             
             {/* Center Information */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
-                <span className="text-[10px] sm:text-[12.6px] md:text-[14px] text-white/65 font-bold uppercase tracking-[2px] leading-none mb-1.5">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none px-2 text-center">
+                <span className="text-[9px] text-white/50 font-bold uppercase tracking-[1px] leading-none mb-0.5">
                   TOTAL
                 </span>
-                <span className="text-[18px] sm:text-[28.8px] md:text-[32px] font-bold text-white font-mono leading-none tracking-tight select-all">
+                <span className="text-[15px] sm:text-[17px] font-bold text-white font-mono leading-none tracking-tight select-all truncate max-w-full">
                   {currency}{total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </span>
             </div>
           </div>
         </div>
 
-        {/* Legend Redesign */}
-        <div className="w-full flex flex-col divide-y divide-white/[0.04] mt-2 select-all">
+        {/* Legend Redesign with Compact Layout & Scroll Bounds if many items */}
+        <div className="w-full flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-1.5 select-all scrollbar-thin">
           {categories.map((cat, idx) => {
             const catColor = getCategoryColor(cat.name);
             const percentage = Math.round((cat.value / total) * 100);
@@ -323,40 +323,37 @@ export function CategorySpreadAnalysis({
             return (
               <div 
                 key={cat.name} 
-                className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-[14px] py-3 border-b border-white/[0.04] last:border-0 hover:translate-x-1.5 hover:bg-white/[0.03] transition-all duration-300 ease-out cursor-pointer rounded-xl px-3 -mx-3 animate-brand-fade-up select-all"
+                className="grid grid-cols-[8px_minmax(0,1fr)_auto_auto] items-center gap-2 h-9 py-1 px-2.5 bg-white/[0.01] hover:scale-[1.01] hover:bg-white/[0.03] transition-all duration-200 cursor-pointer rounded-lg animate-brand-fade-up select-all border border-white/[0.01]"
                 style={{
-                  animationDelay: `${idx * 70}ms`
+                  animationDelay: `${idx * 40}ms`
                 }}
               >
                 {/* Dot Indicator */}
                 <div className="flex items-center justify-center">
                   <div 
-                    className="w-[14px] h-[14px] rounded-full shrink-0" 
+                    className="w-2 h-2 rounded-full shrink-0" 
                     style={{ 
                       backgroundColor: catColor,
-                      boxShadow: `0 0 10px ${catColor}`
+                      boxShadow: `0 0 6px ${catColor}`
                     }} 
                   />
                 </div>
                 
                 {/* Category Name */}
                 <span 
-                  className="text-[14px] sm:text-[16.2px] md:text-[18px] font-semibold text-white truncate pr-2 select-all"
-                  style={{
-                    overflowWrap: 'break-word',
-                    wordBreak: 'break-word'
-                  }}
+                  className="text-[11px] sm:text-xs font-semibold text-white truncate select-all pr-1"
+                  title={cat.name}
                 >
                   {cat.name}
                 </span>
 
                 {/* Percentage */}
-                <span className="text-[14px] sm:text-[16.2px] md:text-[18px] font-bold text-white pr-4 text-right select-all">
+                <span className="text-[11px] sm:text-xs font-bold text-zinc-400 pr-2 text-right shrink-0 select-all">
                   {percentage}%
                 </span>
 
                 {/* Amount */}
-                <span className="text-[14px] sm:text-[16.2px] md:text-[18px] font-medium text-white/80 font-mono text-right select-all">
+                <span className="text-[11px] sm:text-xs font-medium text-white/90 font-mono text-right shrink-0 select-all">
                   {currency}{cat.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </span>
               </div>
