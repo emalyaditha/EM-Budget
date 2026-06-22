@@ -13,6 +13,14 @@ interface LoansTrackerProps {
   onAddLoan: (loan: Omit<LoanGiven, 'id' | 'remainingAmount' | 'status' | 'settlements'>) => void;
   onAddSettlement: (loanId: string, amount: number, receivedInId: string, receivedInType: 'cash' | 'card', receivedInName: string) => void;
   onDeleteLoan: (loanId: string) => void;
+  onIncreaseLoan: (
+    loanId: string,
+    amount: number,
+    sourceAccountId: string,
+    sourceAccountType: 'cash' | 'card',
+    sourceAccountName: string,
+    notes?: string
+  ) => void;
   currency: string;
 }
 
@@ -23,6 +31,7 @@ export default function LoansTracker({
   onAddLoan,
   onAddSettlement,
   onDeleteLoan,
+  onIncreaseLoan,
   currency,
 }: LoansTrackerProps) {
   const { showConfirm, showToast } = useNotifications();
@@ -36,6 +45,14 @@ export default function LoansTracker({
   const [sourceAccountType, setSourceAccountType] = useState<'cash' | 'card'>('cash');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Lend More states
+  const [increasingLoanId, setIncreasingLoanId] = useState<string | null>(null);
+  const [increaseAmount, setIncreaseAmount] = useState('');
+  const [increaseSourceId, setIncreaseSourceId] = useState('');
+  const [increaseSourceType, setIncreaseSourceType] = useState<'cash' | 'card'>('cash');
+  const [increaseNotes, setIncreaseNotes] = useState('');
+  const [increaseError, setIncreaseError] = useState<string | null>(null);
 
   // Settlement Form states (which loan is currently receiving a settlement)
   const [settlingLoanId, setSettlingLoanId] = useState<string | null>(null);
@@ -61,6 +78,14 @@ export default function LoansTracker({
       setSourceAccountType(availableAccounts[0].type);
     }
   }, [cashAccounts, cards]);
+
+  // Set default increase account once loaded
+  React.useEffect(() => {
+    if (availableAccounts.length > 0 && !increaseSourceId) {
+      setIncreaseSourceId(availableAccounts[0].id);
+      setIncreaseSourceType(availableAccounts[0].type);
+    }
+  }, [cashAccounts, cards, increasingLoanId]);
 
   // Set default received account once loaded for settlement
   React.useEffect(() => {
@@ -165,6 +190,34 @@ export default function LoansTracker({
     setSettlementAmount('');
     setSettlingLoanId(null);
     showToast('success', `Logged settlement of ${currency} ${amt.toLocaleString()} successfully credited into ${destName}.`);
+  };
+
+  const handleIncreaseSubmit = (e: React.FormEvent, loan: LoanGiven) => {
+    e.preventDefault();
+    setIncreaseError(null);
+
+    const amt = parseFloat(increaseAmount);
+    if (isNaN(amt) || amt <= 0) {
+      setIncreaseError('Additional lent amount must be larger than zero.');
+      return;
+    }
+
+    const selectedAcc = availableAccounts.find(a => a.id === increaseSourceId && a.type === increaseSourceType);
+    const sourceName = selectedAcc ? selectedAcc.name : 'Unknown Account';
+
+    onIncreaseLoan(
+      loan.id,
+      amt,
+      increaseSourceId,
+      increaseSourceType,
+      sourceName,
+      increaseNotes.trim() || 'Additional capital lent'
+    );
+
+    // Reset Form
+    setIncreaseAmount('');
+    setIncreaseNotes('');
+    setIncreasingLoanId(null);
   };
 
   const handleDeleteLoanClick = (loanId: string, name: string) => {
@@ -400,13 +453,26 @@ export default function LoansTracker({
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2.5 sm:self-center self-end">
+                    <div className="flex items-center gap-2.5 sm:self-center self-end animate-fade-in">
+                      <button
+                        onClick={() => {
+                          setIncreasingLoanId(increasingLoanId === loan.id ? null : loan.id);
+                          setIncreaseAmount('');
+                          setIncreaseError(null);
+                          setSettlingLoanId(null); // exclusive with settling
+                        }}
+                        className="bg-zinc-900 hover:bg-zinc-850 text-amber-400 border border-zinc-800 py-1.5 px-3 rounded-xl text-[10px] font-extrabold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                      >
+                        <Plus size={12} />
+                        <span>Lend More</span>
+                      </button>
                       {loan.status !== 'Settled' && (
                         <button
                           onClick={() => {
                             setSettlingLoanId(settlingLoanId === loan.id ? null : loan.id);
                             setSettlementAmount(loan.remainingAmount.toString());
                             setSettlementError(null);
+                            setIncreasingLoanId(null); // exclusive with increasing
                           }}
                           className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white border border-[var(--accent-primary)] py-1.5 px-3.5 rounded-xl text-[10px] font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
                         >
@@ -525,6 +591,81 @@ export default function LoansTracker({
 
                       {settlementError && (
                         <p className="text-[10px] text-rose-500 font-semibold">{settlementError}</p>
+                      )}
+                    </form>
+                  )}
+
+                  {/* LEND MORE ACTION PANEL inline drawer */}
+                  {increasingLoanId === loan.id && (
+                    <form onSubmit={(e) => handleIncreaseSubmit(e, loan)} className="mt-4 bg-[#0d0a0a] border border-amber-955 p-5 rounded-2xl space-y-3.5 shadow-inner scale-98 transition-all animate-fade-in text-xs relative overflow-hidden" id={`lend-more-form-${loan.id}`}>
+                      <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
+                      <div className="flex items-center gap-1 text-amber-400 font-bold mb-1">
+                        <ArrowUpRight size={13} className="text-amber-400" />
+                        <span className="uppercase font-mono text-[10px] tracking-wider">Configure Additional Capital Inflow (Lend of more principal)</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
+                        
+                        {/* Amount */}
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-zinc-500 uppercase font-bold font-mono">Lent Amount ({currency})</label>
+                          <input
+                            type="number"
+                            step="any"
+                            value={increaseAmount}
+                            onChange={(e) => setIncreaseAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full bg-zinc-950 border border-zinc-850 rounded-lg py-2.5 px-3 text-xs text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all font-semibold"
+                            required
+                          />
+                        </div>
+
+                        {/* Debit Source Account Route */}
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-zinc-500 uppercase font-bold font-mono">Debit Source Account</label>
+                          <select
+                            value={`${increaseSourceId}:${increaseSourceType}`}
+                            onChange={(e) => {
+                              const [id, type] = e.target.value.split(':');
+                              setIncreaseSourceId(id);
+                              setIncreaseSourceType(type as 'cash' | 'card');
+                            }}
+                            className="w-full bg-zinc-950 border border-zinc-850 rounded-lg py-2.5 px-2 text-xs text-white focus:outline-none focus:border-amber-500 transition-all cursor-pointer font-bold"
+                          >
+                            {availableAccounts.map(acc => (
+                              <option key={`inc-src:${acc.id}:${acc.type}`} value={`${acc.id}:${acc.type}`}>
+                                {acc.name} - ({currency} {acc.balance.toLocaleString()})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Additional Memo */}
+                        <div className="space-y-1 md:col-span-1">
+                          <label className="text-[9px] text-zinc-500 uppercase font-bold font-mono">Add-on notes</label>
+                          <input
+                            type="text"
+                            value={increaseNotes}
+                            onChange={(e) => setIncreaseNotes(e.target.value)}
+                            placeholder="e.g. Added top-up balance"
+                            className="w-full bg-zinc-950 border border-zinc-850 rounded-lg py-2.5 px-3 text-xs text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all font-semibold"
+                          />
+                        </div>
+
+                        {/* Submission */}
+                        <div className="flex items-end">
+                          <button
+                            type="submit"
+                            className="w-full bg-amber-500 hover:bg-amber-600 text-black font-extrabold text-xs py-2.5 px-4 rounded-lg shadow-md transition-all cursor-pointer text-center"
+                          >
+                            Post Add-on Dispatch
+                          </button>
+                        </div>
+
+                      </div>
+
+                      {increaseError && (
+                        <p className="text-[10px] text-rose-500 font-semibold">{increaseError}</p>
                       )}
                     </form>
                   )}

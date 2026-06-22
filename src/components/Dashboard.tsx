@@ -747,7 +747,7 @@ export default function Dashboard({
                 .sort((a, b) => b.date.localeCompare(a.date))
                 .slice(0, 5)
                 .map((t) => {
-                  const isInc = t.type === 'income' || t.type === 'deposit' || (t.type === 'transfer' && t.amount > 0);
+                  const isInc = t.type === 'income' || t.type === 'deposit' || t.type === 'financing' || (t.type === 'transfer' && t.amount > 0);
                   const absAmt = Math.abs(t.amount);
 
                   return (

@@ -65,7 +65,7 @@ export const BankCardSchema = z.object({
 // 3. Transaction Schema
 export const TransactionSchema = z.object({
   id: z.string().min(1, 'ID is required'),
-  type: z.enum(['income', 'expense', 'debt_payment', 'deposit', 'withdrawal', 'transfer']),
+  type: z.enum(['income', 'expense', 'debt_payment', 'deposit', 'withdrawal', 'transfer', 'credit_card_charge', 'financing']),
   title: z.string().min(3, 'Title is too short').max(100, 'Title is too long'),
   amount: z.number().finite().positive('Transaction amount must be a positive number'),
   charge: z.number().finite().nonnegative('Charge cannot be negative').optional(),

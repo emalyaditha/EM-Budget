@@ -374,6 +374,7 @@ export default function ReportsCentre({
                 >
                   <option value="all">All Inflow/Outflow</option>
                   <option value="income">Only Incomes</option>
+                  <option value="financing">Financing / Borrowing</option>
                   <option value="expense">Only Expenses</option>
                   <option value="transfer">Only Transfers</option>
                   <option value="debt_payment">Debt Repayments</option>
@@ -462,7 +463,7 @@ export default function ReportsCentre({
               </div>
             ) : (
               filteredHistory.map((t) => {
-                const isInc = t.type === 'income' || t.type === 'deposit' || (t.type === 'transfer' && (t.category === 'Transfer In' || t.amount > 0));
+                const isInc = t.type === 'income' || t.type === 'deposit' || t.type === 'financing' || (t.type === 'transfer' && (t.category === 'Transfer In' || t.amount > 0));
                 const absAmount = Math.abs(t.amount);
 
                 // Fetch the name of this specific account for context

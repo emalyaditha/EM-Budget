@@ -99,7 +99,7 @@ export interface Debt {
 
 export interface Transaction {
   id: string;
-  type: 'income' | 'expense' | 'debt_payment' | 'deposit' | 'withdrawal' | 'transfer' | 'credit_card_charge';
+  type: 'income' | 'expense' | 'debt_payment' | 'deposit' | 'withdrawal' | 'transfer' | 'credit_card_charge' | 'financing';
   title: string;
   amount: number;
   charge?: number; // Optional transfer fee / charge

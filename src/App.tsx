@@ -129,7 +129,38 @@ export default function App() {
 
   // Synchronize state with Storage whenever it edits
   const updateState = (updater: (prev: AppState) => AppState) => {
-    setState(updater);
+    setState(oldState => {
+      const nextState = updater(oldState);
+      const sanitizedTransactions = nextState.transactions.map((t): Transaction => {
+        if (t.type === 'income') {
+          const tCategoryLower = (t.category || '').toLowerCase().trim();
+          const tTitleLower = (t.title || '').toLowerCase().trim();
+          const isRefDebt = t.referenceId && (t.referenceId.startsWith('debt-') || t.referenceId.startsWith('inc_debt') || t.referenceId.startsWith('tx_debt'));
+          
+          const isLendingFinancing = 
+            tCategoryLower.includes('borrow') || 
+            tCategoryLower.includes('financing') || 
+            tCategoryLower.includes('loan') || 
+            tCategoryLower.includes('debt') ||
+            tTitleLower.includes('borrowed') || 
+            tTitleLower.includes('loan received') || 
+            tTitleLower.includes('cash advance') ||
+            isRefDebt;
+            
+          if (isLendingFinancing) {
+            return {
+              ...t,
+              type: 'financing'
+            };
+          }
+        }
+        return t;
+      });
+      return {
+        ...nextState,
+        transactions: sanitizedTransactions
+      };
+    });
   };
 
   // Automatic background push to Supabase if config exists and auto-sync is checked
@@ -493,7 +524,7 @@ export default function App() {
         const txId = `tx_debt_in_${Date.now()}`;
         const newTx: Transaction = {
           id: txId,
-          type: 'income',
+          type: 'financing',
           title: `Borrowed: ${debtData.debtSource}`,
           amount: debtData.totalAmount,
           date: new Date().toISOString().split('T')[0],
@@ -798,6 +829,100 @@ export default function App() {
         loansGiven: (prev.loansGiven || []).filter(l => l.id !== loanId),
         transactions: [refundTransaction, ...prev.transactions],
         // Note: We might want to remove the transaction here too, but the user didn't explicitly ask for that. Simple refund first.
+      };
+    });
+  };
+
+  const handleIncreaseLoan = (
+    loanId: string,
+    amount: number,
+    sourceAccountId: string,
+    sourceAccountType: 'cash' | 'card',
+    sourceAccountName: string,
+    notes?: string
+  ) => {
+    updateState(prev => {
+      // Find the loan item to capture borrower info
+      const targetLoan = (prev.loansGiven || []).find(l => l.id === loanId);
+      if (!targetLoan) return prev;
+
+      // 1. Deduct funds from selected account
+      let updatedCash = [...prev.cashAccounts];
+      let updatedCards = [...prev.cards];
+
+      if (sourceAccountType === 'cash') {
+        updatedCash = updatedCash.map(c =>
+          c.id === sourceAccountId ? { ...c, balance: c.balance - amount } : c
+        );
+      } else {
+        updatedCards = updatedCards.map(c =>
+          c.id === sourceAccountId ? { ...c, currentBalance: c.currentBalance - amount } : c
+        );
+      }
+
+      // 2. Update remaining amount & totalAmount
+      const updatedLoans: LoanGiven[] = (prev.loansGiven || []).map(loan => {
+        if (loan.id === loanId) {
+          const freshNotes = loan.notes 
+            ? `${loan.notes} | Added Lent Amount: ${notes}` 
+            : `Added Lent Amount: ${notes}`;
+          const newTotal = loan.totalAmount + amount;
+          const newRemaining = loan.remainingAmount + amount;
+          const newStatus = newRemaining <= 0 ? 'Settled' : 'Partially Settled';
+          return {
+            ...loan,
+            remainingAmount: newRemaining,
+            totalAmount: newTotal,
+            status: newStatus,
+            notes: freshNotes,
+          };
+        }
+        return loan;
+      });
+
+      // 3. Create Transaction log
+      const txId = `tx_loan_add_${Date.now()}`;
+      const newTx: Transaction = {
+        id: txId,
+        type: 'expense',
+        title: `Lent More: ${targetLoan.borrowerName}`,
+        amount: amount,
+        date: new Date().toISOString().split('T')[0],
+        category: 'Loan',
+        accountId: sourceAccountId,
+        accountType: sourceAccountType,
+        referenceId: loanId,
+      };
+
+      // 4. Create Expense entry
+      const newExp: Expense = {
+        id: `exp_loan_add_${Date.now()}`,
+        title: `Lent More to ${targetLoan.borrowerName}`,
+        description: `Lent additional capital. Notes: ${notes || 'Added principal'}`,
+        amount: amount,
+        date: new Date().toISOString().split('T')[0],
+        category: 'Loan',
+        paymentMethodId: sourceAccountId,
+        paymentMethodType: sourceAccountType,
+      };
+
+      // 5. Notification
+      const newNotif: AppNotification = {
+        id: `nt_loan_add_${Date.now()}`,
+        type: 'system',
+        message: `Dispatched additional Rs. ${amount.toLocaleString()} to ${targetLoan.borrowerName} under existing loan agreement.`,
+        date: new Date().toISOString().split('T')[0],
+        read: false,
+      };
+
+      return {
+        ...prev,
+        cashAccounts: updatedCash,
+        cards: updatedCards,
+        loansGiven: updatedLoans,
+        transactions: [newTx, ...prev.transactions],
+        expenses: [newExp, ...prev.expenses],
+        notifications: [newNotif, ...prev.notifications],
       };
     });
   };
@@ -1164,7 +1289,7 @@ export default function App() {
         const txId = `tx_debt_inc_${Date.now()}`;
         const newTx: Transaction = {
           id: txId,
-          type: 'income',
+          type: 'financing',
           title: `Borrowed More: ${updatedDebt.debtSource}`,
           amount: amount,
           date: new Date().toISOString().split('T')[0],
@@ -1605,14 +1730,14 @@ export default function App() {
       };
 
       // 1. Reverse the old transaction
-      if (tx.type === 'income' || tx.type === 'deposit') {
+      if (tx.type === 'income' || tx.type === 'deposit' || tx.type === 'financing') {
         if (tx.accountId && tx.accountType) changeBalance(-tx.amount, tx.accountId, tx.accountType);
       } else if (tx.type === 'expense' || tx.type === 'debt_payment' || tx.type === 'withdrawal') {
         if (tx.accountId && tx.accountType) changeBalance(tx.amount, tx.accountId, tx.accountType);
       }
 
       // 2. Apply the new transaction
-      if (tx.type === 'income' || tx.type === 'deposit') {
+      if (tx.type === 'income' || tx.type === 'deposit' || tx.type === 'financing') {
         changeBalance(newData.amount, newData.accountId, newData.accountType);
       } else if (tx.type === 'expense' || tx.type === 'debt_payment' || tx.type === 'withdrawal') {
         changeBalance(-newData.amount, newData.accountId, newData.accountType);
@@ -2303,6 +2428,7 @@ export default function App() {
                     onAddLoan={handleAddLoan}
                     onAddSettlement={handleMakeLoanSettlement}
                     onDeleteLoan={handleDeleteLoan}
+                    onIncreaseLoan={handleIncreaseLoan}
                     currency={state.currency}
                   />
                 </div>
