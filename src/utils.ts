@@ -101,6 +101,7 @@ export const EXPENSE_COLORS: Record<string, string> = {
   Entertainment: '#14B8A6', // Teal
   Medical: '#10B981',     // Green
   Education: '#6366F1',   // Indigo
+  'Bank Charges & Interest': '#E11D48', // Crimson/Rose
   Other: '#6B7280',       // Gray
 };
 

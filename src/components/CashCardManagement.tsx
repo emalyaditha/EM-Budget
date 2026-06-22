@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { CashAccount, BankCard } from '../types';
-import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronRight, CornerDownRight, Landmark, ArrowUpRight, ArrowDownLeft, Snowflake, RefreshCw } from 'lucide-react';
+import { CashAccount, BankCard, Charge } from '../types';
+import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronRight, CornerDownRight, Landmark, ArrowUpRight, ArrowDownLeft, Snowflake, RefreshCw, Lock } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
 interface CashCardManagementProps {
@@ -13,6 +13,8 @@ interface CashCardManagementProps {
   onDeleteCashAccount: (id: string) => void;
   currency: string;
   onUpdateCard: (card: BankCard) => void;
+  onApplyCardCharge?: (cardId: string, charge: any) => void;
+  onDeleteCardCharge?: (cardId: string, chargeId: string) => void;
 }
 
 interface InteractiveBankCardProps {
@@ -29,6 +31,9 @@ interface InteractiveBankCardProps {
   setEditCardTheme: (theme: string) => void;
   setEditCardErrors: (errs: Record<string, string>) => void;
   setEditCardSubmitted: (sub: boolean) => void;
+  onApplyCardCharge?: (cardId: string, charge: any) => void;
+  onDeleteCardCharge?: (cardId: string, chargeId: string) => void;
+  setEditCardLockedAmount?: (val: string) => void;
 }
 
 function InteractiveBankCard({
@@ -44,6 +49,9 @@ function InteractiveBankCard({
   setEditCardTheme,
   setEditCardErrors,
   setEditCardSubmitted,
+  onApplyCardCharge,
+  onDeleteCardCharge,
+  setEditCardLockedAmount,
 }: InteractiveBankCardProps) {
   const { showToast } = useNotifications();
   const [coords, setCoords] = useState({ x: 0, y: 0 });
@@ -192,6 +200,7 @@ function InteractiveBankCard({
                     setEditCardTheme(derivedTheme);
                     setEditCardErrors({});
                     setEditCardSubmitted(false);
+                    setEditCardLockedAmount?.(card.lockedAmount?.toString() || '0');
                   }}
                   style={btnStyle}
                   className="text-black"
@@ -260,15 +269,20 @@ function InteractiveBankCard({
       <div className="z-10 flex justify-between items-end border-t border-white/5 pt-3">
         <div>
           <span className="text-[8px] uppercase tracking-wider text-white/40 block">
-            {card.cardType === 'Credit' ? 'Available Limit' : 'Available Balance'}
+            {card.cardType === 'Credit' ? 'Available Limit' : 'Available Spendable Balance'}
           </span>
           <span className="text-sm font-extrabold font-mono text-white leading-none">
             {currency}{
               card.cardType === 'Credit' 
-                ? ((card.limit ?? 0) - card.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : card.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                ? ((card.limit ?? 0) + card.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : (card.currentBalance - (card.lockedAmount ?? 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
             }
           </span>
+          {card.cardType === 'Debit' && card.lockedAmount && card.lockedAmount > 0 ? (
+            <span className="text-[8.5px] font-extrabold text-amber-300 flex items-center gap-1 mt-1 font-mono uppercase bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-md leading-none shadow-[inset_0_1px_4px_rgba(245,158,11,0.1)]">
+              <Lock size={8} className="translate-y-[-0.5px]" /> {currency}{card.lockedAmount.toLocaleString()} locked
+            </span>
+          ) : null}
         </div>
 
         <div className="text-right flex items-center gap-3">
@@ -302,6 +316,8 @@ export default function CashCardManagement({
   onDeleteCashAccount,
   currency,
   onUpdateCard,
+  onApplyCardCharge,
+  onDeleteCardCharge,
 }: CashCardManagementProps) {
   const { showToast, showConfirm } = useNotifications();
   // Cash form states
@@ -316,8 +332,10 @@ export default function CashCardManagement({
   const [bankName, setBankName] = useState('');
   const [cardType, setCardType] = useState<'Debit' | 'Credit'>('Debit');
   const [cardBalance, setCardBalance] = useState('');
+  const [cardLimit, setCardLimit] = useState('50000');
   const [cardNumber, setCardNumber] = useState('');
   const [cardTheme, setCardTheme] = useState('obsidian'); // obsidian, sapphire, emerald, copper, ruby
+  const [cardLockedAmount, setCardLockedAmount] = useState('');
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
   const [cardSubmitted, setCardSubmitted] = useState(false);
 
@@ -325,10 +343,27 @@ export default function CashCardManagement({
   const [editingCard, setEditingCard] = useState<BankCard | null>(null);
   const [editCardName, setEditCardName] = useState('');
   const [editCardNumber, setEditCardNumber] = useState('');
+  const [editCardLockedAmount, setEditCardLockedAmount] = useState('0');
   const [editCardTheme, setEditCardTheme] = useState('obsidian');
   const [editCardErrors, setEditCardErrors] = useState<Record<string, string>>({});
   const [editCardSubmitted, setEditCardSubmitted] = useState(false);
   const [showCanceled, setShowCanceled] = useState(false);
+
+  // Charges Form States
+  const [chargeType, setChargeType] = useState<'Interest' | 'LatePayment' | 'OverLimit' | 'Annual' | 'Custom'>('Interest');
+  const [chargeName, setChargeName] = useState('Interest Charge');
+  const [chargeAmount, setChargeAmount] = useState('');
+  const [chargeDate, setChargeDate] = useState(new Date().toISOString().split('T')[0]);
+  const [chargeDescription, setChargeDescription] = useState('');
+  const [chargeRecurring, setChargeRecurring] = useState<'none' | 'Monthly' | 'Yearly' | 'Custom'>('none');
+
+  const CHARGE_DEFAULT_NAMES: Record<string, string> = {
+    Interest: 'Interest Charge',
+    LatePayment: 'Late Payment Fee',
+    OverLimit: 'Over-Limit Fee',
+    Annual: 'Annual Fee',
+    Custom: 'Custom Charge'
+  };
 
   // Quick action states
   const [selectedCashId, setSelectedCashId] = useState<string | null>(null);
@@ -494,6 +529,7 @@ export default function CashCardManagement({
       return;
     }
     const balanceNum = parseFloat(cardBalance) || 0;
+    const limitNum = cardType === 'Credit' ? parseFloat(cardLimit) || 0 : undefined;
     
     // Mask helper
     let cleanNum = cardNumber.replace(/\s+/g, '');
@@ -511,16 +547,20 @@ export default function CashCardManagement({
       cardName: cardName.trim(),
       bankName: bankName.trim(),
       cardType,
-      currentBalance: balanceNum,
+      currentBalance: cardType === 'Credit' ? -Math.abs(balanceNum) : balanceNum,
+      limit: limitNum,
       cardNumber: cleanNum,
       cardTheme: cardTheme,
+      lockedAmount: cardType === 'Debit' ? parseFloat(cardLockedAmount) || 0 : undefined,
     });
 
     // Reset card form
     setCardName('');
     setBankName('');
     setCardBalance('');
+    setCardLimit('50000');
     setCardNumber('');
+    setCardLockedAmount('');
     setCardSubmitted(false);
     setCardErrors({});
     setIsAddingCard(false);
@@ -572,6 +612,7 @@ export default function CashCardManagement({
       cardName: editCardName.trim(),
       cardNumber: cleanNum,
       cardTheme: editCardTheme,
+      lockedAmount: editingCard.cardType === 'Debit' ? parseFloat(editCardLockedAmount) || 0 : undefined,
     };
     
     onUpdateCard(updated);
@@ -903,7 +944,9 @@ export default function CashCardManagement({
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Starting Balance ({currency})</label>
+                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">
+                  {cardType === 'Credit' ? `Starting Debt Owed (${currency})` : `Starting Balance (${currency})`}
+                </label>
                 <input
                   ref={cardBalanceInputRef}
                   type="number"
@@ -922,10 +965,39 @@ export default function CashCardManagement({
                   }`}
                 />
                 {cardErrors.balance && (
-                  <span className="text-rose-400 text-[10px] font-mono mt-1 block">{cardErrors.balance}</span>
+                  <span className="text-rose-450 text-[10px] font-mono mt-1 block">{cardErrors.balance}</span>
                 )}
               </div>
             </div>
+
+            {cardType === 'Credit' && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-[var(--text-secondary)] block">Credit Card Limit ({currency})</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 50000"
+                  value={cardLimit}
+                  onChange={(e) => setCardLimit(e.target.value)}
+                  className="w-full bg-[#050505] border border-zinc-800 text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none focus:border-zinc-500 font-mono"
+                />
+              </div>
+            )}
+
+            {cardType === 'Debit' && (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-[var(--text-secondary)] block">Locked/Held Amount ({currency})</label>
+                  <span className="text-[10px] text-zinc-500 font-mono">Locks funds from spendable balance</span>
+                </div>
+                <input
+                  type="number"
+                  placeholder="e.g. 500 (Optional)"
+                  value={cardLockedAmount}
+                  onChange={(e) => setCardLockedAmount(e.target.value)}
+                  className="w-full bg-[#050505] border border-zinc-805 border-zinc-800 text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none focus:border-zinc-500 font-mono"
+                />
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Card Number (Optional)</label>
@@ -997,23 +1069,180 @@ export default function CashCardManagement({
                     No active cards. Add a credit/debit card.
                   </div>
                 ) : (
-                  activeCards.map((card, idx) => (
-                    <InteractiveBankCard
-                      key={card.id}
-                      card={card}
-                      idx={idx}
-                      currency={currency}
-                      onUpdateCard={onUpdateCard}
-                      onDeleteCard={onDeleteCard}
-                      getCardGradient={getCardGradient}
-                      setEditingCard={setEditingCard}
-                      setEditCardName={setEditCardName}
-                      setEditCardNumber={setEditCardNumber}
-                      setEditCardTheme={setEditCardTheme}
-                      setEditCardErrors={setEditCardErrors}
-                      setEditCardSubmitted={setEditCardSubmitted}
-                    />
-                  ))
+                  activeCards.map((card, idx) => {
+                    const isCredit = card.cardType === 'Credit';
+                    const hasNegativeBalance = card.currentBalance < 0;
+                    const outstandingAmount = hasNegativeBalance ? Math.abs(card.currentBalance) : 0;
+                    
+                    const limit = card.limit ?? 0;
+                    const availableCredit = limit + card.currentBalance;
+                    const usedCredit = limit > 0 ? Math.max(0, limit - availableCredit) : 0;
+                    const utilizationPct = limit > 0 ? Math.min(100, (usedCredit / limit) * 100) : 0;
+                    
+                    let progressColor = 'bg-emerald-500 shadow-emerald-500/20';
+                    let textProgressColor = 'text-emerald-400';
+                    if (utilizationPct >= 70) {
+                      progressColor = 'bg-rose-500 shadow-rose-500/20';
+                      textProgressColor = 'text-rose-400';
+                    } else if (utilizationPct >= 30) {
+                      progressColor = 'bg-amber-500 shadow-amber-500/20';
+                      textProgressColor = 'text-amber-400';
+                    }
+
+                    return (
+                      <div key={card.id} className={`p-4 rounded-[32px] border ${isCredit ? 'border-zinc-850 bg-[#09090d]/65 shadow-xl' : 'border-transparent bg-transparent'} space-y-4`}>
+                        <InteractiveBankCard
+                          card={card}
+                          idx={idx}
+                          currency={currency}
+                          onUpdateCard={onUpdateCard}
+                          onDeleteCard={onDeleteCard}
+                          getCardGradient={getCardGradient}
+                          setEditingCard={setEditingCard}
+                          setEditCardName={setEditCardName}
+                          setEditCardNumber={setEditCardNumber}
+                          setEditCardTheme={setEditCardTheme}
+                          setEditCardErrors={setEditCardErrors}
+                          setEditCardSubmitted={setEditCardSubmitted}
+                          onApplyCardCharge={onApplyCardCharge}
+                          onDeleteCardCharge={onDeleteCardCharge}
+                          setEditCardLockedAmount={setEditCardLockedAmount}
+                        />
+                        
+                        {!isCredit && card.lockedAmount && card.lockedAmount > 0 ? (
+                          <div id={`card-details-${card.id}`} className="px-1.5 space-y-3 pt-1">
+                            {/* Locked balance section & Hold Alert Banner */}
+                            <div className="flex flex-wrap justify-between items-center gap-2 border-t border-zinc-900 pt-3">
+                              <div>
+                                <span className="text-[10px] text-zinc-500 uppercase font-mono block">Spendable Balance</span>
+                                <span className="text-sm font-black font-mono text-emerald-405 text-emerald-400 block leading-none">
+                                  {currency}{(card.currentBalance - card.lockedAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                              <div className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-mono leading-none flex items-center gap-1.5 shadow-[inset_0_1px_5px_rgba(245,158,11,0.1)]">
+                                <Lock size={10} />
+                                <span className="font-extrabold tracking-wide text-[9px]">ACTIVE BANK HOLD</span>
+                              </div>
+                            </div>
+
+                            {/* Held progression */}
+                            <div className="space-y-2.5 bg-black/40 border border-zinc-900 p-3 rounded-2xl">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider font-mono">Available Portion</span>
+                                <span className="text-[11px] font-black font-mono text-emerald-400">
+                                  {card.currentBalance > 0 ? ((card.currentBalance - card.lockedAmount) / card.currentBalance * 100).toFixed(0) : 0}% Clear
+                                </span>
+                              </div>
+
+                              {/* Progress track */}
+                              <div className="w-full h-2 bg-zinc-900 rounded-full overflow-hidden relative shadow-inner">
+                                <div 
+                                  className="h-full rounded-full transition-all duration-500 bg-emerald-500 shadow-emerald-500/20"
+                                  style={{ width: `${card.currentBalance > 0 ? Math.max(0, Math.min(100, ((card.currentBalance - card.lockedAmount) / card.currentBalance * 100))) : 0}%` }}
+                                />
+                              </div>
+
+                              {/* Details grid */}
+                              <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-zinc-900/50">
+                                <div>
+                                  <span className="text-[8px] text-zinc-500 uppercase font-mono block">Total Balance</span>
+                                  <span className="text-xs font-bold font-mono text-zinc-300">
+                                    {currency}{card.currentBalance.toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="border-x border-zinc-900/40">
+                                  <span className="text-[8px] text-zinc-500 uppercase font-mono block">Locked Funds</span>
+                                  <span className="text-xs font-bold font-mono text-amber-500">
+                                    {currency}{card.lockedAmount.toLocaleString()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-zinc-500 uppercase font-mono block">Spendable</span>
+                                  <span className="text-xs font-bold font-mono text-emerald-405 text-emerald-400">
+                                    {currency}{Math.max(0, card.currentBalance - card.lockedAmount).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                        
+                        {isCredit && (
+                          <div id={`card-details-${card.id}`} className="px-1.5 space-y-3 pt-1">
+                            {/* Outstanding balance section & Debt Badge */}
+                            <div className="flex flex-wrap justify-between items-center gap-2 border-t border-zinc-900 pt-3">
+                              <div>
+                                <span className="text-[10px] text-zinc-500 uppercase font-mono block">Current Balance</span>
+                                {hasNegativeBalance ? (
+                                  <div className="space-y-0.5">
+                                    <span id="credit-card-negative-balance" className="text-sm font-black font-mono text-rose-500 block leading-none">
+                                      -{currency}{outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </span>
+                                    <span className="text-[9px] text-rose-400/80 font-mono font-semibold block">
+                                      Outstanding Debt {currency}{outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm font-black font-mono text-emerald-400 block leading-none">
+                                    {currency}{card.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {hasNegativeBalance && (
+                                <div className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-mono leading-none flex items-center gap-1.5 shadow-[inset_0_1px_5px_rgba(239,68,68,0.1)]">
+                                  <span>⚠️</span>
+                                  <span className="font-extrabold tracking-wide">OUTSTANDING CREDIT CARD DEBT</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Credit limit and utilization progress */}
+                            {limit > 0 && (
+                              <div className="space-y-2.5 bg-black/40 border border-zinc-900 p-3 rounded-2xl">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider font-mono">Credit Utilization</span>
+                                  <span className={`text-[11px] font-black font-mono ${textProgressColor}`}>
+                                    {utilizationPct.toFixed(0)}% Used
+                                  </span>
+                                </div>
+
+                                {/* Progress track */}
+                                <div className="w-full h-2 bg-zinc-900 rounded-full overflow-hidden relative shadow-inner">
+                                  <div 
+                                    className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
+                                    style={{ width: `${utilizationPct}%` }}
+                                  />
+                                </div>
+
+                                {/* Details grid */}
+                                <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-zinc-900/50">
+                                  <div>
+                                    <span className="text-[8px] text-zinc-500 uppercase font-mono block">Credit Limit</span>
+                                    <span className="text-xs font-bold font-mono text-zinc-300">
+                                      {currency}{limit.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div className="border-x border-zinc-900/40">
+                                    <span className="text-[8px] text-zinc-500 uppercase font-mono block">Used Credit</span>
+                                    <span className={`text-xs font-bold font-mono ${usedCredit > 0 ? 'text-rose-400' : 'text-zinc-300'}`}>
+                                      {currency}{usedCredit.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[8px] text-zinc-500 uppercase font-mono block">Available</span>
+                                    <span className="text-xs font-bold font-mono text-emerald-400">
+                                      {currency}{Math.max(0, availableCredit).toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
 
                 {canceledCards.length > 0 && (
@@ -1047,6 +1276,7 @@ export default function CashCardManagement({
                               setEditCardTheme={setEditCardTheme}
                               setEditCardErrors={setEditCardErrors}
                               setEditCardSubmitted={setEditCardSubmitted}
+                              setEditCardLockedAmount={setEditCardLockedAmount}
                             />
                             {/* Floating Premium Restore Controller Action */}
                             <div className="absolute top-4 right-4 z-30">
@@ -1075,108 +1305,323 @@ export default function CashCardManagement({
         </div>
       </div>
       {/* Edit Card AJAX/Popup Modal */}
-      {editingCard && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animation-fade-in" onClick={() => setEditingCard(null)}>
-          <div className="bg-[#0a0a0a] border border-zinc-800 p-6 rounded-3xl shadow-2xl max-w-sm w-full space-y-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-              <h3 className="text-white font-bold text-sm flex items-center gap-2">
-                <Edit size={14} className="text-emerald-400" />
-                Edit Card Details
-              </h3>
-              <button 
-                onClick={() => setEditingCard(null)} 
-                className="text-xs font-mono font-bold text-zinc-500 hover:text-white uppercase transition-colors"
-              >
-                Close
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditCard} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Card Nickname</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Travel Silver Black"
-                  value={editCardName}
-                  onChange={(e) => {
-                    setEditCardName(e.target.value);
-                    validateEditCard(e.target.value, editCardNumber);
-                  }}
-                  className={`w-full bg-[#050505] border text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none transition-colors ${
-                    editCardErrors.name
-                      ? 'border-rose-500 focus:border-rose-600 focus:ring-1 focus:ring-rose-500'
-                      : 'border-zinc-800 focus:border-zinc-500'
-                  }`}
-                />
-                {editCardErrors.name && (
-                  <span className="text-rose-400 text-[10px] font-mono mt-1 block">{editCardErrors.name}</span>
-                )}
+      {editingCard && (() => {
+        const isCredit = editingCard.cardType === 'Credit';
+        const currentCharges = editingCard.charges || [];
+        
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animation-fade-in" onClick={() => setEditingCard(null)}>
+            <div 
+              className={`bg-[#0a0a0a]/95 border border-zinc-800 p-6 rounded-3xl shadow-2xl w-full scrollbar-none max-h-[90vh] overflow-y-auto transition-all duration-300 ${
+                isCredit ? 'max-w-2xl' : 'max-w-sm'
+              }`} 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center pb-3 border-b border-zinc-900 mb-4">
+                <h3 className="text-white font-extrabold text-sm flex items-center gap-2">
+                  <Edit size={14} className="text-emerald-400" />
+                  Edit Card Settings {isCredit && <span className="text-[10px] text-zinc-500 font-mono font-normal">({editingCard.cardName})</span>}
+                </h3>
+                <button 
+                  onClick={() => setEditingCard(null)} 
+                  className="text-xs font-mono font-bold text-zinc-500 hover:text-white uppercase transition-colors"
+                >
+                  Close
+                </button>
               </div>
 
-              <div>
-                <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Card Number (digits only)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 4201 9283 (optional)"
-                  value={editCardNumber}
-                  onChange={(e) => {
-                    setEditCardNumber(e.target.value);
-                    validateEditCard(editCardName, e.target.value);
-                  }}
-                  maxLength={19}
-                  className={`w-full bg-[#050505] border text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none transition-colors font-mono ${
-                    editCardErrors.number
-                      ? 'border-rose-500 focus:border-rose-600 focus:ring-1 focus:ring-rose-500'
-                      : 'border-zinc-800 focus:border-zinc-500'
-                  }`}
-                />
-                {editCardErrors.number && (
-                  <span className="text-rose-400 text-[10px] font-mono mt-1 block">{editCardErrors.number}</span>
-                )}
-              </div>
+              <div className={`grid grid-cols-1 ${isCredit ? 'md:grid-cols-2 gap-6' : 'gap-4'}`}>
+                {/* Left side: Card Fields */}
+                <form onSubmit={handleSaveEditCard} className="space-y-4">
+                  <div>
+                    <span className="text-[10px] text-zinc-500 font-mono tracking-wider font-bold uppercase block mb-1">General Settings</span>
+                    <div className="border border-zinc-900 p-4 rounded-2xl bg-black/25 space-y-4">
+                      <div>
+                        <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1">Card Nickname</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Travel Silver Black"
+                          value={editCardName}
+                          onChange={(e) => {
+                            setEditCardName(e.target.value);
+                            validateEditCard(e.target.value, editCardNumber);
+                          }}
+                          className={`w-full bg-[#050505] border text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none transition-colors ${
+                            editCardErrors.name
+                              ? 'border-rose-500 focus:border-rose-600 focus:ring-1 focus:ring-rose-500'
+                              : 'border-zinc-800 focus:border-zinc-500'
+                          }`}
+                        />
+                        {editCardErrors.name && (
+                          <span className="text-rose-400 text-[10px] font-mono mt-1 block">{editCardErrors.name}</span>
+                        )}
+                      </div>
 
-              {/* Custom Aesthetic Theme Selectors */}
-              <div>
-                <span className="text-[10px] text-[#888888] font-bold block mb-2 uppercase tracking-wider font-mono">Gloss/Hologram Hue</span>
-                <div className="flex gap-2">
-                  {[
-                    { name: 'obsidian', color: 'bg-zinc-800 ring-white' },
-                    { name: 'sapphire', color: 'bg-blue-600 ring-blue-400' },
-                    { name: 'emerald', color: 'bg-emerald-600 ring-emerald-400' },
-                    { name: 'copper', color: 'bg-amber-600 ring-amber-400' },
-                    { name: 'ruby', color: 'bg-rose-600 ring-rose-400' },
-                  ].map((th) => (
+                      <div>
+                        <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1">Card Number (digits only)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 4201 9283 (optional)"
+                          value={editCardNumber}
+                          onChange={(e) => {
+                            setEditCardNumber(e.target.value);
+                            validateEditCard(editCardName, e.target.value);
+                          }}
+                          maxLength={19}
+                          className={`w-full bg-[#050505] border text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none transition-colors font-mono ${
+                            editCardErrors.number
+                              ? 'border-rose-500 focus:border-rose-600 focus:ring-1 focus:ring-rose-500'
+                              : 'border-zinc-800 focus:border-zinc-500'
+                          }`}
+                        />
+                        {editCardErrors.number && (
+                          <span className="text-rose-400 text-[10px] font-mono mt-1 block">{editCardErrors.number}</span>
+                        )}
+                      </div>
+
+                      {!isCredit && (
+                        <div>
+                          <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1">Locked/Held Amount ({currency})</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 500"
+                            value={editCardLockedAmount}
+                            onChange={(e) => setEditCardLockedAmount(e.target.value)}
+                            className="w-full bg-[#050505] border border-zinc-800 text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none transition-colors font-mono focus:border-zinc-500"
+                          />
+                        </div>
+                      )}
+
+                      {/* Custom Aesthetic Theme Selectors */}
+                      <div>
+                        <span className="text-[10px] text-[#888888] font-bold block mb-2 uppercase tracking-wider font-mono">Gloss/Hologram Hue</span>
+                        <div className="flex gap-2">
+                          {[
+                            { name: 'obsidian', color: 'bg-zinc-800 ring-white' },
+                            { name: 'sapphire', color: 'bg-blue-600 ring-blue-400' },
+                            { name: 'emerald', color: 'bg-emerald-600 ring-emerald-400' },
+                            { name: 'copper', color: 'bg-amber-600 ring-amber-400' },
+                            { name: 'ruby', color: 'bg-rose-600 ring-rose-400' },
+                          ].map((th) => (
+                            <button
+                              key={th.name}
+                              type="button"
+                              onClick={() => setEditCardTheme(th.name)}
+                              className={`w-7 h-7 rounded-lg ${th.color} border border-black transition-all cursor-pointer ${
+                                editCardTheme === th.name ? 'ring-2 ring-offset-2 ring-offset-[#050505] scale-110' : 'opacity-70'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2 justify-end">
                     <button
-                      key={th.name}
                       type="button"
-                      onClick={() => setEditCardTheme(th.name)}
-                      className={`w-7 h-7 rounded-lg ${th.color} border border-black transition-all cursor-pointer ${
-                        editCardTheme === th.name ? 'ring-2 ring-offset-2 ring-offset-[#050505] scale-110' : 'opacity-70'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
+                      onClick={() => setEditingCard(null)}
+                      className="px-4 py-2.5 text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2.5 text-xs font-bold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors shadow-lg font-mono tracking-wider uppercase"
+                    >
+                      Save Settings
+                    </button>
+                  </div>
+                </form>
 
-              <div className="flex gap-2 pt-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setEditingCard(null)}
-                  className="px-4 py-2.5 text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 text-xs font-bold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors shadow-lg font-mono tracking-wider uppercase"
-                >
-                  Save Changes
-                </button>
+                {/* Right side: Charges & Fees Manager (Only if Credit Card) */}
+                {isCredit && (
+                  <div className="space-y-4 border-t md:border-t-0 md:border-l border-zinc-900 pt-4 md:pt-0 md:pl-6">
+                    <span className="text-[10px] text-zinc-300 font-mono tracking-wider font-bold uppercase block mb-1">Charges & Fees</span>
+                    
+                    {/* List of Applied Charges */}
+                    <div className="space-y-2 max-h-44 overflow-y-auto scrollbar-none border-b border-zinc-900 pb-3">
+                      <span className="text-[9px] text-zinc-500 font-bold uppercase font-mono block">Active Charges ({currentCharges.length})</span>
+                      {currentCharges.length === 0 ? (
+                        <div className="p-4 text-center text-[10px] text-zinc-600 border border-dashed border-zinc-905 rounded-xl">
+                          No charges or penalties applied yet.
+                        </div>
+                      ) : (
+                        currentCharges.map((ch) => (
+                          <div key={ch.id} className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-900 flex justify-between items-center gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-zinc-200 truncate">{ch.name}</span>
+                                <span className="text-[8px] px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/25 text-rose-400 font-mono uppercase font-black">
+                                  {ch.type.replace('Charge', '').replace('Fee', '').trim()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-zinc-500 font-mono">
+                                <span>{ch.appliedDate}</span>
+                                {ch.isRecurring && <span className="text-amber-500">({ch.recurringInterval})</span>}
+                                {ch.description && <span className="truncate max-w-[125px] italic"> - {ch.description}</span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-xs font-bold font-mono text-rose-500">
+                                -{currency}{ch.amount.toLocaleString()}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (onDeleteCardCharge) {
+                                    onDeleteCardCharge(editingCard.id, ch.id);
+                                    setEditingCard({
+                                      ...editingCard,
+                                      currentBalance: editingCard.currentBalance + ch.amount,
+                                      charges: currentCharges.filter(c => c.id !== ch.id)
+                                    });
+                                  }
+                                }}
+                                className="p-1 hover:bg-rose-500/10 text-zinc-500 hover:text-rose-400 rounded-md transition-colors"
+                                title="Remove Charge"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Add Charge Form Section */}
+                    <div className="border border-zinc-905/60 p-3 rounded-2xl bg-black/40 space-y-3">
+                      <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider font-mono block">Apply Charging / Penalty</span>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Charge Type</label>
+                          <select
+                            value={chargeType}
+                            onChange={(e) => {
+                              const val = e.target.value as any;
+                              setChargeType(val);
+                              setChargeName(CHARGE_DEFAULT_NAMES[val] || 'Custom Charge');
+                            }}
+                            className="w-full bg-[#050505] border border-zinc-900 text-white rounded-lg text-[11px] px-2 py-1.5 focus:outline-none"
+                          >
+                            <option value="Interest">Interest Charge</option>
+                            <option value="LatePayment">Late Payment Fee</option>
+                            <option value="OverLimit">Over-Limit Fee</option>
+                            <option value="Annual">Annual Fee</option>
+                            <option value="Custom">Custom Charge</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Charge Name</label>
+                          <input
+                            type="text"
+                            value={chargeName}
+                            onChange={(e) => setChargeName(e.target.value)}
+                            placeholder="Interest Charge"
+                            className="w-full bg-[#050505] border border-zinc-900 text-white rounded-lg text-[11px] px-2 py-1.5 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Amount ({currency})</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={chargeAmount}
+                            onChange={(e) => setChargeAmount(e.target.value)}
+                            placeholder="50.00"
+                            className="w-full bg-[#050505] border border-zinc-900 text-white rounded-lg text-[11px] px-2 py-1.5 focus:outline-none font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Date Applied</label>
+                          <input
+                            type="date"
+                            value={chargeDate}
+                            onChange={(e) => setChargeDate(e.target.value)}
+                            className="w-full bg-[#050505] border border-zinc-900 text-white rounded-lg text-[11px] px-2 py-1.5 focus:outline-none font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 items-center">
+                        <div>
+                          <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Recurring</label>
+                          <select
+                            value={chargeRecurring}
+                            onChange={(e) => setChargeRecurring(e.target.value as any)}
+                            className="w-full bg-[#050505] border border-zinc-900 text-white rounded-lg text-[11px] px-2 py-1.5 focus:outline-none"
+                          >
+                            <option value="none">One-off Charge</option>
+                            <option value="Monthly">Monthly Recurring</option>
+                            <option value="Yearly">Yearly Recurring</option>
+                            <option value="Custom">Custom Recurring</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Notes / Description</label>
+                          <input
+                            type="text"
+                            value={chargeDescription}
+                            onChange={(e) => setChargeDescription(e.target.value)}
+                            placeholder="Optional notes..."
+                            className="w-full bg-[#050505] border border-zinc-900 text-white rounded-lg text-[11px] px-2 py-1.5 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const amt = parseFloat(chargeAmount);
+                          if (!chargeName || isNaN(amt) || amt <= 0) {
+                            showToast('error', 'Please enter a valid name and amount for the charge.');
+                            return;
+                          }
+                          const newCharge: Charge = {
+                            id: `chg-${Date.now()}`,
+                            name: chargeName,
+                            amount: amt,
+                            type: (chargeType === 'Interest' ? 'Interest Charge' :
+                                  chargeType === 'LatePayment' ? 'Late Payment Fee' :
+                                  chargeType === 'OverLimit' ? 'Over-Limit Fee' :
+                                  chargeType === 'Annual' ? 'Annual Fee' : 'Custom Charge') as any,
+                            appliedDate: chargeDate,
+                            description: chargeDescription || undefined,
+                            isRecurring: chargeRecurring !== 'none',
+                            recurringInterval: (chargeRecurring !== 'none' ? chargeRecurring : undefined) as any
+                          };
+
+                          if (onApplyCardCharge) {
+                            onApplyCardCharge(editingCard.id, newCharge);
+                            setEditingCard({
+                              ...editingCard,
+                              currentBalance: editingCard.currentBalance - amt,
+                              charges: [...currentCharges, newCharge]
+                            });
+                            setChargeAmount('');
+                            setChargeDescription('');
+                          }
+                        }}
+                        className="w-full py-2 text-[10px] text-zinc-900 bg-emerald-400 hover:bg-emerald-300 font-mono font-bold uppercase rounded-lg transition-colors cursor-pointer"
+                      >
+                        Add Charge & Record Transaction
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Confirmation Dialog */}
       {cardToDelete && (

@@ -7,7 +7,7 @@ import {
   TrendingUp, User, Lock, Unlock, Settings, HelpCircle, RefreshCw, 
   FileDown, Share2, Landmark, ShieldAlert, ArrowUpRight, ArrowDownLeft,
   DollarSign, CircleDot, Database, CheckSquare, Zap, BadgeCheck, AlertCircle,
-  Cloud, CloudOff, ArrowRightLeft, Sun, Moon
+  Cloud, CloudOff, ArrowRightLeft, Sun, Moon, Menu
 } from 'lucide-react';
 
 import EmailLogin from './components/EmailLogin';
@@ -50,6 +50,7 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   // Supabase real-time status tracker
   const [realtimeSyncStatus, setRealtimeSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error' | 'disabled'>('idle');
@@ -59,6 +60,24 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
+
+  const migrateStateCards = (loadedState: AppState): AppState => {
+    if (!loadedState || !loadedState.cards) return loadedState;
+    const migratedCards = loadedState.cards.map(card => {
+      if (card.cardType === 'Credit' && card.currentBalance > 0) {
+        console.log(`MIGRATION: Auto-healing credit card "${card.cardName}" with positive balance ${card.currentBalance} to negative balance ${-card.currentBalance}`);
+        return {
+          ...card,
+          currentBalance: -card.currentBalance
+        };
+      }
+      return card;
+    });
+    return {
+      ...loadedState,
+      cards: migratedCards
+    };
+  };
 
   // Verify remembered device on mount
   useEffect(() => {
@@ -89,7 +108,7 @@ export default function App() {
         try {
           const result = await syncStateFromSupabase(email);
           if (result.success && result.state) {
-            setState(result.state);
+            setState(migrateStateCards(result.state));
             setIsUnlocked(true);
           } else {
             console.warn("Could not sync from database, allowing offline fallback mode:", result.error);
@@ -394,15 +413,21 @@ export default function App() {
       } else {
         updatedCards = updatedCards.map(c => {
           if (c.id === paymentMethodId) {
-            const nextVal = c.cardType === 'Credit' 
-              ? c.currentBalance + amount 
-              : c.currentBalance - amount;
+            const isCredit = c.cardType === 'Credit';
+            const nextVal = c.currentBalance - amount;
             
-            if (nextVal < 10000) {
+            const isLow = isCredit 
+              ? (c.limit !== undefined && (c.limit + nextVal) < 1000)
+              : (nextVal < 10000);
+            
+            if (isLow) {
+              const alertMsg = isCredit
+                ? `Credit card alert! Card ${c.cardName} available credit is low: ${prev.currency} ${((c.limit ?? 0) + nextVal).toLocaleString()}`
+                : `Low balance alert! Card ${c.cardName} balance is low: ${prev.currency} ${nextVal.toLocaleString()}`;
               newAlertNotifications.push({
                 id: `nt-alert-${Date.now()}`,
                 type: 'alert',
-                message: `Low balance alert! Card ${c.cardName} balance is low: ${prev.currency} ${nextVal.toLocaleString()}`,
+                message: alertMsg,
                 date: new Date().toISOString().split('T')[0],
                 read: false,
               });
@@ -791,6 +816,74 @@ export default function App() {
     }));
   };
 
+  const handleApplyCardCharge = (cardId: string, charge: any) => {
+    updateState(prev => {
+      const transactionId = `trans-${Date.now()}`;
+      const newTransaction: Transaction = {
+        id: transactionId,
+        type: 'credit_card_charge',
+        title: `Credit Card Charge: ${charge.name} (${charge.type})`,
+        amount: charge.amount,
+        date: charge.appliedDate,
+        category: 'Bank Charges & Interest',
+        accountId: cardId,
+        accountType: 'card',
+        referenceId: charge.id,
+      };
+
+      const updatedCards = prev.cards.map(c => {
+        if (c.id === cardId) {
+          const nextCharges = c.charges ? [...c.charges, charge] : [charge];
+          return {
+            ...c,
+            currentBalance: c.currentBalance - charge.amount,
+            charges: nextCharges
+          };
+        }
+        return c;
+      });
+
+      return {
+        ...prev,
+        cards: updatedCards,
+        transactions: [newTransaction, ...prev.transactions]
+      };
+    });
+    showToast('success', 'Credit card charge applied and transaction recorded!');
+  };
+
+  const handleDeleteCardCharge = (cardId: string, chargeId: string) => {
+    updateState(prev => {
+      const card = prev.cards.find(c => c.id === cardId);
+      if (!card) return prev;
+
+      const chargeToDelete = (card.charges || []).find(ch => ch.id === chargeId);
+      if (!chargeToDelete) return prev;
+
+      const updatedCards = prev.cards.map(c => {
+        if (c.id === cardId) {
+          return {
+            ...c,
+            currentBalance: c.currentBalance + chargeToDelete.amount,
+            charges: (c.charges || []).filter(ch => ch.id !== chargeId)
+          };
+        }
+        return c;
+      });
+
+      const updatedTransactions = prev.transactions.filter(
+        t => !(t.type === 'credit_card_charge' && t.referenceId === chargeId)
+      );
+
+      return {
+        ...prev,
+        cards: updatedCards,
+        transactions: updatedTransactions
+      };
+    });
+    showToast('success', 'Charge removed and transaction reversed.');
+  };
+
   // Subscriptions Actions Setup
   const handleAddSubscription = (subData: Omit<Subscription, 'id'>) => {
     const newSub: Subscription = {
@@ -965,7 +1058,7 @@ export default function App() {
 
   const handleAddCreditCardPurchase = (purchase: Omit<CreditCardPurchase, 'id'>) => {
     updateState(prev => {
-        const updatedCards = prev.cards.map(c => c.id === purchase.cardId ? { ...c, currentBalance: c.currentBalance + purchase.amount } : c);
+        const updatedCards = prev.cards.map(c => c.id === purchase.cardId ? { ...c, currentBalance: c.currentBalance - purchase.amount } : c);
         
         const newTransaction: Transaction = {
           id: `trans-${Date.now()}`,
@@ -989,6 +1082,7 @@ export default function App() {
   };
 
   const handlePayCreditCard = (cardId: string, amount: number, fromId: string, fromType: 'cash' | 'card') => {
+      let overpaymentMsg = '';
       updateState(prev => {
           let updatedCash = prev.cashAccounts.map(c => 
             (fromType === 'cash' && c.id === fromId) ? { ...c, balance: c.balance - amount } : c
@@ -997,10 +1091,14 @@ export default function App() {
           let updatedCards = prev.cards.map(c => {
             let cBal = c.currentBalance;
             if (fromType === 'card' && c.id === fromId) {
-                cBal += amount; // We paid using this card, so its debt increases
+                cBal -= amount; // We paid using this card, so its balance decreases (debt increases)
             }
             if (c.id === cardId) {
-                cBal -= amount; // We paid off this card, so its debt decreases
+                const outstanding = c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0;
+                if (amount > outstanding) {
+                    overpaymentMsg = `Note: Payment of ${prev.currency}${amount.toLocaleString()} exceeds outstanding debt of ${prev.currency}${outstanding.toLocaleString()}, resulting in a positive credit balance of ${prev.currency}${(amount - outstanding).toLocaleString()}.`;
+                }
+                cBal += amount; // We paid off this card, so its balance increases (debt decreases)
             }
             return { ...c, currentBalance: cBal };
           });
@@ -1024,7 +1122,7 @@ export default function App() {
               transactions: [newTransaction, ...prev.transactions]
           };
       });
-      showToast('success', 'Payment recorded successfully!');
+      showToast('success', overpaymentMsg ? `Payment recorded! ${overpaymentMsg}` : 'Payment recorded successfully!');
   };
 
   const handleIncreaseDebt = (debtId: string, amount: number, newAccountId?: string, newAccountType?: 'cash' | 'card') => {
@@ -1303,24 +1401,30 @@ export default function App() {
         if (tx.accountId && tx.accountType) reverseAmount(tx.amount, tx.accountId, tx.accountType, true);
       } else if (tx.type === 'expense') {
         if (tx.title.startsWith('Credit Card Purchase:')) {
-          // Liability purchase: previously added to balance, need to subtract
-          updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: c.currentBalance - tx.amount } : c);
+          // Liability purchase: previously subtracted from balance, need to add back
+          updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: c.currentBalance + tx.amount } : c);
           updatedCreditCardPurchases = updatedCreditCardPurchases.filter(p => p.id !== tx.referenceId);
         } else {
           updatedExpenses = updatedExpenses.filter(e => e.id !== tx.referenceId);
           if (tx.accountId && tx.accountType) reverseAmount(tx.amount, tx.accountId, tx.accountType, false);
         }
+      } else if (tx.type === 'credit_card_charge') {
+        updatedCards = updatedCards.map(c => c.id === tx.accountId ? {
+          ...c,
+          currentBalance: c.currentBalance + tx.amount,
+          charges: (c.charges || []).filter(ch => ch.id !== tx.referenceId)
+        } : c);
       } else if (tx.type === 'debt_payment') {
         if (tx.title.startsWith('Credit Card Settlement:')) {
           // Put the money back into the source wallet/account that made the payment
           if (tx.accountId && tx.accountType) {
             reverseAmount(tx.amount, tx.accountId, tx.accountType, false);
           }
-          // Restore the outstanding balance of the settled credit card (add the settled amount back to the card)
+          // Restore the outstanding balance of the settled credit card (subtract the settled amount from the card)
           const cardNamePart = tx.title.replace('Credit Card Settlement:', '').trim();
           const targetCc = prev.cards.find(c => c.cardName === cardNamePart && c.cardType === 'Credit');
           if (targetCc) {
-            updatedCards = updatedCards.map(c => c.id === targetCc.id ? { ...c, currentBalance: c.currentBalance + tx.amount } : c);
+            updatedCards = updatedCards.map(c => c.id === targetCc.id ? { ...c, currentBalance: c.currentBalance - tx.amount } : c);
           }
         } else {
           if (tx.accountId && tx.accountType) reverseAmount(tx.amount, tx.accountId, tx.accountType, false);
@@ -1656,11 +1760,13 @@ export default function App() {
   const currentMonthFormat = `-${String(now.getMonth() + 1).padStart(2, '0')}-`;
 
   const totalCashAmount = state.cashAccounts.reduce((sum, c) => sum + c.balance, 0);
-  const totalDebitCardsAmount = state.cards.filter(c => !c.isCanceled && c.cardType === 'Debit').reduce((sum, c) => sum + c.currentBalance, 0);
-  const totalCreditCardsAmount = state.cards.filter(c => !c.isCanceled && c.cardType === 'Credit').reduce((sum, c) => sum + c.currentBalance, 0);
+  const totalDebitCardsAmount = state.cards.filter(c => !c.isCanceled && c.cardType === 'Debit').reduce((sum, c) => sum + (c.currentBalance - (Number(c.lockedAmount) || 0)), 0);
+  const totalCreditCardsDebt = state.cards.filter(c => !c.isCanceled && c.cardType === 'Credit').reduce((sum, c) => sum + (c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0), 0);
+  const totalCreditCardsAsset = state.cards.filter(c => !c.isCanceled && c.cardType === 'Credit').reduce((sum, c) => sum + (c.currentBalance > 0 ? c.currentBalance : 0), 0);
+  const totalCreditCardsAmount = totalCreditCardsDebt;
   const totalDebtsAmount = state.debts.reduce((sum, d) => sum + d.remainingAmount, 0);
   const totalLoansGiven = (state.loansGiven || []).reduce((sum, l) => sum + l.totalAmount, 0);
-  const aggregateActiveWealth = totalCashAmount + totalDebitCardsAmount - totalCreditCardsAmount - totalDebtsAmount;
+  const aggregateActiveWealth = totalCashAmount + totalDebitCardsAmount + totalCreditCardsAsset - totalCreditCardsAmount - totalDebtsAmount + totalLoansGiven;
 
   const currentMonthInflow = state.transactions
     .filter(t => t.type === 'income' && t.date.includes(currentMonthFormat))
@@ -1890,7 +1996,7 @@ export default function App() {
               // Fetch from Supabase immediately after successful login
               const result = await syncStateFromSupabase(email);
               if (result.success && result.state) {
-                setState(result.state);
+                setState(migrateStateCards(result.state));
               } else if (result.error) {
                 console.warn("Could not sync from database:", result.error);
                 // Continue anyway
@@ -2123,6 +2229,8 @@ export default function App() {
                     onDeleteCashAccount={handleDeleteCashAccount}
                     currency={state.currency}
                     onUpdateCard={handleUpdateCard}
+                    onApplyCardCharge={handleApplyCardCharge}
+                    onDeleteCardCharge={handleDeleteCardCharge}
                   />
                   <TransferFunds
                     cashAccounts={state.cashAccounts}
@@ -2222,38 +2330,218 @@ export default function App() {
                 { tab: 'dashboard', icon: <Percent size={15} />, label: 'Dashboard' },
                 { tab: 'accounts', icon: <Wallet size={15} />, label: 'Wallets' },
                 { tab: 'inflow_outflow', icon: <Plus size={15} />, label: 'Transact' },
-                { tab: 'debts', icon: <CircleDot size={15} />, label: 'Debts' },
-                { tab: 'loans', icon: <ArrowUpRight size={15} />, label: 'Loans' },
                 { tab: 'reports', icon: <TrendingUp size={15} />, label: 'Reports' },
               ].map((item) => {
                 const isActive = activeTab === item.tab;
                 return (
                   <button
                     key={item.tab}
-                    onClick={() => setActiveTab(item.tab as any)}
+                    onClick={() => {
+                      setActiveTab(item.tab as any);
+                      setIsMobileNavOpen(false);
+                    }}
                     className="flex flex-col items-center gap-1.5 relative cursor-pointer group"
                   >
                     <div className={`p-2.5 rounded-2xl transition-all duration-300 flex items-center justify-center ${
-                      isActive 
+                      isActive && !isMobileNavOpen
                         ? 'bg-[var(--accent-primary)] text-white shadow-md scale-105 border border-[var(--accent-primary)]' 
                         : 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-805 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800 group-hover:text-zinc-800 dark:group-hover:text-zinc-200'
                     }`}>
                       {item.icon}
                     </div>
                     <span className={`text-[8.5px] uppercase tracking-wider transition-colors duration-300 ${
-                      isActive 
+                      isActive && !isMobileNavOpen
                         ? 'text-[var(--accent-primary)] font-extrabold font-sans' 
                         : 'text-zinc-500 dark:text-zinc-400 font-medium font-sans group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
                     }`}>
                       {item.label}
                     </span>
-                    {isActive && (
+                    {isActive && !isMobileNavOpen && (
                       <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-pulse" />
                     )}
                   </button>
                 );
               })}
+              
+              {/* Added native Menu button node for extra capabilities */}
+              <button
+                onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+                className="flex flex-col items-center gap-1.5 relative cursor-pointer group"
+              >
+                <div className={`p-2.5 rounded-2xl transition-all duration-300 flex items-center justify-center ${
+                  isMobileNavOpen
+                    ? 'bg-indigo-600 text-white shadow-md scale-105 border border-indigo-500' 
+                    : 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-805 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800 group-hover:text-zinc-800 dark:group-hover:text-zinc-200'
+                }`}>
+                  <Menu size={15} />
+                </div>
+                <span className={`text-[8.5px] uppercase tracking-wider transition-colors duration-300 ${
+                  isMobileNavOpen
+                    ? 'text-indigo-500 font-extrabold' 
+                    : 'text-zinc-500 dark:text-zinc-400 font-medium group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
+                }`}>
+                  More
+                </span>
+                {isMobileNavOpen && (
+                  <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-indigo-550 rounded-full animate-pulse" />
+                )}
+              </button>
             </nav>
+
+            {/* =================== MOBILE CORE SLIDE-UP HUB DRAWER =================== */}
+            {isMobileNavOpen && (
+              <div id="mobile-core-nav-drawer" className="fixed inset-0 bg-black/60 dark:bg-[#020205]/90 backdrop-blur-sm z-50 flex flex-col justify-end transition-all duration-350 lg:hidden">
+                {/* Backdrop Dismiss Trigger */}
+                <div className="absolute inset-0 cursor-pointer" onClick={() => setIsMobileNavOpen(false)} />
+                
+                <div className="bg-card border-t border-[var(--border-primary)] rounded-t-[32px] max-h-[85%] flex flex-col overflow-hidden shadow-2xl relative z-10 w-full animate-fade-in-up">
+                  
+                  {/* Slide Indicator Accent */}
+                  <div className="w-12 h-1 bg-zinc-300 dark:bg-zinc-800 rounded-full mx-auto my-3.5 shrink-0 cursor-pointer" onClick={() => setIsMobileNavOpen(false)} />
+                  
+                  {/* Header Title Information */}
+                  <div className="px-6 pb-4 border-b border-[var(--border-primary)] flex justify-between items-center shrink-0">
+                    <div>
+                      <span className="text-[9px] text-[var(--accent-primary)] font-mono font-bold tracking-widest uppercase block mb-0.5">EXPLORE CAPABILITIES</span>
+                      <h4 className="text-sm font-extrabold text-[var(--text-primary)]">Command Hub Menu</h4>
+                    </div>
+                    <button
+                      onClick={() => setIsMobileNavOpen(false)}
+                      className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-205 dark:border-zinc-800 text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                  
+                  {/* Drawer Content Body: Grid & Quick stats */}
+                  <div className="flex-1 overflow-y-auto p-5 space-y-5 select-none" style={{ scrollbarWidth: 'thin' }}>
+                    
+                    {/* Compact Interactive Quick Statistics */}
+                    <div className="p-4 bg-zinc-950/65 dark:bg-[#050508]/80 border border-zinc-900/60 rounded-2xl flex justify-around items-center gap-3">
+                      <div className="text-center">
+                        <span className="text-[8px] text-[var(--text-secondary)] font-mono uppercase block mb-0.5">NET WORTH</span>
+                        <span className="text-xs font-mono font-bold text-white leading-none">
+                          {state.currency}{aggregateActiveWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                      <div className="w-px h-6 bg-zinc-900" />
+                      <div className="text-center">
+                        <span className="text-[8px] text-[var(--text-secondary)] font-mono uppercase block mb-0.5">CASHFLOW</span>
+                        <span className={`text-xs font-mono font-bold leading-none ${(currentMonthInflow - currentMonthOutflow) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {(currentMonthInflow - currentMonthOutflow) >= 0 ? '+' : ''}{state.currency}{(currentMonthInflow - currentMonthOutflow).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                      <div className="w-px h-6 bg-zinc-900" />
+                      <div className="text-center">
+                        <span className="text-[8px] text-[var(--text-secondary)] font-mono uppercase block mb-0.5">SAVINGS RATE</span>
+                        <span className="text-xs font-semibold font-mono text-[var(--accent-primary)] leading-none">
+                          {currentMonthInflow > 0 ? Math.round(((currentMonthInflow - currentMonthOutflow) / currentMonthInflow) * 100) : 0}%
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Navigation list selection */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-[var(--text-secondary)] font-mono uppercase block px-1 mb-2">FEATURES & VIEWS</span>
+                      
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {[
+                          { tab: 'dashboard', icon: <Percent size={15} className="text-amber-500" />, title: 'Dashboard', desc: 'Main indicators' },
+                          { tab: 'accounts', icon: <Wallet size={15} className="text-blue-500" />, title: 'Wallets Port', desc: 'Manage assets' },
+                          { tab: 'inflow_outflow', icon: <Plus size={15} className="text-emerald-500" />, title: 'Ledger Registry', desc: 'New entries' },
+                          { tab: 'budgets', icon: <CheckSquare size={15} className="text-purple-500" />, title: 'Smart Budgets', desc: 'Expenses envelope' },
+                          { tab: 'goals', icon: <CheckSquare size={15} className="text-rose-500" />, title: 'Savings Jars', desc: 'Track progress' },
+                          { tab: 'debts', icon: <CircleDot size={15} className="text-orange-500" />, title: 'Track Liabilities', desc: 'Debts timeline' },
+                          { tab: 'loans', icon: <ArrowUpRight size={15} className="text-teal-400" />, title: 'Track Loans', desc: 'Lent records' },
+                          { tab: 'reports', icon: <TrendingUp size={15} className="text-indigo-400" />, title: 'Reports Centre', desc: 'Trend analyses' },
+                        ].map((item) => {
+                          const isActive = activeTab === item.tab;
+                          return (
+                            <button
+                              key={item.tab}
+                              onClick={() => {
+                                setActiveTab(item.tab as any);
+                                setIsMobileNavOpen(false);
+                              }}
+                              className={`p-3.5 rounded-2xl flex flex-col items-start gap-1.5 text-left border cursor-pointer transition-all ${
+                                isActive
+                                  ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white'
+                                  : 'bg-zinc-100 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-850 text-[var(--text-primary)] hover:border-zinc-700'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center w-full">
+                                <span className={isActive ? 'text-white' : ''}>{item.icon}</span>
+                                {isActive && <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />}
+                              </div>
+                              <div>
+                                <span className="text-[11px] font-bold block">{item.title}</span>
+                                <span className={`text-[8.5px] block ${isActive ? 'text-white/85 font-medium' : 'text-[var(--text-secondary)]'}`}>{item.desc}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* Action controllers & theme preferences */}
+                    <div className="space-y-1.5 pt-1.5 border-t border-[var(--border-primary)]">
+                      <span className="text-[10px] text-[var(--text-secondary)] font-mono uppercase block px-1 mb-2">QUICK CONTROLS</span>
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Profile settings control */}
+                        <button
+                          onClick={() => {
+                            setIsProfileOpen(true);
+                            setIsMobileNavOpen(false);
+                          }}
+                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center"
+                        >
+                          <User size={14} className="text-indigo-400" />
+                          <span className="text-[9px] font-bold block">My Profile</span>
+                        </button>
+                        
+                        {/* Database Sync config */}
+                        <button
+                          onClick={() => {
+                            setIsSettingsOpen(true);
+                            setIsMobileNavOpen(false);
+                          }}
+                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center"
+                        >
+                          <Settings size={14} className="text-zinc-400" />
+                          <span className="text-[9px] font-bold block">Settings</span>
+                        </button>
+                        
+                        {/* Interactive toggle theme */}
+                        <button
+                          onClick={() => {
+                            toggleTheme();
+                          }}
+                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center"
+                        >
+                          {theme === 'light' ? (
+                            <>
+                              <Moon size={14} className="text-indigo-400" />
+                              <span className="text-[9px] font-bold block">Dark Theme</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sun size={14} className="text-amber-400" />
+                              <span className="text-[9px] font-bold block">Light Theme</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Device connectivity diagnostics tracker */}
+                    <div className="pt-2 px-2 text-center">
+                      <span className="text-[7.5px] text-[var(--text-muted)] font-mono uppercase block">SECURE DEVICE PROTOCOL ACTIVE — OWNER MIRROR IN SYNC</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Notification sheet slideover drawer */}
             <NotificationDrawer

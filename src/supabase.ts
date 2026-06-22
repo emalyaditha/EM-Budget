@@ -110,7 +110,7 @@ export function getSupabaseClient(): SupabaseClient | null {
 
 // Fallback column list if Supabase REST OpenAPI inspection is unavailable
 const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
-  bank_cards: ['id', 'user_email', 'card_name', 'bank_name', 'card_type', 'current_balance', 'card_number', 'is_canceled', 'limit', 'is_limit_locked', 'is_frozen', 'card_theme', 'updated_at'],
+  bank_cards: ['id', 'user_email', 'card_name', 'bank_name', 'card_type', 'current_balance', 'card_number', 'is_canceled', 'limit', 'is_limit_locked', 'is_frozen', 'card_theme', 'updated_at', 'locked_amount'],
   cash_accounts: ['id', 'user_email', 'name', 'balance', 'updated_at'],
   transactions: ['id', 'user_email', 'type', 'title', 'amount', 'charge', 'transfer_charge', 'date', 'category', 'account_id', 'account_type', 'target_account_id', 'target_account_type', 'reference_id', 'updated_at'],
   debts: ['id', 'user_email', 'debt_source', 'total_amount', 'remaining_amount', 'due_date', 'notes', 'payments', 'account_id', 'account_type', 'account_name', 'updated_at'],
@@ -407,6 +407,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       if (cardsCols.includes('limit')) mapped.limit = card.limit !== undefined ? card.limit : null;
       if (cardsCols.includes('is_limit_locked')) mapped.is_limit_locked = card.isLimitLocked !== undefined ? Boolean(card.isLimitLocked) : true;
       if (cardsCols.includes('is_frozen')) mapped.is_frozen = card.isFrozen !== undefined ? Boolean(card.isFrozen) : false;
+      if (cardsCols.includes('locked_amount')) mapped.locked_amount = card.lockedAmount !== undefined ? card.lockedAmount : null;
       return mapped;
     });
 
@@ -829,7 +830,7 @@ function mapDatabaseResultToState(item: any): any {
   const result: any = {};
   const numericFields = new Set([
     'totalAmount', 'remainingAmount', 'amount', 'balance', 
-    'currentBalance', 'limit', 'charge', 'transferCharge'
+    'currentBalance', 'limit', 'charge', 'transferCharge', 'lockedAmount'
   ]);
 
   for (const key of Object.keys(item)) {
@@ -1036,6 +1037,7 @@ alter table public.bank_cards add column if not exists "limit" numeric;
 alter table public.bank_cards add column if not exists is_limit_locked boolean default true;
 alter table public.bank_cards add column if not exists is_frozen boolean default false;
 alter table public.bank_cards add column if not exists card_theme text default 'obsidian';
+alter table public.bank_cards add column if not exists locked_amount numeric default 0;
 alter table public.transactions add column if not exists charge numeric default 0;
 alter table public.transactions add column if not exists transfer_charge numeric default 0;
 alter table public.auth_accounts add column if not exists name text;
@@ -1259,6 +1261,7 @@ create table if not exists public.bank_cards (
   card_theme text not null default 'obsidian',
   card_number text,
   is_canceled boolean not null default false,
+  locked_amount numeric not null default 0,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -1469,7 +1472,7 @@ BEGIN
     -- Upsert card records
     FOR v_item IN SELECT jsonb_array_elements(p_cards) LOOP
       INSERT INTO public.bank_cards (
-        id, user_email, card_name, bank_name, card_type, card_number, card_theme, current_balance, is_canceled, updated_at
+        id, user_email, card_name, bank_name, card_type, card_number, card_theme, current_balance, is_canceled, locked_amount, updated_at
       ) VALUES (
         v_item->>'id',
         p_email,
@@ -1480,6 +1483,7 @@ BEGIN
         coalesce(v_item->>'card_theme', 'obsidian'),
         (v_item->>'current_balance')::numeric,
         coalesce((v_item->>'is_canceled')::boolean, false),
+        coalesce((v_item->>'locked_amount')::numeric, 0),
         timezone('utc'::text, now())
       ) ON CONFLICT (id) DO UPDATE SET
         card_name = EXCLUDED.card_name,
@@ -1489,6 +1493,7 @@ BEGIN
         card_theme = EXCLUDED.card_theme,
         current_balance = EXCLUDED.current_balance,
         is_canceled = EXCLUDED.is_canceled,
+        locked_amount = EXCLUDED.locked_amount,
         updated_at = EXCLUDED.updated_at;
     END LOOP;
   ELSE
@@ -1954,6 +1959,7 @@ $$ language plpgsql security definer;
 alter table public.bank_cards add column if not exists "limit" numeric;
 alter table public.bank_cards add column if not exists is_limit_locked boolean default true;
 alter table public.bank_cards add column if not exists card_theme text default 'obsidian';
+alter table public.bank_cards add column if not exists locked_amount numeric default 0;
 alter table public.transactions add column if not exists charge numeric default 0;
 alter table public.transactions add column if not exists transfer_charge numeric default 0;
 alter table public.auth_accounts add column if not exists name text;
@@ -2058,7 +2064,7 @@ BEGIN
     -- Upsert card records
     FOR v_item IN SELECT jsonb_array_elements(p_cards) LOOP
       INSERT INTO public.bank_cards (
-        id, user_email, card_name, bank_name, card_type, card_number, card_theme, current_balance, is_canceled, updated_at
+        id, user_email, card_name, bank_name, card_type, card_number, card_theme, current_balance, is_canceled, locked_amount, updated_at
       ) VALUES (
         v_item->>'id',
         p_email,
@@ -2069,6 +2075,7 @@ BEGIN
         coalesce(v_item->>'card_theme', 'obsidian'),
         (v_item->>'current_balance')::numeric,
         coalesce((v_item->>'is_canceled')::boolean, false),
+        coalesce((v_item->>'locked_amount')::numeric, 0),
         timezone('utc'::text, now())
       ) ON CONFLICT (id) DO UPDATE SET
         card_name = EXCLUDED.card_name,
@@ -2078,6 +2085,7 @@ BEGIN
         card_theme = EXCLUDED.card_theme,
         current_balance = EXCLUDED.current_balance,
         is_canceled = EXCLUDED.is_canceled,
+        locked_amount = EXCLUDED.locked_amount,
         updated_at = EXCLUDED.updated_at;
     END LOOP;
   ELSE

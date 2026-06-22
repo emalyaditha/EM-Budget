@@ -1,10 +1,21 @@
 export type CategoryIncome = 'Salary' | 'Freelance' | 'Business' | 'Bonus' | 'Commission' | 'Loan Settle' | 'Other';
-export type CategoryExpense = 'Food' | 'Transport' | 'Shopping' | 'Utilities' | 'Rent' | 'Entertainment' | 'Medical' | 'Education' | 'Insurance' | 'Loan' | 'Other';
+export type CategoryExpense = 'Food' | 'Transport' | 'Shopping' | 'Utilities' | 'Rent' | 'Entertainment' | 'Medical' | 'Education' | 'Insurance' | 'Loan' | 'Bank Charges & Interest' | 'Other';
 
 export interface CashAccount {
   id: string;
   name: string;
   balance: number;
+}
+
+export interface Charge {
+  id: string;
+  name: string;
+  amount: number;
+  type: 'Interest Charge' | 'Late Payment Fee' | 'Over-Limit Fee' | 'Annual Fee' | 'Custom Charge';
+  appliedDate: string; // ISO format date string
+  isRecurring?: boolean;
+  recurringInterval?: 'Monthly' | 'Yearly' | 'Custom';
+  description?: string;
 }
 
 export interface BankCard {
@@ -19,6 +30,9 @@ export interface BankCard {
   isCanceled?: boolean; // Support soft delete / cancel status
   cardTheme?: string;
   isFrozen?: boolean; // Stateful "Card Freezing" (Soft Lock)
+  allowNegativeBalance?: boolean;
+  charges?: Charge[];
+  lockedAmount?: number; // Held/locked amount of Debit Card (money locked by the bank)
 }
 
 export interface CreditCard {
@@ -85,7 +99,7 @@ export interface Debt {
 
 export interface Transaction {
   id: string;
-  type: 'income' | 'expense' | 'debt_payment' | 'deposit' | 'withdrawal' | 'transfer';
+  type: 'income' | 'expense' | 'debt_payment' | 'deposit' | 'withdrawal' | 'transfer' | 'credit_card_charge';
   title: string;
   amount: number;
   charge?: number; // Optional transfer fee / charge

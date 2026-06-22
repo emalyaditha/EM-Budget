@@ -36,7 +36,10 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
 
   const fundingAccounts = [
       ...cashAccounts.map(c => ({ id: c.id, name: c.name, type: 'cash' as const, balance: c.balance, isFrozen: false })),
-      ...cards.filter(c => !c.isCanceled).map(c => ({ id: c.id, name: c.cardName, type: 'card' as const, balance: c.currentBalance, isFrozen: !!c.isFrozen })),
+      ...cards.filter(c => !c.isCanceled).map(c => {
+        const bal = c.cardType === 'Credit' ? ((c.limit ?? 0) + c.currentBalance) : c.currentBalance;
+        return { id: c.id, name: c.cardName, type: 'card' as const, balance: bal, isFrozen: !!c.isFrozen };
+      }),
   ];
 
   const validatePay = (cardId: string, amtStr: string, srcVal: string, skipAmountCheck = false): boolean => {
@@ -61,6 +64,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
 
     // Get the source actual balance
     const sourceBalance = source.balance;
+    const outstandingDebt = card.currentBalance < 0 ? Math.abs(card.currentBalance) : 0;
 
     if (!skipAmountCheck) {
       if (!amtStr) {
@@ -76,8 +80,8 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
         setPayErrors(prev => ({ ...prev, [cardId]: 'Repay amount must be positive_amount' }));
         return false;
       }
-      if (amt > card.currentBalance) {
-        setPayErrors(prev => ({ ...prev, [cardId]: `Cannot overpay card balance of ${currency} ${card.currentBalance.toFixed(2)}` }));
+      if (amt > outstandingDebt) {
+        setPayErrors(prev => ({ ...prev, [cardId]: `Cannot overpay card balance of ${currency} ${outstandingDebt.toFixed(2)}` }));
         return false;
       }
       if (amt > sourceBalance) {
@@ -86,11 +90,11 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
       }
     } else {
       // Full settlement check
-      if (card.currentBalance <= 0) {
+      if (outstandingDebt <= 0) {
         setPayErrors(prev => ({ ...prev, [cardId]: 'No balance to settle on this card.' }));
         return false;
       }
-      if (card.currentBalance > sourceBalance) {
+      if (outstandingDebt > sourceBalance) {
         setPayErrors(prev => ({ ...prev, [cardId]: `Source balance of ${currency} ${sourceBalance.toFixed(2)} is insufficient for full settlement.` }));
         return false;
       }
@@ -123,7 +127,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
         } else if (cardId) {
           const card = creditCards.find(c => c.id === cardId);
           if (card) {
-            const avail = (card.limit ?? 0) - card.currentBalance;
+            const avail = (card.limit ?? 0) + card.currentBalance;
             if (amt > avail) {
               errs.amount = `Amount exceeds available limit of ${currency} ${avail.toFixed(2)}`;
             }
@@ -188,7 +192,8 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
           </div>
         ) : (
           creditCards.map(c => {
-            const utilization = c.limit && c.limit > 0 ? Math.round((c.currentBalance / c.limit) * 100) : 0;
+            const outstandingDebt = c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0;
+            const utilization = c.limit && c.limit > 0 ? Math.round((outstandingDebt / c.limit) * 100) : 0;
             return (
               <div key={c.id} className="bg-zinc-900/60 p-5 rounded-2xl border border-zinc-850 hover:border-zinc-800 transition-colors space-y-4 shadow-md">
                 
@@ -203,14 +208,14 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                     {/* Utilization Indicator */}
                     <div className="flex items-center gap-2 mt-1.5">
                       <span className="text-[9px] text-zinc-500 uppercase font-mono font-bold">utilization rate:</span>
-                      <span className={`text-[9.5px] font-mono font-black ${utilization > 80 ? 'text-rose-450 text-rose-400' : 'text-zinc-300'}`}>{utilization}% used</span>
+                      <span className={`text-[9.5px] font-mono font-black ${utilization > 80 ? 'text-rose-455 text-rose-400' : 'text-zinc-300'}`}>{utilization}% used</span>
                     </div>
                   </div>
 
                   <div className="text-left sm:text-right">
                     <span className="text-[9px] uppercase tracking-wider text-zinc-550 block font-mono text-zinc-500">outstanding debt</span>
                     <span className="font-mono text-sm font-black text-rose-400">
-                      {currency} {c.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {currency} {outstandingDebt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
@@ -220,8 +225,8 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold text-zinc-400 flex justify-between">
                       <span>Available Card Limit:</span>
-                      <span className="font-mono font-black text-blue-450 text-emerald-400">
-                        {currency} {((c.limit ?? 0) - c.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      <span className="font-mono font-black text-blue-455 text-emerald-400">
+                        {currency} {((c.limit ?? 0) + c.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </p>
 
@@ -323,7 +328,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             }
                             const [srcType, ...srcIdParts] = srcSelected.split('-');
                             const srcId = srcIdParts.join('-');
-                            onPayCard(c.id, c.currentBalance, srcId, srcType as 'cash' | 'card');
+                            onPayCard(c.id, Math.abs(c.currentBalance), srcId, srcType as 'cash' | 'card');
                             setPayAmounts(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                             setPaySources(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                             setPayErrors(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
@@ -397,7 +402,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
             }`}
           >
             <option value="">Select Target Card</option>
-            {creditCards.map(c => <option key={c.id} value={c.id}>{c.cardName} (Avail Limit: {currency} {((c.limit ?? 0) - c.currentBalance).toFixed(2)})</option>)}
+            {creditCards.map(c => <option key={c.id} value={c.id}>{c.cardName} (Avail Limit: {currency} {((c.limit ?? 0) + c.currentBalance).toFixed(2)})</option>)}
           </select>
           {purchaseErrors.cardId && (
             <span className="text-rose-400 font-mono text-[9px] pl-0.5 mt-0.5 block">{purchaseErrors.cardId}</span>
