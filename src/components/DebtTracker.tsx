@@ -380,10 +380,10 @@ export default function DebtTracker({
               <div>
                 <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Account Target (Funds added here)</label>
                 <select
-                  value={targetAccountId && targetAccountType ? `${targetAccountId}:${targetAccountType}` : ''}
+                  value={targetAccountId && targetAccountType ? `${targetAccountId}:${targetAccountType}` : 'other'}
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (!val) {
+                    if (val === 'other') {
                       setTargetAccountId('');
                       setTargetAccountType('');
                     } else {
@@ -394,7 +394,7 @@ export default function DebtTracker({
                   }}
                   className="w-full bg-black border border-zinc-800 text-zinc-300 text-xs rounded-xl px-2.5 py-3.5 focus:outline-none focus:border-zinc-700 font-semibold"
                 >
-                  <option value="">Select Account (Optional)</option>
+                  <option value="other">Other (No money received / Indirect debt)</option>
                   <optgroup label="Cash Vaults" className="bg-[#0c0c0e] text-zinc-400">
                     {cashAccounts.map(c => (
                       <option key={c.id} value={`${c.id}:cash`}>{c.name}</option>
@@ -609,19 +609,13 @@ export default function DebtTracker({
                         Cancel
                       </button>
                     </div>
-                    {debt.accountName && (
-                      <div className="text-[10px] text-zinc-500 font-mono font-bold">
-                        Adding to: <span className="text-blue-400">{debt.accountName}</span>
-                      </div>
-                    )}
-                    {!debt.accountId && (
-                      <div>
-                        <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Select Account</label>
+                    <div>
+                        <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Receiving Account</label>
                         <select
-                          value={incTargetAccountId && incTargetAccountType ? `${incTargetAccountId}:${incTargetAccountType}` : ''}
+                          value={incTargetAccountId && incTargetAccountType ? `${incTargetAccountId}:${incTargetAccountType}` : 'other'}
                           onChange={(e) => {
                             const val = e.target.value;
-                            if (!val) {
+                            if (val === 'other') {
                               setIncTargetAccountId('');
                               setIncTargetAccountType('');
                             } else {
@@ -632,7 +626,7 @@ export default function DebtTracker({
                           }}
                           className="w-full bg-black border border-zinc-800 text-zinc-300 text-xs rounded-xl px-2.5 py-2.5 focus:outline-none focus:border-zinc-700 font-semibold"
                         >
-                          <option value="">Select Account</option>
+                          <option value="other">Other (No money received / Indirect debt)</option>
                           <optgroup label="Cash Vaults" className="bg-[#0c0c0e] text-zinc-400">
                             {cashAccounts.map(c => (
                               <option key={c.id} value={`${c.id}:cash`}>{c.name}</option>
@@ -644,8 +638,7 @@ export default function DebtTracker({
                             ))}
                           </optgroup>
                         </select>
-                      </div>
-                    )}
+                    </div>
                     <div>
                         <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Additional Principal amount ({currency})</label>
                         <input

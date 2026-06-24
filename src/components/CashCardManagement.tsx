@@ -58,7 +58,7 @@ function InteractiveBankCard({
   const [isHovered, setIsHovered] = useState(false);
   const cardRef = React.useRef<HTMLDivElement>(null);
 
-  const themesCodes = ['obsidian', 'sapphire', 'blue', 'copper', 'ruby'];
+  const themesCodes = ['obsidian', 'sapphire', 'blue', 'emerald', 'copper', 'ruby', 'amethyst', 'amber', 'silver', 'slate', 'graphite'];
   const derivedTheme = card.cardTheme || themesCodes[idx % themesCodes.length];
   const isCanceled = card.isCanceled || (card as any).is_canceled;
 
@@ -654,9 +654,15 @@ export default function CashCardManagement({
   const getCardGradient = (theme: string) => {
     switch (theme) {
       case 'sapphire': return 'from-blue-900 via-zinc-950 to-indigo-900 border-blue-500/30';
-      case 'emerald': return 'from-blue-950 via-zinc-950 to-indigo-900 border-[var(--accent-primary)]/30';
+      case 'emerald': return 'from-emerald-950 via-zinc-950 to-green-950 border-emerald-600/30';
+      case 'blue': return 'from-sky-950 via-zinc-950 to-blue-950 border-sky-500/30';
       case 'copper': return 'from-amber-950 via-zinc-950 to-orange-950 border-amber-600/30';
       case 'ruby': return 'from-rose-950 via-zinc-950 to-red-950 border-rose-500/30';
+      case 'amethyst': return 'from-purple-950 via-zinc-950 to-violet-950 border-purple-500/30';
+      case 'amber': return 'from-yellow-950 via-zinc-950 to-amber-900 border-yellow-600/30';
+      case 'silver': return 'from-zinc-800 via-zinc-900 to-zinc-800 border-zinc-400/30';
+      case 'slate': return 'from-slate-950 via-zinc-950 to-slate-900 border-slate-500/30';
+      case 'graphite': return 'from-neutral-950 via-zinc-950 to-neutral-900 border-neutral-500/30';
       default: return 'from-zinc-900 via-neutral-950 to-zinc-900 border-zinc-800';
     }
   };
@@ -1027,13 +1033,19 @@ export default function CashCardManagement({
             {/* Custom Aesthetic Theme Selectors */}
             <div>
               <span className="text-[10px] text-[#888888] font-bold block mb-2 uppercase tracking-wider">Gloss/Hologram Hue</span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {[
                   { name: 'obsidian', color: 'bg-zinc-800 ring-white' },
                   { name: 'sapphire', color: 'bg-blue-600 ring-blue-400' },
+                  { name: 'blue', color: 'bg-sky-600 ring-sky-400' },
                   { name: 'emerald', color: 'bg-emerald-600 ring-emerald-400' },
                   { name: 'copper', color: 'bg-amber-600 ring-amber-400' },
                   { name: 'ruby', color: 'bg-rose-600 ring-rose-400' },
+                  { name: 'amethyst', color: 'bg-purple-600 ring-purple-400' },
+                  { name: 'amber', color: 'bg-yellow-600 ring-yellow-400' },
+                  { name: 'silver', color: 'bg-zinc-400 ring-zinc-200' },
+                  { name: 'slate', color: 'bg-slate-600 ring-slate-400' },
+                  { name: 'graphite', color: 'bg-neutral-600 ring-neutral-400' },
                 ].map((th) => (
                   <button
                     key={th.name}

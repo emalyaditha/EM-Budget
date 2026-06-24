@@ -34,11 +34,17 @@ export function loadStateFromStorage(defaultState: AppState): AppState {
       ...parsed,
       cashAccounts: parsed.cashAccounts || defaultState.cashAccounts,
       cards: parsed.cards || defaultState.cards,
+      creditCards: parsed.creditCards || defaultState.creditCards || [],
+      creditCardPurchases: parsed.creditCardPurchases || defaultState.creditCardPurchases || [],
       incomes: parsed.incomes || defaultState.incomes,
       expenses: parsed.expenses || defaultState.expenses,
       debts: parsed.debts || defaultState.debts,
       transactions: parsed.transactions || defaultState.transactions,
       notifications: parsed.notifications || defaultState.notifications,
+      subscriptions: parsed.subscriptions || defaultState.subscriptions || [],
+      loansGiven: parsed.loansGiven || defaultState.loansGiven || [],
+      budgets: parsed.budgets || defaultState.budgets || [],
+      savingsGoals: parsed.savingsGoals || defaultState.savingsGoals || [],
     };
   } catch (error) {
     console.error('Failed to retrieve financial state, reverting to genesis defaults:', error);

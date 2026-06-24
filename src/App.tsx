@@ -1255,33 +1255,29 @@ export default function App() {
       const debt = prev.debts.find(d => d.id === debtId);
       if (!debt) return prev;
 
-      let updatedDebt = { 
+      const updatedDebt = { 
         ...debt, 
         totalAmount: Number(debt.totalAmount || 0) + Number(amount || 0),
         remainingAmount: Number(debt.remainingAmount || 0) + Number(amount || 0),
         status: (Number(debt.remainingAmount || 0) + Number(amount || 0)) > 0 ? 'Active' : debt.status
       };
 
-      if (newAccountId && newAccountType && !debt.accountId) {
-        updatedDebt.accountId = newAccountId;
-        updatedDebt.accountType = newAccountType;
-        updatedDebt.accountName = newAccountType === 'cash' 
-          ? prev.cashAccounts.find(c => c.id === newAccountId)?.name 
-          : prev.cards.find(c => c.id === newAccountId)?.bankName;
-      }
+      // Determine which account to update
+      const targetAccountId = newAccountId || debt.accountId;
+      const targetAccountType = newAccountType || debt.accountType;
 
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
       const newTransactions = [...prev.transactions];
 
-      if (updatedDebt.accountId && updatedDebt.accountType) {
-        if (updatedDebt.accountType === 'cash') {
+      if (targetAccountId && targetAccountType) {
+        if (targetAccountType === 'cash') {
           updatedCash = updatedCash.map(c =>
-            c.id === updatedDebt.accountId ? { ...c, balance: Number(c.balance) + Number(amount) } : c
+            c.id === targetAccountId ? { ...c, balance: Number(c.balance) + Number(amount) } : c
           );
         } else {
           updatedCards = updatedCards.map(c =>
-            c.id === updatedDebt.accountId ? { ...c, currentBalance: Number(c.currentBalance) + Number(amount) } : c
+            c.id === targetAccountId ? { ...c, currentBalance: Number(c.currentBalance) + Number(amount) } : c
           );
         }
 
@@ -1294,8 +1290,8 @@ export default function App() {
           amount: amount,
           date: new Date().toISOString().split('T')[0],
           category: 'Other',
-          accountId: updatedDebt.accountId,
-          accountType: updatedDebt.accountType,
+          accountId: targetAccountId,
+          accountType: targetAccountType,
           referenceId: debtId,
         };
         newTransactions.unshift(newTx);
@@ -1848,6 +1844,8 @@ export default function App() {
             notifications: stateToLoad.notifications || [],
             subscriptions: stateToLoad.subscriptions || [],
             loansGiven: stateToLoad.loansGiven || [],
+            budgets: stateToLoad.budgets || DEFAULT_APP_STATE.budgets || [],
+            savingsGoals: stateToLoad.savingsGoals || DEFAULT_APP_STATE.savingsGoals || [],
           };
           updateState(() => sanitizedState);
           
