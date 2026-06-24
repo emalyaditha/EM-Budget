@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CashAccount, BankCard, CategoryIncome, CategoryExpense } from '../types';
 import { PlusCircle, MinusCircle, Wallet, CreditCard, Calendar, RefreshCcw, Landmark, ShieldAlert, Tag, Sparkles } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { DatePicker } from './DatePicker';
 
 interface InflowsOutflowsProps {
   cashAccounts: CashAccount[];
@@ -381,12 +382,10 @@ export default function InflowsOutflows({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-[9px] text-[#a1a1a9] font-mono font-bold block mb-1.5 uppercase pl-0.5">Receipt Date</label>
-                <input
-                  type="date"
-                  value={incDate}
-                  onChange={(e) => setIncDate(e.target.value)}
-                  className="w-full bg-[#050510]/55 border border-zinc-850 hover:border-zinc-700 text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none font-mono cursor-pointer"
-                  required
+                <DatePicker 
+                  value={incDate} 
+                  onChange={setIncDate} 
+                  required 
                 />
               </div>
 
@@ -518,12 +517,10 @@ export default function InflowsOutflows({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-[9px] text-[#a1a1a9] font-mono font-bold block mb-1.5 uppercase pl-0.5">Swipe / Settlement Date</label>
-                <input
-                  type="date"
-                  value={expDate}
-                  onChange={(e) => setExpDate(e.target.value)}
-                  className="w-full bg-[#050510]/55 border border-zinc-850 hover:border-zinc-700 text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none font-mono cursor-pointer"
-                  required
+                <DatePicker 
+                  value={expDate} 
+                  onChange={setExpDate} 
+                  required 
                 />
               </div>
 

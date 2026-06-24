@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Transaction, Income, Expense, Debt, CashAccount, BankCard } from '../types';
+import { Transaction, Income, Expense, Debt, CashAccount, BankCard, LoanGiven } from '../types';
 import { exportTransactionsToCSV, EXPENSE_COLORS, INCOME_COLORS } from '../utils';
 import { 
   FileDown, Printer, BarChart3, TrendingUp, Award, Calendar, 
@@ -7,12 +7,14 @@ import {
   Filter, CheckSquare, Sparkles, BookOpen
 } from 'lucide-react';
 import { IncomeVsExpenseBar, CategorySpreadAnalysis, TrendAnalysisChart } from './Charts';
+import { DatePicker } from './DatePicker';
 
 interface ReportsCentreProps {
   transactions: Transaction[];
   incomes: Income[];
   expenses: Expense[];
   debts: Debt[];
+  loansGiven: LoanGiven[];
   cashAccounts: CashAccount[];
   cards: BankCard[];
   currency: string;
@@ -24,6 +26,7 @@ export default function ReportsCentre({
   incomes,
   expenses,
   debts,
+  loansGiven,
   cashAccounts,
   cards,
   currency,
@@ -105,7 +108,21 @@ export default function ReportsCentre({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const filteredHistory = [...transactions]
+  const settlementTransactions: Transaction[] = loansGiven.flatMap(l => l.settlements.map(s => ({
+    id: s.id,
+    type: 'income',
+    title: `Loan Settle: ${l.borrowerName}`,
+    amount: s.amount,
+    date: s.date,
+    category: 'Loan Settle',
+    accountId: s.receivedInId,
+    accountType: s.receivedInType,
+    referenceId: l.id
+  })));
+
+  const allTransactions = [...transactions, ...settlementTransactions];
+
+  const filteredHistory = allTransactions
     .filter(t => {
       const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             t.category.toLowerCase().includes(searchQuery.toLowerCase());
@@ -405,38 +422,18 @@ export default function ReportsCentre({
             <div className="grid grid-cols-2 gap-2.5 pt-1">
               <div className="flex flex-col gap-1.5">
                 <span className="text-[9px] text-[#888888] font-bold uppercase block pl-1 font-mono tracking-wider">Start Bound</span>
-                <div className="relative flex items-center">
-                  <Calendar size={13} className="text-amber-500 absolute left-3 pointer-events-none" />
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    onClick={(e) => {
-                      try {
-                        e.currentTarget.showPicker();
-                      } catch (err) {}
-                    }}
-                    className="w-full bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 rounded-xl text-xs !pl-9 !pr-2.5 py-3 focus:outline-none focus:border-amber-500/40 cursor-pointer text-left font-mono scheme-dark"
-                  />
-                </div>
+                <DatePicker 
+                  value={startDate} 
+                  onChange={setStartDate} 
+                />
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <span className="text-[9px] text-[#888888] font-bold uppercase block pl-1 font-mono tracking-wider">End Bound</span>
-                <div className="relative flex items-center">
-                  <Calendar size={13} className="text-amber-500 absolute left-3 pointer-events-none" />
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    onClick={(e) => {
-                      try {
-                        e.currentTarget.showPicker();
-                      } catch (err) {}
-                    }}
-                    className="w-full bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 rounded-xl text-xs !pl-9 !pr-2.5 py-3 focus:outline-none focus:border-amber-500/40 cursor-pointer text-left font-mono scheme-dark"
-                  />
-                </div>
+                <DatePicker 
+                  value={endDate} 
+                  onChange={setEndDate} 
+                />
               </div>
             </div>
 

@@ -5,6 +5,7 @@ import {
   ArrowUpRight, ArrowDownLeft, Trash2, HelpCircle, TrendingUp, DollarSign, Wallet, History, CreditCard, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { DatePicker } from './DatePicker';
 
 interface LoansTrackerProps {
   loans: LoanGiven[];
@@ -342,12 +343,10 @@ export default function LoansTracker({
             {/* Date given */}
             <div className="space-y-1.5">
               <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block font-mono">Date Lent</label>
-              <input
-                type="date"
-                value={dateGiven}
-                onChange={(e) => setDateGiven(e.target.value)}
-                className="w-full bg-[#050507] border border-zinc-850 rounded-xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-indigo-500 transition-colors"
-                required
+              <DatePicker 
+                value={dateGiven} 
+                onChange={setDateGiven} 
+                required 
               />
               {errors.dateGiven && <p className="text-[10px] text-rose-500 font-semibold">{errors.dateGiven}</p>}
             </div>

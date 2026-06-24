@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { CashAccount, BankCard, CreditCardPurchase } from '../types';
-import { CreditCard as CcIcon, Plus, CheckSquare, Lock, Unlock, HelpCircle, ShieldCheck, AlertCircle } from 'lucide-react';
+import { CreditCard as CcIcon, Plus, CheckSquare, Lock, Unlock, HelpCircle, ShieldCheck, AlertCircle, Calendar } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { DatePicker } from './DatePicker';
 
 interface Props {
   creditCards: BankCard[];
@@ -26,6 +27,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
   const [purDesc, setPurDesc] = useState('');
   const [purMerchant, setPurMerchant] = useState('');
   const [purCardId, setPurCardId] = useState('');
+  const [purDate, setPurDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [purchaseErrors, setPurchaseErrors] = useState<Record<string, string>>({});
   const [purchaseSubmitted, setPurchaseSubmitted] = useState(false);
 
@@ -163,8 +165,8 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
       showToast('error', 'Select card and input correct positive sum.');
       return;
     }
-    onAddPurchase({ cardId: purCardId, amount: parseFloat(purAmount), description: purDesc, merchant: purMerchant, date: new Date().toISOString().split('T')[0] });
-    setPurAmount(''); setPurDesc(''); setPurMerchant('');
+    onAddPurchase({ cardId: purCardId, amount: parseFloat(purAmount), description: purDesc, merchant: purMerchant, date: purDate });
+    setPurAmount(''); setPurDesc(''); setPurMerchant(''); setPurDate(new Date().toISOString().split('T')[0]);
     setPurchaseSubmitted(false);
     setPurchaseErrors({});
     showToast('success', 'Purchase details logged and card statement updated.');
@@ -273,8 +275,8 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                   </div>
 
                   {/* Settle Action payment input controls */}
-                  <div className="space-y-2">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input 
                         type="number" 
                         placeholder="Repay Sum" 
@@ -284,7 +286,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                           setPayAmounts(prev => ({ ...prev, [c.id]: val }));
                           validatePay(c.id, val, paySources[c.id] || '');
                         }}
-                        className={`w-full sm:w-28 bg-black border text-xs text-white rounded-xl px-3 py-2.5 focus:outline-none transition-all font-mono font-extrabold ${
+                        className={`flex-grow sm:flex-none sm:w-28 bg-black border text-xs text-white rounded-xl px-3 py-2.5 focus:outline-none transition-all font-mono font-extrabold ${
                           payErrors[c.id] && payAmounts[c.id] !== undefined
                             ? 'border-rose-500 focus:border-rose-500'
                             : payAmounts[c.id] && !payErrors[c.id]
@@ -300,7 +302,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                           setPaySources(prev => ({ ...prev, [c.id]: val }));
                           validatePay(c.id, payAmounts[c.id] || '', val);
                         }}
-                        className={`w-full sm:w-36 bg-black border text-zinc-300 text-xs rounded-xl px-2.5 py-2.5 focus:outline-none transition-all font-semibold cursor-pointer ${
+                        className={`flex-grow sm:flex-none sm:w-36 bg-black border text-zinc-300 text-xs rounded-xl px-2.5 py-2.5 focus:outline-none transition-all font-semibold cursor-pointer ${
                           payErrors[c.id] && paySources[c.id] !== undefined
                             ? 'border-rose-500'
                             : paySources[c.id] && !payErrors[c.id]
@@ -316,7 +318,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                         ))}
                       </select>
 
-                      <div className="flex gap-1.5">
+                      <div className="flex gap-1.5 w-full sm:w-auto">
                         {/* Settle FULL balance button */}
                         <button 
                           onClick={() => {
@@ -333,7 +335,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             setPaySources(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                             setPayErrors(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                           }}
-                          className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 p-2.5 rounded-xl text-white font-extrabold font-mono text-[9px] uppercase tracking-wider flex-1 sm:flex-none transition shadow-lg cursor-pointer"
+                          className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 p-2.5 rounded-xl text-white font-extrabold font-mono text-[9px] uppercase tracking-wider flex-1 transition shadow-lg cursor-pointer"
                         >
                           Settle Full
                         </button>
@@ -355,7 +357,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             setPaySources(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                             setPayErrors(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                           }} 
-                          className="bg-white hover:bg-zinc-200 p-2.5 rounded-xl text-black flex items-center justify-center transition shadow-lg cursor-pointer max-w-[40px] shrink-0" 
+                          className="bg-white hover:bg-zinc-200 p-2.5 rounded-xl text-black flex items-center justify-center transition shadow-lg cursor-pointer w-10 shrink-0" 
                           title="Pay custom amount"
                         >
                           <CheckSquare size={14} className="stroke-[2.5px]"/>
@@ -466,6 +468,14 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               validatePurchase(purCardId, purAmount, purMerchant, e.target.value, purchaseSubmitted);
             }} 
             className="w-full bg-[#050510]/50 border border-zinc-850 hover:border-zinc-700 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500 transition-all font-medium" 
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] text-zinc-500 font-bold uppercase font-mono block pl-0.5">Purchase Date</label>
+          <DatePicker 
+            value={purDate} 
+            onChange={setPurDate} 
           />
         </div>
 

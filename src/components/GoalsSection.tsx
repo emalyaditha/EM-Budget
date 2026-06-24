@@ -5,6 +5,7 @@ import {
   Plus, Sparkles, TrendingUp, HelpCircle, X, ChevronRight, 
   PlusCircle, MinusCircle, Award, Target, Calendar, Trash2
 } from 'lucide-react';
+import { DatePicker } from './DatePicker';
 
 interface GoalsSectionProps {
   goals: SavingsGoal[];
@@ -403,11 +404,9 @@ export default function GoalsSection({
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-muted)] block">Target Due Date</label>
-                  <input
-                    type="date"
-                    value={goalDate}
-                    onChange={(e) => setGoalDate(e.target.value)}
-                    className="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-slate-500"
+                  <DatePicker 
+                    value={goalDate} 
+                    onChange={setGoalDate} 
                   />
                 </div>
 

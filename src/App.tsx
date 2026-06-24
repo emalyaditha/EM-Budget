@@ -2439,6 +2439,7 @@ export default function App() {
                   incomes={state.incomes}
                   expenses={state.expenses}
                   debts={state.debts}
+                  loansGiven={state.loansGiven || []}
                   currency={state.currency}
                   cashAccounts={state.cashAccounts}
                   cards={state.cards}

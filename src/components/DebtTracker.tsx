@@ -6,6 +6,7 @@ import {
   HelpCircle, TrendingUp, DollarSign, Wallet
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { DatePicker } from './DatePicker';
 
 interface DebtTrackerProps {
   debts: Debt[];
@@ -411,21 +412,13 @@ export default function DebtTracker({
 
             <div>
                 <label className="text-sm font-medium text-[var(--text-secondary)] block mb-1.5">Pay-off Due Date</label>
-                <input
-                  ref={dateInputRef}
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => {
-                    setDueDate(e.target.value);
-                    validateDebtForm(source, totalDebt, e.target.value, submitted);
+                <DatePicker 
+                  value={dueDate} 
+                  onChange={(val) => {
+                    setDueDate(val);
+                    validateDebtForm(source, totalDebt, val, submitted);
                   }}
-                  className={`w-full bg-black border text-xs text-white rounded-xl px-4 py-3.5 focus:outline-none font-mono transition-all ${
-                    errors.dueDate
-                      ? 'border-rose-500'
-                      : dueDate && !errors.dueDate
-                      ? 'border-[var(--accent-primary)]'
-                      : 'border-zinc-800 focus:border-zinc-700'
-                  }`}
+                  error={!!errors.dueDate}
                 />
                 {errors.dueDate && (
                   <span className="text-rose-400 font-mono text-[9px] mt-1.5 block">{errors.dueDate}</span>

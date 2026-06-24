@@ -758,7 +758,7 @@ export default function Dashboard({
                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
                           <div className={`p-3 rounded-xl shrink-0 transition-colors ${
                             isInc 
-                              ? 'bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]' 
+                              ? 'bg-emerald-600/15 text-emerald-500 border border-emerald-600/20' 
                               : 'bg-rose-600/15 text-rose-500 border border-rose-600/20'
                           }`}>
                             {isInc ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
@@ -777,7 +777,7 @@ export default function Dashboard({
   
                         <div className="text-right pl-4 shrink-0 font-mono">
                           <span className={`text-xs font-bold block ${
-                            isInc ? 'text-[var(--accent-primary)]' : 'text-rose-500'
+                            isInc ? 'text-emerald-500' : 'text-rose-500'
                           }`}>
                             {isInc ? '+' : '-'}{state.currency}{absAmt.toLocaleString()}
                           </span>

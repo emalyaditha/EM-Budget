@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { CashAccount, BankCard } from '../types';
-import { ArrowRightLeft, Sparkles, AlertCircle, HelpCircle } from 'lucide-react';
+import { ArrowRightLeft, Sparkles, AlertCircle, HelpCircle, Calendar } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { DatePicker } from './DatePicker';
 
 interface TransferFundsProps {
   cashAccounts: CashAccount[];
@@ -31,6 +32,7 @@ export default function TransferFunds({
   const [amount, setAmount] = useState('');
   const [charge, setCharge] = useState('');
   const [note, setNote] = useState('');
+  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -147,7 +149,7 @@ export default function TransferFunds({
       destination.type,
       parseFloat(amount),
       note,
-      new Date().toISOString().split('T')[0],
+      transferDate,
       charge ? parseFloat(charge) : 0
     );
 
@@ -287,6 +289,15 @@ export default function TransferFunds({
             <span className="text-rose-400 font-mono text-[9px] pl-0.5 mt-0.5 block">{errors.charge}</span>
           )}
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] text-zinc-550 block text-zinc-400 font-mono font-bold uppercase tracking-wider pl-0.5">Transfer Date</label>
+        <DatePicker 
+          value={transferDate} 
+          onChange={setTransferDate} 
+          required 
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">

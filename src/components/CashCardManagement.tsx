@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { CashAccount, BankCard, Charge } from '../types';
-import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronRight, CornerDownRight, Landmark, ArrowUpRight, ArrowDownLeft, Snowflake, RefreshCw, Lock } from 'lucide-react';
+import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronRight, CornerDownRight, Landmark, ArrowUpRight, ArrowDownLeft, Snowflake, RefreshCw, Lock, Calendar } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { DatePicker } from './DatePicker';
 
 interface CashCardManagementProps {
   cashAccounts: CashAccount[];
@@ -1553,11 +1554,10 @@ export default function CashCardManagement({
 
                         <div>
                           <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Date Applied</label>
-                          <input
-                            type="date"
+                          <DatePicker
                             value={chargeDate}
-                            onChange={(e) => setChargeDate(e.target.value)}
-                            className="w-full bg-[#050505] border border-zinc-900 text-white rounded-lg text-[11px] px-2 py-1.5 focus:outline-none font-mono"
+                            onChange={setChargeDate}
+                            className="!py-2.5 !pl-9 text-[11px]"
                           />
                         </div>
                       </div>

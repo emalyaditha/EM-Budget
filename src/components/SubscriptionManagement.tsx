@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CashAccount, BankCard, Subscription, CategoryExpense } from '../types';
 import { Plus, Trash2, Calendar, CreditCard, Wallet, Play, Pause, AlertTriangle, CheckCircle2, Sparkles, DollarSign, Clock } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { DatePicker } from './DatePicker';
 
 interface SubscriptionManagementProps {
   subscriptions: Subscription[];
@@ -282,12 +283,10 @@ export default function SubscriptionManagement({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[9px] text-zinc-400 font-mono font-bold uppercase tracking-wider block mb-1.5">Next billing Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                required
-                className="w-full bg-[#050510]/50 border border-zinc-850 hover:border-zinc-700 text-white text-xs rounded-xl px-4 py-3.5 focus:outline-none focus:border-zinc-500 font-mono cursor-pointer"
+              <DatePicker 
+                value={dueDate} 
+                onChange={setDueDate} 
+                required 
               />
             </div>
             <div>
@@ -370,11 +369,9 @@ export default function SubscriptionManagement({
 
             <div>
               <label className="text-[9px] text-zinc-400 font-mono font-bold uppercase tracking-wider block mb-1">Payment Settle Date</label>
-              <input
-                type="date"
-                value={payDate}
-                onChange={(e) => setPayDate(e.target.value)}
-                className="w-full bg-[#050510]/50 border border-zinc-850 hover:border-zinc-700 text-white text-xs rounded-xl px-3 py-3 focus:outline-none font-mono cursor-pointer"
+              <DatePicker 
+                value={payDate} 
+                onChange={setPayDate} 
               />
             </div>
           </div>

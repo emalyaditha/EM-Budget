@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Transaction, CashAccount, BankCard } from '../types';
 import { X, Save, Trash2, Calendar, Edit3, HelpCircle, Lock } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { DatePicker } from './DatePicker';
 
 interface TransactionEditModalProps {
   transaction: Transaction | null;
@@ -201,25 +202,14 @@ export default function TransactionEditModal({
 
           <div>
             <label className="block text-[9px] font-bold text-zinc-400 font-mono uppercase tracking-widest mb-1.5 pl-0.5">Calendar Date</label>
-            <div className="relative flex items-center">
-              <Calendar size={13} className="text-[var(--accent-primary)] absolute left-3 pointer-events-none" />
-              <input 
-                ref={dateInputRef}
-                type="date" 
-                value={date} 
-                onChange={e => {
-                  setDate(e.target.value);
-                  validateTxForm(title, amount, e.target.value, submitted);
-                }}
-                className={`w-full bg-[#050510]/55 border text-white rounded-xl !pl-10 !pr-3 py-3 text-xs focus:outline-none font-mono transition-all cursor-pointer ${
-                  errors.date
-                    ? 'border-rose-500 focus:border-rose-500'
-                    : date && !errors.date
-                    ? 'border-emerald-500 focus:border-emerald-500'
-                    : 'border-zinc-850'
-                }`} 
-              />
-            </div>
+            <DatePicker 
+              value={date} 
+              onChange={val => {
+                setDate(val);
+                validateTxForm(title, amount, val, submitted);
+              }}
+              error={!!errors.date}
+            />
             {errors.date && (
               <span className="text-rose-400 font-mono text-[9px] pl-0.5 mt-1 block">{errors.date}</span>
             )}

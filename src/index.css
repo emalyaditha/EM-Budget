@@ -477,6 +477,13 @@ textarea,
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
+/* Ensure Custom DatePicker input has correct padding-left that won't be overridden by the general inputs above */
+input.date-picker-input,
+.light input.date-picker-input {
+  padding-left: 2.5rem !important;
+  padding-right: 0.75rem !important;
+}
+
 input:not([type="checkbox"]):not([type="radio"]):focus,
 select:focus,
 textarea:focus {
