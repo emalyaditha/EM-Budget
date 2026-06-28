@@ -400,7 +400,7 @@ export default function LoansTracker({
           </button>
         </div>
         
-        {loans.length === 0 ? (
+        {activeLoans.length === 0 ? (
           <div className="bg-zinc-900/15 border border-zinc-900 rounded-[32px] p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-inner">
             <div className="p-4 bg-zinc-950/60 rounded-2xl border border-zinc-855 text-zinc-650">
               <Wallet size={24} className="text-zinc-600" />
@@ -414,7 +414,7 @@ export default function LoansTracker({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {loans.map((loan) => {
+            {activeLoans.map((loan) => {
               const activeProgress = loan.totalAmount > 0 
                 ? Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100) 
                 : 0;

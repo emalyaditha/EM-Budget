@@ -333,43 +333,12 @@ export default function Dashboard({
       </motion.button>
 
       {/* 1. TOP PERSONALIZED BANNER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-4 border-b border-[var(--border-primary)] pb-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span id="premium-suite-badge" className="px-3 py-1 bg-[var(--accent-primary)]/15 border border-[var(--accent-primary)]/25 text-[var(--accent-primary)] text-[11px] uppercase font-semibold tracking-wider rounded-full flex items-center gap-1.5 shadow-sm">
-              <Sparkles size={11} className="text-[var(--accent-primary)] animate-pulse" />
-              Premium Suite Active
-            </span>
-            <span className="w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-ping" />
-          </div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-2">
+        <div className="space-y-1">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)] flex items-center gap-2 leading-none">
             Hello, {state.userProfile?.name || 'User'}
             <span className="text-2xl hover:scale-125 duration-155 cursor-pointer">👋</span>
           </h1>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
-          <button 
-            onClick={onProfileClick}
-            className="flex items-center gap-2.5 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] px-4 py-2 rounded-xl text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
-          >
-            <div className="w-8 h-8 bg-[var(--accent-primary)] rounded-full flex items-center justify-center text-sm font-black text-white shadow-lg">
-              {state.userProfile?.name?.charAt(0) || 'U'}
-            </div>
-            <span>Profile Settings</span>
-          </button>
-          
-          <button 
-            onClick={onNotificationClick}
-            className="p-3 bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer shadow-sm transition-all flex items-center justify-center relative"
-            title="Notification Alerts Center"
-            id="dashboard-bell-trigger"
-          >
-            <Bell size={18} />
-            {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--accent-primary)] rounded-full ring-2 ring-[var(--bg-card)]" />
-            )}
-          </button>
         </div>
       </div>
 

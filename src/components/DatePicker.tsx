@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface DatePickerProps {
   value: string; // Expected in YYYY-MM-DD format
@@ -29,6 +30,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
+
+  const [coords, setCoords] = useState<{
+    top: number;
+    left: number;
+    placement: 'top' | 'bottom';
+    isMobile: boolean;
+  }>({ top: 0, left: 0, placement: 'bottom', isMobile: false });
 
   // Parse initial date or default to today
   const getParsedDate = (dateStr: string) => {
@@ -50,10 +59,90 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     setViewMonth(d.getMonth());
   }, [value]);
 
-  // Click outside to close handler
+  // Smart Positioning Calculation
+  const updatePosition = () => {
+    if (!isOpen || !containerRef.current) return;
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    // Mobile & Tablet Optimization (< 768px width)
+    if (width < 768) {
+      setCoords({
+        top: 0,
+        left: 0,
+        placement: 'bottom',
+        isMobile: true
+      });
+      return;
+    }
+
+    const triggerRect = containerRef.current.getBoundingClientRect();
+    const calendarHeight = calendarRef.current ? calendarRef.current.offsetHeight : 340;
+    const calendarWidth = 288; // w-72 is 288px
+
+    // Check vertical space
+    const spaceBelow = height - triggerRect.bottom;
+    const spaceAbove = triggerRect.top;
+    
+    let placement: 'top' | 'bottom' = 'bottom';
+    if (spaceBelow < calendarHeight && spaceAbove > spaceBelow) {
+      placement = 'top';
+    }
+
+    // Calculate left with collision clamping (12px safety padding from screen edges)
+    let left = triggerRect.left;
+    const maxLeft = width - calendarWidth - 12;
+    const minLeft = 12;
+    if (left > maxLeft) left = maxLeft;
+    if (left < minLeft) left = minLeft;
+
+    // Calculate top based on fixed positioning
+    let top = 0;
+    if (placement === 'bottom') {
+      top = triggerRect.bottom + 6;
+    } else {
+      top = triggerRect.top - calendarHeight - 6;
+    }
+
+    setCoords({
+      top,
+      left,
+      placement,
+      isMobile: false
+    });
+  };
+
+  // Run position updates when open state changes or window events trigger
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      
+      // Secondary update immediately after paint to ensure correct size-based layout
+      const timer = setTimeout(() => {
+        updatePosition();
+      }, 0);
+
+      window.addEventListener('resize', updatePosition);
+      // Capture scrolls from any parent scroll container
+      window.addEventListener('scroll', updatePosition, true);
+
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', updatePosition);
+        window.removeEventListener('scroll', updatePosition, true);
+      };
+    }
+  }, [isOpen]);
+
+  // Click outside to close handler (checks both input element container and the portal-rendered calendar)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isInsideTrigger = containerRef.current && containerRef.current.contains(target);
+      const isInsideCalendar = calendarRef.current && calendarRef.current.contains(target);
+
+      if (!isInsideTrigger && !isInsideCalendar) {
         setIsOpen(false);
       }
     };
@@ -126,6 +215,16 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     } else {
       setViewMonth(viewMonth + 1);
     }
+  };
+
+  const handlePrevYear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewYear(viewYear - 1);
+  };
+
+  const handleNextYear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewYear(viewYear + 1);
   };
 
   const handleSelectDay = (dateString: string, e: React.MouseEvent) => {
@@ -203,89 +302,252 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         />
       </div>
 
-      {isOpen && (
-        <div className="absolute z-50 mt-1.5 w-72 bg-[#0A0A0C] border border-zinc-800 rounded-2xl shadow-2xl p-4 animate-brand-fade-up select-none left-0 md:left-auto md:right-0 lg:left-0">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer"
+      {isOpen && typeof document !== 'undefined' && createPortal(
+        coords.isMobile ? (
+          // Mobile Screen Center-Modal Layout (Clean Backdrop Overlay & Centered Focus)
+          <div 
+            className="fixed inset-0 bg-black/75 z-[9999] flex items-center justify-center p-4 backdrop-blur-xs animate-brand-fade-in"
+            onClick={() => setIsOpen(false)}
+          >
+            <div 
+              ref={calendarRef}
+              className="relative w-full max-w-sm bg-[#0C0C0F] border border-zinc-800 rounded-2xl p-5 shadow-2xl flex flex-col justify-center select-none"
+              onClick={(e) => e.stopPropagation()}
             >
-              <ChevronLeft size={16} />
-            </button>
-            <div className="text-xs font-bold font-mono text-white">
-              {MONTH_NAMES[viewMonth]} {viewYear}
-            </div>
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handlePrevYear}
+                    title="Previous Year"
+                    className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ChevronsLeft size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePrevMonth}
+                    title="Previous Month"
+                    className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                </div>
+                
+                <div className="text-sm font-bold font-mono text-white tracking-wide">
+                  {MONTH_NAMES[viewMonth]} {viewYear}
+                </div>
 
-          {/* Weekday labels */}
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {WEEK_DAYS.map((day) => (
-              <div key={day} className="text-center text-[10px] font-bold font-mono text-zinc-500 uppercase py-1">
-                {day}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleNextMonth}
+                    title="Next Month"
+                    className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNextYear}
+                    title="Next Year"
+                    className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ChevronsRight size={18} />
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
 
-          {/* Day cells */}
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((cell, index) => {
-              const isSelected = cell.dateString === value;
-              const isCurrentMonth = cell.month === 'current';
-              
-              return (
+              {/* Weekday labels */}
+              <div className="grid grid-cols-7 gap-1.5 mb-2">
+                {WEEK_DAYS.map((day) => (
+                  <div key={day} className="text-center text-[11px] font-bold font-mono text-zinc-500 uppercase py-1">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Day cells */}
+              <div className="grid grid-cols-7 gap-1.5">
+                {cells.map((cell, index) => {
+                  const isSelected = cell.dateString === value;
+                  const isCurrentMonth = cell.month === 'current';
+                  
+                  return (
+                    <button
+                      key={`${cell.dateString}-${index}`}
+                      type="button"
+                      onClick={(e) => handleSelectDay(cell.dateString, e)}
+                      className={`aspect-square text-xs font-mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[var(--accent-primary)] text-white font-bold shadow-md'
+                          : isCurrentMonth
+                          ? 'text-zinc-200 hover:bg-zinc-800 hover:text-white'
+                          : 'text-zinc-650 hover:bg-zinc-800/40'
+                      }`}
+                    >
+                      {cell.day}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Quick Select Buttons */}
+              <div className="mt-4 pt-3.5 border-t border-zinc-900 grid grid-cols-2 gap-3">
                 <button
-                  key={`${cell.dateString}-${index}`}
                   type="button"
-                  onClick={(e) => handleSelectDay(cell.dateString, e)}
-                  className={`aspect-square text-[11px] font-mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-[var(--accent-primary)] text-white font-bold'
-                      : isCurrentMonth
-                      ? 'text-zinc-200 hover:bg-zinc-800 hover:text-white'
-                      : 'text-zinc-600 hover:bg-zinc-800/50'
-                  }`}
+                  onClick={(e) => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    handleSelectDay(todayStr, e);
+                  }}
+                  className="py-2 px-3 text-xs font-mono bg-zinc-900 hover:bg-zinc-855 text-zinc-300 hover:text-white rounded-xl transition-colors cursor-pointer text-center font-medium"
                 >
-                  {cell.day}
+                  Today
                 </button>
-              );
-            })}
-          </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayStr = yesterday.toISOString().split('T')[0];
+                    handleSelectDay(yesterdayStr, e);
+                  }}
+                  className="py-2 px-3 text-xs font-mono bg-zinc-900 hover:bg-zinc-855 text-zinc-300 hover:text-white rounded-xl transition-colors cursor-pointer text-center font-medium"
+                >
+                  Yesterday
+                </button>
+              </div>
 
-          {/* Quick Select Buttons */}
-          <div className="mt-3 pt-2.5 border-t border-zinc-900 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={(e) => {
-                const todayStr = new Date().toISOString().split('T')[0];
-                handleSelectDay(todayStr, e);
-              }}
-              className="py-1 px-2 text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayStr = yesterday.toISOString().split('T')[0];
-                handleSelectDay(yesterdayStr, e);
-              }}
-              className="py-1 px-2 text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-            >
-              Yesterday
-            </button>
+              {/* Mobile Close Button */}
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="mt-4 w-full py-2.5 bg-zinc-800 hover:bg-zinc-750 text-zinc-200 hover:text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+              >
+                Close Picker
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          // Desktop Screen Smart Positioned Fixed-Overlay Layout
+          <div 
+            ref={calendarRef}
+            style={{
+              position: 'fixed',
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+            }}
+            className="z-[9999] w-72 bg-[#0C0C0F]/95 backdrop-blur-md border border-zinc-800/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-4 select-none animate-brand-fade-up before:absolute before:top-0 before:left-6 before:right-6 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-[var(--accent-primary)] before:to-transparent"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handlePrevYear}
+                  title="Previous Year"
+                  className="p-1 hover:bg-zinc-800/80 rounded-md text-zinc-500 hover:text-white transition-colors cursor-pointer"
+                >
+                  <ChevronsLeft size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrevMonth}
+                  title="Previous Month"
+                  className="p-1 hover:bg-zinc-800/80 rounded-md text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <ChevronLeft size={15} />
+                </button>
+              </div>
+
+              <div className="text-xs font-bold font-mono text-white tracking-wide">
+                {MONTH_NAMES[viewMonth]} {viewYear}
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleNextMonth}
+                  title="Next Month"
+                  className="p-1 hover:bg-zinc-800/80 rounded-md text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <ChevronRight size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextYear}
+                  title="Next Year"
+                  className="p-1 hover:bg-zinc-800/80 rounded-md text-zinc-500 hover:text-white transition-colors cursor-pointer"
+                >
+                  <ChevronsRight size={15} />
+                </button>
+              </div>
+            </div>
+
+            {/* Weekday labels */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {WEEK_DAYS.map((day) => (
+                <div key={day} className="text-center text-[10px] font-bold font-mono text-zinc-500 uppercase py-1">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Day cells */}
+            <div className="grid grid-cols-7 gap-1">
+              {cells.map((cell, index) => {
+                const isSelected = cell.dateString === value;
+                const isCurrentMonth = cell.month === 'current';
+                
+                return (
+                  <button
+                    key={`${cell.dateString}-${index}`}
+                    type="button"
+                    onClick={(e) => handleSelectDay(cell.dateString, e)}
+                    className={`aspect-square text-[11px] font-mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-[var(--accent-primary)] text-white font-bold'
+                        : isCurrentMonth
+                        ? 'text-zinc-200 hover:bg-zinc-800 hover:text-white'
+                        : 'text-zinc-600 hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    {cell.day}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Select Buttons */}
+            <div className="mt-3 pt-2.5 border-t border-zinc-900 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  handleSelectDay(todayStr, e);
+                }}
+                className="py-1 px-2 text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  const yesterday = new Date();
+                  yesterday.setDate(yesterday.getDate() - 1);
+                  const yesterdayStr = yesterday.toISOString().split('T')[0];
+                  handleSelectDay(yesterdayStr, e);
+                }}
+                className="py-1 px-2 text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                Yesterday
+              </button>
+            </div>
+          </div>
+        ),
+        document.body
       )}
     </div>
   );

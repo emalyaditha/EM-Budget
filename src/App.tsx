@@ -82,18 +82,14 @@ export default function App() {
   // Verify remembered device on mount
   useEffect(() => {
     const verifyDevice = async () => {
-      // Load system-provided environments on mount ONLY if not already customized by user in localStorage
+      // Load system-provided environments on mount to ensure fresh configuration matches backend
       try {
-        const urlOverride = localStorage.getItem('cashflow_supabase_url_v1');
-        const keyOverride = localStorage.getItem('cashflow_supabase_key_v1');
-        if (!urlOverride || !keyOverride) {
-          const confResp = await fetch('/api/config');
-          if (confResp.ok) {
-            const confData = await confResp.json();
-            if (confData.supabaseUrl && confData.supabaseKey) {
-              localStorage.setItem('cashflow_supabase_url_v1', confData.supabaseUrl);
-              localStorage.setItem('cashflow_supabase_key_v1', confData.supabaseKey);
-            }
+        const confResp = await fetch('/api/config');
+        if (confResp.ok) {
+          const confData = await confResp.json();
+          if (confData.supabaseUrl && confData.supabaseKey) {
+            localStorage.setItem('cashflow_supabase_url_v1', confData.supabaseUrl);
+            localStorage.setItem('cashflow_supabase_key_v1', confData.supabaseKey);
           }
         }
       } catch (err) {
@@ -2023,50 +2019,55 @@ export default function App() {
         <div className="flex items-center gap-2.5">
           {/* Supabase Sync Badge Indicator */}
           {realtimeSyncStatus === 'syncing' && (
-            <div className="px-2.5 py-1.5 rounded-lg border border-amber-900/60 bg-amber-950/20 text-amber-400 text-[10px] font-bold flex items-center gap-1.5 font-mono">
-              <RefreshCw size={11} className="animate-spin" />
-              <span>SYNCING...</span>
+            <div 
+              className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-blue-400 hover:text-white transition-all flex items-center justify-center shrink-0"
+              title="Syncing with cloud..."
+            >
+              <RefreshCw size={15} className="animate-spin text-blue-400" />
             </div>
           )}
 
           {realtimeSyncStatus === 'synced' && (
-            <div className="px-2.5 py-1.5 rounded-lg border border-[var(--accent-primary)]/20 border-[var(--accent-primary)]/50 text-[var(--accent-primary)] text-[10px] font-bold flex items-center gap-1.5 font-mono">
-              <Cloud size={11} />
-              <span>CLOUD SYNCED</span>
+            <div 
+              className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-blue-500 hover:text-blue-400 transition-all flex items-center justify-center shrink-0"
+              title="Cloud Synced"
+            >
+              <Cloud size={15} className="text-blue-500" />
             </div>
           )}
 
           {realtimeSyncStatus === 'error' && (
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="px-2.5 py-1.5 rounded-lg border border-red-900/60 bg-red-950/15 text-red-400 text-[10px] font-bold flex items-center gap-1.5 font-mono hover:bg-red-950/30 transition-all cursor-pointer"
+              className="p-2 bg-zinc-900 border border-red-900/60 rounded-lg text-red-500 hover:text-red-400 hover:border-red-500/50 transition-all cursor-pointer flex items-center justify-center shrink-0"
               title={`Sync Error: ${realtimeSyncError || 'Details in Settings.'}`}
             >
-              <CloudOff size={11} className="animate-pulse text-red-400" />
-              <span>SYNC ERROR</span>
+              <CloudOff size={15} className="animate-pulse text-red-500" />
             </button>
           )}
 
           {realtimeSyncStatus === 'disabled' && (
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-950/40 text-zinc-400 text-[10px] font-bold flex items-center gap-1.5 font-mono hover:text-white hover:border-zinc-700 transition-all cursor-pointer"
-              title="Cloud Synchronization is disabled or off. Click to configure."
+              className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-400 hover:border-zinc-600 transition-all cursor-pointer flex items-center justify-center shrink-0"
+              title="Cloud Sync Disabled. Click to configure."
             >
-              <Database size={11} />
-              <span>CLOUD: MANUAL</span>
+              <CloudOff size={15} />
             </button>
           )}
 
-          {/* Theme Toggle Button */}
+          {/* Notification Button */}
           <button
-            onClick={toggleTheme}
-            className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-500 transition-all cursor-pointer flex items-center justify-center shrink-0"
-            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-            aria-label="Toggle theme"
-            id="theme-toggle"
+            onClick={() => setIsNotifOpen(true)}
+            className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-500 transition-all cursor-pointer flex items-center justify-center shrink-0 relative"
+            title="Notification Alerts Center"
+            aria-label="View notifications"
+            id="header-notification-trigger"
           >
-            {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
+            <Bell size={15} className="text-[var(--accent-primary)]" />
+            {state.notifications.filter(n => !n.read).length > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-400 border border-zinc-900 rounded-full animate-pulse" />
+            )}
           </button>
 
           {/* Profile Mark */}
@@ -2208,8 +2209,23 @@ export default function App() {
                 </div>
                 <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono">
                   <span>Status Indicator</span>
-                  <span className={realtimeSyncStatus === 'synced' ? 'text-indigo-500 dark:text-indigo-400 font-bold uppercase' : 'text-amber-500 dark:text-amber-400 font-bold uppercase'}>
-                    {realtimeSyncStatus ? realtimeSyncStatus.toUpperCase() : 'IDLE'}
+                  <span 
+                    className="flex items-center"
+                    title={
+                      realtimeSyncStatus === 'synced' ? "Synced" :
+                      realtimeSyncStatus === 'error' ? "Sync Error" :
+                      realtimeSyncStatus === 'syncing' ? "Syncing" : "Sync Off"
+                    }
+                  >
+                    {realtimeSyncStatus === 'synced' ? (
+                      <Cloud size={14} className="text-blue-500" />
+                    ) : realtimeSyncStatus === 'error' ? (
+                      <CloudOff size={14} className="text-red-500 animate-pulse" />
+                    ) : realtimeSyncStatus === 'syncing' ? (
+                      <RefreshCw size={12} className="text-blue-400 animate-spin" />
+                    ) : (
+                      <CloudOff size={14} className="text-zinc-500" />
+                    )}
                   </span>
                 </div>
               </div>
@@ -2637,23 +2653,18 @@ export default function App() {
                           <span className="text-[9px] font-bold block">Settings</span>
                         </button>
                         
-                        {/* Interactive toggle theme */}
+                        {/* Notification Alerts Center */}
                         <button
                           onClick={() => {
-                            toggleTheme();
+                            setIsNotifOpen(true);
+                            setIsMobileNavOpen(false);
                           }}
-                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center"
+                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center relative"
                         >
-                          {theme === 'light' ? (
-                            <>
-                              <Moon size={14} className="text-indigo-400" />
-                              <span className="text-[9px] font-bold block">Dark Theme</span>
-                            </>
-                          ) : (
-                            <>
-                              <Sun size={14} className="text-amber-400" />
-                              <span className="text-[9px] font-bold block">Light Theme</span>
-                            </>
+                          <Bell size={14} className="text-amber-400" />
+                          <span className="text-[9px] font-bold block">Alerts</span>
+                          {state.notifications.filter(n => !n.read).length > 0 && (
+                            <span className="absolute top-2 right-4 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
                           )}
                         </button>
                       </div>

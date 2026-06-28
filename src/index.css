@@ -1073,4 +1073,19 @@ svg path[stroke="#27272a"] {
   animation: brandFadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes brandFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-brand-fade-in {
+  opacity: 0;
+  animation: brandFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+
 

@@ -38,13 +38,11 @@ export function getSupabaseConfig() {
   let url = (meta.env && meta.env.VITE_SUPABASE_URL) || DEFAULT_SUPABASE_URL;
   let key = (meta.env && meta.env.VITE_SUPABASE_ANON_KEY) || '';
   
-  // Only allow client-side LocalStorage override in non-production environments
-  if (!isProd) {
-    const localUrl = localStorage.getItem(URL_STORAGE_KEY);
-    const localKey = localStorage.getItem(KEY_STORAGE_KEY);
-    if (localUrl) url = localUrl;
-    if (localKey) key = localKey;
-  }
+  // Allow client-side LocalStorage override (including dynamic /api/config fetched keys)
+  const localUrl = localStorage.getItem(URL_STORAGE_KEY);
+  const localKey = localStorage.getItem(KEY_STORAGE_KEY);
+  if (localUrl) url = localUrl;
+  if (localKey) key = localKey;
   
   if (url && !url.startsWith('https://') && !url.startsWith('http://')) {
     url = DEFAULT_SUPABASE_URL;
@@ -538,10 +536,10 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       }
 
       const rpcErrorMsg = rpcErr ? rpcErr.message : (rpcRes ? (rpcRes as any).error : 'Unknown RPC result structure');
-      console.error('[TRANSACTIONAL SYNC ENGINE] RPC call failed:', rpcErr || rpcRes);
+      console.warn('[TRANSACTIONAL SYNC ENGINE] RPC call failed:', rpcErr || rpcRes);
       console.warn(`[TRANSACTIONAL SYNC ENGINE] sync_complete_ledger SQL function had an issue: ${rpcErrorMsg}. Falling back to robust sequential client-side table sync...`);
     } catch (rpcExecErr: any) {
-      console.error('[TRANSACTIONAL SYNC ENGINE] Transactional RPC execution failed with exception:', rpcExecErr);
+      console.warn('[TRANSACTIONAL SYNC ENGINE] Transactional RPC execution failed with exception:', rpcExecErr);
       console.warn('[TRANSACTIONAL SYNC ENGINE] Falling back to robust sequential client-side table-by-table sync...');
     }
 
