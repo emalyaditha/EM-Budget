@@ -301,16 +301,28 @@ export async function forceCancelCardInSupabase(email: string, cardId: string): 
 }
 
 /**
- * Updates the user name in the auth_accounts table
+ * Updates the user name and optional avatar_url in the auth_accounts table
  */
-export async function updateAuthAccountName(email: string, name: string): Promise<void> {
+export async function updateAuthAccountName(email: string, name: string, avatarUrl?: string): Promise<void> {
   const client = getSupabaseClient();
   if (!client) return;
   try {
-    await client.from('auth_accounts').update({ name }).eq('email', email);
-    console.log(`Updated name for ${email} in auth_accounts.`);
+    const updatePayload: any = { name };
+    if (avatarUrl !== undefined) {
+      updatePayload.avatar_url = avatarUrl;
+    }
+    const { error } = await client.from('auth_accounts').update(updatePayload).eq('email', email);
+    if (error) {
+      if (error.message && (error.message.includes('column') || error.message.includes('not found') || error.message.includes('does not exist'))) {
+        console.warn('avatar_url column missing from auth_accounts, falling back to name-only update...');
+        await client.from('auth_accounts').update({ name }).eq('email', email);
+      } else {
+        throw error;
+      }
+    }
+    console.log(`Updated profile for ${email} in auth_accounts.`);
   } catch(err) {
-    console.warn(`Failed to update name in auth_accounts`, err);
+    console.warn(`Failed to update profile in auth_accounts`, err);
     throw err;
   }
 }
@@ -920,21 +932,24 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       console.warn('Subscriptions table fetch skipped or table does not exist:', e);
     }
 
-    // Fetch profile name from auth_accounts to correctly restore user name
+    // Fetch profile name and optional avatar from auth_accounts to correctly restore user profile
     let profileName = 'User';
+    let profileAvatarUrl = '';
     try {
-      const { data: authAcc } = await client.from('auth_accounts').select('name').eq('email', email).maybeSingle();
-      if (authAcc && authAcc.name) {
-        profileName = authAcc.name;
+      const { data: authAcc } = await client.from('auth_accounts').select('*').eq('email', email).maybeSingle();
+      if (authAcc) {
+        if (authAcc.name) profileName = authAcc.name;
+        if (authAcc.avatar_url) profileAvatarUrl = authAcc.avatar_url;
       }
     } catch (e) {
-      console.warn('Could not load profile name from auth_accounts:', e);
+      console.warn('Could not load profile info from auth_accounts:', e);
     }
 
     // Load auxiliary state (budgets, savingsGoals, and fallback loansGiven) from ledger_states first
     let fetchedBudgets: any[] | null = null;
     let fetchedSavingsGoals: any[] | null = null;
     let fetchedLoansGiven: any[] | null = null;
+    let fetchedAvatarUrl: string | undefined = undefined;
     let hasLedgerStateRecord = false;
     try {
       const { data: latestStateData, error: stateErr } = await client
@@ -952,6 +967,9 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
             ? JSON.parse(latestStateData.state)
             : latestStateData.state;
           if (fullJsonStateStr) {
+            if (fullJsonStateStr.userProfile && fullJsonStateStr.userProfile.avatarUrl) {
+              fetchedAvatarUrl = fullJsonStateStr.userProfile.avatarUrl;
+            }
             if (Array.isArray(fullJsonStateStr.budgets)) {
               fetchedBudgets = fullJsonStateStr.budgets;
             } else {
@@ -996,7 +1014,8 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       ...DEFAULT_APP_STATE, // Use initial structure
       userProfile: {
         name: profileName,
-        email: email
+        email: email,
+        avatarUrl: profileAvatarUrl || fetchedAvatarUrl || undefined
       },
       cards: cards.map(mapDatabaseResultToState),
       cashAccounts: cash.map(mapDatabaseResultToState),
@@ -1039,6 +1058,7 @@ alter table public.bank_cards add column if not exists locked_amount numeric def
 alter table public.transactions add column if not exists charge numeric default 0;
 alter table public.transactions add column if not exists transfer_charge numeric default 0;
 alter table public.auth_accounts add column if not exists name text;
+alter table public.auth_accounts add column if not exists avatar_url text;
 alter table public.debts add column if not exists account_id text;
 alter table public.debts add column if not exists account_type text;
 alter table public.debts add column if not exists account_name text;
@@ -1363,6 +1383,7 @@ create table if not exists public.auth_accounts (
   email text not null unique,
   password_hash text not null,
   name text,
+  avatar_url text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -1961,6 +1982,7 @@ alter table public.bank_cards add column if not exists locked_amount numeric def
 alter table public.transactions add column if not exists charge numeric default 0;
 alter table public.transactions add column if not exists transfer_charge numeric default 0;
 alter table public.auth_accounts add column if not exists name text;
+alter table public.auth_accounts add column if not exists avatar_url text;
 alter table public.debts add column if not exists account_id text;
 alter table public.debts add column if not exists account_type text;
 alter table public.debts add column if not exists account_name text;

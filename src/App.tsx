@@ -2073,11 +2073,20 @@ export default function App() {
           {/* Profile Mark */}
           <button
             onClick={() => setIsProfileOpen(true)}
-            className="w-8 h-8 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-white font-bold hover:bg-[var(--accent-primary)]/90 transition-all cursor-pointer"
+            className="w-8 h-8 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-white font-bold hover:bg-[var(--accent-primary)]/90 transition-all cursor-pointer overflow-hidden border border-zinc-700"
             title="Profile"
             id="header-profile-trigger"
           >
-            {state.userProfile?.name?.charAt(0) || 'U'}
+            {state.userProfile?.avatarUrl ? (
+              <img 
+                src={state.userProfile.avatarUrl} 
+                alt={state.userProfile.name} 
+                className="w-full h-full object-cover" 
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              state.userProfile?.name?.charAt(0) || 'U'
+            )}
           </button>
         </div>
       </header>

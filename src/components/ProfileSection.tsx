@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Mail, Save, Edit2, ShieldCheck, KeyRound, CreditCard, LogOut, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mail, Save, Edit2, ShieldCheck, KeyRound, CreditCard, LogOut, X, Camera, Trash2 } from 'lucide-react';
 import { AppState } from '../types';
 import { updateAuthAccountName } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
@@ -16,6 +16,13 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
   const { showToast } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(state.userProfile?.name || 'User');
+  const [tempAvatar, setTempAvatar] = useState<string | undefined>(state.userProfile?.avatarUrl);
+
+  // Keep state in sync if it changes from outside
+  useEffect(() => {
+    setName(state.userProfile?.name || 'User');
+    setTempAvatar(state.userProfile?.avatarUrl);
+  }, [state.userProfile]);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -25,18 +32,51 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
     
     updateState(prev => ({
         ...prev,
-        userProfile: { ...prev.userProfile, name: name.trim() }
+        userProfile: { 
+          ...prev.userProfile, 
+          name: name.trim(),
+          avatarUrl: isAllowedEmail ? tempAvatar : prev.userProfile?.avatarUrl
+        }
     }));
+
     try {
-        await updateAuthAccountName(state.userProfile?.email || '', name.trim());
-        showToast('success', 'Profile name synced with secure cloud record.');
+        await updateAuthAccountName(state.userProfile?.email || '', name.trim(), isAllowedEmail ? tempAvatar : undefined);
+        showToast('success', 'Profile records synced with secure cloud record.');
     } catch (err) {
-        console.error("Failed to sync name to auth_accounts", err);
+        console.error("Failed to sync profile to auth_accounts", err);
+        showToast('warning', 'Profile updated locally, cloud database sync pending.');
     }
     setIsEditing(false);
   };
 
-  const firstLetter = state.userProfile?.name ? state.userProfile.name.charAt(0).toUpperCase() : 'U';
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate size (max 1MB to keep Base64 size safe and fast)
+    if (file.size > 1.0 * 1024 * 1024) {
+      showToast('error', 'Image size is too large (Maximum allowed size is 1MB).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Url = event.target?.result as string;
+      if (base64Url) {
+        setTempAvatar(base64Url);
+        showToast('success', 'Image loaded! Click "Save Record" to permanently store it.');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setTempAvatar(undefined);
+    showToast('info', 'Photo cleared. Save to confirm changes.');
+  };
+
+  const firstLetter = name ? name.charAt(0).toUpperCase() : 'U';
+  const isAllowedEmail = state.userProfile?.email === 'emalyaditha@gmail.com';
 
   return (
     <div className="bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-zinc-850 p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6" id="secure-profile-card">
@@ -55,7 +95,8 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
           <button 
             onClick={() => {
               if (isEditing) {
-                setName(state.userProfile.name);
+                setName(state.userProfile?.name || 'User');
+                setTempAvatar(state.userProfile?.avatarUrl);
               }
               setIsEditing(!isEditing);
             }} 
@@ -81,14 +122,47 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
 
         <div className="relative group mb-4">
           <div className="absolute -inset-1.5 bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-500 rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500 animate-pulse" />
-          <div className="relative w-20 h-20 bg-zinc-950 border-2 border-zinc-800 rounded-full flex items-center justify-center text-white text-3xl font-extrabold shadow-xl">
-            {firstLetter}
+          <div className="relative w-20 h-20 bg-zinc-950 border-2 border-zinc-800 rounded-full overflow-hidden flex items-center justify-center text-white text-3xl font-extrabold shadow-xl">
+            {tempAvatar ? (
+              <img 
+                src={tempAvatar} 
+                alt={name} 
+                className="w-full h-full object-cover" 
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              firstLetter
+            )}
+            
+            {isEditing && isAllowedEmail && (
+              <label className="absolute inset-0 bg-black/70 hover:bg-black/80 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer">
+                <Camera size={18} className="text-indigo-400 mb-0.5 animate-bounce" />
+                <span className="text-[8px] font-bold uppercase tracking-wider">Change</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleFileChange} 
+                  className="hidden" 
+                />
+              </label>
+            )}
           </div>
-          <span className="absolute bottom-0 right-1 w-5.5 h-5.5 bg-blue-500 border-4 border-zinc-950 rounded-full" title="Identity Verified Status" />
+          {!isEditing && (
+            <span className="absolute bottom-0 right-1 w-5.5 h-5.5 bg-blue-500 border-4 border-zinc-950 rounded-full" title="Identity Verified Status" />
+          )}
         </div>
 
         {isEditing ? (
-          <div className="w-full max-w-[220px] space-y-2 mt-2">
+          <div className="w-full max-w-[220px] space-y-2.5 mt-2">
+            {tempAvatar && isAllowedEmail && (
+              <button
+                onClick={handleRemovePhoto}
+                className="w-full py-1.5 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/45 hover:border-rose-500 text-rose-400 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer"
+              >
+                <Trash2 size={11} />
+                <span>Remove Profile Image</span>
+              </button>
+            )}
             <input
               type="text"
               value={name}
