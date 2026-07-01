@@ -62,21 +62,61 @@ export default function App() {
   const [filterAccount, setFilterAccount] = useState<string>('all');
 
   const migrateStateCards = (loadedState: AppState): AppState => {
-    if (!loadedState || !loadedState.cards) return loadedState;
-    const migratedCards = loadedState.cards.map(card => {
-      if (card.cardType === 'Credit' && card.currentBalance > 0) {
-        console.log(`MIGRATION: Auto-healing credit card "${card.cardName}" with positive balance ${card.currentBalance} to negative balance ${-card.currentBalance}`);
-        return {
-          ...card,
-          currentBalance: -card.currentBalance
-        };
-      }
-      return card;
-    });
-    return {
-      ...loadedState,
-      cards: migratedCards
-    };
+    if (!loadedState) return loadedState;
+    let nextState = { ...loadedState };
+
+    // 1. Normalizing card balances (existing migration logic)
+    if (nextState.cards) {
+      nextState.cards = nextState.cards.map(card => {
+        if (card.cardType === 'Credit' && card.currentBalance > 0) {
+          console.log(`MIGRATION: Auto-healing credit card "${card.cardName}" with positive balance ${card.currentBalance} to negative balance ${-card.currentBalance}`);
+          return {
+            ...card,
+            currentBalance: -card.currentBalance
+          };
+        }
+        return card;
+      });
+    }
+
+    // 2. Normalizing "Other font-sans" category typo to "Other"
+    if (nextState.transactions) {
+      nextState.transactions = nextState.transactions.map(t => {
+        if (t.category === 'Other font-sans') {
+          return { ...t, category: 'Other' };
+        }
+        return t;
+      });
+    }
+
+    if (nextState.expenses) {
+      nextState.expenses = nextState.expenses.map(e => {
+        if ((e.category as string) === 'Other font-sans') {
+          return { ...e, category: 'Other' };
+        }
+        return e;
+      });
+    }
+
+    if (nextState.subscriptions) {
+      nextState.subscriptions = nextState.subscriptions.map(s => {
+        if ((s.category as string) === 'Other font-sans') {
+          return { ...s, category: 'Other' };
+        }
+        return s;
+      });
+    }
+
+    if (nextState.budgets) {
+      nextState.budgets = nextState.budgets.map(b => {
+        if ((b.category as string) === 'Other font-sans') {
+          return { ...b, category: 'Other' };
+        }
+        return b;
+      });
+    }
+
+    return nextState;
   };
 
   // Verify remembered device on mount
@@ -398,7 +438,8 @@ export default function App() {
     date: string,
     category: CategoryExpense,
     paymentMethodId: string,
-    paymentMethodType: 'cash' | 'card'
+    paymentMethodType: 'cash' | 'card',
+    bankCharge: number = 0
   ) => {
     const expenseId = `exp-${Date.now()}`;
     const transactionId = `trans-${Date.now()}`;
@@ -420,10 +461,12 @@ export default function App() {
       let updatedCards = [...prev.cards];
       let newAlertNotifications: AppNotification[] = [];
 
+      const totalDeduction = amount + bankCharge;
+
       if (paymentMethodType === 'cash') {
         updatedCash = updatedCash.map(c => {
           if (c.id === paymentMethodId) {
-            const nextVal = c.balance - amount;
+            const nextVal = c.balance - totalDeduction;
             if (nextVal < 5000) {
               newAlertNotifications.push({
                 id: `nt-alert-${Date.now()}`,
@@ -441,7 +484,7 @@ export default function App() {
         updatedCards = updatedCards.map(c => {
           if (c.id === paymentMethodId) {
             const isCredit = c.cardType === 'Credit';
-            const nextVal = c.currentBalance - amount;
+            const nextVal = c.currentBalance - totalDeduction;
             
             const isLow = isCredit 
               ? (c.limit !== undefined && (c.limit + nextVal) < 1000)
@@ -476,14 +519,49 @@ export default function App() {
         accountId: paymentMethodId,
         accountType: paymentMethodType,
         referenceId: expenseId,
+        charge: bankCharge > 0 ? bankCharge : undefined,
       };
+
+      const newExpenses = [...prev.expenses, newExpense];
+      const newTransactions = [newTransaction];
+
+      if (bankCharge > 0) {
+        const chargeExpenseId = `exp-charge-${Date.now()}`;
+        const chargeTransactionId = `trans-charge-${Date.now()}`;
+
+        const chargeExpense: Expense = {
+          id: chargeExpenseId,
+          title: `Bank Charge: ${title}`,
+          description: `Automatic bank charge fee for: ${title}`,
+          amount: bankCharge,
+          date,
+          category: 'Bank Charges & Interest',
+          paymentMethodId,
+          paymentMethodType,
+        };
+
+        const chargeTransaction: Transaction = {
+          id: chargeTransactionId,
+          type: 'expense',
+          title: `Bank Charge: ${title}`,
+          amount: bankCharge,
+          date,
+          category: 'Bank Charges & Interest',
+          accountId: paymentMethodId,
+          accountType: paymentMethodType,
+          referenceId: chargeExpenseId,
+        };
+
+        newExpenses.push(chargeExpense);
+        newTransactions.push(chargeTransaction);
+      }
 
       return {
         ...prev,
-        expenses: [...prev.expenses, newExpense],
+        expenses: newExpenses,
         cashAccounts: updatedCash,
         cards: updatedCards,
-        transactions: [newTransaction, ...prev.transactions],
+        transactions: [...newTransactions, ...prev.transactions],
         notifications: [...newAlertNotifications, ...prev.notifications],
       };
     });
@@ -613,7 +691,10 @@ export default function App() {
   };
 
   // Loans Receivables Actions
-  const handleAddLoan = (loanData: Omit<LoanGiven, 'id' | 'remainingAmount' | 'status' | 'settlements'>) => {
+  const handleAddLoan = (
+    loanData: Omit<LoanGiven, 'id' | 'remainingAmount' | 'status' | 'settlements'>,
+    bankCharge: number = 0
+  ) => {
     const loanId = `loan_given_${Date.now()}`;
     const newLoan: LoanGiven = {
       ...loanData,
@@ -628,13 +709,15 @@ export default function App() {
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
 
+      const totalDeduction = loanData.totalAmount + bankCharge;
+
       if (loanData.sourceAccountType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === loanData.sourceAccountId ? { ...c, balance: c.balance - loanData.totalAmount } : c
+          c.id === loanData.sourceAccountId ? { ...c, balance: c.balance - totalDeduction } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === loanData.sourceAccountId ? { ...c, currentBalance: c.currentBalance - loanData.totalAmount } : c
+          c.id === loanData.sourceAccountId ? { ...c, currentBalance: c.currentBalance - totalDeduction } : c
         );
       }
 
@@ -650,6 +733,7 @@ export default function App() {
         accountId: loanData.sourceAccountId,
         accountType: loanData.sourceAccountType,
         referenceId: loanId,
+        charge: bankCharge > 0 ? bankCharge : undefined,
       };
 
       // 3. Create Expense entry
@@ -663,6 +747,40 @@ export default function App() {
         paymentMethodId: loanData.sourceAccountId,
         paymentMethodType: loanData.sourceAccountType,
       };
+
+      const newExpenses = [newExp, ...prev.expenses];
+      const newTransactions = [newTx];
+
+      if (bankCharge > 0) {
+        const chargeExpenseId = `exp-charge-${Date.now()}`;
+        const chargeTransactionId = `trans-charge-${Date.now()}`;
+
+        const chargeExpense: Expense = {
+          id: chargeExpenseId,
+          title: `Bank Charge: Loan to ${loanData.borrowerName}`,
+          description: `Automatic bank charge fee for giving a loan`,
+          amount: bankCharge,
+          date: loanData.dateGiven,
+          category: 'Bank Charges & Interest',
+          paymentMethodId: loanData.sourceAccountId,
+          paymentMethodType: loanData.sourceAccountType,
+        };
+
+        const chargeTransaction: Transaction = {
+          id: chargeTransactionId,
+          type: 'expense',
+          title: `Bank Charge: Loan to ${loanData.borrowerName}`,
+          amount: bankCharge,
+          date: loanData.dateGiven,
+          category: 'Bank Charges & Interest',
+          accountId: loanData.sourceAccountId,
+          accountType: loanData.sourceAccountType,
+          referenceId: chargeExpenseId,
+        };
+
+        newExpenses.unshift(chargeExpense);
+        newTransactions.push(chargeTransaction);
+      }
 
       // 4. Notification
       const newNotif: AppNotification = {
@@ -678,8 +796,8 @@ export default function App() {
         cashAccounts: updatedCash,
         cards: updatedCards,
         loansGiven: [...(prev.loansGiven || []), newLoan],
-        transactions: [newTx, ...prev.transactions],
-        expenses: [newExp, ...prev.expenses],
+        transactions: [...newTransactions, ...prev.transactions],
+        expenses: newExpenses,
         notifications: [newNotif, ...prev.notifications],
       };
     });
@@ -690,7 +808,8 @@ export default function App() {
     amount: number,
     receivedInId: string,
     receivedInType: 'cash' | 'card',
-    receivedInName: string
+    receivedInName: string,
+    bankCharge: number = 0
   ) => {
     const settlementId = `setl_${Date.now()}`;
     const settlementDate = new Date().toISOString().split('T')[0];
@@ -704,13 +823,15 @@ export default function App() {
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
 
+      const netCredited = amount - bankCharge;
+
       if (receivedInType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === receivedInId ? { ...c, balance: c.balance + amount } : c
+          c.id === receivedInId ? { ...c, balance: c.balance + netCredited } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === receivedInId ? { ...c, currentBalance: c.currentBalance + amount } : c
+          c.id === receivedInId ? { ...c, currentBalance: c.currentBalance + netCredited } : c
         );
       }
 
@@ -751,6 +872,7 @@ export default function App() {
         accountId: receivedInId,
         accountType: receivedInType,
         referenceId: settlementId,
+        charge: bankCharge > 0 ? bankCharge : undefined,
       };
 
       // 4. Create Income entry
@@ -763,6 +885,40 @@ export default function App() {
         targetAccountId: receivedInId,
         targetType: receivedInType,
       };
+
+      const newExpenses = [...prev.expenses];
+      const newTransactions = [newTx];
+
+      if (bankCharge > 0) {
+        const chargeExpenseId = `exp-charge-${Date.now()}`;
+        const chargeTransactionId = `trans-charge-${Date.now()}`;
+
+        const chargeExpense: Expense = {
+          id: chargeExpenseId,
+          title: `Bank Charge: Loan Settle ${targetLoan.borrowerName}`,
+          description: `Automatic transaction fee on loan settlement deposit`,
+          amount: bankCharge,
+          date: settlementDate,
+          category: 'Bank Charges & Interest',
+          paymentMethodId: receivedInId,
+          paymentMethodType: receivedInType,
+        };
+
+        const chargeTransaction: Transaction = {
+          id: chargeTransactionId,
+          type: 'expense',
+          title: `Bank Charge: Loan Settle ${targetLoan.borrowerName}`,
+          amount: bankCharge,
+          date: settlementDate,
+          category: 'Bank Charges & Interest',
+          accountId: receivedInId,
+          accountType: receivedInType,
+          referenceId: chargeExpenseId,
+        };
+
+        newExpenses.unshift(chargeExpense);
+        newTransactions.push(chargeTransaction);
+      }
 
       // 5. Notification
       const newNotif: AppNotification = {
@@ -778,7 +934,8 @@ export default function App() {
         cashAccounts: updatedCash,
         cards: updatedCards,
         loansGiven: updatedLoans,
-        transactions: [newTx, ...prev.transactions],
+        expenses: newExpenses,
+        transactions: [...newTransactions, ...prev.transactions],
         incomes: [newInc, ...prev.incomes],
         notifications: [newNotif, ...prev.notifications],
       };
@@ -835,7 +992,8 @@ export default function App() {
     sourceAccountId: string,
     sourceAccountType: 'cash' | 'card',
     sourceAccountName: string,
-    notes?: string
+    notes?: string,
+    bankCharge: number = 0
   ) => {
     updateState(prev => {
       // Find the loan item to capture borrower info
@@ -846,13 +1004,15 @@ export default function App() {
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
 
+      const totalDeduction = amount + bankCharge;
+
       if (sourceAccountType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === sourceAccountId ? { ...c, balance: c.balance - amount } : c
+          c.id === sourceAccountId ? { ...c, balance: c.balance - totalDeduction } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === sourceAccountId ? { ...c, currentBalance: c.currentBalance - amount } : c
+          c.id === sourceAccountId ? { ...c, currentBalance: c.currentBalance - totalDeduction } : c
         );
       }
 
@@ -888,6 +1048,7 @@ export default function App() {
         accountId: sourceAccountId,
         accountType: sourceAccountType,
         referenceId: loanId,
+        charge: bankCharge > 0 ? bankCharge : undefined,
       };
 
       // 4. Create Expense entry
@@ -901,6 +1062,40 @@ export default function App() {
         paymentMethodId: sourceAccountId,
         paymentMethodType: sourceAccountType,
       };
+
+      const newExpenses = [newExp, ...prev.expenses];
+      const newTransactions = [newTx];
+
+      if (bankCharge > 0) {
+        const chargeExpenseId = `exp-charge-${Date.now()}`;
+        const chargeTransactionId = `trans-charge-${Date.now()}`;
+
+        const chargeExpense: Expense = {
+          id: chargeExpenseId,
+          title: `Bank Charge: Lent More ${targetLoan.borrowerName}`,
+          description: `Automatic bank charge fee for lending additional capital`,
+          amount: bankCharge,
+          date: new Date().toISOString().split('T')[0],
+          category: 'Bank Charges & Interest',
+          paymentMethodId: sourceAccountId,
+          paymentMethodType: sourceAccountType,
+        };
+
+        const chargeTransaction: Transaction = {
+          id: chargeTransactionId,
+          type: 'expense',
+          title: `Bank Charge: Lent More ${targetLoan.borrowerName}`,
+          amount: bankCharge,
+          date: new Date().toISOString().split('T')[0],
+          category: 'Bank Charges & Interest',
+          accountId: sourceAccountId,
+          accountType: sourceAccountType,
+          referenceId: chargeExpenseId,
+        };
+
+        newExpenses.unshift(chargeExpense);
+        newTransactions.push(chargeTransaction);
+      }
 
       // 5. Notification
       const newNotif: AppNotification = {
@@ -916,8 +1111,8 @@ export default function App() {
         cashAccounts: updatedCash,
         cards: updatedCards,
         loansGiven: updatedLoans,
-        transactions: [newTx, ...prev.transactions],
-        expenses: [newExp, ...prev.expenses],
+        transactions: [...newTransactions, ...prev.transactions],
+        expenses: newExpenses,
         notifications: [newNotif, ...prev.notifications],
       };
     });
@@ -1057,7 +1252,8 @@ export default function App() {
     subId: string,
     accountId: string,
     accountType: 'cash' | 'card',
-    paymentDate: string
+    paymentDate: string,
+    bankCharge: number = 0
   ) => {
     updateState(prev => {
       const sub = (prev.subscriptions || []).find(s => s.id === subId);
@@ -1068,12 +1264,14 @@ export default function App() {
       let updatedCards = [...prev.cards];
       let newAlertNotifications: AppNotification[] = [];
 
+      const totalDeduction = sub.amount + bankCharge;
+
       let accountName = '';
       if (accountType === 'cash') {
         updatedCash = updatedCash.map(c => {
           if (c.id === accountId) {
             accountName = c.name;
-            const nextVal = c.balance - sub.amount;
+            const nextVal = c.balance - totalDeduction;
             if (nextVal < 5000) {
               newAlertNotifications.push({
                 id: `nt-alert-${Date.now()}`,
@@ -1091,7 +1289,7 @@ export default function App() {
         updatedCards = updatedCards.map(c => {
           if (c.id === accountId) {
             accountName = `${c.bankName} - ${c.cardName}`;
-            const nextVal = c.currentBalance - sub.amount;
+            const nextVal = c.currentBalance - totalDeduction;
             if (nextVal < 10000) {
               newAlertNotifications.push({
                 id: `nt-alert-${Date.now()}`,
@@ -1154,7 +1352,42 @@ export default function App() {
         accountId,
         accountType,
         referenceId: expenseId,
+        charge: bankCharge > 0 ? bankCharge : undefined,
       };
+
+      const newExpenses = [...prev.expenses, newExpense];
+      const newTransactions = [newTransaction];
+
+      if (bankCharge > 0) {
+        const chargeExpenseId = `exp-charge-${Date.now()}`;
+        const chargeTransactionId = `trans-charge-${Date.now()}`;
+
+        const chargeExpense: Expense = {
+          id: chargeExpenseId,
+          title: `Bank Charge: Subscription ${sub.name}`,
+          description: `Automatic transaction fee on subscription card payment`,
+          amount: bankCharge,
+          date: paymentDate,
+          category: 'Bank Charges & Interest',
+          paymentMethodId: accountId,
+          paymentMethodType: accountType,
+        };
+
+        const chargeTransaction: Transaction = {
+          id: chargeTransactionId,
+          type: 'expense',
+          title: `Bank Charge: Subscription ${sub.name}`,
+          amount: bankCharge,
+          date: paymentDate,
+          category: 'Bank Charges & Interest',
+          accountId,
+          accountType,
+          referenceId: chargeExpenseId,
+        };
+
+        newExpenses.push(chargeExpense);
+        newTransactions.push(chargeTransaction);
+      }
 
       // Add a nice confirmation system notification
       const systemNotif: AppNotification = {
@@ -1168,10 +1401,10 @@ export default function App() {
       return {
         ...prev,
         subscriptions: updatedSubscriptions,
-        expenses: [...prev.expenses, newExpense],
+        expenses: newExpenses,
         cashAccounts: updatedCash,
         cards: updatedCards,
-        transactions: [newTransaction, ...prev.transactions],
+        transactions: [...newTransactions, ...prev.transactions],
         notifications: [systemNotif, ...newAlertNotifications, ...prev.notifications],
       };
     });
@@ -1308,7 +1541,8 @@ export default function App() {
     debtId: string,
     amount: number,
     paidFromId: string,
-    paidFromType: 'cash' | 'card'
+    paidFromType: 'cash' | 'card',
+    bankCharge: number = 0
   ) => {
     const paymentId = `dp-${Date.now()}`;
     const transactionId = `trans-${Date.now()}`;
@@ -1319,13 +1553,15 @@ export default function App() {
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
 
+      const totalDeduction = amount + bankCharge;
+
       if (paidFromType === 'cash') {
         updatedCash = updatedCash.map(c => 
-          c.id === paidFromId ? { ...c, balance: c.balance - amount } : c
+          c.id === paidFromId ? { ...c, balance: c.balance - totalDeduction } : c
         );
       } else {
         updatedCards = updatedCards.map(c => 
-          c.id === paidFromId ? { ...c, currentBalance: c.currentBalance - amount } : c
+          c.id === paidFromId ? { ...c, currentBalance: c.currentBalance - totalDeduction } : c
         );
       }
 
@@ -1362,7 +1598,42 @@ export default function App() {
         accountId: paidFromId,
         accountType: paidFromType,
         referenceId: paymentId,
+        charge: bankCharge > 0 ? bankCharge : undefined,
       };
+
+      const newExpenses = [...prev.expenses];
+      const newTransactions = [newTransaction];
+
+      if (bankCharge > 0) {
+        const chargeExpenseId = `exp-charge-${Date.now()}`;
+        const chargeTransactionId = `trans-charge-${Date.now()}`;
+
+        const chargeExpense: Expense = {
+          id: chargeExpenseId,
+          title: `Bank Charge: Repay ${matchedDebt?.debtSource || 'Private Loan'}`,
+          description: `Automatic bank charge fee for debt repayment`,
+          amount: bankCharge,
+          date: paymentDate,
+          category: 'Bank Charges & Interest',
+          paymentMethodId: paidFromId,
+          paymentMethodType: paidFromType,
+        };
+
+        const chargeTransaction: Transaction = {
+          id: chargeTransactionId,
+          type: 'expense',
+          title: `Bank Charge: Repay ${matchedDebt?.debtSource || 'Private Loan'}`,
+          amount: bankCharge,
+          date: paymentDate,
+          category: 'Bank Charges & Interest',
+          accountId: paidFromId,
+          accountType: paidFromType,
+          referenceId: chargeExpenseId,
+        };
+
+        newExpenses.push(chargeExpense);
+        newTransactions.push(chargeTransaction);
+      }
 
       const systemAlert: AppNotification = {
         id: `nt-${Date.now()}`,
@@ -1376,8 +1647,9 @@ export default function App() {
         ...prev,
         cashAccounts: updatedCash,
         cards: updatedCards,
+        expenses: newExpenses,
         debts: updatedDebts,
-        transactions: [newTransaction, ...prev.transactions],
+        transactions: [...newTransactions, ...prev.transactions],
         notifications: [systemAlert, ...prev.notifications],
       };
     });

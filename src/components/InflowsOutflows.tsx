@@ -8,7 +8,7 @@ interface InflowsOutflowsProps {
   cashAccounts: CashAccount[];
   cards: BankCard[];
   onAddIncome: (amount: number, date: string, source: string, category: CategoryIncome, targetId: string, targetType: 'cash' | 'card') => void;
-  onAddExpense: (title: string, description: string, amount: number, date: string, category: CategoryExpense, paymentMethodId: string, paymentMethodType: 'cash' | 'card') => void;
+  onAddExpense: (title: string, description: string, amount: number, date: string, category: CategoryExpense, paymentMethodId: string, paymentMethodType: 'cash' | 'card', bankCharge?: number) => void;
   currency: string;
 }
 
@@ -39,6 +39,7 @@ export default function InflowsOutflows({
   const [expMethodId, setExpMethodId] = useState('');
   const [expMethodType, setExpMethodType] = useState<'cash' | 'card'>('cash');
   const [expDate, setExpDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [expBankCharge, setExpBankCharge] = useState('');
 
   // Balance Insufficiency state
   const [insufficiencyError, setInsufficiencyError] = useState<string | null>(null);
@@ -134,6 +135,7 @@ export default function InflowsOutflows({
         errs.amount = 'Settled sum is required';
       } else {
         const num = parseFloat(amtStr);
+        const chargeNum = expMethodType === 'card' ? (parseFloat(expBankCharge) || 0) : 0;
         if (isNaN(num)) {
           errs.amount = 'Settled sum must be a valid number';
         } else if (num <= 0) {
@@ -155,8 +157,8 @@ export default function InflowsOutflows({
               availableBalance = 0;
             }
           }
-          if (availableBalance < num) {
-            errs.amount = `Insufficient available limit! Available: ${currency} ${availableBalance.toLocaleString()}`;
+          if (availableBalance < num + chargeNum) {
+            errs.amount = `Insufficient available limit including bank charges! Required: ${currency} ${(num + chargeNum).toLocaleString()}, Available: ${currency} ${availableBalance.toLocaleString()}`;
           }
         }
       }
@@ -235,12 +237,14 @@ export default function InflowsOutflows({
         expDate,
         expCategory,
         expMethodId,
-        expMethodType
+        expMethodType,
+        expMethodType === 'card' ? (parseFloat(expBankCharge) || 0) : 0
       );
 
       setExpAmount('');
       setExpTitle('');
       setExpDesc('');
+      setExpBankCharge('');
       setExpSubmitted(false);
       setExpErrors({});
       showToast('success', 'Invoice payment settled automatically! Account balance reduced.');
@@ -509,7 +513,7 @@ export default function InflowsOutflows({
                   <option value="Medical">Medical / Healthcare</option>
                   <option value="Education">Education Coursework</option>
                   <option value="Insurance">Asset Insurance</option>
-                  <option value="Other font-sans">Other Miscellaneous</option>
+                  <option value="Other">Other Miscellaneous</option>
                 </select>
               </div>
             </div>
@@ -554,6 +558,26 @@ export default function InflowsOutflows({
                 </select>
                 {expErrors.methodId && (
                   <span className="text-rose-400 font-mono text-[9px] mt-1.5 block pl-0.5">{expErrors.methodId}</span>
+                )}
+
+                {expMethodType === 'card' && expMethodId && (
+                  <div className="mt-3.5 p-3.5 bg-zinc-950/40 border border-zinc-900 rounded-xl space-y-1 animate-fade-in">
+                    <label className="text-[9px] text-[#a1a1a9] font-mono font-bold block uppercase pl-0.5">Optional Bank Charge ({currency})</label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="e.g. 150 (Leave blank or 0 if no charges)"
+                      value={expBankCharge}
+                      onChange={(e) => {
+                        setExpBankCharge(e.target.value);
+                        setInsufficiencyError(null);
+                        const chargeVal = parseFloat(e.target.value) || 0;
+                        validateExpense(expTitle, expDesc, expAmount, expMethodId, expMethodType, expSubmitted);
+                      }}
+                      className="w-full bg-black border border-zinc-850 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                    />
+                    <p className="text-[9px] text-zinc-500 font-mono pl-0.5">Some card transactions incur fees; entering a charge will deduct both the amount and fee from your card balance.</p>
+                  </div>
                 )}
               </div>
             </div>

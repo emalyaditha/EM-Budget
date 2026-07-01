@@ -12,7 +12,7 @@ interface SubscriptionManagementProps {
   onAddSubscription: (sub: Omit<Subscription, 'id'>) => void;
   onDeleteSubscription: (id: string) => void;
   onToggleSubscriptionStatus: (id: string, currentStatus: 'Active' | 'Paused' | 'Cancelled') => void;
-  onPaySubscription: (subId: string, accountId: string, accountType: 'cash' | 'card', paymentDate: string) => void;
+  onPaySubscription: (subId: string, accountId: string, accountType: 'cash' | 'card', paymentDate: string, bankCharge?: number) => void;
 }
 
 export default function SubscriptionManagement({
@@ -40,6 +40,7 @@ export default function SubscriptionManagement({
   const [payAccountId, setPayAccountId] = useState('');
   const [payAccountType, setPayAccountType] = useState<'cash' | 'card'>('cash');
   const [payDate, setPayDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [payBankCharge, setPayBankCharge] = useState('');
 
   // Validation structures
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -140,13 +141,16 @@ export default function SubscriptionManagement({
       availableBalance = match ? match.currentBalance : 0;
     }
 
-    if (availableBalance < sub.amount) {
-      showToast('error', `Insufficient funds! Required ${currency}${sub.amount.toLocaleString()}, available: ${currency}${availableBalance.toLocaleString()}`);
+    const chargeVal = payAccountType === 'card' ? (parseFloat(payBankCharge) || 0) : 0;
+
+    if (availableBalance < sub.amount + chargeVal) {
+      showToast('error', `Insufficient funds including charges! Required ${currency}${(sub.amount + chargeVal).toLocaleString()}, available: ${currency}${availableBalance.toLocaleString()}`);
       return;
     }
 
-    onPaySubscription(sub.id, payAccountId, payAccountType, payDate);
+    onPaySubscription(sub.id, payAccountId, payAccountType, payDate, chargeVal);
     setSelectedSubId(null);
+    setPayBankCharge('');
   };
 
   const handleDelete = (id: string, name: string) => {
@@ -352,7 +356,7 @@ export default function SubscriptionManagement({
               <select
                 value={`${payAccountId}:${payAccountType}`}
                 onChange={(e) => handleSelectPayAccount(e.target.value)}
-                className="w-full bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 text-xs rounded-xl px-2.5 py-3 focus:outline-none font-bold"
+                className="w-full bg-black border border-zinc-855 hover:border-zinc-700 text-zinc-300 text-xs rounded-xl px-2.5 py-3 focus:outline-none font-bold"
               >
                 <optgroup label="Cash Wallets/Accounts" className="bg-[#0c0c0e] text-zinc-400">
                   {cashAccounts.map(c => (
@@ -375,6 +379,21 @@ export default function SubscriptionManagement({
               />
             </div>
           </div>
+
+          {payAccountType === 'card' && payAccountId && (
+            <div className="p-3.5 bg-zinc-950/40 border border-zinc-900 rounded-xl space-y-1 animate-fade-in text-xs">
+              <label className="text-[10px] text-zinc-400 font-mono font-bold block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
+              <input
+                type="number"
+                step="any"
+                placeholder="e.g. 150 (Leave blank or 0 if none)"
+                value={payBankCharge}
+                onChange={(e) => setPayBankCharge(e.target.value)}
+                className="w-full bg-black border border-zinc-850 rounded-xl text-xs px-3.5 py-2.5 focus:outline-none focus:border-zinc-700 font-mono text-white"
+              />
+              <p className="text-[9px] text-zinc-500 font-mono pl-0.5 leading-normal">Paying subscriptions from a card might trigger transaction processing fees. This charge is recorded as a bank fee expense and deducted from the card balance.</p>
+            </div>
+          )}
 
           <button
             onClick={executePayment}

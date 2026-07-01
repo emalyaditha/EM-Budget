@@ -11,8 +11,8 @@ interface LoansTrackerProps {
   loans: LoanGiven[];
   cashAccounts: CashAccount[];
   cards: BankCard[];
-  onAddLoan: (loan: Omit<LoanGiven, 'id' | 'remainingAmount' | 'status' | 'settlements'>) => void;
-  onAddSettlement: (loanId: string, amount: number, receivedInId: string, receivedInType: 'cash' | 'card', receivedInName: string) => void;
+  onAddLoan: (loan: Omit<LoanGiven, 'id' | 'remainingAmount' | 'status' | 'settlements'>, bankCharge?: number) => void;
+  onAddSettlement: (loanId: string, amount: number, receivedInId: string, receivedInType: 'cash' | 'card', receivedInName: string, bankCharge?: number) => void;
   onDeleteLoan: (loanId: string) => void;
   onIncreaseLoan: (
     loanId: string,
@@ -20,7 +20,8 @@ interface LoansTrackerProps {
     sourceAccountId: string,
     sourceAccountType: 'cash' | 'card',
     sourceAccountName: string,
-    notes?: string
+    notes?: string,
+    bankCharge?: number
   ) => void;
   currency: string;
 }
@@ -44,6 +45,7 @@ export default function LoansTracker({
   const [dateGiven, setDateGiven] = useState(new Date().toISOString().split('T')[0]);
   const [sourceAccountId, setSourceAccountId] = useState('');
   const [sourceAccountType, setSourceAccountType] = useState<'cash' | 'card'>('cash');
+  const [giveLoanBankCharge, setGiveLoanBankCharge] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -53,6 +55,7 @@ export default function LoansTracker({
   const [increaseSourceId, setIncreaseSourceId] = useState('');
   const [increaseSourceType, setIncreaseSourceType] = useState<'cash' | 'card'>('cash');
   const [increaseNotes, setIncreaseNotes] = useState('');
+  const [increaseLoanBankCharge, setIncreaseLoanBankCharge] = useState('');
   const [increaseError, setIncreaseError] = useState<string | null>(null);
 
   // Settlement Form states (which loan is currently receiving a settlement)
@@ -61,6 +64,7 @@ export default function LoansTracker({
   const [settlementDate, setSettlementDate] = useState(new Date().toISOString().split('T')[0]);
   const [receivedInId, setReceivedInId] = useState('');
   const [receivedInType, setReceivedInType] = useState<'cash' | 'card'>('cash');
+  const [settleLoanBankCharge, setSettleLoanBankCharge] = useState('');
   const [settlementError, setSettlementError] = useState<string | null>(null);
 
   // Expanded list states to view settlement history for a loan
@@ -115,8 +119,9 @@ export default function LoansTracker({
     } else {
       // Optional balance check warning
       const targetAcc = availableAccounts.find(a => a.id === sourceAccountId && a.type === sourceAccountType);
-      if (targetAcc && targetAcc.balance < parseFloat(totalAmount)) {
-        errs.totalAmount = `Note: Selected account has insufficient balance (${currency} ${targetAcc.balance.toLocaleString()}). Proceeding will overdraft account.`;
+      const chargeNum = sourceAccountType === 'card' ? (parseFloat(giveLoanBankCharge) || 0) : 0;
+      if (targetAcc && targetAcc.balance < parseFloat(totalAmount) + chargeNum) {
+        errs.totalAmount = `Note: Selected account has insufficient balance (${currency} ${targetAcc.balance.toLocaleString()}) to cover loan and bank charges. Proceeding will overdraft account.`;
       }
     }
 
@@ -137,6 +142,7 @@ export default function LoansTracker({
 
     const selectedAcc = availableAccounts.find(a => a.id === sourceAccountId && a.type === sourceAccountType);
     const sourceName = selectedAcc ? selectedAcc.name : 'Unknown Account';
+    const chargeVal = sourceAccountType === 'card' ? (parseFloat(giveLoanBankCharge) || 0) : 0;
 
     onAddLoan({
       borrowerName: borrowerName.trim(),
@@ -146,11 +152,12 @@ export default function LoansTracker({
       sourceAccountType,
       sourceAccountName: sourceName,
       notes: notes.trim() || 'No extra notes provided.',
-    });
+    }, chargeVal);
 
     // Reset Form
     setBorrowerName('');
     setTotalAmount('');
+    setGiveLoanBankCharge('');
     setNotes('');
     setIsGivingLoan(false);
     setErrors({});
@@ -178,17 +185,20 @@ export default function LoansTracker({
 
     const destAcc = availableAccounts.find(a => a.id === receivedInId && a.type === receivedInType);
     const destName = destAcc ? destAcc.name : 'Unknown Account';
+    const chargeVal = receivedInType === 'card' ? (parseFloat(settleLoanBankCharge) || 0) : 0;
 
     onAddSettlement(
       settlingLoanId,
       amt,
       receivedInId,
       receivedInType,
-      destName
+      destName,
+      chargeVal
     );
 
     // Reset
     setSettlementAmount('');
+    setSettleLoanBankCharge('');
     setSettlingLoanId(null);
     showToast('success', `Logged settlement of ${currency} ${amt.toLocaleString()} successfully credited into ${destName}.`);
   };
@@ -205,6 +215,12 @@ export default function LoansTracker({
 
     const selectedAcc = availableAccounts.find(a => a.id === increaseSourceId && a.type === increaseSourceType);
     const sourceName = selectedAcc ? selectedAcc.name : 'Unknown Account';
+    const chargeVal = increaseSourceType === 'card' ? (parseFloat(increaseLoanBankCharge) || 0) : 0;
+
+    if (selectedAcc && selectedAcc.balance < amt + chargeVal) {
+      setIncreaseError(`Insufficient balance! Available: ${currency} ${selectedAcc.balance.toLocaleString()} to cover loan add-on of ${currency} ${(amt + chargeVal).toLocaleString()}.`);
+      return;
+    }
 
     onIncreaseLoan(
       loan.id,
@@ -212,11 +228,13 @@ export default function LoansTracker({
       increaseSourceId,
       increaseSourceType,
       sourceName,
-      increaseNotes.trim() || 'Additional capital lent'
+      increaseNotes.trim() || 'Additional capital lent',
+      chargeVal
     );
 
     // Reset Form
     setIncreaseAmount('');
+    setIncreaseLoanBankCharge('');
     setIncreaseNotes('');
     setIncreasingLoanId(null);
   };
@@ -336,6 +354,21 @@ export default function LoansTracker({
                 )}
               </select>
             </div>
+
+            {sourceAccountType === 'card' && sourceAccountId && (
+              <div className="space-y-1.5 animate-fade-in md:col-span-3 bg-zinc-950/40 p-3.5 border border-zinc-900 rounded-xl">
+                <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block font-mono">Optional Bank Card Charge ({currency})</label>
+                <input
+                  type="number"
+                  step="any"
+                  placeholder="e.g. 150 (Leave blank or 0 if none)"
+                  value={giveLoanBankCharge}
+                  onChange={(e) => setGiveLoanBankCharge(e.target.value)}
+                  className="w-full bg-black border border-zinc-850 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                />
+                <p className="text-[9px] text-zinc-500 font-mono pl-0.5 leading-normal">Lending from a bank card might trigger fees. Entering a charge will record the fee as a bank charge expense and reduce your card balance.</p>
+              </div>
+            )}
 
           </div>
 
@@ -588,6 +621,21 @@ export default function LoansTracker({
 
                       </div>
 
+                      {receivedInType === 'card' && receivedInId && (
+                        <div className="p-3.5 bg-zinc-950/40 border border-zinc-900 rounded-xl space-y-1 animate-fade-in">
+                          <label className="text-[10px] text-zinc-400 font-mono font-bold block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
+                          <input
+                            type="number"
+                            step="any"
+                            placeholder="e.g. 150 (Leave blank or 0 if none)"
+                            value={settleLoanBankCharge}
+                            onChange={(e) => setSettleLoanBankCharge(e.target.value)}
+                            className="w-full bg-black border border-zinc-850 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                          />
+                          <p className="text-[9px] text-zinc-500 font-mono pl-0.5 leading-normal">Receiving settled loan funds on a card might incur transaction fees; entering a charge will deduct this fee from the final credited card balance.</p>
+                        </div>
+                      )}
+
                       {settlementError && (
                         <p className="text-[10px] text-rose-500 font-semibold">{settlementError}</p>
                       )}
@@ -662,6 +710,21 @@ export default function LoansTracker({
                         </div>
 
                       </div>
+
+                      {increaseSourceType === 'card' && increaseSourceId && (
+                        <div className="p-3.5 bg-zinc-950/40 border border-zinc-900 rounded-xl space-y-1 animate-fade-in text-xs">
+                          <label className="text-[10px] text-zinc-400 font-mono font-bold block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
+                          <input
+                            type="number"
+                            step="any"
+                            placeholder="e.g. 150 (Leave blank or 0 if none)"
+                            value={increaseLoanBankCharge}
+                            onChange={(e) => setIncreaseLoanBankCharge(e.target.value)}
+                            className="w-full bg-black border border-zinc-850 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                          />
+                          <p className="text-[9px] text-zinc-500 font-mono pl-0.5 leading-normal">Lending more funds from a card might incur transaction charges; entering a charge will deduct this fee from your card balance and track it under bank fees.</p>
+                        </div>
+                      )}
 
                       {increaseError && (
                         <p className="text-[10px] text-rose-500 font-semibold">{increaseError}</p>

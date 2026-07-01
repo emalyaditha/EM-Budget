@@ -19,7 +19,7 @@ interface DebtTrackerProps {
     accountId?: string, 
     accountType?: 'cash' | 'card'
   ) => void;
-  onMakeDebtPayment: (debtId: string, amount: number, paidFromId: string, paidFromType: 'cash' | 'card') => void;
+  onMakeDebtPayment: (debtId: string, amount: number, paidFromId: string, paidFromType: 'cash' | 'card', bankCharge?: number) => void;
   onDeleteDebt: (debtId: string) => void;
   currency: string;
 }
@@ -53,6 +53,7 @@ export default function DebtTracker({
   const [incTargetAccountType, setIncTargetAccountType] = useState<'cash' | 'card' | ''>('');
   const [paySourceId, setPaySourceId] = useState('');
   const [paySourceType, setPaySourceType] = useState<'cash' | 'card'>('cash');
+  const [payBankCharge, setPayBankCharge] = useState('');
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Validation States
@@ -181,15 +182,18 @@ export default function DebtTracker({
       availableBalance = match ? match.currentBalance : 0;
     }
 
-    if (availableBalance < amountNum) {
-      setPaymentError(`Insufficient balance in chosen account to make this payment! Available: ${currency} ${availableBalance.toLocaleString()}`);
+    const chargeNum = paySourceType === 'card' ? (parseFloat(payBankCharge) || 0) : 0;
+
+    if (availableBalance < amountNum + chargeNum) {
+      setPaymentError(`Insufficient balance in chosen account to make this payment including bank charges! Required: ${currency} ${(amountNum + chargeNum).toLocaleString()}, Available: ${currency} ${availableBalance.toLocaleString()}`);
       return;
     }
 
     const isClearingFinal = amountNum === debtItem.remainingAmount;
 
-    onMakeDebtPayment(payingDebtId, amountNum, paySourceId, paySourceType);
+    onMakeDebtPayment(payingDebtId, amountNum, paySourceId, paySourceType, chargeNum);
     setPayAmount('');
+    setPayBankCharge('');
     setPayingDebtId(null);
     setPaymentError(null);
     
@@ -710,6 +714,24 @@ export default function DebtTracker({
                         </select>
                       </div>
                     </div>
+
+                    {paySourceType === 'card' && paySourceId && (
+                      <div className="p-3.5 bg-zinc-950/40 border border-zinc-900 rounded-xl space-y-1 animate-fade-in text-xs">
+                        <label className="text-[10px] text-zinc-400 font-mono font-bold block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          placeholder="e.g. 150 (Leave blank or 0 if none)"
+                          value={payBankCharge}
+                          onChange={(e) => {
+                            setPayBankCharge(e.target.value);
+                            setPaymentError(null);
+                          }}
+                          className="w-full bg-black border border-zinc-850 rounded-xl text-xs px-3.5 py-2.5 focus:outline-none focus:border-zinc-700 font-mono text-white"
+                        />
+                        <p className="text-[9px] text-zinc-500 font-mono pl-0.5 leading-normal">Repaying from a bank card might trigger processing charges. This charge is recorded as a bank fee expense and deducted from the card balance.</p>
+                      </div>
+                    )}
 
                     {paymentError && (
                       <p className="text-red-400 text-[10px] font-mono mt-1.5 font-bold bg-[#1a0c0a] py-2 px-3 border border-red-900/40 rounded-xl flex items-center gap-1.5 leading-tight">
