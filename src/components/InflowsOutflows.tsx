@@ -149,7 +149,7 @@ export default function InflowsOutflows({
             const match = cards.find(c => c.id === methodId);
             if (match) {
               if (match.cardType === 'Credit') {
-                availableBalance = (match.limit ?? 0) - match.currentBalance;
+                availableBalance = (match.limit ?? 0) + match.currentBalance;
               } else {
                 availableBalance = match.currentBalance;
               }

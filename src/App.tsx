@@ -30,7 +30,7 @@ import { CategorySpreadAnalysis } from './components/Charts';
 import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
-import { EXPENSE_COLORS } from './utils';
+import { EXPENSE_COLORS, calculateNetWorth } from './utils';
 
 export default function App() {
   const { showConfirm, showToast } = useNotifications();
@@ -2150,14 +2150,13 @@ export default function App() {
   const currentMonthLabel = now.toLocaleString('default', { month: 'long' });
   const currentMonthFormat = `-${String(now.getMonth() + 1).padStart(2, '0')}-`;
 
-  const totalCashAmount = state.cashAccounts.reduce((sum, c) => sum + c.balance, 0);
-  const totalDebitCardsAmount = state.cards.filter(c => !c.isCanceled && c.cardType === 'Debit').reduce((sum, c) => sum + (c.currentBalance - (Number(c.lockedAmount) || 0)), 0);
-  const totalCreditCardsDebt = state.cards.filter(c => !c.isCanceled && c.cardType === 'Credit').reduce((sum, c) => sum + (c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0), 0);
-  const totalCreditCardsAsset = state.cards.filter(c => !c.isCanceled && c.cardType === 'Credit').reduce((sum, c) => sum + (c.currentBalance > 0 ? c.currentBalance : 0), 0);
-  const totalCreditCardsAmount = totalCreditCardsDebt;
-  const totalDebtsAmount = state.debts.reduce((sum, d) => sum + d.remainingAmount, 0);
-  const totalLoansGiven = (state.loansGiven || []).reduce((sum, l) => sum + l.totalAmount, 0);
-  const aggregateActiveWealth = totalCashAmount + totalDebitCardsAmount + totalCreditCardsAsset - totalCreditCardsAmount - totalDebtsAmount + totalLoansGiven;
+  const netWorthBreakdown = calculateNetWorth(state);
+  const totalCashAmount = netWorthBreakdown.cash;
+  const totalDebitCardsAmount = netWorthBreakdown.debitCards;
+  const totalCreditCardsAmount = netWorthBreakdown.creditCardLiabilities;
+  const totalDebtsAmount = netWorthBreakdown.debts;
+  const totalLoansGiven = netWorthBreakdown.loansGiven;
+  const aggregateActiveWealth = netWorthBreakdown.netWorth;
 
   const currentMonthInflow = state.transactions
     .filter(t => t.type === 'income' && t.date.includes(currentMonthFormat))

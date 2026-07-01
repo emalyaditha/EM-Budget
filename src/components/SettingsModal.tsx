@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Settings, Database, Zap, FileDown, X, Info, Shield, HelpCircle, 
   Cloud, RefreshCw, Check, Copy, Eye, EyeOff, Code, ChevronDown, ChevronUp, AlertCircle,
-  LogOut, Sun, Moon
+  LogOut, Sun, Moon, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState } from '../types';
@@ -382,31 +382,31 @@ class CloudSyncService {
                 </p>
 
                 {/* Inputs */}
-                <div className="space-y-3">
+                 <div className="space-y-3">
                   <div>
-                    <label className="text-[10px] text-zinc-500 font-semibold font-mono uppercase block mb-1">
-                      Supabase Project URL
+                    <label className="text-[10px] text-zinc-500 font-semibold font-mono uppercase block mb-1 flex items-center gap-1">
+                      <Lock size={9} /> Supabase Project URL (Read-Only)
                     </label>
                     <input
                       type="url"
                       value={supabaseUrl}
-                      onChange={(e) => setSupabaseUrl(e.target.value)}
+                      disabled={true}
                       placeholder="https://your-project.supabase.co"
-                      className="w-full bg-black/40 border border-zinc-800 rounded-lg text-xs px-2.5 py-2 text-white focus:outline-none focus:border-zinc-500 font-mono"
+                      className="w-full bg-black/20 border border-zinc-900 rounded-lg text-xs px-2.5 py-2 text-zinc-500 font-mono cursor-not-allowed select-none"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-zinc-500 font-semibold font-mono uppercase block mb-1">
-                      Anon / Public Public Key
+                    <label className="text-[10px] text-zinc-500 font-semibold font-mono uppercase block mb-1 flex items-center gap-1">
+                      <Lock size={9} /> Anon / Public Public Key (Read-Only)
                     </label>
                     <div className="relative">
                       <input
                         type={showKey ? 'text' : 'password'}
                         value={supabaseKey}
-                        onChange={(e) => setSupabaseKey(e.target.value)}
+                        disabled={true}
                         placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                        className="w-full bg-black/40 border border-zinc-800 rounded-lg text-xs pl-2.5 pr-8 py-2 text-white focus:outline-none focus:border-zinc-500 font-mono"
+                        className="w-full bg-black/20 border border-zinc-900 rounded-lg text-xs pl-2.5 pr-8 py-2 text-zinc-500 font-mono cursor-not-allowed select-none"
                       />
                       <button
                         type="button"
@@ -418,16 +418,10 @@ class CloudSyncService {
                     </div>
                   </div>
 
-                  {/* Finder Helper Box */}
-                  <div className="bg-zinc-950/70 border border-zinc-850 p-3 rounded-xl space-y-1.5 text-[10px] text-zinc-400 font-sans">
-                    <span className="font-bold text-zinc-200 block">💡 Quick Guide: Where to find these values?</span>
-                    <ol className="list-decimal list-inside space-y-1 text-zinc-400">
-                      <li>Log in to your <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:underline">Supabase Dashboard</a> and choose project <strong>iivdlgbzt...</strong></li>
-                      <li>Click the <strong className="text-zinc-300">Settings Gear icon</strong> (⚙️ bottom left side-bar menu).</li>
-                      <li>In the sub-menu, select <strong className="text-zinc-300">API</strong> under settings.</li>
-                      <li>Copy <strong className="text-zinc-300">Project URL</strong> into the top URL input.</li>
-                      <li>Copy the key labeled as <strong className="text-zinc-350">`anon / public`</strong> under Project API keys into the bottom Key input.</li>
-                    </ol>
+                  {/* Lock Presentation Box */}
+                  <div className="bg-amber-950/20 border border-amber-900/40 p-3 rounded-xl flex items-center gap-2.5 text-[10px] text-amber-500/90 font-sans leading-normal">
+                    <Lock size={12} className="shrink-0 text-amber-550" />
+                    <span>Connection credentials are locked to build-time environment variables for strict security and financial-integrity.</span>
                   </div>
 
                   {/* Auto Push Sync Selection */}
@@ -438,7 +432,7 @@ class CloudSyncService {
                       checked={autoSync}
                       onChange={(e) => {
                         setAutoSync(e.target.checked);
-                        saveSupabaseConfig(supabaseUrl, supabaseKey, e.target.checked);
+                        saveSupabaseConfig('', '', e.target.checked);
                       }}
                       className="rounded border-zinc-800 bg-black text-teal-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
                     />
@@ -476,15 +470,6 @@ class CloudSyncService {
                     Pull From Cloud
                   </button>
                 </div>
-
-                {/* Save Credentials trigger button */}
-                <button
-                  type="button"
-                  onClick={handleSaveCredentials}
-                  className="w-full py-2 bg-neutral-900 hover:bg-neutral-800 text-xs font-bold text-zinc-300 hover:text-white border border-zinc-850 hover:border-zinc-700 rounded-xl transition-all cursor-pointer shadow"
-                >
-                  Save Connection Configuration
-                </button>
 
                 {/* Status Logs Notification inside modular box */}
                 {syncMessage && (

@@ -35,16 +35,41 @@ export function getSupabaseConfig() {
   const meta = import.meta as any;
   const isProd = !!(meta.env && meta.env.PROD);
   
-  let url = (meta.env && meta.env.VITE_SUPABASE_URL) || DEFAULT_SUPABASE_URL;
-  let key = (meta.env && meta.env.VITE_SUPABASE_ANON_KEY) || '';
+  let url = (localStorage.getItem(URL_STORAGE_KEY) || (meta.env && meta.env.VITE_SUPABASE_URL) || '').trim();
+  let key = (localStorage.getItem(KEY_STORAGE_KEY) || (meta.env && meta.env.VITE_SUPABASE_ANON_KEY) || '').trim();
   
-  // Allow client-side LocalStorage override (including dynamic /api/config fetched keys)
-  const localUrl = localStorage.getItem(URL_STORAGE_KEY);
-  const localKey = localStorage.getItem(KEY_STORAGE_KEY);
-  if (localUrl) url = localUrl;
-  if (localKey) key = localKey;
-  
-  if (url && !url.startsWith('https://') && !url.startsWith('http://')) {
+  // Swapped detection
+  if (url.startsWith('eyJ') && (key.startsWith('http://') || key.startsWith('https://'))) {
+    const temp = url;
+    url = key;
+    key = temp;
+  } else if (url.startsWith('eyJ') && (!key || key === '')) {
+    key = url;
+    url = '';
+  }
+
+  // Extract from JWT if needed
+  if (!url || url.startsWith('eyJ')) {
+    const keyToDecode = url.startsWith('eyJ') ? url : key;
+    if (keyToDecode && keyToDecode.startsWith('eyJ')) {
+      try {
+        const parts = keyToDecode.split('.');
+        if (parts.length >= 2) {
+          const base64Url = parts[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const payloadStr = atob(base64);
+          const payload = JSON.parse(payloadStr);
+          if (payload && payload.ref) {
+            url = `https://${payload.ref}.supabase.co`;
+          }
+        }
+      } catch (e) {
+        console.error("[Supabase Autocorrect Client] Failed to decode JWT:", e);
+      }
+    }
+  }
+
+  if (!url || (!url.startsWith('https://') && !url.startsWith('http://'))) {
     url = DEFAULT_SUPABASE_URL;
   }
   
@@ -63,8 +88,6 @@ export function getSupabaseConfig() {
 }
 
 export function saveSupabaseConfig(url: string, key: string, autoSync: boolean) {
-  localStorage.setItem(URL_STORAGE_KEY, url);
-  localStorage.setItem(KEY_STORAGE_KEY, key);
   localStorage.setItem(AUTO_SYNC_KEY, String(autoSync));
 }
 
@@ -946,6 +969,7 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
     }
 
     // Load auxiliary state (budgets, savingsGoals, and fallback loansGiven) from ledger_states first
+    let fullJsonStateStr: any = null;
     let fetchedBudgets: any[] | null = null;
     let fetchedSavingsGoals: any[] | null = null;
     let fetchedLoansGiven: any[] | null = null;
@@ -963,7 +987,7 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       if (!stateErr && latestStateData) {
         hasLedgerStateRecord = true;
         if (latestStateData.state) {
-          const fullJsonStateStr = typeof latestStateData.state === 'string'
+          fullJsonStateStr = typeof latestStateData.state === 'string'
             ? JSON.parse(latestStateData.state)
             : latestStateData.state;
           if (fullJsonStateStr) {
@@ -1009,7 +1033,18 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
                                    transactions.length > 0 || 
                                    debts.length > 0;
 
-    // Construct the AppState from individual tables with mapping applied
+    // Helper helper to map or fallback to ledger_states json
+    const getListField = (tableData: any[], jsonField: any[] | undefined): any[] => {
+      if (tableData && tableData.length > 0) {
+        return tableData.map(mapDatabaseResultToState);
+      }
+      if (jsonField && Array.isArray(jsonField) && jsonField.length > 0) {
+        return jsonField;
+      }
+      return [];
+    };
+
+    // Construct the AppState from individual tables with mapping applied, falling back to fullJsonStateStr if tables are empty
     const reconstructedState: AppState = {
       ...DEFAULT_APP_STATE, // Use initial structure
       userProfile: {
@@ -1017,21 +1052,32 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
         email: email,
         avatarUrl: profileAvatarUrl || fetchedAvatarUrl || undefined
       },
-      cards: cards.map(mapDatabaseResultToState),
-      cashAccounts: cash.map(mapDatabaseResultToState),
-      transactions: transactions.map(mapDatabaseResultToState),
-      debts: debts.map(mapDatabaseResultToState),
-      incomes: incomes.map(mapDatabaseResultToState),
-      expenses: expenses.map(mapDatabaseResultToState),
-      notifications: notifications.map(mapDatabaseResultToState),
-      subscriptions: fetchedSubs.map(mapDatabaseResultToState),
-      loansGiven: fetchedLoansGiven !== null ? fetchedLoansGiven : [],
+      cards: getListField(cards, fullJsonStateStr?.cards),
+      cashAccounts: getListField(cash, fullJsonStateStr?.cashAccounts),
+      transactions: getListField(transactions, fullJsonStateStr?.transactions),
+      debts: getListField(debts, fullJsonStateStr?.debts),
+      incomes: getListField(incomes, fullJsonStateStr?.incomes),
+      expenses: getListField(expenses, fullJsonStateStr?.expenses),
+      notifications: getListField(notifications, fullJsonStateStr?.notifications),
+      subscriptions: getListField(fetchedSubs, fullJsonStateStr?.subscriptions),
+      loansGiven: fetchedLoansGiven && fetchedLoansGiven.length > 0
+        ? fetchedLoansGiven
+        : (fullJsonStateStr && Array.isArray(fullJsonStateStr.loansGiven) ? fullJsonStateStr.loansGiven : []),
       budgets: envelopes && envelopes.length > 0 
         ? envelopes.map(mapDatabaseResultToState) 
-        : (fetchedBudgets !== null ? fetchedBudgets : (hasUserDatabaseRecords ? [] : DEFAULT_APP_STATE.budgets)),
-      savingsGoals: fetchedSavingsGoals !== null 
+        : (fetchedBudgets && fetchedBudgets.length > 0 
+            ? fetchedBudgets 
+            : (fullJsonStateStr && Array.isArray(fullJsonStateStr.budgets) && fullJsonStateStr.budgets.length > 0 
+                ? fullJsonStateStr.budgets 
+                : (hasUserDatabaseRecords ? [] : DEFAULT_APP_STATE.budgets))),
+      savingsGoals: fetchedSavingsGoals && fetchedSavingsGoals.length > 0 
         ? fetchedSavingsGoals 
-        : (hasUserDatabaseRecords ? [] : DEFAULT_APP_STATE.savingsGoals)
+        : (fullJsonStateStr && Array.isArray(fullJsonStateStr.savingsGoals) && fullJsonStateStr.savingsGoals.length > 0 
+            ? fullJsonStateStr.savingsGoals 
+            : (hasUserDatabaseRecords ? [] : DEFAULT_APP_STATE.savingsGoals)),
+      pinCode: fullJsonStateStr && typeof fullJsonStateStr.pinCode === 'string' ? fullJsonStateStr.pinCode : DEFAULT_APP_STATE.pinCode,
+      pinEnabled: fullJsonStateStr && typeof fullJsonStateStr.pinEnabled === 'boolean' ? fullJsonStateStr.pinEnabled : DEFAULT_APP_STATE.pinEnabled,
+      currency: fullJsonStateStr && typeof fullJsonStateStr.currency === 'string' ? fullJsonStateStr.currency : DEFAULT_APP_STATE.currency,
     };
 
     const cacheKey = email.trim().toLowerCase();
@@ -1219,7 +1265,10 @@ create table if not exists public.subscriptions (
   payment_method_id text,
   payment_method_type text,
   last_paid_date text,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_subscription_amount check (amount >= 0),
+  constraint chk_subscription_billing_cycle check (billing_cycle in ('Monthly', 'Yearly')),
+  constraint chk_subscription_status check (status in ('Active', 'Paused', 'Cancelled'))
 );
 
 alter table public.subscriptions enable row level security;
@@ -1238,7 +1287,10 @@ create table if not exists public.loans_given (
   status text not null, -- 'Active' | 'Partially Settled' | 'Settled'
   notes text,
   settlements jsonb not null default '[]'::jsonb,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_loan_total_amount check (total_amount >= 0),
+  constraint chk_loan_remaining_amount check (remaining_amount >= 0),
+  constraint chk_loan_status check (status in ('Active', 'Partially Settled', 'Settled'))
 );
 
 alter table public.loans_given enable row level security;
@@ -1252,7 +1304,9 @@ create table if not exists public.spending_envelopes (
   spent numeric not null default 0,
   icon text not null,
   sub_breakdown jsonb not null default '[]'::jsonb,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_envelope_limit check ("limit" >= 0),
+  constraint chk_envelope_spent check (spent >= 0)
 );
 
 alter table public.spending_envelopes enable row level security;
@@ -1280,7 +1334,10 @@ create table if not exists public.bank_cards (
   card_number text,
   is_canceled boolean not null default false,
   locked_amount numeric not null default 0,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_card_type check (card_type in ('Debit', 'Credit')),
+  constraint chk_card_limit check ("limit" >= 0 or "limit" is null),
+  constraint chk_card_locked_amount check (locked_amount >= 0)
 );
 
 -- 3. CREATE RELATIONAL CASH ACCOUNTS TABLE
@@ -1289,7 +1346,8 @@ create table if not exists public.cash_accounts (
   user_email text not null,
   name text not null,
   balance numeric not null default 0,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_cash_account_balance check (balance >= 0)
 );
 
 -- 4. CREATE RELATIONAL TRANSACTIONS TABLE
@@ -1308,7 +1366,10 @@ create table if not exists public.transactions (
   target_account_id text,
   target_account_type text,
   reference_id text,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_transaction_amount check (amount >= 0),
+  constraint chk_transaction_charge check (charge >= 0),
+  constraint chk_transaction_transfer_charge check (transfer_charge >= 0)
 );
 
 -- 5. CREATE RELATIONAL DEBTS TABLE
@@ -1324,7 +1385,9 @@ create table if not exists public.debts (
   account_id text,
   account_type text,
   account_name text,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_debt_total_amount check (total_amount >= 0),
+  constraint chk_debt_remaining_amount check (remaining_amount >= 0)
 );
 
 -- 6. CREATE RELATIONAL INCOMES TABLE
@@ -1337,7 +1400,8 @@ create table if not exists public.incomes (
   category text not null,
   target_account_id text not null,
   target_type text not null, -- 'cash' | 'card'
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_income_amount check (amount >= 0)
 );
 
 -- 7. CREATE RELATIONAL EXPENSES TABLE
@@ -1351,7 +1415,8 @@ create table if not exists public.expenses (
   category text not null,
   payment_method_id text not null,
   payment_method_type text not null, -- 'cash' | 'card'
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_expense_amount check (amount >= 0)
 );
 
 -- 8. CREATE RELATIONAL NOTIFICATIONS TABLE
@@ -2000,7 +2065,10 @@ create table if not exists public.subscriptions (
   payment_method_id text,
   payment_method_type text,
   last_paid_date text,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_subscription_amount check (amount >= 0),
+  constraint chk_subscription_billing_cycle check (billing_cycle in ('Monthly', 'Yearly')),
+  constraint chk_subscription_status check (status in ('Active', 'Paused', 'Cancelled'))
 );
 
 alter table public.subscriptions enable row level security;
@@ -2019,7 +2087,10 @@ create table if not exists public.loans_given (
   status text not null, -- 'Active' | 'Partially Settled' | 'Settled'
   notes text,
   settlements jsonb not null default '[]'::jsonb,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_loan_total_amount check (total_amount >= 0),
+  constraint chk_loan_remaining_amount check (remaining_amount >= 0),
+  constraint chk_loan_status check (status in ('Active', 'Partially Settled', 'Settled'))
 );
 
 alter table public.loans_given enable row level security;
@@ -2033,7 +2104,9 @@ create table if not exists public.spending_envelopes (
   spent numeric not null default 0,
   icon text not null,
   sub_breakdown jsonb not null default '[]'::jsonb,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint chk_envelope_limit check ("limit" >= 0),
+  constraint chk_envelope_spent check (spent >= 0)
 );
 
 alter table public.spending_envelopes enable row level security;

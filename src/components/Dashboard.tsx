@@ -615,7 +615,7 @@ export default function Dashboard({
                 <motion.div
                   key={category.id}
                   whileHover={{ y: -3 }}
-                  className="min-w-[195px] sm:min-w-[210px] snap-start bg-[var(--bg-card)] border border-[var(--border-primary)] p-4 rounded-2xl flex flex-col justify-between h-34 shadow-sm text-left"
+                  className="min-w-[195px] sm:min-w-[210px] snap-start bg-[var(--bg-card)] border border-[var(--border-primary)] p-4 rounded-2xl flex flex-col justify-between h-40 shadow-sm text-left"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2">

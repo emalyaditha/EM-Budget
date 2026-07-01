@@ -119,3 +119,49 @@ export const INCOME_COLORS: Record<string, string> = {
   Commission: '#84CC16',  // Lime
   Other: '#6B7280',       // Gray
 };
+
+export interface NetWorthBreakdown {
+  cash: number;
+  debitCards: number;
+  creditCardAssets: number;
+  creditCardLiabilities: number;
+  debts: number;
+  loansGiven: number;
+  netWorth: number;
+}
+
+export function calculateNetWorth(state: Partial<AppState>): NetWorthBreakdown {
+  const cashAccounts = state.cashAccounts || [];
+  const cards = state.cards || [];
+  const debts = state.debts || [];
+  const loansGiven = state.loansGiven || [];
+
+  const cash = cashAccounts.reduce((sum, c) => sum + c.balance, 0);
+  
+  const debitCards = cards
+    .filter(c => !c.isCanceled && c.cardType === 'Debit')
+    .reduce((sum, c) => sum + (c.currentBalance - (Number(c.lockedAmount) || 0)), 0);
+
+  const creditCardLiabilities = cards
+    .filter(c => !c.isCanceled && c.cardType === 'Credit')
+    .reduce((sum, c) => sum + (c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0), 0);
+
+  const creditCardAssets = cards
+    .filter(c => !c.isCanceled && c.cardType === 'Credit')
+    .reduce((sum, c) => sum + (c.currentBalance > 0 ? c.currentBalance : 0), 0);
+
+  const debtsAmount = debts.reduce((sum, d) => sum + d.remainingAmount, 0);
+  const loansGivenAmount = loansGiven.reduce((sum, l) => sum + (l.remainingAmount !== undefined ? l.remainingAmount : l.totalAmount), 0);
+
+  const netWorth = cash + debitCards + creditCardAssets - creditCardLiabilities - debtsAmount + loansGivenAmount;
+
+  return {
+    cash,
+    debitCards,
+    creditCardAssets,
+    creditCardLiabilities,
+    debts: debtsAmount,
+    loansGiven: loansGivenAmount,
+    netWorth
+  };
+}

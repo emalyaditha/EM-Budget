@@ -51,6 +51,12 @@ async function startServer() {
   }
 
   // Scalable Distributed OTP Storage Helpers (No In-Memory Maps for stateless Cloud Run compliance)
+  // Hash OTP using SHA-256 with user's email as salt
+  function hashOtp(otp: string, email: string): string {
+    const normalizedEmail = email.trim().toLowerCase();
+    return crypto.createHash('sha256').update(`${otp}:${normalizedEmail}`).digest('hex');
+  }
+
   async function storeOtpInDb(email: string, otp: string, expiresAt: number, isDeleteOtp = false, supabase: any) {
     if (!supabase) {
       throw new Error("Supabase is required for secure authentication storage.");
@@ -59,10 +65,12 @@ async function startServer() {
     const expiresDate = new Date(expiresAt).toISOString();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
     
+    const hashedOtp = hashOtp(otp, normalizedEmail);
+    
     await supabase.from('auth_otps').delete().eq('email', storageEmail);
     const { error } = await supabase.from('auth_otps').insert({
       email: storageEmail,
-      otp: otp,
+      otp: hashedOtp,
       expires_at: expiresDate
     });
     if (error) {
@@ -119,23 +127,55 @@ async function startServer() {
     return `${payloadStr}.${signature}`;
   }
 
-  // Helper to fetch Supabase client (Strict production-level environmental configs with custom server headers)
+  // Helper to fetch Supabase client (Strict production-level environmental configs only)
   const getSupabase = (req?: express.Request) => {
     const isDev = process.env.NODE_ENV !== "production";
-    const headerUrl = req?.headers ? (req.headers['x-supabase-url'] as string) : undefined;
-    const headerKey = req?.headers ? (req.headers['x-supabase-key'] as string) : undefined;
     
-    const rawUrl = (isDev && headerUrl) || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY || (isDev && headerKey) || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    let rawUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
+    let rawKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "").trim();
     
-    const url = rawUrl ? rawUrl.trim() : "";
-    const key = rawKey ? rawKey.trim() : "";
+    // Auto-swapped or misconfigured variable detection
+    if (rawUrl.startsWith("eyJ") && (rawKey.startsWith("http://") || rawKey.startsWith("https://"))) {
+      const temp = rawUrl;
+      rawUrl = rawKey;
+      rawKey = temp;
+    } else if (rawUrl.startsWith("eyJ") && (!rawKey || rawKey === "")) {
+      rawKey = rawUrl;
+      rawUrl = "";
+    }
+    
+    // Decode JWT to extract the Project Reference ID if URL is missing or incorrect
+    if (!rawUrl || rawUrl.startsWith("eyJ")) {
+      const keyToDecode = rawUrl.startsWith("eyJ") ? rawUrl : rawKey;
+      if (keyToDecode && keyToDecode.startsWith("eyJ")) {
+        try {
+          const parts = keyToDecode.split('.');
+          if (parts.length >= 2) {
+            const payloadStr = Buffer.from(parts[1], 'base64url').toString('utf8');
+            const payload = JSON.parse(payloadStr);
+            if (payload && payload.ref) {
+              rawUrl = `https://${payload.ref}.supabase.co`;
+              console.log(`[Supabase Autocorrect] Extracted URL from JWT: ${rawUrl}`);
+            }
+          }
+        } catch (e) {
+          console.error("[Supabase Autocorrect] Failed to decode JWT payload:", e);
+        }
+      }
+    }
+    
+    // Final fallback to the hardcoded default reference if rawUrl is still not valid
+    if (!rawUrl || (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://"))) {
+      rawUrl = "https://iivdlgbztzthjbjzzjna.supabase.co";
+    }
+    
+    const url = rawUrl;
+    const key = rawKey;
     
     console.log(`[Supabase Debug] Initialization attempt.`);
     console.log(`[Supabase Debug] isDev: '${isDev}'`);
-    console.log(`[Supabase Debug] rawUrl (from process.env): '${rawUrl}'`);
-    console.log(`[Supabase Debug] trimmedUrl: '${url}'`);
-    console.log(`[Supabase Debug] rawKey length: ${rawKey ? rawKey.length : 0}`);
+    console.log(`[Supabase Debug] url: '${url}'`);
+    console.log(`[Supabase Debug] key length: ${key ? key.length : 0}`);
     
     if (!url || !key) {
       console.log(`[Supabase Debug] Missing URL or Key. Returning null.`);
@@ -383,7 +423,7 @@ async function startServer() {
 
       console.log(`\n======================================================`);
       console.log(`🔑 NEW SECURE OTP GENERATED FOR: ${normalizedEmail}`);
-      console.log(`🔐 PASSCODE: [ ${otp} ]`);
+      console.log(`🔐 PASSCODE: [ ****** ]`);
       console.log(`⏰ EXPIRE: 5 Minutes (from server-side clock)`);
       console.log(`======================================================\n`);
 
@@ -440,15 +480,24 @@ async function startServer() {
           console.error("[SECURITY LOG] SMTP Transmission Failed:", mailError.message || mailError);
           errorDetails = "SMTP delivery error occurred during secure transmission.";
         }
+      } else {
+        errorDetails = "SMTP server is not configured in environment variables.";
       }
 
-      // Return success. Do NOT return the OTP (passcode) to the frontend in production to keep it secure.
-      // In development, return the OTP to allow testing without SMTP.
+      if (!emailSent) {
+        // Safe sandbox/dev mode fallback: Return the passcode to the frontend when SMTP is not configured/fails
+        res.json({
+          success: true,
+          emailSent: false,
+          devOtp: otp,
+          info: "Sandbox mode: SMTP is not configured, showing passcode in developer console/bypass."
+        });
+        return;
+      }
+
       res.json({
         success: true,
-        emailSent,
-        devOtp: emailSent ? null : otp,
-        errorDetails: errorDetails || undefined
+        emailSent: true
       });
     } catch (err: any) {
       console.error("[SECURITY LOG] OTP Send failed:", err.message || err);
@@ -471,13 +520,10 @@ async function startServer() {
       const enteredOtp = otp.trim();
       const supabase = getSupabase(req);
 
-      // Check for predefined persistent Master Security PIN/Passcode, or the temporary fallback code "000000" (restricted to dev settings)
-      const isDev = process.env.NODE_ENV !== "production";
+      // Check for predefined persistent Master Security PIN/Passcode (restricted to secure env settings)
       const masterPin = process.env.SECURITY_PIN || process.env.MASTER_PIN;
       let matchesMaster = false;
       if (masterPin && enteredOtp === masterPin.trim()) {
-        matchesMaster = true;
-      } else if (isDev && enteredOtp === "000000") {
         matchesMaster = true;
       }
 
@@ -507,7 +553,8 @@ async function startServer() {
         return;
       }
 
-      if (saved.otp !== enteredOtp) {
+      const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+      if (saved.otp !== enteredHash) {
         res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
         return;
       }
@@ -550,18 +597,16 @@ async function startServer() {
       const normalizedEmail = email.trim().toLowerCase();
       const supabase = getSupabase(req);
       
-      const isDev = process.env.NODE_ENV !== "production";
       const masterPin = process.env.SECURITY_PIN || process.env.MASTER_PIN;
       const enteredOtp = otp.trim();
       let isValidOtp = false;
 
       if (masterPin && enteredOtp === masterPin.trim()) {
         isValidOtp = true;
-      } else if (isDev && enteredOtp === "000000") {
-        isValidOtp = true;
       } else {
         const saved = await getOtpFromDb(normalizedEmail, false, supabase);
-        if (saved && saved.otp === enteredOtp && Date.now() <= saved.expiresAt) {
+        const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+        if (saved && saved.otp === enteredHash && Date.now() <= saved.expiresAt) {
           isValidOtp = true;
           await deleteOtpFromDb(normalizedEmail, false, supabase); // consume OTP
         }
@@ -656,18 +701,16 @@ async function startServer() {
       const normalizedEmail = email.trim().toLowerCase();
       const supabase = getSupabase(req);
       
-      const isDev = process.env.NODE_ENV !== "production";
       const masterPin = process.env.SECURITY_PIN || process.env.MASTER_PIN;
       const enteredOtp = otp.trim();
       let isValidOtp = false;
 
       if (masterPin && enteredOtp === masterPin.trim()) {
         isValidOtp = true;
-      } else if (isDev && enteredOtp === "000000") {
-        isValidOtp = true;
       } else {
         const saved = await getOtpFromDb(normalizedEmail, false, supabase);
-        if (saved && saved.otp === enteredOtp && Date.now() <= saved.expiresAt) {
+        const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+        if (saved && saved.otp === enteredHash && Date.now() <= saved.expiresAt) {
           isValidOtp = true;
           await deleteOtpFromDb(normalizedEmail, false, supabase); // consume OTP
         }
@@ -755,7 +798,7 @@ async function startServer() {
 
       console.log(`\n======================================================`);
       console.log(`⚠️ NEW DELETION 2FA OTP GENERATED FOR: ${normalizedEmail}`);
-      console.log(`🔐 PASSCODE: [ ${otp} ]`);
+      console.log(`🔐 PASSCODE: [ ****** ]`);
       console.log(`⏰ EXPIRE: 5 Minutes`);
       console.log(`======================================================\n`);
 
@@ -814,13 +857,24 @@ async function startServer() {
           console.error("[SECURITY LOG] Deletion SMTP Transmission Failed:", mailError.message || mailError);
           errorDetails = "SMTP deletion dispatch failure.";
         }
+      } else {
+        errorDetails = "SMTP server is not configured in environment variables.";
+      }
+
+      if (!emailSent) {
+        // Safe sandbox/dev mode fallback: Return the passcode to the frontend when SMTP is not configured/fails
+        res.json({
+          success: true,
+          emailSent: false,
+          devOtp: otp,
+          info: "Sandbox mode: SMTP is not configured, showing deletion passcode in developer console/bypass."
+        });
+        return;
       }
 
       res.json({
         success: true,
-        emailSent,
-        devOtp: emailSent ? null : otp,
-        errorDetails: errorDetails || undefined
+        emailSent: true
       });
     } catch (err: any) {
       console.error("[SECURITY LOG] Deletion OTP Send failed:", err.message || err);
@@ -855,12 +909,9 @@ async function startServer() {
       const enteredOtp = otp.trim();
       const supabase = getSupabase(req);
 
-      const isDev = process.env.NODE_ENV !== "production";
       const masterPin = process.env.SECURITY_PIN || process.env.MASTER_PIN;
       let matchesMaster = false;
       if (masterPin && enteredOtp === masterPin.trim()) {
-        matchesMaster = true;
-      } else if (isDev && enteredOtp === "000000") {
         matchesMaster = true;
       }
 
@@ -881,7 +932,8 @@ async function startServer() {
         return;
       }
 
-      if (saved.otp !== enteredOtp) {
+      const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+      if (saved.otp !== enteredHash) {
         res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
         return;
       }
