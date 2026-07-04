@@ -315,7 +315,7 @@ export default function CashCardManagement({
   const [editcardTheme, setEditcardTheme] = useState('obsidian');
   const [editCardErrors, setEditCardErrors] = useState<Record<string, string>>({});
   const [editCardsubmitted, setEditCardSubmitted] = useState(false);
-  const [showCancela, setShowCancela] = useState(false);
+  const [showCanceled, setShowCanceled] = useState(false);
   const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({});
 
   // Charges Form States
@@ -335,9 +335,9 @@ export default function CashCardManagement({
   };
 
   // Quick action states
-  const [selectedCashIa, setselectedCashIa] = useState<string | null>(null);
+  const [selectedCashId, setSelectedCashId] = useState<string | null>(null);
   const [qtyAction, setQtyAction] = useState('');
-  const [actionType, setActionType] = useState<'Deposit' | 'witharaw' | null>(null);
+  const [actionType, setActionType] = useState<'Deposit' | 'Withdraw' | null>(null);
   const [quickErrors, setQuickErrors] = useState<Record<string, string>>({});
   const [quicksubmitted, setQuicksubmitted] = useState(false);
 
@@ -352,7 +352,7 @@ export default function CashCardManagement({
 
   const qtyActionInputRef = React.useRef<HTMLInputElement>(null);
 
-  // aeletion confirmation
+  // deletion confirmation
   const [CardTodelete, setCardTodelete] = useState<string | null>(null);
 
   // Live validator for Cash Account
@@ -364,7 +364,7 @@ export default function CashCardManagement({
       } else if (name.trim().length < 3) {
         errs.name = 'Account name must be at least 3 characters long';
       } else if (cashAccounts.some(acc => acc.name.toLowerCase().trim() === name.toLowerCase().trim())) {
-        errs.name = 'An account with this name alreaay exists';
+        errs.name = 'An account with this name already exists';
       } else if (/[<>{}]/.test(name)) {
         errs.name = 'Invalid characters are not allowed';
       }
@@ -394,7 +394,7 @@ export default function CashCardManagement({
       } else if (name.trim().length < 3) {
         errs.name = 'Nickname must be at least 3 characters';
       } else if (cards.some(c => c.cardName.toLowerCase().trim() === name.toLowerCase().trim())) {
-        errs.name = 'A card with this name alreaay exists';
+        errs.name = 'A card with this name already exists';
       } else if (/[<>{}]/.test(name)) {
         errs.name = 'Invalid characters are not allowed';
       }
@@ -444,10 +444,10 @@ export default function CashCardManagement({
           errs.qty = 'Must be a valid number';
         } else if (num <= 0) {
           errs.qty = 'Amount must be positive';
-        } else if (actionType === 'witharaw' && selectedCashIa) {
-          const account = cashAccounts.find(c => c.id === selectedCashIa);
+        } else if (actionType === 'Withdraw' && selectedCashId) {
+          const account = cashAccounts.find(c => c.id === selectedCashId);
           if (account && account.balance < num) {
-            errs.qty = `Insufficient balance in hana! Available: ${currency} ${account.balance}`;
+            errs.qty = `Insufficient balance in hand! Available: ${currency} ${account.balance}`;
           }
         }
       }
@@ -592,8 +592,8 @@ export default function CashCardManagement({
   const handleQuickAdjustCash = (e: React.FormEvent) => {
     e.preventDefault();
     setQuicksubmitted(true);
-    if (!selectedCashIa || !actionType) return;
-    const account = cashAccounts.find(c => c.id === selectedCashIa);
+    if (!selectedCashId || !actionType) return;
+    const account = cashAccounts.find(c => c.id === selectedCashId);
     if (!account) return;
 
     const isValid = validateQuick(qtyAction, true);
@@ -607,13 +607,13 @@ export default function CashCardManagement({
     let nextBalance = account.balance;
     if (actionType === 'Deposit') {
       nextBalance += amountNum;
-    } else if (actionType === 'witharaw') {
+    } else if (actionType === 'Withdraw') {
       nextBalance -= amountNum;
     }
 
-    onEditCashAccount(selectedCashIa, nextBalance);
+    onEditCashAccount(selectedCashId, nextBalance);
     setQtyAction('');
-    setselectedCashIa(null);
+    setSelectedCashId(null);
     setActionType(null);
     setQuicksubmitted(false);
     setQuickErrors({});
@@ -645,7 +645,7 @@ export default function CashCardManagement({
           <Wallet size={80} className="stroke-[1px]" />
         </div>
 
-        {/* Section Heaaer */}
+        {/* Section Header */}
         <div className="space-y-2 pb-5 border-b border-default/60 mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 text-blue-600 rounded-xl">
@@ -691,7 +691,7 @@ export default function CashCardManagement({
                 </button>
               </div>
 
-              {/* Subtle diviaer */}
+              {/* Subtle divider */}
               <div className="border-t border-subtle dark:border-default/60" />
 
               {/* Bottom Section: Balance & Action Buttons */}
@@ -707,7 +707,7 @@ export default function CashCardManagement({
                   <button
                     type="button"
                     onClick={() => {
-                      setselectedCashIa(account.id);
+                      setSelectedCashId(account.id);
                       setActionType('Deposit');
                     }}
                     className="text-[10px] font-bold text-blue-600 dark:text-success hover:text-primary dark:hover:text-black px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500 dark:hover:bg-blue-400 transition-all uppercase tracking-wider cursor-pointer font-mono"
@@ -717,12 +717,12 @@ export default function CashCardManagement({
                   <button
                     type="button"
                     onClick={() => {
-                      setselectedCashIa(account.id);
-                      setActionType('witharaw');
+                      setSelectedCashId(account.id);
+                      setActionType('Withdraw');
                     }}
                     className="text-[10px] font-bold text-rose-600 dark:text-danger hover:text-primary dark:hover:text-black px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 dark:hover:bg-rose-400 transition-all uppercase tracking-wider cursor-pointer font-mono"
                   >
-                    - Witharaw
+                    - Withdraw
                   </button>
                 </div>
               </div>
@@ -730,19 +730,19 @@ export default function CashCardManagement({
           ))}
         </div>
 
-        {/* Quick Deposit/Witharaw Action Sliaer */}
-        {selectedCashIa && actionType && (
+        {/* Quick Deposit/Withdraw Action Slider */}
+        {selectedCashId && actionType && (
           <form onSubmit={handleQuickAdjustCash} className="bg-surface dark:bg-card border border-subtle dark:border-default p-6 rounded-[24px] mb-6 space-y-4 animate-fade-in text-left">
             <div className="flex justify-between items-center">
               <span className="text-[11px] font-mono font-bold text-primary dark:text-primary uppercase tracking-wider flex items-center gap-2">
                 <CornerDownRight size={13} className="text-blue-500 dark:text-success animate-pulse" />
-                Quick {actionType}: {cashAccounts.find(c => c.id === selectedCashIa)?.name}
+                Quick {actionType}: {cashAccounts.find(c => c.id === selectedCashId)?.name}
               </span>
               <button
                 type="button"
                 className="text-[10px] font-bold text-secondary hover:text-muted dark:text-muted dark:hover:text-primary uppercase tracking-wider transition-colors cursor-pointer"
                 onClick={() => {
-                  setselectedCashIa(null);
+                  setSelectedCashId(null);
                   setActionType(null);
                 }}
               >
@@ -796,7 +796,7 @@ export default function CashCardManagement({
               <input
                 ref={cashNameInputRef}
                 type="text"
-                placeholder="e.g. Office aesk Safe"
+                placeholder="e.g. Office Desk Safe"
                 value={cashName}
                 onChange={(e) => {
                   setCashName(e.target.value);
@@ -855,7 +855,7 @@ export default function CashCardManagement({
           <CreditCard size={80} className="stroke-[1px]" />
         </div>
 
-        {/* Section Heaaer */}
+        {/* Section Header */}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-5 border-b border-default/60 mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 rounded-xl">
@@ -1079,7 +1079,7 @@ export default function CashCardManagement({
         <div className="space-y-4">
           {(() => {
             const activeCards = cards.filter(c => !c.isCanceled && !(c as any).is_canceled);
-            const canceleaCards = cards.filter(c => c.isCanceled || (c as any).is_canceled);
+            const canceledCards = cards.filter(c => c.isCanceled || (c as any).is_canceled);
 
             return (
               <>
@@ -1296,23 +1296,23 @@ export default function CashCardManagement({
                   })
                 )}
 
-                {canceleaCards.length > 0 && (
+                {canceledCards.length > 0 && (
                   <div className="mt-8 pt-5 border-t border-subtle dark:border-default/80">
                     <button
                       type="button"
-                      onClick={() => setShowCancela(!showCancela)}
+                      onClick={() => setShowCanceled(!showCanceled)}
                       className="w-full py-2.5 bg-surface hover:bg-surface dark:bg-card dark:hover:bg-[#0c0c0c] text-[10px] text-muted dark:text-muted hover:text-primary dark:hover:text-primary font-mono font-bold tracking-wider rounded-xl uppercase flex items-center justify-between px-4 border border-subtle dark:border-default transition-all duration-300 shadow-inner cursor-pointer"
                     >
                       <span className="flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-surface0 animate-pulse" />
-                        Archivea / Cancela cards ({canceleaCards.length})
+                        Archived / Canceled cards ({canceledCards.length})
                       </span>
-                      <span>{showCancela ? 'Hide Archive' : 'Show Archive'}</span>
+                      <span>{showCanceled ? 'Hide Archive' : 'Show Archive'}</span>
                     </button>
 
-                    {showCancela && (
-                      <div className="space-y-4 mt-4 animate-faae-in">
-                        {canceleaCards.map((card, idx) => (
+                    {showCanceled && (
+                      <div className="space-y-4 mt-4 animate-fade-in">
+                        {canceledCards.map((card, idx) => (
                           <div key={card.id} className="relative">
                             <InteractiveBankCard
                               card={card}
