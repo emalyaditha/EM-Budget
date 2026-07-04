@@ -121,8 +121,8 @@ function InteractiveBankCard({
 
   const inlineStyle: React.CSSProperties = {
     transform: isHovered 
-      ? `perspective(1000px) rotateX(${coords.x}aeg) rotateY(${coords.y}aeg) scale3a(1.02, 1.02, 1.02)` 
-      : `perspective(1000px) rotateX(${coords.x}aeg) rotateY(${coords.y}aeg) scale3a(1, 1, 1)`,
+      ? `perspective(1000px) rotateX(${coords.x}deg) rotateY(${coords.y}deg) scale3d(1.02, 1.02, 1.02)` 
+      : `perspective(1000px) rotateX(${coords.x}deg) rotateY(${coords.y}deg) scale3d(1, 1, 1)`,
     transition: isHovered ? 'none' : 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), background 0.4s ease',
   };
 
@@ -134,7 +134,7 @@ function InteractiveBankCard({
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
       style={inlineStyle}
-      className={`relative p-6 rounded-[24px] bg-card bg-gradient-to-br ${CardGradientStyle} border shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col justify-between h-52 overflow-hidden duration-300 group cursor-pointer ${
+      className={`relative p-5 rounded-[24px] bg-card bg-gradient-to-br ${CardGradientStyle} border shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col min-h-[220px] overflow-hidden duration-300 group cursor-pointer ${
         isCanceled ? 'opacity-50 filter grayscale contrast-75 brightness-90 hover:grayscale-0 hover:opacity-85' : ''
       }`}
     >
@@ -148,7 +148,7 @@ function InteractiveBankCard({
       )}
 
       {/* Glossy bank card circuitry overlay pattern */}
-      <div className="absolute inset-0 bg-white/[0.012] bg-[radial-Gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
+      <div className="absolute inset-0 bg-white/[0.012] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
       <div className="absolute -bottom-16 -left-16 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none z-0" />
       
       {card.isFrozen && !isCanceled && (
@@ -173,66 +173,74 @@ function InteractiveBankCard({
         </div>
       )}
 
-      {!isCanceled && !card.isFrozen && (
-        <div id="wallet-Card-buttons" className="absolute top-6 right-6 z-25 flex flex-row gap-2 transition-all duration-300 bg-transparent rounded-none p-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingCard(card);
-              setEditcardName(card.cardName);
-              setEditcardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g, '').trim() : '');
-              setEditcardTheme(derivedTheme);
-              setEditCardErrors({});
-              setEditCardSubmitted(false);
-              setEditCardLockedAmount?.(card.lockedAmount?.toString() || '0');
-            }}
-            className="bg-white/10 hover:bg-white/20 border border-white/15 text-primary text-[11px] px-3 py-1.5 rounded-full backdrop-blur-md flex items-center gap-1.5 font-semibold transition-all shadow-md active:scale-95 cursor-pointer"
-            title="Edit card details"
-          >
-            <Edit size={11} strokeWidth={2.5} className="text-primary/90" />
-            <span>Edit</span>
-          </button>
-          
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const Updated = { ...card, isFrozen: true };
-              onUpdateCard(Updated);
-              showToast('warning', `${card.cardName} soft-lockea and frozen.`);
-            }}
-            className="bg-white/10 hover:bg-white/20 border border-white/15 text-primary text-[11px] px-3 py-1.5 rounded-full backdrop-blur-md flex items-center gap-1.5 font-semibold transition-all shadow-md active:scale-95 cursor-pointer"
-            title="Freeze Card"
-          >
-            <Snowflake size={11} strokeWidth={2.5} className="text-primary/90" />
-            <span>Freeze</span>
-          </button>
-        </div>
-      )}
-
-      {/* card Heaaer: Brand & chip */}
-      <div className="flex justify-between items-start z-10">
-        <div>
+      {/* Top row: bank name left, action buttons right */}
+      <div className="flex items-start justify-between z-10 gap-2">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="text-[9px] uppercase font-bold tracking-[0.15em] text-primary/50">{card.bankName}</span>
-            <span className="w-1 h-1 rounded-full bg-white/30" />
-            <span className="text-[8px] font-mono font-bold uppercase text-primary/70 bg-white/10 px-1.5 py-0.5 rounded leading-none">{card.cardType}</span>
+            <span className="text-[9px] uppercase font-bold tracking-[0.15em] text-primary/50 truncate">{card.bankName}</span>
+            <span className="w-1 h-1 rounded-full bg-white/30 shrink-0" />
+            <span className="text-[8px] font-mono font-bold uppercase text-primary/70 bg-white/10 px-1.5 py-0.5 rounded leading-none shrink-0">{card.cardType}</span>
           </div>
-          <h4 className="text-base font-bold text-primary mt-1.5 flex items-center gap-1.5 truncate max-w-[150px] tracking-tight">
+          <h4 className="text-base font-bold text-primary mt-1 truncate tracking-tight">
             {card.cardName}
           </h4>
         </div>
-        
-        {/* Holographic physical chip visual details */}
-        <div className="flex flex-col items-ena shrink-0">
-          <div className="w-9 h-7 rounded-lg bg-gradient-to-r from-amber-500/20 via-yellow-400/10 to-amber-600/20 border border-amber-500/35 opacity-90 shadow-inner relative overflow-hidden flex items-center justify-center">
-            <div className="w-3.5 h-full border-r border-white/10 absolute left-1" />
-            <div className="w-full h-2.5 border-b border-t border-white/10 absolute" />
+
+        {!isCanceled && !card.isFrozen && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingCard(card);
+                setEditcardName(card.cardName);
+                setEditcardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g, '').trim() : '');
+                setEditcardTheme(derivedTheme);
+                setEditCardErrors({});
+                setEditCardSubmitted(false);
+                setEditCardLockedAmount?.(card.lockedAmount?.toString() || '0');
+              }}
+              className="bg-white/10 hover:bg-white/20 border border-white/15 text-primary text-[11px] px-3 py-1.5 rounded-full backdrop-blur-md flex items-center gap-1.5 font-semibold transition-all shadow-md active:scale-95 cursor-pointer"
+              title="Edit card details"
+            >
+              <Edit size={11} strokeWidth={2.5} className="text-primary/90" />
+              <span>Edit</span>
+            </button>
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const Updated = { ...card, isFrozen: true };
+                onUpdateCard(Updated);
+                showToast('warning', `${card.cardName} soft-locked and frozen.`);
+              }}
+              className="bg-white/10 hover:bg-white/20 border border-white/15 text-primary text-[11px] px-3 py-1.5 rounded-full backdrop-blur-md flex items-center gap-1.5 font-semibold transition-all shadow-md active:scale-95 cursor-pointer"
+              title="Freeze Card"
+            >
+              <Snowflake size={11} strokeWidth={2.5} className="text-primary/90" />
+              <span>Freeze</span>
+            </button>
+
+            <button
+              onClick={(e) => { e.stopPropagation(); onDeleteCard(card.id); }}
+              className="bg-white/10 hover:bg-rose-500/30 border border-white/15 text-rose-300 text-[11px] p-1.5 rounded-full backdrop-blur-md flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer"
+              title="Delete card"
+            >
+              <Trash2 size={11} />
+            </button>
           </div>
+        )}
+      </div>
+
+      {/* Chip visual */}
+      <div className="z-10 -my-1">
+        <div className="w-9 h-7 rounded-lg bg-gradient-to-r from-amber-500/20 via-yellow-400/10 to-amber-600/20 border border-amber-500/35 opacity-90 shadow-inner relative overflow-hidden flex items-center justify-center">
+          <div className="w-3.5 h-full border-r border-white/10 absolute left-1" />
+          <div className="w-full h-2.5 border-b border-t border-white/10 absolute" />
         </div>
       </div>
 
-      {/* card Miaale: Balance as the absolute visual focus */}
-      <div className="z-10 py-1">
+      {/* card Middle: Balance as the absolute visual focus */}
+      <div className="z-10 flex-1 flex flex-col justify-center py-1">
         <span className="text-[9px] uppercase tracking-widest text-primary/40 block font-medium">
           {card.cardType === 'Credit' ? 'Available Limit' : 'Available Balance'}
         </span>
@@ -244,41 +252,22 @@ function InteractiveBankCard({
           }
         </span>
         {card.cardType === 'Debit' && card.lockedAmount && card.lockedAmount > 0 ? (
-          <span className="text-[9px] font-bold text-amber-300 inline-flex items-center gap-1 mt-1 font-mono uppercase bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md leading-none">
-            <Lock size={8} /> {currency}{card.lockedAmount.toLocaleString()} lockea
+          <span className="text-[9px] font-bold text-amber-300 inline-flex items-center gap-1 mt-1.5 font-mono uppercase bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md leading-none self-start">
+            <Lock size={8} /> {currency}{card.lockedAmount.toLocaleString()} locked
           </span>
         ) : null}
       </div>
 
-      {/* card Footer: Balances & Brand circle emblems */}
-      <div className="z-10 flex justify-between items-center border-t border-white/5 pt-3">
-        <div className="flex items-center gap-3">
-          <div className="text-[12px] font-mono tracking-[0.2em] text-primary/70 font-semibold select-all">
-            {card.cardNumber ? card.cardNumber : '•••• •••• •••• 1234'}
-          </div>
-          <div className="flex items-center gap-0.5 opacity-30">
-            <span className="w-[1.5px] h-2.5 bg-white" />
-            <span className="w-[1.5px] h-2 bg-white" />
-            <span className="w-[1.5px] h-1.5 bg-white" />
-          </div>
+      {/* card Footer: Card number left, network orbs right */}
+      <div className="z-10 flex justify-between items-center border-t border-white/5 pt-3 mt-auto">
+        <div className="text-[12px] font-mono tracking-[0.2em] text-primary/70 font-semibold select-all min-w-0 truncate">
+          {card.cardNumber ? card.cardNumber : '•••• •••• •••• 1234'}
         </div>
 
-        <div className="text-right flex items-center gap-3.5">
-          {!isCanceled && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onDeleteCard(card.id); }}
-              className="text-[10px] text-rose-300 opacity-50 hover:opacity-100 flex items-center gap-1 font-semibold cursor-pointer transition-opacity"
-              title="delete Card"
-            >
-              <Trash2 size={11} />
-            </button>
-          )}
-
-          {/* Overlapping orbs (MasterCard style visual signature) */}
-          <div className="flex -space-x-2.5 shrink-0 select-none">
-            <span className="w-5 h-5 rounded-full bg-rose-500/60 backdrop-blur-sm" />
-            <span className="w-5 h-5 rounded-full bg-amber-500/60 backdrop-blur-sm" />
-          </div>
+        {/* Overlapping orbs (MasterCard style visual signature) */}
+        <div className="flex -space-x-2.5 shrink-0 select-none">
+          <span className="w-5 h-5 rounded-full bg-rose-500/60 backdrop-blur-sm" />
+          <span className="w-5 h-5 rounded-full bg-amber-500/60 backdrop-blur-sm" />
         </div>
       </div>
     </div>
@@ -314,7 +303,7 @@ export default function CashCardManagement({
   const [CardLimit, setCardLimit] = useState('50000');
   const [cardNumber, setcardNumber] = useState('');
   const [cardTheme, setCardTheme] = useState('obsidian'); // obsidian, sapphire, emerald, copper, ruby
-  const [CardLockeaAmount, setCardLockeaAmount] = useState('');
+  const [CardLockedAmount, setCardLockedAmount] = useState('');
   const [CardErrors, setCardErrors] = useState<Record<string, string>>({});
   const [Cardsubmitted, setCardsubmitted] = useState(false);
 
@@ -327,7 +316,7 @@ export default function CashCardManagement({
   const [editCardErrors, setEditCardErrors] = useState<Record<string, string>>({});
   const [editCardsubmitted, setEditCardSubmitted] = useState(false);
   const [showCancela, setShowCancela] = useState(false);
-  const [expanaeaCardIds, setExpanaeaCardIds] = useState<Record<string, boolean>>({});
+  const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({});
 
   // Charges Form States
   const [chargeType, setchargeType] = useState<'Interest' | 'LatePayment' | 'OverLimit' | 'Annual' | 'Custom'>('Interest');
@@ -433,10 +422,10 @@ export default function CashCardManagement({
     }
     if (numStr) {
       const cleanNum = numStr.replace(/\s+/g, '');
-      if (cleanNum && !/^\a+$/.test(cleanNum)) {
+      if (cleanNum && !/^\d+$/.test(cleanNum)) {
         errs.number = 'Card number must be numeric-only';
       } else if (cleanNum && (cleanNum.length < 8 || cleanNum.length > 19)) {
-        errs.number = 'Card number must be between 8 and 19 aigits';
+        errs.number = 'Card number must be between 8 and 19 digits';
       }
     }
     setCardErrors(errs);
@@ -505,7 +494,7 @@ export default function CashCardManagement({
       } else {
         cardNumberInputRef.current?.focus();
       }
-      showToast('error', 'Please resolve highlightea credit card validations/');
+      showToast('error', 'Please resolve highlighted credit card validations/');
       return;
     }
     const balanceNum = parseFloat(CardBalance) || 0;
@@ -531,7 +520,7 @@ export default function CashCardManagement({
       limit: limitNum,
       cardNumber: cleanNum,
       cardTheme: cardTheme,
-      lockedAmount: cardType === 'Debit' ? parseFloat(CardLockeaAmount) || 0 : undefined,
+      lockedAmount: cardType === 'Debit' ? parseFloat(CardLockedAmount) || 0 : undefined,
     });
 
     // Reset card form
@@ -540,7 +529,7 @@ export default function CashCardManagement({
     setCardBalance('');
     setCardLimit('50000');
     setcardNumber('');
-    setCardLockeaAmount('');
+    setCardLockedAmount('');
     setCardsubmitted(false);
     setCardErrors({});
     setIsAddingCard(false);
@@ -558,8 +547,8 @@ export default function CashCardManagement({
     }
     
     const cleanNum = numStr.replace(/\s+/g, '').replace(/\*/g, '');
-    if (cleanNum && cleanNum.length > 0 && !/^\a+$/.test(cleanNum)) {
-      errs.number = 'Card number must contain aigits only';
+    if (cleanNum && cleanNum.length > 0 && !/^\d+$/.test(cleanNum)) {
+      errs.number = 'Card number must contain digits only';
     }
     
     setEditCardErrors(errs);
@@ -968,7 +957,7 @@ export default function CashCardManagement({
               
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">
-                  {cardType === 'Credit' ? `Starting aebt Owea (${currency})` : `Starting Balance (${currency})`}
+                  {cardType === 'Credit' ? `Starting debt Owed (${currency})` : `Starting Balance (${currency})`}
                 </label>
                 <input
                   ref={CardBalanceInputRef}
@@ -1015,8 +1004,8 @@ export default function CashCardManagement({
                 <input
                   type="number"
                   placeholder="e.g. 500 (Optional)"
-                  value={CardLockeaAmount}
-                  onChange={(e) => setCardLockeaAmount(e.target.value)}
+                  value={CardLockedAmount}
+                  onChange={(e) => setCardLockedAmount(e.target.value)}
                   className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-subtle dark:hover:border-default/80 font-mono transition-all placeholder:text-secondary dark:placeholder:text-muted/70"
                 />
               </div>
@@ -1030,8 +1019,9 @@ export default function CashCardManagement({
                 placeholder="e.g. 4201 9283"
                 value={cardNumber}
                 onChange={(e) => {
-                  setcardNumber(e.target.value);
-                  validateCard(cardName, bankName, CardBalance, e.target.value, Cardsubmitted);
+                  const digits = e.target.value.replace(/\D/g, '');
+                  setcardNumber(digits);
+                  validateCard(cardName, bankName, CardBalance, digits, Cardsubmitted);
                 }}
                 maxLength={19}
                 className={`w-full bg-card border text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-secondary dark:placeholder:text-muted/70 ${
@@ -1094,19 +1084,19 @@ export default function CashCardManagement({
             return (
               <>
                 {activeCards.length === 0 ? (
-                  <div className="p-8 text-center text-muted text-xs border border-aashea border-default rounded-xl">
+                  <div className="p-8 text-center text-muted text-xs border border-dashed border-default rounded-xl">
                     No active cards. Add a credit/Debit card.
                   </div>
                 ) : (
                   activeCards.map((card, idx) => {
                     const isCredit = card.cardType === 'Credit';
                     const hasNegativeBalance = card.currentBalance < 0;
-                    const outstanaingAmount = hasNegativeBalance ? Math.abs(card.currentBalance) : 0;
+                    const outstandingAmount = hasNegativeBalance ? Math.abs(card.currentBalance) : 0;
                     
                     const limit = card.limit ?? 0;
                     const availableCredit = limit + card.currentBalance;
-                    const useaCredit = limit > 0 ? Math.max(0, limit - availableCredit) : 0;
-                    const utilizationPct = limit > 0 ? Math.min(100, (useaCredit / limit) * 100) : 0;
+                    const usedCredit = limit > 0 ? Math.max(0, limit - availableCredit) : 0;
+                    const utilizationPct = limit > 0 ? Math.min(100, (usedCredit / limit) * 100) : 0;
                     
                     let progressColor = 'bg-emerald-500 shadow-emerald-500/20';
                     let textProgressColor = 'text-success';
@@ -1119,7 +1109,7 @@ export default function CashCardManagement({
                     }
 
                     const hasdetails = isCredit || (card.lockedAmount !== undefined && card.lockedAmount > 0);
-                    const isExpanaea = !!expanaeaCardIds[card.id];
+                    const isExpanded = !!expandedCardIds[card.id];
 
                     return (
                       <div key={card.id} className={`p-4 rounded-[32px] border ${isCredit ? 'border-subtle dark:border-default bg-surface dark:bg-card/65 shadow-xl' : 'border-transparent bg-transparent'} space-y-3`}>
@@ -1141,7 +1131,7 @@ export default function CashCardManagement({
                           setEditCardLockedAmount={setEditCardLockedAmount}
                           onClick={() => {
                             if (hasdetails) {
-                              setExpanaeaCardIds(prev => ({ ...prev, [card.id]: !prev[card.id] }));
+                              setExpandedCardIds(prev => ({ ...prev, [card.id]: !prev[card.id] }));
                             }
                           }}
                         />
@@ -1152,25 +1142,25 @@ export default function CashCardManagement({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setExpanaeaCardIds(prev => ({ ...prev, [card.id]: !prev[card.id] }));
+                                setExpandedCardIds(prev => ({ ...prev, [card.id]: !prev[card.id] }));
                               }}
                               className="flex items-center gap-1.5 px-4 py-1.5 bg-surface dark:bg-surface border border-subtle dark:border-subtle hover:border-subtle dark:hover:border-default hover:bg-surface dark:hover:bg-surface text-muted dark:text-secondary hover:text-secondary dark:hover:text-primary rounded-full text-[10px] font-mono uppercase tracking-wider font-bold transition-all shadow-md cursor-pointer active:scale-95"
-                              title={isExpanaea ? 'Collapse details' : 'Expand details'}
+                              title={isExpanded ? 'Collapse details' : 'Expand details'}
                             >
-                              <span>{isExpanaea ? 'Hiae details' : 'Show details'}</span>
+                              <span>{isExpanded ? 'Hide details' : 'Show details'}</span>
                               <ChevronDown 
                                 size={12} 
-                                className={`transform transition-transform duration-300 ${isExpanaea ? 'rotate-180 text-success' : 'rotate-0'}`} 
+                                className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-180 text-success' : 'rotate-0'}`} 
                               />
                             </button>
                           </div>
                         )}
                         
                         {hasdetails && (
-                          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isExpanaea ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                          <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
                             {!isCredit && card.lockedAmount && card.lockedAmount > 0 ? (
                               <div id={`Card-details-${card.id}`} className="px-1.5 space-y-3 pt-1">
-                                {/* Lockea balance section & Hold Alert Banner */}
+                                {/* Locked balance section & Hold Alert Banner */}
                                 <div className="flex flex-wrap justify-between items-center gap-2 border-t border-subtle dark:border-default pt-3">
                                   <div>
                                     <span className="text-[10px] text-muted uppercase font-mono block">Spendable Balance</span>
@@ -1180,11 +1170,11 @@ export default function CashCardManagement({
                                   </div>
                                   <div className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-mono leading-none flex items-center gap-1.5 shadow-[inset_0_1px_5px_rgba(245,158,11,0.1)]">
                                     <Lock size={10} />
-                                    <span className="font-extrabola tracking-wiae text-[9px]">ACTIVE BANK HOLa</span>
+                                    <span className="font-extrabold tracking-wide text-[9px]">ACTIVE BANK HOLD</span>
                                   </div>
                                 </div>
 
-                                {/* Hela progression */}
+                                {/* Hold progression */}
                                 <div className="space-y-2.5 bg-surface/60 dark:bg-black/40 border border-subtle dark:border-default p-3 rounded-2xl">
                                   <div className="flex justify-between items-center">
                                     <span className="text-[9px] text-muted font-bold uppercase tracking-wider font-mono">Available Portion</span>
@@ -1210,7 +1200,7 @@ export default function CashCardManagement({
                                       </span>
                                     </div>
                                     <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-subtle dark:border-default/40 sm:border-x sm:border-subtle sm:dark:border-default/40">
-                                      <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Lockea Funds</span>
+                                      <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Locked Funds</span>
                                       <span className="text-xs font-bold font-mono text-amber-500">
                                         {currency}{card.lockedAmount.toLocaleString()}
                                       </span>
@@ -1228,17 +1218,17 @@ export default function CashCardManagement({
                             
                             {isCredit && (
                               <div id={`Card-details-${card.id}`} className="px-1.5 space-y-3 pt-1">
-                                {/* Outstanaing balance section & aebt badge */}
+                                {/* Outstanding balance section & debt badge */}
                                 <div className="flex flex-wrap justify-between items-center gap-2 border-t border-subtle dark:border-default pt-3">
                                   <div>
                                     <span className="text-[10px] text-muted uppercase font-mono block">Current Balance</span>
                                     {hasNegativeBalance ? (
                                       <div className="space-y-0.5">
                                         <span id="credit-Card-negative-balance" className="text-sm font-black font-mono text-rose-500 block leading-none">
-                                          -{currency}{outstanaingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                          -{currency}{outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </span>
                                         <span className="text-[9px] text-rose-500 dark:text-danger/80 font-mono font-semibold block">
-                                          Outstanaing aebt {currency}{outstanaingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                          Outstanding debt {currency}{outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </span>
                                       </div>
                                     ) : (
@@ -1251,7 +1241,7 @@ export default function CashCardManagement({
                                   {hasNegativeBalance && (
                                     <div className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-danger text-[10px] font-mono leading-none flex items-center gap-1.5 shadow-[inset_0_1px_5px_rgba(239,68,68,0.1)]">
                                       <span>⚠️</span>
-                                      <span className="font-extrabola tracking-wiae">OUTSTANaING CREdit card aEBT</span>
+                                      <span className="font-extrabold tracking-wide">OUTSTANDING CREDIT CARD DEBT</span>
                                     </div>
                                   )}
                                 </div>
@@ -1283,9 +1273,9 @@ export default function CashCardManagement({
                                         </span>
                                       </div>
                                       <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-subtle dark:border-default/40 sm:border-x sm:border-subtle sm:dark:border-default/40">
-                                        <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Usea Credit</span>
-                                        <span className={`text-xs font-bold font-mono ${useaCredit > 0 ? 'text-rose-500 dark:text-danger' : 'text-secondary dark:text-primary'}`}>
-                                          {currency}{useaCredit.toLocaleString()}
+                                        <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Used Credit</span>
+                                        <span className={`text-xs font-bold font-mono ${usedCredit > 0 ? 'text-rose-500 dark:text-danger' : 'text-secondary dark:text-primary'}`}>
+                                          {currency}{usedCredit.toLocaleString()}
                                         </span>
                                       </div>
                                       <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-subtle dark:border-default/40">
@@ -1317,7 +1307,7 @@ export default function CashCardManagement({
                         <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-surface0 animate-pulse" />
                         Archivea / Cancela cards ({canceleaCards.length})
                       </span>
-                      <span>{showCancela ? 'Hiae Archive' : 'Show Archive'}</span>
+                      <span>{showCancela ? 'Hide Archive' : 'Show Archive'}</span>
                     </button>
 
                     {showCancela && (
@@ -1374,7 +1364,7 @@ export default function CashCardManagement({
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in" onClick={() => setEditingCard(null)}>
             <div 
               className={`bg-card/98 border border-subtle dark:border-subtle p-6 md:p-8 rounded-[32px] shadow-2xl w-full scrollbar-none max-h-[90vh] overflow-y-auto transition-all duration-300 ${
-                isCredit ? 'max-w-3xl' : 'max-w-ma'
+                isCredit ? 'max-w-3xl' : 'max-w-md'
               }`} 
               onClick={(e) => e.stopPropagation()}
             >
@@ -1422,14 +1412,15 @@ export default function CashCardManagement({
                       </div>
 
                       <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Card Number (aigits only)</label>
+                        <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Card Number (digits only)</label>
                         <input
                           type="text"
                           placeholder="e.g. 4201 9283 (optional)"
                           value={editcardNumber}
                           onChange={(e) => {
-                            setEditcardNumber(e.target.value);
-                            validateeditCard(editcardName, e.target.value);
+                            const digits = e.target.value.replace(/\D/g, '');
+                            setEditcardNumber(digits);
+                            validateeditCard(editcardName, digits);
                           }}
                           maxLength={19}
                           className={`w-full bg-card border text-primary dark:text-primary rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-secondary dark:placeholder:text-muted/70 ${
@@ -1507,7 +1498,7 @@ export default function CashCardManagement({
                     <div className="space-y-2 max-h-44 overflow-y-auto scrollbar-none border-b border-subtle dark:border-default pb-3">
                       <span className="text-[9px] text-muted font-bold uppercase font-mono block">Active Charges ({currentCharges.length})</span>
                       {currentCharges.length === 0 ? (
-                        <div className="p-4 text-center text-[10px] text-muted dark:text-muted border border-aashea border-subtle dark:border-default rounded-xl">
+                        <div className="p-4 text-center text-[10px] text-muted dark:text-muted border border-dashed border-subtle dark:border-default rounded-xl">
                           No charges or penalties applied yet.
                         </div>
                       ) : (
