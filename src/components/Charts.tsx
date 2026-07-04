@@ -139,7 +139,7 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
           </div>
           <div className="w-full h-8 bg-primary border border-subtle dark:border-default rounded-xl overflow-hidden flex items-center relative chart-progress-track">
             <div
-              className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-blue-400 rounded-r-md transition-all duration-1000"
+              className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-emerald-400 rounded-r-md transition-all duration-1000"
               style={{ width: `${incomePct || 0}%` }}
             />
             <span className="absolute left-3 text-[10px] font-mono text-secondary font-bold mix-blend-difference text-primary-forced">RECEIPTS</span>
@@ -174,10 +174,10 @@ const CATEGORY_COLORS: Record<string, string> = {
   Entertainment: '#EC4899',
   Transport: '#0EA5E9',
   'Transaction Deletion': '#F97316',
-  'Transfer Fee': '#10B981',
+  'Transfer Fee': '#3B82F6',
   Shopping: '#EC4899',
   Rent: '#F43F5E',
-  Medical: '#10B981',
+  Medical: '#3B82F6',
   Education: '#6366F1'
 };
 
@@ -188,7 +188,7 @@ function getCategoryColor(name: string): string {
   
   const defaultColors = [
     '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', 
-    '#0EA5E9', '#F97316', '#10B981', '#6366F1', 
+    '#0EA5E9', '#F97316', '#3B82F6', '#6366F1', 
     '#14B8A6', '#F43F5E', '#D946EF', '#84CC16'
   ];
   let hash = 0;

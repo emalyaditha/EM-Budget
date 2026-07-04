@@ -105,14 +105,14 @@ export const EXPENSE_COLORS: Record<string, string> = {
   Utilities: '#A855F7',   // Purple
   Rent: '#EF4444',        // Red
   Entertainment: '#14B8A6', // Teal
-  Medical: '#10B981',     // Green
+  Medical: '#3B82F6',     // Blue
   Education: '#6366F1',   // Indigo
   'Bank Charges & Interest': '#E11D48', // Crimson/Rose
   Other: '#6B7280',       // Gray
 };
 
 export const INCOME_COLORS: Record<string, string> = {
-  Salary: '#10B981',      // Emerald Green
+  Salary: '#10B981',      // Green
   Freelance: '#06B6D4',   // Cyan
   Business: '#3B82F6',    // Blue
   Bonus: '#F59E0B',       // Gold

@@ -106,7 +106,7 @@ export default function NotificationDrawer({
                       {!notif.read && (
                         <button
                           onClick={() => onMarkRead(notif.id)}
-                          className="text-[10.5px] text-blue-600 dark:text-success font-bold font-mono uppercase flex items-center gap-1 hover:text-emerald-500 cursor-pointer"
+                          className="text-[10.5px] text-blue-600 dark:text-success font-bold font-mono uppercase flex items-center gap-1 hover:text-blue-500 cursor-pointer"
                         >
                           <Check size={11} className="stroke-[2.5px]" /> Read
                         </button>

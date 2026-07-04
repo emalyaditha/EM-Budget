@@ -14,7 +14,7 @@
     --text-muted: oklch(0.65 0.01 240);
     --border-primary: oklch(0.92 0.005 240);
     --border-secondary: oklch(0.86 0.008 240);
-    --accent-primary: oklch(0.68 0.16 165);
+    --accent-primary: oklch(0.62 0.16 250);
     --success: oklch(0.60 0.15 145);
     --negative: oklch(0.55 0.16 25);
     --warning: oklch(0.68 0.14 75);
@@ -38,7 +38,7 @@
     --text-muted: oklch(0.52 0.008 250);
     --border-primary: oklch(0.22 0.008 250);
     --border-secondary: oklch(0.28 0.008 250);
-    --accent-primary: oklch(0.82 0.18 165);
+    --accent-primary: oklch(0.72 0.18 250);
     --success: oklch(0.80 0.15 150);
     --negative: oklch(0.68 0.16 25);
     --warning: oklch(0.78 0.13 75);
@@ -413,7 +413,7 @@
   .bg-subtle { background-color: var(--bg-subtle); }
   .bg-danger-solid { background-color: #F87171; }
   .bg-warning-solid { background-color: #F59E0B; }
-  .bg-success-solid { background-color: #10B981; }
+  .bg-success-solid { background-color: #3B82F6; }
 
   /* =============== DESIGN TOKEN UTILITIES =============== */
   .bg-primary { background-color: var(--bg-primary); }
@@ -507,7 +507,7 @@
 }
 
 /* Undo hardcoded dark backgrounds in light mode */
-.light [class*="bg-[#"]:not([class*="bg-[var("]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#10B981]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#EF4444]"]):not([class*="bg-[#EC4899]"]):not([class*="bg-[#A855F7]"]):not([class*="bg-[#14B8A6]"]):not([class*="bg-[#6366F1]"]):not([class*="bg-[#E11D48]"]):not([class*="bg-[#84CC16]"]):not([class*="bg-[#06B6D4]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#6B7280]"]):not([class*="text-"]) {
+.light [class*="bg-[#"]:not([class*="bg-[var("]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#EF4444]"]):not([class*="bg-[#EC4899]"]):not([class*="bg-[#A855F7]"]):not([class*="bg-[#14B8A6]"]):not([class*="bg-[#6366F1]"]):not([class*="bg-[#E11D48]"]):not([class*="bg-[#84CC16]"]):not([class*="bg-[#06B6D4]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#6B7280]"]):not([class*="text-"]) {
   background-color: var(--bg-surface);
   color: var(--text-primary);
   border-color: var(--border-primary);
@@ -544,8 +544,8 @@
 .light .text-blue-500,
 .light .text-red-400,
 .light .text-red-500,
-.light .text-emerald-400,
-.light .text-emerald-500,
+.light .text-blue-400,
+.light .text-blue-500,
 .light .text-amber-400,
 .light .text-amber-500,
 .light .text-indigo-400,
@@ -621,8 +621,8 @@
 .light #vault-portfolio-hero [class*="bg-clip-text"] span.text-slate-400 {
   color: #4b5563;
 }
-.light #vault-portfolio-hero [class*="bg-clip-text"] span[class*="text-[#10B981]"] {
-  color: #059669;
+.light #vault-portfolio-hero [class*="bg-clip-text"] span[class*="text-[#3B82F6]"] {
+  color: #2563EB;
 }
 
 /* Light mode sidebar navigation active states */
@@ -653,7 +653,7 @@
 .light [data-loan-status] h3,
 .light [data-loan-status] h3 span,
 .light [data-loan-status] div,
-.light [data-loan-status] span:not([class*="text-rose"]):not([class*="text-indigo"]):not([class*="text-emerald"]):not([class*="text-amber"]) {
+.light [data-loan-status] span:not([class*="text-rose"]):not([class*="text-indigo"]):not([class*="text-blue"]):not([class*="text-amber"]) {
   color: var(--text-primary);
 }
 .light [data-loan-status] p,

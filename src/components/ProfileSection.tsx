@@ -183,7 +183,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
         ) : (
           <div className="text-center">
             <h3 className="text-xl font-extrabold text-primary tracking-tight">{state.userProfile?.name || 'User'}</h3>
-            <span className="px-2.5 py-0.5 bg-emerald-950/40 border border-emerald-900/40 text-success text-[9px] uppercase font-bold tracking-widest rounded-full inline-block mt-2 font-mono">
+            <span className="px-2.5 py-0.5 bg-blue-950/40 border border-blue-900/40 text-success text-[9px] uppercase font-bold tracking-widest rounded-full inline-block mt-2 font-mono">
               PREMIER MEMBER
             </span>
           </div>
@@ -239,7 +239,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
               <span className="text-xs font-bold text-primary">Encryption PIN & Supabase config</span>
             </div>
           </div>
-          <ShieldCheck size={14} className="text-emerald-500 mr-1" />
+          <ShieldCheck size={14} className="text-blue-500 mr-1" />
         </button>
       </div>
 

@@ -475,7 +475,7 @@ class CloudSyncService {
                 {syncMessage && (
                   <div className={`p-3 rounded-xl border text-[11px] font-sans flex items-start gap-2 ${
                     syncStatus === 'success' 
-                      ? 'bg-blue-950/20 border-emerald-900/60 text-success' 
+                      ? 'bg-blue-950/20 border-blue-900/60 text-success' 
                       : syncStatus === 'error'
                       ? 'bg-red-950/20 border-red-900/60 text-danger'
                       : 'bg-card/40 border-default text-secondary'
@@ -611,8 +611,8 @@ class CloudSyncService {
                   </div>
                   <div className="bg-black/40 border border-default p-3.5 rounded-xl space-y-2">
                     <span className="text-[10px] text-secondary font-mono block">Registered System Owner:</span>
-                    <div className="flex items-center gap-2 text-xs text-success font-semibold font-mono bg-emerald-950/20 py-2 px-3 border border-emerald-950/35 rounded-lg">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <div className="flex items-center gap-2 text-xs text-success font-semibold font-mono bg-blue-950/20 py-2 px-3 border border-blue-950/35 rounded-lg">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                       <span>{userEmail}</span>
                     </div>
                     <p className="text-[9px] text-muted leading-normal">

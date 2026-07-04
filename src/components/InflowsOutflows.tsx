@@ -285,6 +285,7 @@ export default function InflowsOutflows({
         <button
           onClick={() => { setToggleForm('income'); setInsufficiencyError(null); }}
           className={`segmented-tab flex-1 ${toggleForm === 'income' ? 'active' : ''}`}
+          style={toggleForm === 'income' ? { color: '#10B981' } : undefined}
         >
           <PlusCircle size={13} />
           Income
@@ -410,7 +411,7 @@ export default function InflowsOutflows({
                   setExpTitle(e.target.value);
                   validateExpense(e.target.value, expDesc, expAmount, expMethodId, expMethodType, expSubmitted);
                 }}
-                className={`form-input ${expErrors.title ? '!border-red-500' : expTitle && !expErrors.title ? '!border-emerald-500' : ''}`}
+                className={`form-input ${expErrors.title ? '!border-red-500' : expTitle && !expErrors.title ? '!border-blue-500' : ''}`}
                 aria-label="Expense title"
               />
               {expErrors.title && <span className="text-red-500 text-[10px]">{expErrors.title}</span>}
@@ -444,7 +445,7 @@ export default function InflowsOutflows({
                     setInsufficiencyError(null);
                     validateExpense(expTitle, expDesc, e.target.value, expMethodId, expMethodType, expSubmitted);
                   }}
-                  className={`form-input font-mono font-bold ${expErrors.amount ? '!border-red-500' : expAmount && !expErrors.amount ? '!border-emerald-500' : ''}`}
+                  className={`form-input font-mono font-bold ${expErrors.amount ? '!border-red-500' : expAmount && !expErrors.amount ? '!border-blue-500' : ''}`}
                   aria-label="Expense amount"
                 />
                 {expErrors.amount && <span className="text-red-500 text-[10px]">{expErrors.amount}</span>}

@@ -166,7 +166,7 @@ export default function TransactionEditModal({
                 errors.title
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : title && !errors.title
-                  ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                  ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
                   : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`} 
             />
@@ -191,7 +191,7 @@ export default function TransactionEditModal({
                 errors.amount
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : amount !== '' && !errors.amount
-                  ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                  ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
                   : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`} 
             />

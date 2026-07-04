@@ -227,7 +227,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold text-muted dark:text-secondary flex justify-between">
                       <span>Available Card Limit:</span>
-                      <span className="font-mono font-black text-emerald-600 dark:text-success">
+                      <span className="font-mono font-black text-blue-600 dark:text-success">
                         {currency} {((c.limit ?? 0) + c.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </p>
@@ -290,7 +290,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                           payErrors[c.id] && payAmounts[c.id] !== undefined
                             ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                             : payAmounts[c.id] && !payErrors[c.id]
-                            ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                            ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
                             : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
                         }`} 
                       />
@@ -306,7 +306,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                           payErrors[c.id] && paySources[c.id] !== undefined
                             ? 'border-rose-500 focus:border-rose-500'
                             : paySources[c.id] && !payErrors[c.id]
-                            ? 'border-emerald-500/50 focus:border-indigo-500'
+                            ? 'border-blue-500/50 focus:border-indigo-500'
                             : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500'
                         }`}
                       >
@@ -399,7 +399,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               purchaseErrors.cardId
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : purCardId && !purchaseErrors.cardId
-                ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
                 : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`}
           >
@@ -426,7 +426,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               purchaseErrors.amount
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : purAmount && !purchaseErrors.amount
-                ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
                 : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`} 
           />
@@ -449,7 +449,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               purchaseErrors.merchant
                 ? 'border-rose-500 focus:border-rose-500'
                 : purMerchant && !purchaseErrors.merchant
-                ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
                 : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`} 
           />

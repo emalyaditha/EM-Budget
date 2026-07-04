@@ -216,7 +216,7 @@ export default function SubscriptionManagement({
             }}
             className="px-5 py-2.5 bg-card border border-default text-primary hover:border-default font-mono text-xs uppercase font-bold rounded-xl flex items-center gap-2 cursor-pointer transition-all shadow-md active:scale-95"
           >
-            <Plus size={14} className="text-emerald-400" />
+            <Plus size={14} className="text-blue-400" />
             {isAdding ? 'Collapse' : 'Add Recurring Plan'}
           </button>
         </div>
@@ -245,7 +245,7 @@ export default function SubscriptionManagement({
       {/* 2. New Subscription Panel */}
       {isAdding && (
         <form onSubmit={handleCreate} className="bg-card border border-default rounded-[24px] p-6 md:p-8 shadow-2xl space-y-6 animate-fade-in text-left" id="add-subscription-form">
-          <div className="flex gap-2 items-center text-emerald-400 font-black text-lg tracking-tight mb-2">
+          <div className="flex gap-2 items-center text-blue-400 font-black text-lg tracking-tight mb-2">
             <Sparkles size={18} />
             <span>Setup New Recurring Subscription</span>
           </div>
@@ -382,7 +382,7 @@ export default function SubscriptionManagement({
 
             <button
               type="submit"
-              className="w-full h-13 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-black font-mono font-black uppercase tracking-widest text-xs rounded-2xl transition-all cursor-pointer shadow-lg shadow-emerald-500/10 mt-4 flex items-center justify-center gap-2"
+              className="w-full h-13 bg-blue-500 hover:bg-blue-400 active:scale-[0.98] text-black font-mono font-black uppercase tracking-widest text-xs rounded-2xl transition-all cursor-pointer shadow-lg shadow-blue-500/10 mt-4 flex items-center justify-center gap-2"
             >
               <Plus size={14} className="stroke-[2.5px]" />
               Establish Subscription
@@ -414,7 +414,7 @@ export default function SubscriptionManagement({
             </div>
             <div className="text-right">
               <span className="text-[9px] font-mono font-black uppercase block text-muted">SUM DUE</span>
-              <span className="text-emerald-400 text-sm font-mono font-black">{currency}{selectedSubscription.amount.toLocaleString()}</span>
+              <span className="text-blue-400 text-sm font-mono font-black">{currency}{selectedSubscription.amount.toLocaleString()}</span>
             </div>
           </div>
 
@@ -493,13 +493,13 @@ export default function SubscriptionManagement({
                 animate={{ opacity: 1, y: 0 }}
                 className={`bg-card/98 border border-default/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 ${
                   selectedSubId === sub.id 
-                    ? 'border-emerald-500/50 ring-1 ring-emerald-500/20' 
+                    ? 'border-blue-500/50 ring-1 ring-blue-500/20' 
                     : 'hover:border-default'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-card border border-default flex items-center justify-center text-emerald-400 shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-card border border-default flex items-center justify-center text-blue-400 shrink-0">
                       <CreditCard size={18} />
                     </div>
                     <div className="min-w-0">
@@ -537,9 +537,9 @@ export default function SubscriptionManagement({
                     <button
                       type="button"
                       onClick={() => onToggleSubscriptionStatus(sub.id, 'Paused')}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 transition-all text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer"
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-xl border border-blue-500/30 transition-all text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer"
                     >
-                      <Play size={12} className="text-emerald-400" />
+                      <Play size={12} className="text-blue-400" />
                       Resume
                     </button>
                   )}

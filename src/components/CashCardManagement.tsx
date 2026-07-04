@@ -623,7 +623,7 @@ export default function CashCardManagement({
   const getCardGradient = (theme: string) => {
     switch (theme) {
       case 'sapphire': return 'from-blue-900 via-card to-indigo-900 border-blue-500/30';
-      case 'emerald': return 'from-emerald-950 via-card to-green-950 border-subtle/30';
+      case 'emerald': return 'from-emerald-950 via-card to-emerald-950 border-subtle/30';
       case 'blue': return 'from-sky-950 via-card to-blue-950 border-sky-500/30';
       case 'copper': return 'from-amber-950 via-card to-orange-950 border-amber-600/30';
       case 'ruby': return 'from-rose-950 via-card to-rea-950 border-rose-500/30';
@@ -648,7 +648,7 @@ export default function CashCardManagement({
         {/* Section Heaaer */}
         <div className="space-y-2 pb-5 border-b border-default/60 mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl">
+            <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 text-blue-600 rounded-xl">
               <Wallet size={20} className="stroke-[2px]" />
             </div>
             <div>
@@ -710,7 +710,7 @@ export default function CashCardManagement({
                       setselectedCashIa(account.id);
                       setActionType('aeposit');
                     }}
-                    className="text-[10px] font-bold text-emerald-600 dark:text-success hover:text-primary dark:hover:text-black px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 dark:hover:bg-emerald-400 transition-all uppercase tracking-wider cursor-pointer font-mono"
+                    className="text-[10px] font-bold text-blue-600 dark:text-success hover:text-primary dark:hover:text-black px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500 dark:hover:bg-blue-400 transition-all uppercase tracking-wider cursor-pointer font-mono"
                   >
                     + aeposit
                   </button>
@@ -735,7 +735,7 @@ export default function CashCardManagement({
           <form onSubmit={handleQuickAdjustCash} className="bg-surface dark:bg-card border border-subtle dark:border-default p-6 rounded-[24px] mb-6 space-y-4 animate-fade-in text-left">
             <div className="flex justify-between items-center">
               <span className="text-[11px] font-mono font-bold text-primary dark:text-primary uppercase tracking-wider flex items-center gap-2">
-                <CornerDownRight size={13} className="text-emerald-500 dark:text-success animate-pulse" />
+                <CornerDownRight size={13} className="text-blue-500 dark:text-success animate-pulse" />
                 Quick {actionType}: {cashAccounts.find(c => c.id === selectedCashIa)?.name}
               </span>
               <button
@@ -767,7 +767,7 @@ export default function CashCardManagement({
                       quickErrors.qty
                         ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                         : qtyAction && !quickErrors.qty
-                        ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                        ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
                         : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
                     }`}
                     required
@@ -806,7 +806,7 @@ export default function CashCardManagement({
                   cashErrors.name
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : cashName && !cashErrors.name
-                    ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                    ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
                     : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
@@ -830,7 +830,7 @@ export default function CashCardManagement({
                   cashErrors.balance
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : cashBalance !== '' && !cashErrors.balance
-                    ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                    ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
                     : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
@@ -908,7 +908,7 @@ export default function CashCardManagement({
                     CardErrors.name
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                       : cardName && !CardErrors.name
-                      ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                      ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
                       : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
@@ -932,7 +932,7 @@ export default function CashCardManagement({
                     CardErrors.bank
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                       : bankName && !CardErrors.bank
-                      ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                      ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
                       : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
@@ -972,7 +972,7 @@ export default function CashCardManagement({
                     CardErrors.balance
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                       : CardBalance !== '' && !CardErrors.balance
-                      ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                      ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
                       : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
@@ -1028,7 +1028,7 @@ export default function CashCardManagement({
                   CardErrors.number
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : cardNumber && !CardErrors.number
-                    ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                    ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
                     : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
@@ -1098,7 +1098,7 @@ export default function CashCardManagement({
                     const usedCredit = limit > 0 ? Math.max(0, limit - availableCredit) : 0;
                     const utilizationPct = limit > 0 ? Math.min(100, (usedCredit / limit) * 100) : 0;
                     
-                    let progressColor = 'bg-emerald-500 shadow-emerald-500/20';
+                    let progressColor = 'bg-blue-500 shadow-blue-500/20';
                     let textProgressColor = 'text-success';
                     if (utilizationPct >= 70) {
                       progressColor = 'bg-rose-500 shadow-rose-500/20';
@@ -1164,7 +1164,7 @@ export default function CashCardManagement({
                                 <div className="flex flex-wrap justify-between items-center gap-2 border-t border-subtle dark:border-default pt-3">
                                   <div>
                                     <span className="text-[10px] text-muted uppercase font-mono block">Spendable Balance</span>
-                                    <span className="text-sm font-black font-mono text-emerald-600 dark:text-success block leading-none">
+                                    <span className="text-sm font-black font-mono text-blue-600 dark:text-success block leading-none">
                                       {currency}{(card.currentBalance - card.lockedAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </span>
                                   </div>
@@ -1178,7 +1178,7 @@ export default function CashCardManagement({
                                 <div className="space-y-2.5 bg-surface/60 dark:bg-black/40 border border-subtle dark:border-default p-3 rounded-2xl">
                                   <div className="flex justify-between items-center">
                                     <span className="text-[9px] text-muted font-bold uppercase tracking-wider font-mono">Available Portion</span>
-                                    <span className="text-[11px] font-black font-mono text-emerald-600 dark:text-success">
+                                    <span className="text-[11px] font-black font-mono text-blue-600 dark:text-success">
                                       {card.currentBalance > 0 ? ((card.currentBalance - card.lockedAmount) / card.currentBalance * 100).toFixed(0) : 0}% Clear
                                     </span>
                                   </div>
@@ -1186,7 +1186,7 @@ export default function CashCardManagement({
                                   {/* Progress track */}
                                   <div className="w-full h-2 bg-surface dark:bg-card rounded-full overflow-hidden relative shadow-inner">
                                     <div 
-                                      className="h-full rounded-full transition-all duration-500 bg-emerald-500 shadow-emerald-500/20"
+                                      className="h-full rounded-full transition-all duration-500 bg-blue-500 shadow-blue-500/20"
                                       style={{ width: `${card.currentBalance > 0 ? Math.max(0, Math.min(100, ((card.currentBalance - card.lockedAmount) / card.currentBalance * 100))) : 0}%` }}
                                     />
                                   </div>
@@ -1207,7 +1207,7 @@ export default function CashCardManagement({
                                     </div>
                                     <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-subtle dark:border-default/40">
                                       <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Spendable</span>
-                                      <span className="text-xs font-bold font-mono text-emerald-600 dark:text-success">
+                                      <span className="text-xs font-bold font-mono text-blue-600 dark:text-success">
                                         {currency}{Math.max(0, card.currentBalance - card.lockedAmount).toLocaleString()}
                                       </span>
                                     </div>
@@ -1232,7 +1232,7 @@ export default function CashCardManagement({
                                         </span>
                                       </div>
                                     ) : (
-                                      <span className="text-sm font-black font-mono text-emerald-600 dark:text-success block leading-none">
+                                      <span className="text-sm font-black font-mono text-blue-600 dark:text-success block leading-none">
                                         {currency}{card.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                       </span>
                                     )}
@@ -1280,7 +1280,7 @@ export default function CashCardManagement({
                                       </div>
                                       <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-subtle dark:border-default/40">
                                         <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Available</span>
-                                        <span className="text-xs font-bold font-mono text-emerald-600 dark:text-success">
+                                        <span className="text-xs font-bold font-mono text-blue-600 dark:text-success">
                                           {currency}{Math.max(0, availableCredit).toLocaleString()}
                                         </span>
                                       </div>
@@ -1338,7 +1338,7 @@ export default function CashCardManagement({
                                   onUpdateCard({ ...card, isCanceled: false });
                                   showToast('success', `${card.cardName} has been fully reactivated.`);
                                 }}
-                                className="px-3 py-1.5 text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-success hover:bg-emerald-500/20 active:scale-95 transition-all rounded-lg font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer"
+                                className="px-3 py-1.5 text-[10px] bg-blue-500/10 border border-blue-500/30 text-success hover:bg-blue-500/20 active:scale-95 transition-all rounded-lg font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer"
                               >
                                 <RefreshCw size={10} className="stroke-[2.5px] animate-spin-reverse" />
                                 <span>Reactivate</span>
@@ -1371,7 +1371,7 @@ export default function CashCardManagement({
               <div className="flex justify-between items-center pb-4 border-b border-subtle dark:border-default mb-6">
                 <div className="space-y-1">
                   <h3 className="text-primary dark:text-primary font-black text-lg flex items-center gap-2.5 tracking-tight">
-                    <Edit size={16} className="text-emerald-500" />
+                    <Edit size={16} className="text-blue-500" />
                     Edit card Settings
                   </h3>
                   <p className="text-xs text-muted dark:text-secondary font-medium">Configure active holdings for <strong className="text-secondary dark:text-primary">{EditingCard.cardName}</strong></p>
@@ -1664,7 +1664,7 @@ export default function CashCardManagement({
                             setChargedescription('');
                           }
                         }}
-                        className="w-full py-3 text-[10px] text-primary bg-emerald-400 hover:bg-emerald-300 font-mono font-bold uppercase rounded-xl transition-colors cursor-pointer"
+                        className="w-full py-3 text-[10px] text-primary bg-blue-400 hover:bg-blue-300 font-mono font-bold uppercase rounded-xl transition-colors cursor-pointer"
                       >
                         Add Charge & Record Transaction
                       </button>

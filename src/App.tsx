@@ -2429,7 +2429,7 @@ export default function App() {
                 >
                   <Bell size={13} />
                   {state.notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                    <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
                   )}
                 </button>
                 <button 
@@ -2472,7 +2472,7 @@ export default function App() {
                 >
                   <Bell size={13} />
                   {state.notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
                   )}
                 </button>
                 <button 
@@ -2578,7 +2578,7 @@ export default function App() {
             >
               <Bell size={15} className="text-[var(--accent-primary)]" />
               {state.notifications.filter(n => !n.read).length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-400 border border-default rounded-full animate-pulse" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-blue-400 border border-default rounded-full animate-pulse" />
               )}
             </button>
 
@@ -2998,7 +2998,7 @@ export default function App() {
                         {[
                           { tab: 'dashboard', icon: <LayoutDashboard size={15} className="text-amber-500" />, title: 'Dashboard', desc: 'Main indicators' },
                           { tab: 'accounts', icon: <Wallet size={15} className="text-blue-500" />, title: 'Wallets Port', desc: 'Manage assets' },
-                          { tab: 'inflow_outflow', icon: <Plus size={15} className="text-emerald-500" />, title: 'Ledger Registry', desc: 'New entries' },
+                          { tab: 'inflow_outflow', icon: <Plus size={15} className="text-blue-500" />, title: 'Ledger Registry', desc: 'New entries' },
                           { tab: 'budgets', icon: <CheckSquare size={15} className="text-purple-500" />, title: 'Smart Budgets', desc: 'Expenses envelope' },
                           { tab: 'goals', icon: <CheckSquare size={15} className="text-rose-500" />, title: 'Savings Jars', desc: 'Track progress' },
                           { tab: 'debts', icon: <CircleDot size={15} className="text-orange-500" />, title: 'Track Liabilities', desc: 'Debts timeline' },
@@ -3073,7 +3073,7 @@ export default function App() {
                           <Bell size={14} className="text-amber-400" />
                           <span className="text-[9px] font-bold block">Alerts</span>
                           {state.notifications.filter(n => !n.read).length > 0 && (
-                            <span className="absolute top-2 right-4 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                            <span className="absolute top-2 right-4 w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
                           )}
                         </button>
                       </div>

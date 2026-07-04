@@ -196,7 +196,7 @@ export default function GoalsSection({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border border-amber-505/30 border-amber-500/40 p-6 rounded-[24px] flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left justify-between relative shadow-xl">
+            <div className="bg-gradient-to-r from-amber-500/20 via-blue-500/20 to-amber-500/20 border border-amber-505/30 border-amber-500/40 p-6 rounded-[24px] flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left justify-between relative shadow-xl">
               <div className="flex items-center gap-3.5 flex-col sm:flex-row">
                 <span className="text-4xl animate-bounce">🏆</span>
                 <div>
@@ -498,7 +498,7 @@ export default function GoalsSection({
                   </button>
                   <button
                     onClick={handleFundGoalSubmit}
-                    className="py-2.5 h-12 px-5 bg-emerald-500 hover:bg-emerald-400 text-primary rounded-2xl text-xs font-mono font-black uppercase tracking-wider cursor-pointer shadow-md active:scale-95 transition-all"
+                    className="py-2.5 h-12 px-5 bg-blue-500 hover:bg-blue-400 text-primary rounded-2xl text-xs font-mono font-black uppercase tracking-wider cursor-pointer shadow-md active:scale-95 transition-all"
                   >
                     Confirm Ledger Sync
                   </button>

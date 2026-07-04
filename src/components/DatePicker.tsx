@@ -296,7 +296,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             error 
               ? 'border-rose-500 focus:border-rose-500' 
               : isOpen 
-              ? 'border-emerald-500 shadow-[0_0_0_3px_rgba(52,211,153,0.15)]' 
+              ? 'border-blue-500 shadow-[0_0_0_3px_rgba(52,211,153,0.15)]' 
               : 'border-default hover:border-default/80'
           } ${className}`}
         />
@@ -381,7 +381,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                       onClick={(e) => handleSelectDay(cell.dateString, e)}
                       className={`aspect-square text-xs font-mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-emerald-500 text-black font-bold shadow-md shadow-emerald-500/20'
+                          ? 'bg-blue-500 text-black font-bold shadow-md shadow-blue-500/20'
                           : isCurrentMonth
                           ? 'text-primary hover:bg-surface hover:text-primary'
                           : 'text-muted hover:bg-surface-40'
@@ -438,7 +438,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               top: `${coords.top}px`,
               left: `${coords.left}px`,
             }}
-            className="z-[9999] w-72 bg-card/95 backdrop-blur-md border border-subtle rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-4 select-none animate-brand-fade-up before:absolute before:top-0 before:left-6 before:right-6 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-emerald-500/60 before:to-transparent"
+            className="z-[9999] w-72 bg-card/95 backdrop-blur-md border border-subtle rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-4 select-none animate-brand-fade-up before:absolute before:top-0 before:left-6 before:right-6 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-blue-500/60 before:to-transparent"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -508,7 +508,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     onClick={(e) => handleSelectDay(cell.dateString, e)}
                     className={`aspect-square text-[11px] font-mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-emerald-500 text-black font-bold shadow-md shadow-emerald-500/10'
+                        ? 'bg-blue-500 text-black font-bold shadow-md shadow-blue-500/10'
                         : isCurrentMonth
                         ? 'text-primary hover:bg-surface hover:text-primary'
                         : 'text-muted hover:bg-surface-50'

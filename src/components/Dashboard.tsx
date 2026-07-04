@@ -507,7 +507,7 @@ export default function Dashboard({
       {/* 1. TOP PERSONALIZED BANNER */}
       <div className="relative bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-[20px] p-5 sm:p-6 shadow-[var(--shadow-soft)] overflow-hidden">
         {/* Accent bar at top */}
-        <div className="absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r from-[var(--accent-primary)] via-emerald-400 to-transparent rounded-full" />
+        <div className="absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r from-[var(--accent-primary)] via-blue-400 to-transparent rounded-full" />
         
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="space-y-1.5 text-left">
@@ -530,14 +530,14 @@ export default function Dashboard({
             >
               <Bell size={16} />
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse ring-2 ring-[var(--bg-card)]" />
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse ring-2 ring-[var(--bg-card)]" />
               )}
             </button>
 
             {/* Profile pic */}
             <button
               onClick={onProfileClick}
-              className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-emerald-500 text-primary font-black hover:scale-105 transition-all cursor-pointer overflow-hidden border border-[var(--accent-primary)]/20 flex items-center justify-center shrink-0 shadow-sm"
+              className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-blue-500 text-primary font-black hover:scale-105 transition-all cursor-pointer overflow-hidden border border-[var(--accent-primary)]/20 flex items-center justify-center shrink-0 shadow-sm"
               title="Profile Suite"
             >
               {state.userProfile?.avatarUrl ? (
@@ -611,7 +611,7 @@ export default function Dashboard({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-1 text-[10px] text-[var(--text-secondary)] font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   <span>Liquid ({assetRatioPct.toFixed(0)}%)</span>
                 </div>
                 <p className="text-xs font-bold text-[var(--text-primary)] font-mono">
@@ -632,7 +632,7 @@ export default function Dashboard({
 
             {/* Slim dynamic ratio horizontal bar */}
             <div className="w-full h-1 bg-[var(--bg-surface)] rounded-full overflow-hidden flex border border-[var(--border-primary)]/40">
-              <div style={{ width: `${assetRatioPct}%` }} className="h-full bg-[var(--accent-primary)] transition-all duration-1000" />
+              <div style={{ width: `${assetRatioPct}%` }} className="h-full bg-emerald-500 transition-all duration-1000" />
               <div style={{ width: `${liabilityRatioPct}%` }} className="h-full bg-[var(--negative)] transition-all duration-1000" />
             </div>
           </div>
@@ -662,7 +662,7 @@ export default function Dashboard({
           }}
           className="group p-4 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl text-left transition-all cursor-pointer flex items-center gap-3.5"
         >
-          <div className="p-2.5 rounded-xl bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)]/20 transition-colors">
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500/20 transition-colors">
             <Plus size={16} className="stroke-[2.5]" />
           </div>
           <div>
@@ -810,7 +810,7 @@ export default function Dashboard({
                   <defs>
                     <linearGradient id="healthGaugeGrad" x1="0" y1="0" x2="1" y2="1">
                       <stop offset="0%" stopColor="var(--accent-primary)" />
-                      <stop offset="100%" stopColor="oklch(0.75 0.15 150)" />
+                      <stop offset="100%" stopColor="oklch(0.75 0.15 250)" />
                     </linearGradient>
                   </defs>
                   {/* Outer track background */}
@@ -1127,7 +1127,7 @@ export default function Dashboard({
                       <div className="flex items-center gap-3.5 min-w-0 flex-1">
                         <div className={`p-2.5 rounded-xl shrink-0 transition-colors ${
                           isInc 
-                            ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border border-[var(--accent-primary)]/15' 
+                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/15' 
                             : 'bg-[var(--negative)]/10 text-[var(--negative)] border border-[var(--negative)]/15'
                         }`}>
                           {isInc ? <ArrowDownLeft size={16} className="stroke-[2.5]" /> : <ArrowUpRight size={16} className="stroke-[2.5]" />}
@@ -1146,7 +1146,7 @@ export default function Dashboard({
 
                       <div className="text-right pl-4 shrink-0 font-mono">
                         <span className={`text-xs font-bold block ${
-                          isInc ? 'text-[var(--accent-primary)]' : 'text-[var(--negative)]'
+                          isInc ? 'text-emerald-500' : 'text-[var(--negative)]'
                         }`}>
                           {isInc ? '+' : '-'}{state.currency}{absAmt.toLocaleString()}
                         </span>
@@ -1281,7 +1281,7 @@ export default function Dashboard({
                   type="button"
                   onClick={() => setTxType('income')}
                   className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all z-10 ${
-                    txType === 'income' ? 'bg-[var(--bg-card)] text-[var(--accent-primary)] shadow-sm border border-[var(--border-primary)]' : 'text-[var(--text-secondary)]'
+                    txType === 'income' ? 'bg-[var(--bg-card)] text-emerald-500 shadow-sm border border-[var(--border-primary)]' : 'text-[var(--text-secondary)]'
                   }`}
                 >
                   Income Inflow
@@ -1297,7 +1297,7 @@ export default function Dashboard({
                   <span className="text-[8px] font-mono text-[var(--text-muted)] uppercase tracking-widest block font-bold">TICKET PREVIEW</span>
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-bold text-[var(--text-primary)] truncate max-w-[200px]">{txTitle || "Untitled Statement"}</span>
-                    <span className={`text-sm font-black font-mono ${txType === 'expense' ? 'text-[var(--negative)]' : 'text-[var(--accent-primary)]'}`}>
+                    <span className={`text-sm font-black font-mono ${txType === 'expense' ? 'text-[var(--negative)]' : 'text-emerald-500'}`}>
                       {txType === 'expense' ? '-' : '+'}{state.currency}{parseFloat(txAmount || "0").toLocaleString()}
                     </span>
                   </div>

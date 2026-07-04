@@ -177,7 +177,7 @@ export default function TransferFunds({
           </h3>
           <p className="text-[11px] text-muted">Move funds instantly between accounts with zero friction</p>
         </div>
-        <span className="text-[9px] font-mono uppercase bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full text-success font-extrabold tracking-widest leading-none">
+        <span className="text-[9px] font-mono uppercase bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-full text-success font-extrabold tracking-widest leading-none">
           INSTANT SETTLEMENT
         </span>
       </div>
@@ -199,7 +199,7 @@ export default function TransferFunds({
                 errors.from
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : fromAccount && !errors.from
-                  ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                  ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
                   : 'border-default hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`}
             >
@@ -241,7 +241,7 @@ export default function TransferFunds({
                 errors.to
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : toAccount && !errors.to
-                  ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                  ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
                   : 'border-default hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`}
             >
@@ -280,7 +280,7 @@ export default function TransferFunds({
               errors.amount
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : amount && !errors.amount
-                ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
                 : 'border-default hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`}
             required
@@ -305,7 +305,7 @@ export default function TransferFunds({
               errors.charge
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : charge && !errors.charge
-                ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
                 : 'border-default hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`}
           />
@@ -339,7 +339,7 @@ export default function TransferFunds({
       
       <button 
         type="submit" 
-        className="w-full h-13 bg-emerald-400 hover:bg-emerald-300 active:scale-[0.98] text-black font-mono font-black uppercase tracking-widest text-xs rounded-2xl transition-all cursor-pointer shadow-lg shadow-emerald-500/10 mt-2 flex items-center justify-center gap-2"
+        className="w-full h-13 bg-blue-400 hover:bg-blue-300 active:scale-[0.98] text-black font-mono font-black uppercase tracking-widest text-xs rounded-2xl transition-all cursor-pointer shadow-lg shadow-blue-500/10 mt-2 flex items-center justify-center gap-2"
       >
         <ArrowRightLeft size={14} className="stroke-[2.5px]" />
         Execute Capital Transfer

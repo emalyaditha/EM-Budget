@@ -284,7 +284,7 @@ export default function LoansTracker({
           </div>
           <div>
             <span className="text-[10px] text-muted font-bold uppercase block font-mono">Total Recovered Vaults</span>
-            <span className="text-xl font-extrabold text-emerald-500 font-bold">
+            <span className="text-xl font-extrabold text-blue-500 font-bold">
               {currency} {totalRecoveredAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </span>
           </div>
@@ -461,7 +461,7 @@ export default function LoansTracker({
                         {loan.borrowerName}
                         <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-full uppercase border ${
                           loan.status === 'Settled' 
-                            ? 'bg-emerald-950/30 text-success border-emerald-900/50' 
+                            ? 'bg-blue-950/30 text-success border-blue-900/50' 
                             : loan.status === 'Partially Settled'
                             ? 'bg-yellow-950/30 text-yellow-450 border-yellow-905/30'
                             : 'bg-rose-950/30 text-danger border-rose-900/50'
@@ -538,7 +538,7 @@ export default function LoansTracker({
                       </div>
                       <div className="w-full bg-card/80 border border-default rounded-full h-2 overflow-hidden shadow-inner flex">
                         <div 
-                          className="bg-gradient-to-r from-indigo-500 to-emerald-500 h-full rounded-full transition-all duration-700" 
+                          className="bg-gradient-to-r from-indigo-500 to-blue-500 h-full rounded-full transition-all duration-700" 
                           style={{ width: `${activeProgress}%` }}
                         />
                       </div>

@@ -241,8 +241,8 @@ export default function ReportsCentre({
             <span className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
               Net Savings
             </span>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' }}>
-              <PiggyBank size={14} style={{ color: 'var(--accent-primary)' }} />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, var(--success) 12%, transparent)' }}>
+              <PiggyBank size={14} style={{ color: 'var(--success)' }} />
             </div>
           </div>
           <p className="text-sm sm:text-base lg:text-lg font-mono font-extrabold text-[var(--text-primary)] leading-none truncate">
@@ -332,7 +332,7 @@ export default function ReportsCentre({
             <>
               <div className="card-base p-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <BarChart3 size={14} style={{ color: 'var(--accent-primary)' }} />
+                  <BarChart3 size={14} style={{ color: 'var(--success)' }} />
                   <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
                     Income vs Expenses
                   </h3>

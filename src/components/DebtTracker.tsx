@@ -246,12 +246,12 @@ export default function DebtTracker({
         </div>
 
         <div className="bg-card/40 p-5 rounded-2xl border border-default flex items-center gap-4">
-          <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-950/40">
+          <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-950/40">
             <ArrowDownLeft size={20} />
           </div>
           <div>
             <span className="text-[10px] text-muted font-bold uppercase block font-mono">Total Repaid</span>
-            <span className="text-xl font-extrabold text-emerald-500">
+            <span className="text-xl font-extrabold text-blue-500">
               {currency} {totalPaidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </span>
           </div>
@@ -363,7 +363,7 @@ export default function DebtTracker({
 
         {activeDebts.length === 0 ? (
           <div className="bg-card/15 border border-default rounded-[32px] p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-inner">
-            <div className={`p-4 bg-card/60 rounded-2xl border ${debts.length > 0 ? 'border-emerald-500/30 text-emerald-400' : 'border-default text-muted'}`}>
+            <div className={`p-4 bg-card/60 rounded-2xl border ${debts.length > 0 ? 'border-blue-500/30 text-blue-400' : 'border-default text-muted'}`}>
               {debts.length > 0 ? <CheckCircle2 size={24} /> : <DollarSign size={24} className="text-muted" />}
             </div>
             <div>
@@ -430,7 +430,7 @@ export default function DebtTracker({
                           setPaymentError(null);
                           setIncreasingDebtId(null);
                         }}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-primary border border-emerald-500 py-1.5 px-3.5 rounded-xl text-[10px] font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                        className="bg-blue-500 hover:bg-blue-600 text-primary border border-blue-500 py-1.5 px-3.5 rounded-xl text-[10px] font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
                       >
                         <CheckCircle2 size={12} />
                         <span>Make Payment</span>
@@ -468,11 +468,11 @@ export default function DebtTracker({
                     <div className="md:col-span-2 space-y-1.5">
                       <div className="flex justify-between items-center text-[10px] font-mono">
                         <span className="text-muted font-bold uppercase">Repayment Progress</span>
-                        <span className="text-emerald-400 font-bold">{progress}% Repaid</span>
+                        <span className="text-blue-400 font-bold">{progress}% Repaid</span>
                       </div>
                       <div className="w-full bg-card/80 border border-default rounded-full h-2 overflow-hidden shadow-inner flex">
                         <div
-                          className="bg-gradient-to-r from-rose-500 to-emerald-500 h-full rounded-full transition-all duration-700"
+                          className="bg-gradient-to-r from-rose-500 to-blue-500 h-full rounded-full transition-all duration-700"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -491,8 +491,8 @@ export default function DebtTracker({
                   {/* PAYMENT ACTION PANEL inline drawer */}
                   {payingDebtId === debt.id && (
                     <form onSubmit={handlePaymentSubmit} className="mt-4 bg-card border border-default p-5 rounded-[20px] space-y-4 shadow-inner scale-98 transition-all animate-fade-in text-xs text-left">
-                      <div className="flex items-center gap-1.5 text-emerald-400 font-bold mb-1">
-                        <CheckCircle2 size={13} className="text-emerald-400" />
+                      <div className="flex items-center gap-1.5 text-blue-400 font-bold mb-1">
+                        <CheckCircle2 size={13} className="text-blue-400" />
                         <span className="uppercase font-mono text-[10px] tracking-wider font-black">Make Payment</span>
                       </div>
 
@@ -507,7 +507,7 @@ export default function DebtTracker({
                             value={paymentAmount}
                             onChange={(e) => setPaymentAmount(e.target.value)}
                             max={debt.remainingAmount}
-                            className="w-full bg-surface border border-default rounded-2xl py-3.5 px-4 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all font-mono font-bold"
+                            className="w-full bg-surface border border-default rounded-2xl py-3.5 px-4 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono font-bold"
                             required
                           />
                         </div>
@@ -532,7 +532,7 @@ export default function DebtTracker({
                               setPaidFromId(id);
                               setPaidFromType(type as 'cash' | 'card');
                             }}
-                            className="w-full bg-surface border border-default rounded-2xl py-3.5 px-3.5 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all cursor-pointer font-semibold"
+                            className="w-full bg-surface border border-default rounded-2xl py-3.5 px-3.5 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer font-semibold"
                           >
                             {availableAccounts.map(acc => (
                               <option key={`pay:${acc.id}:${acc.type}`} value={`${acc.id}:${acc.type}`}>
@@ -563,7 +563,7 @@ export default function DebtTracker({
                             placeholder="e.g. 150 (Leave blank or 0 if none)"
                             value={paymentBankCharge}
                             onChange={(e) => setPaymentBankCharge(e.target.value)}
-                            className="w-full bg-surface border border-default rounded-2xl py-3 px-4 text-xs text-primary focus:outline-none focus:ring-1 focus:border-emerald-500 focus:ring-emerald-500 font-mono"
+                            className="w-full bg-surface border border-default rounded-2xl py-3 px-4 text-xs text-primary focus:outline-none focus:ring-1 focus:border-blue-500 focus:ring-blue-500 font-mono"
                           />
                           <p className="text-[9.5px] text-muted font-mono pl-0.5 leading-normal">Making payment from a card might incur transaction fees. Entering a charge will deduct from your card balance.</p>
                         </div>
@@ -659,7 +659,7 @@ export default function DebtTracker({
                             {debt.payments.map((payment) => (
                               <div key={payment.id} className="bg-card/60 border border-default rounded-xl p-3 flex justify-between items-center">
                                 <div className="space-y-0.5">
-                                  <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono font-bold uppercase">
+                                  <div className="flex items-center gap-1.5 text-[10px] text-blue-400 font-mono font-bold uppercase">
                                     <ArrowDownLeft size={10} />
                                     <span>Payment Made</span>
                                   </div>
