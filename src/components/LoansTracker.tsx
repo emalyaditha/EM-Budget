@@ -384,17 +384,6 @@ export default function LoansTracker({
               {errors.dateGiven && <p className="text-[10px] text-rose-500 font-mono font-semibold mt-1.5 block pl-1">{errors.dateGiven}</p>}
             </div>
 
-            {/* Private Notes */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Notes / Memorandum</label>
-              <input
-                type="text"
-                placeholder="e.g. Friendly loan, paid back in weekly installments..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-surface border border-default rounded-2xl py-3.5 px-4 text-xs font-medium text-primary focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors placeholder:text-muted"
-              />
-            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
@@ -557,14 +546,6 @@ export default function LoansTracker({
 
                   </div>
 
-                  {/* Notes Panel */}
-                  {loan.notes && (
-                    <div className="bg-card/50 border border-subtle p-3 rounded-xl text-xs text-secondary mt-1 mb-3 font-medium italic select-text">
-                      <span className="font-bold text-muted text-[10px] uppercase font-mono not-italic block mb-0.5">Notes memo</span>
-                      "{loan.notes}"
-                    </div>
-                  )}
-
                   {/* SETTLING ACTION PANEL inline drawer */}
                   {settlingLoanId === loan.id && (
                     <form onSubmit={handleSettleSubmit} className="mt-4 bg-card border border-default p-5 rounded-[20px] space-y-4 shadow-inner scale-98 transition-all animate-fade-in text-xs text-left">
@@ -685,18 +666,6 @@ export default function LoansTracker({
                               </option>
                             ))}
                           </select>
-                        </div>
-
-                        {/* Additional Memo */}
-                        <div className="space-y-1.5 md:col-span-1">
-                          <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">Add-on notes</label>
-                          <input
-                            type="text"
-                            value={increaseNotes}
-                            onChange={(e) => setIncreaseNotes(e.target.value)}
-                            placeholder="e.g. Added top-up balance"
-                            className="w-full bg-surface border border-default rounded-2xl py-3.5 px-4 text-xs text-primary focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500 transition-all font-medium placeholder:text-muted"
-                          />
                         </div>
 
                         {/* Submission */}

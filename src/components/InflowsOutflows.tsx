@@ -292,6 +292,7 @@ export default function InflowsOutflows({
         <button
           onClick={() => setToggleForm('expense')}
           className={`segmented-tab flex-1 ${toggleForm === 'expense' ? 'active' : ''}`}
+          style={toggleForm === 'expense' ? { color: 'var(--negative)' } : undefined}
         >
           <MinusCircle size={13} />
           Expense

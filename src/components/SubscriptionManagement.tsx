@@ -491,98 +491,86 @@ export default function SubscriptionManagement({
                 key={sub.id} 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`bg-card/98 border border-default/80 rounded-[32px] p-6 shadow-sm hover:shadow-md transition-all duration-300 ${
+                className={`bg-card/98 border border-default/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 ${
                   selectedSubId === sub.id 
                     ? 'border-emerald-500/50 ring-1 ring-emerald-500/20' 
                     : 'hover:border-default'
                 }`}
               >
-                  <div className="flex justify-between items-start gap-4 mb-6">
-                      <div className="flex gap-4 items-center">
-                          <div className="w-12 h-12 rounded-2xl bg-card border border-default flex items-center justify-center text-emerald-400">
-                             <CreditCard size={24} />
-                          </div>
-                          <div>
-                              <h4 className="font-bold text-primary text-lg tracking-tight">{sub.name}</h4>
-                              <div className="flex gap-2 items-center mt-0.5 flex-wrap">
-                                <span className="text-[10px] font-mono text-muted uppercase tracking-widest font-bold border border-default rounded-full px-2 py-0.5">
-                                  {sub.category}
-                                </span>
-                                <span className="text-[10px] font-mono text-muted uppercase tracking-widest">
-                                  {sub.billingCycle}
-                                </span>
-                                {sub.instanceType && (
-                                  <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5 font-bold uppercase tracking-widest">
-                                    {sub.instanceType}
-                                  </span>
-                                )}
-                              </div>
-                          </div>
-                      </div>
-                      <div className={`px-3 py-1 rounded-full font-mono text-[10px] font-black tracking-widest uppercase ${statusStyle.color}`}>
-                          {statusStyle.label}
-                      </div>
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-card border border-default flex items-center justify-center text-emerald-400 shrink-0">
+                      <CreditCard size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-primary text-sm truncate">{sub.name}</h4>
+                      <span className="text-[10px] font-mono text-muted uppercase tracking-wider">{sub.category} · {sub.billingCycle}</span>
+                    </div>
                   </div>
+                  <span className={`shrink-0 px-2.5 py-0.5 rounded-full font-mono text-[9px] font-bold tracking-wider uppercase ${statusStyle.color}`}>
+                    {statusStyle.label}
+                  </span>
+                </div>
 
-                  <div className="flex justify-between items-end mb-6">
-                      <span className="text-muted text-xs font-semibold tracking-wider">Next Renewal</span>
-                      <span className="text-primary text-base font-bold font-mono tracking-tight">{sub.dueDate}</span>
+                <div className="flex items-end justify-between mb-4">
+                  <div>
+                    <span className="text-[10px] font-mono text-muted uppercase tracking-wider font-semibold">Amount</span>
+                    <p className="text-2xl font-black text-primary font-mono tracking-tight mt-0.5">{currency}{sub.amount.toLocaleString()}</p>
                   </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-mono text-muted uppercase tracking-wider font-semibold">Renewal</span>
+                    <p className="text-xs font-bold text-primary font-mono mt-0.5">{sub.dueDate}</p>
+                  </div>
+                </div>
 
-                  <div className="flex justify-between items-baseline mb-8">
-                      <span className="text-muted text-xs font-semibold tracking-wider">Amount</span>
-                      <span className="text-3xl font-black text-primary font-mono tracking-tight">{currency}{sub.amount.toLocaleString()}</span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="grid grid-cols-2 gap-3 pt-6 border-t border-default">
-                      {sub.status === 'Active' ? (
-                        <button
-                          type="button"
-                          onClick={() => onToggleSubscriptionStatus(sub.id, 'Active')}
-                          className="flex items-center justify-center gap-2 px-4 py-3 bg-card hover:bg-surface text-primary hover:text-primary rounded-xl border border-default transition-all text-xs font-bold font-mono uppercase tracking-widest cursor-pointer"
-                        >
-                          <Pause size={14} className="text-amber-500" />
-                          Pause
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onToggleSubscriptionStatus(sub.id, 'Paused')}
-                          className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 transition-all text-xs font-bold font-mono uppercase tracking-widest cursor-pointer"
-                        >
-                          <Play size={14} className="text-emerald-400" />
-                          Resume
-                        </button>
-                      )}
-                      
-                      {sub.status === 'Active' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedSubId(selectedSubId === sub.id ? null : sub.id);
-                            if (isAdding) setIsAdding(false);
-                          }}
-                          className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all text-xs font-bold font-mono uppercase tracking-widest cursor-pointer ${
-                            selectedSubId === sub.id
-                              ? 'bg-amber-500 text-black border-amber-600 font-extrabold'
-                              : 'bg-surface hover:bg-zinc-700 text-primary border-zinc-700'
-                          }`}
-                        >
-                          <DollarSign size={14} />
-                          Settle
-                        </button>
-                      )}
-                      
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(sub.id, sub.name)}
-                        className="col-span-2 flex items-center justify-center gap-2 px-4 py-3 bg-rose-500/5 hover:bg-rose-500/10 text-danger rounded-xl border border-rose-500/20 transition-all text-xs font-bold font-mono uppercase tracking-widest cursor-pointer mt-1"
-                      >
-                        <Trash2 size={14} />
-                        Delete Subscription
-                      </button>
-                  </div>
+                <div className="flex gap-2 pt-4 border-t border-default">
+                  {sub.status === 'Active' ? (
+                    <button
+                      type="button"
+                      onClick={() => onToggleSubscriptionStatus(sub.id, 'Active')}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-card hover:bg-surface text-primary rounded-xl border border-default transition-all text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer"
+                    >
+                      <Pause size={12} className="text-amber-500" />
+                      Pause
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onToggleSubscriptionStatus(sub.id, 'Paused')}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 transition-all text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer"
+                    >
+                      <Play size={12} className="text-emerald-400" />
+                      Resume
+                    </button>
+                  )}
+                  
+                  {sub.status === 'Active' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedSubId(selectedSubId === sub.id ? null : sub.id);
+                        if (isAdding) setIsAdding(false);
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer ${
+                        selectedSubId === sub.id
+                          ? 'bg-amber-500 text-black border-amber-600'
+                          : 'bg-surface hover:bg-zinc-700 text-primary border-zinc-700'
+                      }`}
+                    >
+                      <DollarSign size={12} />
+                      Settle
+                    </button>
+                  )}
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(sub.id, sub.name)}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-500/5 hover:bg-rose-500/10 text-danger rounded-xl border border-rose-500/20 transition-all text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer"
+                    title="Delete"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
               </motion.div>
             );
           })}

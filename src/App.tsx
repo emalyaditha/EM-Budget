@@ -2683,16 +2683,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Notifications trigger bell */}
-              <button
-                onClick={() => setIsNotifOpen(true)}
-                className="p-2 sm:p-3 bg-card border border-default rounded-full text-primary hover:text-primary hover:border-default relative cursor-pointer shadow-md transition-all flex items-center justify-center shrink-0"
-              >
-                <Bell size={15} />
-                {state.notifications.filter(n => !n.read).length > 0 && (
-                  <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-400 border-2 border-default rounded-full animate-pulse" />
-                )}
-              </button>
             </div>
           )}
 

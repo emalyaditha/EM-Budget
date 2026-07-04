@@ -88,7 +88,7 @@ export default function DebtTracker({
   }, [cashAccounts, cards, increasingDebtId]);
 
   // Calculations
-  const activeDebts = debts.filter(d => d.status !== 'Fully Repaid');
+  const activeDebts = debts.filter(d => d.status !== 'Fully Repaid' && d.remainingAmount > 0);
   const totalDebtAmount = debts.reduce((acc, d) => acc + d.totalAmount, 0);
   const totalRemainingAmount = debts.reduce((acc, d) => acc + d.remainingAmount, 0);
   const totalPaidAmount = totalDebtAmount - totalRemainingAmount;
@@ -361,36 +361,34 @@ export default function DebtTracker({
           </button>
         </div>
 
-        {activeDebts.length === 0 && debts.length === 0 ? (
+        {activeDebts.length === 0 ? (
           <div className="bg-card/15 border border-default rounded-[32px] p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-inner">
-            <div className="p-4 bg-card/60 rounded-2xl border border-default text-muted">
-              <DollarSign size={24} className="text-muted" />
+            <div className={`p-4 bg-card/60 rounded-2xl border ${debts.length > 0 ? 'border-emerald-500/30 text-emerald-400' : 'border-default text-muted'}`}>
+              {debts.length > 0 ? <CheckCircle2 size={24} /> : <DollarSign size={24} className="text-muted" />}
             </div>
             <div>
-              <p className="text-primary text-sm font-semibold">No Debts Registered</p>
+              <p className="text-primary text-sm font-semibold">{debts.length > 0 ? 'All Debts Repaid' : 'No Debts Registered'}</p>
               <p className="text-muted text-xs mt-1 max-w-sm mx-auto leading-relaxed">
-                You have not registered any debts. Use the <strong>"Add Debt"</strong> button above to start tracking your liabilities.
+                {debts.length > 0
+                  ? 'You have successfully repaid all your debts.'
+                  : 'You have not registered any debts. Use the <strong>"Add Debt"</strong> button above to start tracking your liabilities.'}
               </p>
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {debts.map((debt) => {
+            {activeDebts.map((debt) => {
               const progress = debt.totalAmount > 0
                 ? Math.round(((debt.totalAmount - debt.remainingAmount) / debt.totalAmount) * 100)
                 : 0;
 
-              const isFullyRepaid = debt.status === 'Fully Repaid';
-
               return (
                 <div
                   key={debt.id}
-                  className={`bg-gradient-to-br from-[#0c0c0f] to-[#040405] border rounded-3xl p-6 shadow-xl transition-all relative overflow-hidden ${
-                    isFullyRepaid ? 'border-emerald-500/50' : 'border-default'
-                  }`}
+                  className="bg-gradient-to-br from-[#0c0c0f] to-[#040405] border border-default rounded-3xl p-6 shadow-xl transition-all relative overflow-hidden"
                 >
                   <div className={`absolute top-0 right-0 bottom-0 w-1 ${
-                    isFullyRepaid ? 'bg-emerald-500' : debt.status === 'Closed' ? 'bg-yellow-500' : 'bg-rose-500'
+                    debt.status === 'Closed' ? 'bg-yellow-500' : 'bg-rose-500'
                   }`} />
 
                   {/* Header Row */}
@@ -399,9 +397,7 @@ export default function DebtTracker({
                       <h3 className="text-base font-extrabold text-primary flex items-center gap-2">
                         {debt.debtSource}
                         <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-full uppercase border ${
-                          isFullyRepaid
-                            ? 'bg-emerald-950/30 text-emerald-400 border-emerald-900/50'
-                            : debt.status === 'Closed'
+                          debt.status === 'Closed'
                             ? 'bg-yellow-950/30 text-yellow-400 border-yellow-900/50'
                             : 'bg-rose-950/30 text-rose-400 border-rose-900/50'
                         }`}>
@@ -415,34 +411,30 @@ export default function DebtTracker({
                     </div>
 
                     <div className="flex items-center gap-2.5 sm:self-center self-end animate-fade-in">
-                      {!isFullyRepaid && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setIncreasingDebtId(increasingDebtId === debt.id ? null : debt.id);
-                              setIncreaseAmount('');
-                              setIncreaseError(null);
-                              setPayingDebtId(null);
-                            }}
-                            className="bg-card hover:bg-card text-amber-400 border border-default py-1.5 px-3 rounded-xl text-[10px] font-extrabold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
-                          >
-                            <Plus size={12} />
-                            <span>Incur More</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              setPayingDebtId(payingDebtId === debt.id ? null : debt.id);
-                              setPaymentAmount(debt.remainingAmount.toString());
-                              setPaymentError(null);
-                              setIncreasingDebtId(null);
-                            }}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-primary border border-emerald-500 py-1.5 px-3.5 rounded-xl text-[10px] font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
-                          >
-                            <CheckCircle2 size={12} />
-                            <span>Make Payment</span>
-                          </button>
-                        </>
-                      )}
+                      <button
+                        onClick={() => {
+                          setIncreasingDebtId(increasingDebtId === debt.id ? null : debt.id);
+                          setIncreaseAmount('');
+                          setIncreaseError(null);
+                          setPayingDebtId(null);
+                        }}
+                        className="bg-card hover:bg-card text-amber-400 border border-default py-1.5 px-3 rounded-xl text-[10px] font-extrabold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                      >
+                        <Plus size={12} />
+                        <span>Incur More</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPayingDebtId(payingDebtId === debt.id ? null : debt.id);
+                          setPaymentAmount(debt.remainingAmount.toString());
+                          setPaymentError(null);
+                          setIncreasingDebtId(null);
+                        }}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-primary border border-emerald-500 py-1.5 px-3.5 rounded-xl text-[10px] font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                      >
+                        <CheckCircle2 size={12} />
+                        <span>Make Payment</span>
+                      </button>
                       <button
                         onClick={() => handleDeleteDebtClick(debt.id, debt.debtSource)}
                         className="text-muted hover:text-danger p-2 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
@@ -459,7 +451,7 @@ export default function DebtTracker({
                     {/* Remaining Balance */}
                     <div className="space-y-0.5">
                       <span className="text-[10px] text-muted uppercase font-mono font-bold block">Remaining Balance</span>
-                      <span className={`text-xl font-black ${isFullyRepaid ? 'text-muted line-through' : 'text-rose-400'}`}>
+                      <span className="text-xl font-black text-rose-400">
                         {currency} {debt.remainingAmount.toLocaleString()}
                       </span>
                     </div>

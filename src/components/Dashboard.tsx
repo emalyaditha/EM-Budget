@@ -505,46 +505,53 @@ export default function Dashboard({
       </motion.button>
 
       {/* 1. TOP PERSONALIZED BANNER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-2 gap-4">
-        <div className="space-y-1 text-left">
-          <span className="text-[10px] tracking-widest text-[var(--text-muted)] font-mono font-bold uppercase block">SECURE FINTECH LEDGER</span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold font-display text-[var(--text-primary)] flex items-center gap-2 leading-none">
-            Hello, {state.userProfile?.name || 'User'}
-            <span className="text-2xl hover:scale-125 duration-150 cursor-pointer">👋</span>
-          </h1>
-        </div>
+      <div className="relative bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-[20px] p-5 sm:p-6 shadow-[var(--shadow-soft)] overflow-hidden">
+        {/* Accent bar at top */}
+        <div className="absolute top-0 left-6 right-6 h-0.5 bg-gradient-to-r from-[var(--accent-primary)] via-emerald-400 to-transparent rounded-full" />
+        
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-1.5 text-left">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)] animate-pulse" />
+              <span className="text-[10px] tracking-widest text-[var(--text-muted)] font-mono font-bold uppercase">SECURE FINTECH LEDGER</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-[var(--text-primary)] leading-none">
+              Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {state.userProfile?.name || 'User'}
+            </h1>
+          </div>
 
-        {/* Desktop Header Quick Tools (hidden on mobile, visible on desktop/tablet) */}
-        <div className="hidden sm:flex items-center gap-3">
-          {/* Notifications bell */}
-          <button
-            onClick={onNotificationClick}
-            className="p-3 bg-card-50 hover:bg-card border border-default hover:border-default rounded-2xl text-secondary hover:text-primary transition-all cursor-pointer relative flex items-center justify-center shrink-0 w-11 h-11"
-            title="Notification Alerts Center"
-          >
-            <Bell size={16} className="text-indigo-400" />
-            {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-            )}
-          </button>
+          {/* Desktop Header Quick Tools (hidden on mobile, visible on desktop/tablet) */}
+          <div className="hidden sm:flex items-center gap-2.5">
+            {/* Notifications bell */}
+            <button
+              onClick={onNotificationClick}
+              className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/30 transition-all cursor-pointer relative flex items-center justify-center shrink-0"
+              title="Notification Alerts Center"
+            >
+              <Bell size={16} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse ring-2 ring-[var(--bg-card)]" />
+              )}
+            </button>
 
-          {/* Profile pic */}
-          <button
-            onClick={onProfileClick}
-            className="w-11 h-11 rounded-2xl bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-primary font-black transition-all cursor-pointer overflow-hidden border border-default flex items-center justify-center shrink-0"
-            title="Profile Suite"
-          >
-            {state.userProfile?.avatarUrl ? (
-              <img 
-                src={state.userProfile.avatarUrl} 
-                alt={state.userProfile.name} 
-                className="w-full h-full object-cover" 
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              state.userProfile?.name?.charAt(0) || 'U'
-            )}
-          </button>
+            {/* Profile pic */}
+            <button
+              onClick={onProfileClick}
+              className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-emerald-500 text-primary font-black hover:scale-105 transition-all cursor-pointer overflow-hidden border border-[var(--accent-primary)]/20 flex items-center justify-center shrink-0 shadow-sm"
+              title="Profile Suite"
+            >
+              {state.userProfile?.avatarUrl ? (
+                <img 
+                  src={state.userProfile.avatarUrl} 
+                  alt={state.userProfile.name} 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                state.userProfile?.name?.charAt(0) || 'U'
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
