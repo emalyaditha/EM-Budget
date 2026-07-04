@@ -337,7 +337,7 @@ export default function CashCardManagement({
   // Quick action states
   const [selectedCashIa, setselectedCashIa] = useState<string | null>(null);
   const [qtyAction, setQtyAction] = useState('');
-  const [actionType, setActionType] = useState<'aeposit' | 'witharaw' | null>(null);
+  const [actionType, setActionType] = useState<'Deposit' | 'witharaw' | null>(null);
   const [quickErrors, setQuickErrors] = useState<Record<string, string>>({});
   const [quicksubmitted, setQuicksubmitted] = useState(false);
 
@@ -605,7 +605,7 @@ export default function CashCardManagement({
 
     const amountNum = parseFloat(qtyAction) || 0;
     let nextBalance = account.balance;
-    if (actionType === 'aeposit') {
+    if (actionType === 'Deposit') {
       nextBalance += amountNum;
     } else if (actionType === 'witharaw') {
       nextBalance -= amountNum;
@@ -708,11 +708,11 @@ export default function CashCardManagement({
                     type="button"
                     onClick={() => {
                       setselectedCashIa(account.id);
-                      setActionType('aeposit');
+                      setActionType('Deposit');
                     }}
                     className="text-[10px] font-bold text-blue-600 dark:text-success hover:text-primary dark:hover:text-black px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500 dark:hover:bg-blue-400 transition-all uppercase tracking-wider cursor-pointer font-mono"
                   >
-                    + aeposit
+                    + Deposit
                   </button>
                   <button
                     type="button"
@@ -730,7 +730,7 @@ export default function CashCardManagement({
           ))}
         </div>
 
-        {/* Quick aeposit/Witharaw Action Sliaer */}
+        {/* Quick Deposit/Witharaw Action Sliaer */}
         {selectedCashIa && actionType && (
           <form onSubmit={handleQuickAdjustCash} className="bg-surface dark:bg-card border border-subtle dark:border-default p-6 rounded-[24px] mb-6 space-y-4 animate-fade-in text-left">
             <div className="flex justify-between items-center">
