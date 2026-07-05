@@ -4,8 +4,8 @@ import { AppState, Transaction } from '../types';
 import { 
   Bell, Plus, Send, ArrowUpRight, ArrowDownLeft, CreditCard, 
   Wallet, PieChart, Landmark, TrendingUp, AlertTriangle, 
-  CheckCircle2, Flame, RefreshCw, Calendar, ChevronRight, UserCheck, Heart, ArrowRight,
-  X, Info, Sparkles
+  CheckCircle2, Flame, RefreshCw, Calendar, ChevronRight, UserCheck, ArrowRight,
+  X, Sparkles
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid 
@@ -61,14 +61,6 @@ interface DashboardProps {
   onAddExpense?: (title: string, description: string, amount: number, date: string, category: any, paymentMethodId: string, paymentMethodType: 'cash' | 'card', bankCharge?: number) => void;
 }
 
-const FORMULAS = {
-  netWorth: "Net Worth Tier: Evaluates accumulated wealth against baseline milestones.",
-  liquidity: "Liquidity ratio: Liquid reserves (Cash + Debit cards) divided by monthly expenses.",
-  debt: "Debt safety: Ratio of outstanding debt liabilities relative to liquid capital.",
-  cashFlow: "Flow Margin: Percent of income retained after monthly outflows.",
-  savings: "Savings Speed: Dynamic rate of net savings growth this month."
-};
-
 export default function Dashboard({ 
   state, 
   aggregateActiveWealth, 
@@ -88,8 +80,7 @@ export default function Dashboard({
   onAddExpense
 }: DashboardProps) {
 
-  const [timeRange, setTimeRange] = useState<'1W' | '1M' | '3M' | 'YTD' | '1Y' | 'All'>('1M');
-  const [hoveredMetricFormula, setHoveredMetricFormula] = useState<string | null>(null);
+  const [timeRange, setTimeRange] = useState<'1W' | '1M' | '3M' | 'YTD' | '1Y' | 'All'>('1W');
   const [isQuickTxOpen, setIsQuickTxOpen] = useState(false);
 
   // Quick Action form state
@@ -119,126 +110,7 @@ export default function Dashboard({
     : 0;
   const displaySavingsRate = Math.max(0, netSavingsRate);
 
-  // Calculate high-fidelity, fully data-driven Financial Health Score across 5 metrics
-  const healthMetrics = useMemo(() => {
-    const hasAnyData = state.cashAccounts.length > 0 || state.cards.length > 0 || state.transactions.length > 0 || state.debts.length > 0;
-    if (!hasAnyData) {
-      return {
-        netWorthScore: 0,
-        liquidityScore: 0,
-        debtScore: 0,
-        cashFlowScore: 0,
-        savingsRateScore: 0,
-        totalScore: 0,
-        hasData: false
-      };
-    }
 
-    // 1. Net Worth Score (max 30)
-    let netWorthScore = 0;
-    if (aggregateActiveWealth > 0) {
-      netWorthScore = Math.min(30, Math.round(15 + (aggregateActiveWealth / 50000) * 15));
-    } else if (aggregateActiveWealth < 0) {
-      netWorthScore = Math.max(0, Math.round(10 - (Math.abs(aggregateActiveWealth) / 10000) * 10));
-    } else {
-      netWorthScore = 0;
-    }
-
-    // 2. Liquidity Score (max 25)
-    let liquidityScore = 0;
-    const liquidAssets = totalCashAmount + totalDebitCardsAmount;
-    if (currentMonthOutflow > 0) {
-      const ratio = liquidAssets / currentMonthOutflow;
-      if (ratio >= 3) liquidityScore = 25;
-      else if (ratio >= 1.5) liquidityScore = 20;
-      else if (ratio >= 1.0) liquidityScore = 15;
-      else liquidityScore = Math.min(15, Math.round(5 + ratio * 10));
-    } else {
-      if (liquidAssets >= 5000) liquidityScore = 25;
-      else if (liquidAssets >= 2000) liquidityScore = 20;
-      else if (liquidAssets >= 500) liquidityScore = 15;
-      else if (liquidAssets > 0) liquidityScore = 10;
-      else liquidityScore = 0;
-    }
-
-    // 3. Debt Ratio Score (max 20)
-    let debtScore = 20;
-    const totalAssets = totalCashAmount + totalDebitCardsAmount;
-    if (totalDebtsAmount > 0) {
-      const dRatio = totalDebtsAmount / (totalAssets || 1);
-      if (dRatio <= 0.1) debtScore = 18;
-      else if (dRatio <= 0.3) debtScore = 15;
-      else if (dRatio <= 0.5) debtScore = 10;
-      else debtScore = Math.max(0, Math.round(10 - (dRatio - 0.5) * 20));
-    } else {
-      debtScore = totalAssets > 0 ? 20 : 0;
-    }
-
-    // 4. Cash Flow Score (max 15)
-    let cashFlowScore = 0;
-    const netCashFlow = currentMonthInflow - currentMonthOutflow;
-    if (currentMonthInflow > 0) {
-      if (netCashFlow > 0) {
-        const margin = netCashFlow / currentMonthInflow;
-        if (margin >= 0.3) cashFlowScore = 15;
-        else if (margin >= 0.15) cashFlowScore = 12;
-        else cashFlowScore = Math.round(5 + margin * 20);
-      } else {
-        cashFlowScore = Math.max(0, Math.round(5 + (netCashFlow / currentMonthInflow) * 10));
-      }
-    } else if (currentMonthOutflow > 0) {
-      cashFlowScore = 0;
-    } else {
-      cashFlowScore = 0;
-    }
-
-    // 5. Savings Rate Score (max 10)
-    let savingsRateScore = 0;
-    if (displaySavingsRate > 0) {
-      if (displaySavingsRate >= 30) savingsRateScore = 10;
-      else if (displaySavingsRate >= 20) savingsRateScore = 8;
-      else if (displaySavingsRate >= 10) savingsRateScore = 6;
-      else if (displaySavingsRate >= 5) savingsRateScore = 4;
-      else savingsRateScore = 2;
-    } else {
-      savingsRateScore = 0;
-    }
-
-    const totalScore = netWorthScore + liquidityScore + debtScore + cashFlowScore + savingsRateScore;
-
-    return {
-      netWorthScore,
-      liquidityScore,
-      debtScore,
-      cashFlowScore,
-      savingsRateScore,
-      totalScore,
-      hasData: true
-    };
-  }, [
-    state.cashAccounts,
-    state.cards,
-    state.transactions,
-    state.debts,
-    aggregateActiveWealth,
-    totalCashAmount,
-    totalDebitCardsAmount,
-    totalCreditCardsAmount,
-    totalDebtsAmount,
-    currentMonthInflow,
-    currentMonthOutflow,
-    displaySavingsRate
-  ]);
-
-  const finalHealthScore = healthMetrics.totalScore;
-
-  const getHealthStatus = (score: number) => {
-    if (score >= 85) return { label: 'Excellent', color: 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/20', desc: 'Your savings speed and wallet leverage are optimized.' };
-    if (score >= 70) return { label: 'Healthy', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20', desc: 'Solid reserves, but watch secondary subscription leaks.' };
-    return { label: 'Attention Needed', color: 'text-[var(--negative)] bg-[var(--negative)]/10 border-[var(--negative)]/20', desc: 'High outflow velocities detected. Increase capital limits.' };
-  };
-
-  const healthState = getHealthStatus(finalHealthScore);
 
   // Spend category calculations for Category Spread Analysis
   const categoriesBudgets = state.budgets && state.budgets.length > 0 ? state.budgets : [];
@@ -413,6 +285,68 @@ export default function Dashboard({
     }));
   }, [timeRange, aggregateActiveWealth, state.transactions]);
 
+  // P&L data derived from trend chart (change from start of period)
+  const pnlChartData = useMemo(() => {
+    if (fullTrendChartData.length === 0) return [];
+    const firstValue = fullTrendChartData[0].value;
+    return fullTrendChartData.map(d => ({
+      date: d.date,
+      value: d.value,
+      pnl: d.value - firstValue
+    }));
+  }, [fullTrendChartData]);
+
+  // Split P&L data into up/down segments for green/red line coloring
+  const segmentedChartData = useMemo(() => {
+    const data = pnlChartData;
+    if (data.length === 0) return [];
+    if (data.length === 1) {
+      return [{ ...data[0], upPnl: data[0].pnl, downPnl: null }];
+    }
+
+    const result: any[] = [];
+
+    const isFirstUp = data[1].pnl >= data[0].pnl;
+    result.push({
+      date: data[0].date, value: data[0].value, pnl: data[0].pnl,
+      upPnl: isFirstUp ? data[0].pnl : null,
+      downPnl: !isFirstUp ? data[0].pnl : null,
+    });
+
+    for (let i = 1; i < data.length - 1; i++) {
+      const currDirIsUp = data[i].pnl >= data[i - 1].pnl;
+      const nextDirIsUp = data[i + 1].pnl >= data[i].pnl;
+
+      if (currDirIsUp !== nextDirIsUp) {
+        result.push({
+          date: data[i].date, value: data[i].value, pnl: data[i].pnl,
+          upPnl: currDirIsUp ? data[i].pnl : null,
+          downPnl: !currDirIsUp ? data[i].pnl : null,
+        });
+        result.push({
+          date: data[i].date, value: data[i].value, pnl: data[i].pnl,
+          upPnl: nextDirIsUp ? data[i].pnl : null,
+          downPnl: !nextDirIsUp ? data[i].pnl : null,
+        });
+      } else {
+        result.push({
+          date: data[i].date, value: data[i].value, pnl: data[i].pnl,
+          upPnl: currDirIsUp ? data[i].pnl : null,
+          downPnl: !currDirIsUp ? data[i].pnl : null,
+        });
+      }
+    }
+
+    const isLastUp = data[data.length - 1].pnl >= data[data.length - 2].pnl;
+    result.push({
+      date: data[data.length - 1].date, value: data[data.length - 1].value, pnl: data[data.length - 1].pnl,
+      upPnl: isLastUp ? data[data.length - 1].pnl : null,
+      downPnl: !isLastUp ? data[data.length - 1].pnl : null,
+    });
+
+    return result;
+  }, [pnlChartData]);
+
   // X-Axis Date Formatter based on active Range Selector
   const formatXAxis = (tickItem: string) => {
     try {
@@ -434,10 +368,11 @@ export default function Dashboard({
   const CustomChartTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const pnl = data.pnl;
       const value = data.value;
-      const initialVal = fullTrendChartData[0]?.value || value;
-      const delta = value - initialVal;
-      const deltaPct = initialVal !== 0 ? (delta / initialVal) * 100 : 0;
+      const initialVal = value - pnl;
+      const pnlPct = initialVal !== 0 ? (pnl / initialVal) * 100 : 0;
+      const isPositive = pnl >= 0;
       
       return (
         <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl p-3 shadow-lg text-left backdrop-blur-md">
@@ -445,9 +380,9 @@ export default function Dashboard({
           <p className="text-sm font-bold text-[var(--text-primary)] font-mono mt-1">
             {state.currency}{value.toLocaleString()}
           </p>
-          <p className={`text-[10px] font-mono font-bold mt-1 flex items-center gap-1 ${delta >= 0 ? 'text-[var(--accent-primary)]' : 'text-[var(--negative)]'}`}>
-            <span>{delta >= 0 ? '▲' : '▼'}</span>
-            <span>{delta >= 0 ? '+' : ''}{delta.toLocaleString()} ({deltaPct >= 0 ? '+' : ''}{deltaPct.toFixed(1)}%)</span>
+          <p className={`text-[10px] font-mono font-bold mt-1 flex items-center gap-1 ${isPositive ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+            <span>{isPositive ? '▲' : '▼'}</span>
+            <span>{isPositive ? '+' : ''}{pnl.toLocaleString()} ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%)</span>
           </p>
         </div>
       );
@@ -484,11 +419,6 @@ export default function Dashboard({
   const ratioCap = totalAssets + totalLiabilities || 1;
   const assetRatioPct = (totalAssets / ratioCap) * 100;
   const liabilityRatioPct = (totalLiabilities / ratioCap) * 100;
-
-  // Render SVG stroke circumference variables for gauge meter
-  const gaugeRadius = 40;
-  const gaugeCircumference = 2 * Math.PI * gaugeRadius;
-  const gaugeOffset = gaugeCircumference - (finalHealthScore / 100) * gaugeCircumference;
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans animate-fade-in space-y-8 p-1 relative" id="command-dashboard">
@@ -730,7 +660,7 @@ export default function Dashboard({
               <h3 className="text-lg font-bold font-display text-[var(--text-primary)] flex items-center gap-2">
                 <span>Portfolio Trend Analysis</span>
               </h3>
-              <p className="text-xs text-[var(--text-secondary)]">Historical cumulative net worth evaluation curve</p>
+              <p className="text-xs text-[var(--text-secondary)]">Weekly profit & loss analysis — resets every week</p>
             </div>
 
             {/* Premium Pill Range Filters */}
@@ -754,10 +684,10 @@ export default function Dashboard({
           {/* Recharts Area Chart Integration */}
           <div className="w-full h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={fullTrendChartData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
+              <AreaChart data={segmentedChartData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.3}/>
+                    <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.2}/>
                     <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
@@ -779,189 +709,136 @@ export default function Dashboard({
                   dx={-10}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(val) => `${state.currency}${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`}
+                  tickFormatter={(val) => {
+                    if (val === 0) return `${state.currency}0`;
+                    const prefix = val > 0 ? '+' : '';
+                    const absVal = Math.abs(val);
+                    return `${prefix}${state.currency}${absVal >= 1000 ? (absVal / 1000).toFixed(0) + 'k' : absVal}`;
+                  }}
                 />
                 <RechartsTooltip content={<CustomChartTooltip />} cursor={{ stroke: 'var(--accent-primary)', strokeWidth: 1, strokeDasharray: '3 3' }} />
                 <Area 
                   type="monotone" 
-                  dataKey="value" 
-                  stroke="var(--accent-primary)" 
-                  strokeWidth={2} 
+                  dataKey="pnl" 
+                  stroke="none" 
                   fillOpacity={1} 
                   fill="url(#trendGradient)" 
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="upPnl" 
+                  stroke="#22c55e" 
+                  strokeWidth={2} 
+                  fill="none" 
+                  connectNulls={false}
+                  dot={false}
+                  activeDot={false}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="downPnl" 
+                  stroke="#ef4444" 
+                  strokeWidth={2} 
+                  fill="none" 
+                  connectNulls={false}
+                  dot={false}
+                  activeDot={false}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* FINANCIAL HEALTH INDEX CARD (4 COLS) */}
-        <div className="lg:col-span-4 bg-[var(--bg-card)] rounded-[20px] p-6 border border-[var(--border-primary)] shadow-[var(--shadow-soft)] flex flex-col justify-between relative overflow-hidden text-left min-h-[440px]" id="financial-health-card">
-          <div className="space-y-6">
-            <div className="flex justify-between items-center pb-1">
-              <h3 className="text-lg font-bold font-display text-[var(--text-primary)]">Financial Health Index</h3>
-              <Heart size={16} className="text-[var(--negative)] fill-[var(--negative)] animate-pulse" />
+        {/* FINANCIAL HEALTH KEY METRICS (4 COLS) */}
+        <div className="lg:col-span-4 bg-[var(--bg-card)] rounded-[20px] p-6 border border-[var(--border-primary)] shadow-[var(--shadow-soft)] flex flex-col relative overflow-hidden text-left min-h-[440px]">
+          <div className="flex items-center gap-2 pb-4">
+            <div className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" />
+            <h3 className="text-lg font-bold font-display text-[var(--text-primary)]">Financial Health</h3>
+          </div>
+
+          {/* Net Worth Snapshot */}
+          <div className="bg-[var(--bg-surface)] rounded-xl p-4 border border-[var(--border-primary)] mb-5">
+            <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Net Worth</span>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-2xl font-black font-display text-[var(--text-primary)] tabular-nums">
+                {state.currency}{aggregateActiveWealth.toLocaleString()}
+              </span>
+              <span className={`text-[10px] font-bold font-mono ${aggregateActiveWealth >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                {aggregateActiveWealth >= 0 ? '▲' : '▼'}
+              </span>
             </div>
+          </div>
 
-            {/* Circular Gauge Center Block */}
-            <div className="flex flex-col sm:flex-row lg:flex-col items-center gap-6 py-2">
-              <div className="relative flex items-center justify-center w-36 h-36">
-                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                  <defs>
-                    <linearGradient id="healthGaugeGrad" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="var(--accent-primary)" />
-                      <stop offset="100%" stopColor="oklch(0.75 0.15 250)" />
-                    </linearGradient>
-                  </defs>
-                  {/* Outer track background */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={gaugeRadius}
-                    className="stroke-[var(--bg-surface)]"
-                    strokeWidth="7"
-                    fill="none"
-                  />
-                  {/* Gauge fill circle */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={gaugeRadius}
-                    stroke="url(#healthGaugeGrad)"
-                    strokeWidth="7"
-                    strokeDasharray={gaugeCircumference}
-                    strokeDashoffset={gaugeOffset}
-                    strokeLinecap="round"
-                    fill="none"
-                    className="transition-all duration-1000 ease-out"
-                  />
-                </svg>
+          {/* Key Metrics Grid */}
+          {(() => {
+            const liquidAssets = totalCashAmount + totalDebitCardsAmount;
+            const monthlyExpenses = currentMonthOutflow || 1;
+            const cashRunway = currentMonthOutflow > 0 ? (liquidAssets / currentMonthOutflow) : (liquidAssets > 0 ? 12 : 0);
+            const totalAssets = totalCashAmount + totalDebitCardsAmount + totalCreditCardsAmount;
+            const debtRatio = totalAssets > 0 ? (totalDebtsAmount / totalAssets) * 100 : 0;
+            const monthlyCashFlow = currentMonthInflow - currentMonthOutflow;
 
-                {/* Score centered display */}
-                <div className="absolute flex flex-col items-center justify-center text-center">
-                  <span className="text-3xl font-black font-display tracking-tight text-[var(--text-primary)]">
-                    {finalHealthScore}
-                  </span>
-                  <span className="text-[9px] font-mono tracking-widest text-[var(--text-muted)] uppercase mt-0.5">SCORE</span>
+            const runwayStatus = cashRunway >= 6 ? { label: 'Strong', color: 'text-[#22c55e] bg-[#22c55e]/10 border-[#22c55e]/20' } : cashRunway >= 3 ? { label: 'Fair', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20' } : { label: 'Low', color: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20' };
+            const debtStatus = debtRatio <= 30 ? { label: 'Low', color: 'text-[#22c55e] bg-[#22c55e]/10 border-[#22c55e]/20' } : debtRatio <= 50 ? { label: 'Moderate', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20' } : { label: 'High', color: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20' };
+            const savingsStatus = displaySavingsRate >= 20 ? { label: 'Good', color: 'text-[#22c55e] bg-[#22c55e]/10 border-[#22c55e]/20' } : displaySavingsRate >= 10 ? { label: 'Fair', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20' } : { label: 'Low', color: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20' };
+            const flowStatus = monthlyCashFlow >= 0 ? { label: 'Positive', color: 'text-[#22c55e] bg-[#22c55e]/10 border-[#22c55e]/20' } : { label: 'Negative', color: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20' };
+
+            return (
+              <div className="space-y-2.5 flex-1">
+                <div className="flex items-center justify-between bg-[var(--bg-surface)] rounded-lg px-3.5 py-2.5 border border-[var(--border-primary)]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[11px] font-semibold text-[var(--text-secondary)] font-sans">Cash Runway</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-bold font-mono text-[var(--text-primary)] tabular-nums">{cashRunway.toFixed(1)}mo</span>
+                    <span className={`text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-full border ${runwayStatus.color}`}>{runwayStatus.label}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between bg-[var(--bg-surface)] rounded-lg px-3.5 py-2.5 border border-[var(--border-primary)]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[11px] font-semibold text-[var(--text-secondary)] font-sans">Debt Ratio</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-bold font-mono text-[var(--text-primary)] tabular-nums">{debtRatio.toFixed(0)}%</span>
+                    <span className={`text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-full border ${debtStatus.color}`}>{debtStatus.label}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between bg-[var(--bg-surface)] rounded-lg px-3.5 py-2.5 border border-[var(--border-primary)]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[11px] font-semibold text-[var(--text-secondary)] font-sans">Savings Rate</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-bold font-mono text-[var(--text-primary)] tabular-nums">{displaySavingsRate}%</span>
+                    <span className={`text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-full border ${savingsStatus.color}`}>{savingsStatus.label}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between bg-[var(--bg-surface)] rounded-lg px-3.5 py-2.5 border border-[var(--border-primary)]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[11px] font-semibold text-[var(--text-secondary)] font-sans">Cash Flow</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className={`text-xs font-bold font-mono tabular-nums ${monthlyCashFlow >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                      {monthlyCashFlow >= 0 ? '+' : ''}{state.currency}{monthlyCashFlow.toLocaleString()}
+                    </span>
+                    <span className={`text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-full border ${flowStatus.color}`}>{flowStatus.label}</span>
+                  </div>
                 </div>
               </div>
+            );
+          })()}
 
-              <div className="flex-1 w-full space-y-2">
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase inline-block border ${healthState.color}`}>
-                  {healthState.label}
-                </span>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-sans">
-                  {healthState.desc}
-                </p>
-              </div>
+          {/* Assets vs Liabilities Footer */}
+          <div className="mt-4 pt-3 border-t border-[var(--border-primary)]">
+            <div className="flex justify-between text-[10px] font-mono">
+              <span className="text-[var(--text-muted)]">Assets</span>
+              <span className="font-bold text-[#22c55e]">{state.currency}{(totalCashAmount + totalDebitCardsAmount + totalCreditCardsAmount).toLocaleString()}</span>
             </div>
-
-            {/* Score Component Breakdown */}
-            <div className="pt-4 border-t border-[var(--border-primary)] space-y-3 relative">
-              <div className="flex justify-between items-center pb-1">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--accent-primary)] font-mono">Index Components</span>
-                <span className="text-[9px] text-[var(--text-muted)] font-mono font-bold">MAX 100 PTS</span>
-              </div>
-
-              {/* Hover Formula Tooltip Bubble */}
-              <AnimatePresence>
-                {hoveredMetricFormula && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 5 }}
-                    className="absolute left-0 right-0 -top-8 bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-lg p-2.5 shadow-md z-20 text-xs font-sans text-[var(--text-secondary)] flex items-start gap-2 backdrop-blur-md"
-                  >
-                    <Info size={14} className="text-[var(--accent-primary)] shrink-0 mt-0.5" />
-                    <span>{hoveredMetricFormula}</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Component: Net Worth Score */}
-              <div 
-                className="space-y-1 cursor-help"
-                onMouseEnter={() => setHoveredMetricFormula(FORMULAS.netWorth)}
-                onMouseLeave={() => setHoveredMetricFormula(null)}
-              >
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)] font-medium font-sans">Net Worth Tier</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {healthMetrics.netWorthScore}<span className="text-[var(--text-muted)] font-normal"> / 30</span>
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--bg-surface)] h-1 rounded-full overflow-hidden border border-[var(--border-primary)]/45">
-                  <div className="bg-[var(--accent-primary)] h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.netWorthScore / 30) * 100}%` }} />
-                </div>
-              </div>
-
-              {/* Component: Liquidity Score */}
-              <div 
-                className="space-y-1 cursor-help"
-                onMouseEnter={() => setHoveredMetricFormula(FORMULAS.liquidity)}
-                onMouseLeave={() => setHoveredMetricFormula(null)}
-              >
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)] font-medium font-sans">Cash Liquidity</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {healthMetrics.liquidityScore}<span className="text-[var(--text-muted)] font-normal"> / 25</span>
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--bg-surface)] h-1 rounded-full overflow-hidden border border-[var(--border-primary)]/45">
-                  <div className="bg-cyan-400 h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.liquidityScore / 25) * 100}%` }} />
-                </div>
-              </div>
-
-              {/* Component: Debt Ratio Score */}
-              <div 
-                className="space-y-1 cursor-help"
-                onMouseEnter={() => setHoveredMetricFormula(FORMULAS.debt)}
-                onMouseLeave={() => setHoveredMetricFormula(null)}
-              >
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)] font-medium font-sans">Liability Safety</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {healthMetrics.debtScore}<span className="text-[var(--text-muted)] font-normal"> / 20</span>
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--bg-surface)] h-1 rounded-full overflow-hidden border border-[var(--border-primary)]/45">
-                  <div className="bg-amber-400 h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.debtScore / 20) * 100}%` }} />
-                </div>
-              </div>
-
-              {/* Component: Cash Flow Score */}
-              <div 
-                className="space-y-1 cursor-help"
-                onMouseEnter={() => setHoveredMetricFormula(FORMULAS.cashFlow)}
-                onMouseLeave={() => setHoveredMetricFormula(null)}
-              >
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)] font-medium font-sans">Flow Margin</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {healthMetrics.cashFlowScore}<span className="text-[var(--text-muted)] font-normal"> / 15</span>
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--bg-surface)] h-1 rounded-full overflow-hidden border border-[var(--border-primary)]/45">
-                  <div className="bg-indigo-400 h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.cashFlowScore / 15) * 100}%` }} />
-                </div>
-              </div>
-
-              {/* Component: Savings Rate Score */}
-              <div 
-                className="space-y-1 cursor-help"
-                onMouseEnter={() => setHoveredMetricFormula(FORMULAS.savings)}
-                onMouseLeave={() => setHoveredMetricFormula(null)}
-              >
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)] font-medium font-sans">Savings Delta</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {healthMetrics.savingsRateScore}<span className="text-[var(--text-muted)] font-normal"> / 10</span>
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--bg-surface)] h-1 rounded-full overflow-hidden border border-[var(--border-primary)]/45">
-                  <div className="bg-[var(--negative)] h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.savingsRateScore / 10) * 100}%` }} />
-                </div>
-              </div>
+            <div className="flex justify-between text-[10px] font-mono mt-1">
+              <span className="text-[var(--text-muted)]">Liabilities</span>
+              <span className="font-bold text-[#ef4444]">{state.currency}{totalDebtsAmount.toLocaleString()}</span>
             </div>
           </div>
         </div>
