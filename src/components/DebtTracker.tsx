@@ -244,7 +244,7 @@ export default function DebtTracker({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
         
         {/* Metric A: Total Outstanding Liability Glassmorphic Banner */}
-        <div className="md:col-span-8 bg-gradient-to-tr from-zinc-950 via-neutral-900/90 to-amber-955/20 to-zinc-950 p-6 rounded-[28px] border border-zinc-800 shadow-xl flex flex-col justify-between relative overflow-hidden">
+        <div className="md:col-span-8 bg-gradient-to-tr from-zinc-950 via-neutral-900/90 to-amber-950/20 to-zinc-950 p-6 rounded-[28px] border border-zinc-800 shadow-xl flex flex-col justify-between relative overflow-hidden">
           <div className="absolute -top-12 -right-12 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
           
           <div className="space-y-1">
@@ -256,7 +256,7 @@ export default function DebtTracker({
           </div>
 
           <div className="mt-6 flex flex-wrap items-baseline gap-2">
-            <span className="text-sm font-semibold text-zinc-550 font-mono">{currency}</span>
+            <span className="text-sm font-semibold text-[var(--text-secondary)] font-mono">{currency}</span>
             <span className="text-3xl font-bold text-white font-mono tracking-tight select-all">
               {totalRemainingDebt.toLocaleString()}
             </span>
@@ -265,7 +265,7 @@ export default function DebtTracker({
         </div>
 
              {/* Metric B: Clear progress gauge */}
-        <div className="md:col-span-4 bg-zinc-900/40 p-6 rounded-[28px] border border-zinc-850 flex flex-col justify-between shadow-lg">
+        <div className="md:col-span-4 bg-zinc-900/40 p-6 rounded-[28px] border border-[var(--border-primary)] flex flex-col justify-between shadow-lg">
           <div>
             <div className="flex justify-between items-start mb-2">
               <span className="text-[10px] text-zinc-500 uppercase font-mono font-bold block">Overall Repaid Index</span>
@@ -311,10 +311,10 @@ export default function DebtTracker({
 
       {/* 2. Add Debt Form */}
       {isAddingDebt && (
-        <form onSubmit={handleCreateDebt} className="bg-[#050508] border border-zinc-850 p-6 md:p-8 rounded-[24px] space-y-5 animate-fade-in shadow-2xl relative overflow-hidden text-left">
+        <form onSubmit={handleCreateDebt} className="bg-[#050508] border border-[var(--border-primary)] p-6 md:p-8 rounded-[24px] space-y-5 animate-fade-in shadow-2xl relative overflow-hidden text-left">
           <div className="absolute -top-12 -right-12 w-28 h-28 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
           
-          <div className="flex justify-between items-center border-b border-zinc-855 pb-3">
+          <div className="flex justify-between items-center border-b border-[var(--border-primary)] pb-3">
             <span className="text-xs font-black text-white uppercase flex items-center gap-2 tracking-wider font-mono">
               <Plus size={13} className="text-[var(--accent-primary)]" />
               Register New Liability
@@ -349,7 +349,7 @@ export default function DebtTracker({
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : source && !errors.source
                     ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                    : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
               {errors.source && (
@@ -369,12 +369,12 @@ export default function DebtTracker({
                     setTotalDebt(e.target.value);
                     validateDebtForm(source, e.target.value, dueDate, submitted);
                   }}
-                  className={`w-full bg-[#08080c] border text-xs text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-zinc-650/75 ${
+                  className={`w-full bg-[#08080c] border text-xs text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-[var(--text-muted)]/75 ${
                     errors.amount
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                       : totalDebt && !errors.amount
                       ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                      : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
                 {errors.amount && (
@@ -397,15 +397,15 @@ export default function DebtTracker({
                       setTargetAccountType(type as 'cash' | 'card');
                     }
                   }}
-                  className="w-full bg-[#08080c] border border-zinc-855 text-zinc-300 text-xs rounded-2xl px-3.5 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold cursor-pointer"
+                  className="w-full bg-[#08080c] border border-[var(--border-primary)] text-zinc-300 text-xs rounded-2xl px-3.5 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold cursor-pointer"
                 >
                   <option value="other">Other (No money received / Indirect debt)</option>
-                  <optgroup label="Cash Vaults" className="bg-[#0c0c12] text-zinc-450">
+                  <optgroup label="Cash Vaults" className="bg-[#0c0c12] text-[var(--text-secondary)]">
                     {cashAccounts.map(c => (
                       <option key={c.id} value={`${c.id}:cash`}>{c.name}</option>
                     ))}
                   </optgroup>
-                  <optgroup label="Cards Ledger" className="bg-[#0c0c12] text-zinc-450">
+                  <optgroup label="Cards Ledger" className="bg-[#0c0c12] text-[var(--text-secondary)]">
                     {cards.filter(c => !c.isCanceled).map(card => (
                       <option key={card.id} value={`${card.id}:card`}>{card.bankName}</option>
                     ))}
@@ -436,7 +436,7 @@ export default function DebtTracker({
                 placeholder="e.g. Zero-interest repayment plan..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-[#08080c] border border-zinc-855 text-xs text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all placeholder:text-zinc-600/75"
+                className="w-full bg-[#08080c] border border-[var(--border-primary)] text-xs text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all placeholder:text-zinc-600/75"
               />
             </div>
 
@@ -453,7 +453,7 @@ export default function DebtTracker({
       {/* 3. Debt Items List */}
       <div className="space-y-4">
         {activeDebts.length === 0 ? (
-          <div className="p-12 text-center text-zinc-550 border border-dashed border-zinc-850 bg-zinc-950/20 rounded-[28px] italic text-xs">
+          <div className="p-12 text-center text-[var(--text-secondary)] border border-dashed border-[var(--border-primary)] bg-zinc-950/20 rounded-[28px] italic text-xs">
             No active liabilities registered. Rest easy, you are debt-free!
           </div>
         ) : (
@@ -470,7 +470,7 @@ export default function DebtTracker({
                 key={debt.id}
                 id={`debt-block-${debt.id}`}
                 data-debt-status={isFullyPaid ? "paid" : (isOverdue ? "overdue" : "outstanding")}
-                className="bg-zinc-900/40 border border-zinc-850 rounded-[28px] p-5 md:p-6 space-y-5 shadow-xl transition-all duration-300 hover:border-zinc-800"
+                className="bg-zinc-900/40 border border-[var(--border-primary)] rounded-[28px] p-5 md:p-6 space-y-5 shadow-xl transition-all duration-300 hover:border-zinc-800"
               >
                 
                  {/* Header info */}
@@ -497,7 +497,7 @@ export default function DebtTracker({
 
                   <div className="text-left sm:text-right border-t border-zinc-900/60 pt-3 sm:pt-0 sm:border-0 shrink-0 flex flex-col items-start sm:items-end gap-2">
                     <div className="text-left sm:text-right">
-                      <span className="text-[9px] text-zinc-550 block uppercase tracking-widest font-mono font-bold text-zinc-500">Remaining Balance</span>
+                      <span className="text-[9px] text-[var(--text-secondary)] block uppercase tracking-widest font-mono font-bold text-zinc-500">Remaining Balance</span>
                       <span className="font-mono text-base font-black text-white">
                         {currency} {debt.remainingAmount.toLocaleString()}
                       </span>
@@ -540,7 +540,7 @@ export default function DebtTracker({
                 </div>
 
                 {/* Progress bar repayment percentage */}
-                <div className="p-4 bg-muted border border-zinc-200 dark:border-zinc-905 rounded-2xl space-y-3.5">
+                <div className="p-4 bg-muted border border-zinc-200 dark:border-[var(--border-primary)] rounded-2xl space-y-3.5">
                   <div className="flex justify-between text-[10px] font-mono text-muted-foreground leading-none">
                     <span>Payoff Progress</span>
                     <span className="font-bold text-blue-500 dark:text-blue-400">{payoffPct}% settled</span>
@@ -590,8 +590,8 @@ export default function DebtTracker({
 
                 {/* Adding more debt form */}
                 {increasingDebtId === debt.id && (
-                  <form onSubmit={handleIncreaseDebtSubmit} className="bg-[#050508] border border-zinc-850 p-5 rounded-[20px] space-y-4 animation-fade-in shadow-xl text-left">
-                     <div className="flex justify-between items-center pb-2 border-b border-zinc-855">
+                  <form onSubmit={handleIncreaseDebtSubmit} className="bg-[#050508] border border-[var(--border-primary)] p-5 rounded-[20px] space-y-4 animation-fade-in shadow-xl text-left">
+                     <div className="flex justify-between items-center pb-2 border-b border-[var(--border-primary)]">
                       <span className="text-[10px] font-black text-white uppercase tracking-wider flex items-center gap-1 text-amber-400 font-mono">
                         <Plus size={12} className="animate-pulse" />
                         Increase Outstanding Debt
@@ -621,15 +621,15 @@ export default function DebtTracker({
                               setIncTargetAccountType(type as 'cash' | 'card');
                             }
                           }}
-                          className="w-full bg-[#08080c] border border-zinc-855 text-zinc-300 text-xs rounded-2xl px-3.5 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold cursor-pointer"
+                          className="w-full bg-[#08080c] border border-[var(--border-primary)] text-zinc-300 text-xs rounded-2xl px-3.5 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold cursor-pointer"
                         >
                           <option value="other">Other (No money received / Indirect debt)</option>
-                          <optgroup label="Cash Vaults" className="bg-[#0c0c12] text-zinc-455">
+                          <optgroup label="Cash Vaults" className="bg-[#0c0c12] text-[var(--text-secondary)]">
                             {cashAccounts.map(c => (
                               <option key={c.id} value={`${c.id}:cash`}>{c.name}</option>
                             ))}
                           </optgroup>
-                          <optgroup label="Cards Ledger" className="bg-[#0c0c12] text-zinc-455">
+                          <optgroup label="Cards Ledger" className="bg-[#0c0c12] text-[var(--text-secondary)]">
                             {cards.filter(c => !c.isCanceled).map(card => (
                               <option key={card.id} value={`${card.id}:card`}>{card.bankName}</option>
                             ))}
@@ -644,7 +644,7 @@ export default function DebtTracker({
                           value={increaseAmount}
                           required
                           onChange={(e) => setIncreaseAmount(e.target.value)}
-                          className="w-full bg-[#08080c] border border-zinc-855 text-white rounded-2xl text-xs px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono"
+                          className="w-full bg-[#08080c] border border-[var(--border-primary)] text-white rounded-2xl text-xs px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono"
                         />
                     </div>
                     <button
@@ -658,8 +658,8 @@ export default function DebtTracker({
 
                 {/* Paying Down partial form */}
                 {payingDebtId === debt.id && (
-                  <form onSubmit={handlePayDebtSubmit} className="bg-[#050508] border border-zinc-850 p-5 rounded-[20px] space-y-4 animation-fade-in shadow-xl text-left">
-                    <div className="flex justify-between items-center pb-2 border-b border-zinc-855">
+                  <form onSubmit={handlePayDebtSubmit} className="bg-[#050508] border border-[var(--border-primary)] p-5 rounded-[20px] space-y-4 animation-fade-in shadow-xl text-left">
+                    <div className="flex justify-between items-center pb-2 border-b border-[var(--border-primary)]">
                       <span className="text-[10px] font-black text-white uppercase tracking-wider flex items-center gap-1.5 text-indigo-400 font-mono">
                         <CornerDownRight size={12} className="animate-pulse" />
                         Disburse Repayment Funds
@@ -688,7 +688,7 @@ export default function DebtTracker({
                             setPayAmount(e.target.value);
                             setPaymentError(null);
                           }}
-                          className="w-full bg-[#08080c] border border-zinc-855 text-white rounded-2xl text-xs px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono placeholder:text-zinc-600/75"
+                          className="w-full bg-[#08080c] border border-[var(--border-primary)] text-white rounded-2xl text-xs px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono placeholder:text-zinc-600/75"
                         />
                       </div>
 
@@ -697,16 +697,16 @@ export default function DebtTracker({
                         <select
                           value={`${paySourceId}:${paySourceType}`}
                           onChange={(e) => handleSelectPaymentSource(e.target.value)}
-                          className="w-full bg-[#08080c] border border-zinc-855 text-zinc-300 text-xs rounded-2xl px-3.5 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold cursor-pointer"
+                          className="w-full bg-[#08080c] border border-[var(--border-primary)] text-zinc-300 text-xs rounded-2xl px-3.5 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold cursor-pointer"
                           required
                         >
-                          <optgroup label="Cash Vaults" className="bg-[#0c0c12] text-zinc-450">
+                          <optgroup label="Cash Vaults" className="bg-[#0c0c12] text-[var(--text-secondary)]">
                             {cashAccounts.map(c => (
                               <option key={c.id} value={`${c.id}:cash`}>{c.name} ({currency}{c.balance})</option>
                             ))}
                           </optgroup>
                           
-                          <optgroup label="Cards Ledger" className="bg-[#0c0c12] text-zinc-455">
+                          <optgroup label="Cards Ledger" className="bg-[#0c0c12] text-[var(--text-secondary)]">
                             {cards.filter(c => !c.isCanceled).map(card => (
                               <option key={card.id} value={`${card.id}:card`}>{card.bankName} (Bal: {currency}{card.currentBalance})</option>
                             ))}
@@ -716,8 +716,8 @@ export default function DebtTracker({
                     </div>
 
                     {paySourceType === 'card' && paySourceId && (
-                      <div className="p-4 bg-[#08080c]/60 border border-zinc-855 rounded-2xl space-y-2 animate-fade-in text-xs">
-                        <label className="text-[10px] text-zinc-455 font-mono font-black block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
+                      <div className="p-4 bg-[#08080c]/60 border border-[var(--border-primary)] rounded-2xl space-y-2 animate-fade-in text-xs">
+                        <label className="text-[10px] text-[var(--text-secondary)] font-mono font-black block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
                         <input
                           type="number"
                           step="any"
@@ -727,7 +727,7 @@ export default function DebtTracker({
                             setPayBankCharge(e.target.value);
                             setPaymentError(null);
                           }}
-                          className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl text-xs px-4 py-3 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono text-white"
+                          className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl text-xs px-4 py-3 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono text-white"
                         />
                         <p className="text-[9.5px] text-zinc-500 font-mono pl-0.5 leading-normal">Repaying from a bank card might trigger processing charges. This charge is recorded as a bank fee expense and deducted from the card balance.</p>
                       </div>
@@ -751,13 +751,13 @@ export default function DebtTracker({
 
                 {/* Sub audit payment track log */}
                 {debt.payments && debt.payments.length > 0 && (
-                  <div className="border-t border-zinc-200 dark:border-zinc-850/60 pt-4">
+                  <div className="border-t border-zinc-200 dark:border-[var(--border-primary)]/60 pt-4">
                     <span className="text-[9px] text-muted-foreground font-black uppercase tracking-wider block mb-2.5 font-mono">
                       Repayment Log History ({debt.payments.length})
                     </span>
                     <div className="space-y-2">
                       {debt.payments.map((p) => (
-                        <div key={p.id} className="flex justify-between items-center bg-muted px-3.5 py-2.5 border border-zinc-200 dark:border-zinc-905 rounded-xl text-xs font-mono text-card-foreground">
+                        <div key={p.id} className="flex justify-between items-center bg-muted px-3.5 py-2.5 border border-zinc-200 dark:border-[var(--border-primary)] rounded-xl text-xs font-mono text-card-foreground">
                           <span className="flex items-center gap-1.5 text-[9.5px] font-bold text-muted-foreground">
                             <ShieldCheck size={12} className="text-blue-500 dark:text-blue-400 animate-pulse" />
                             DEDUCTED SUCCESSFULLY ({p.paidFromType.toUpperCase()})

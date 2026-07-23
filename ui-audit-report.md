@@ -1,0 +1,687 @@
+# UI Audit Report
+
+This report identifies invalid Tailwind shade classes, duplicate CSS property classes in single `className` strings, and hardcoded raw hex colors across all frontend components.
+
+### `src/App.tsx`
+- Line 2244: Raw hex literal `#050505` -> Intended: semantic token equivalent
+- Line 2273: Raw hex literal `#6B7280` -> Intended: semantic token equivalent
+- Line 2278: Raw hex literal `#050505` -> Intended: semantic token equivalent
+- Line 2282: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2282: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 2289: Raw hex literal `#27272a` -> Intended: semantic token equivalent
+- Line 2316: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 2341: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2357: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2369: Invalid shade `text-blue-450` -> Intended: `var(--accent-primary)` or nearest valid step `text-blue-500`
+- Line 2374: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2381: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2384: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2391: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2424: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2424: Invalid shade `border-zinc-750` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-800`
+- Line 2424: Invalid shade `text-rose-450` -> Intended: `var(--negative) or var(--danger)` or nearest valid step `text-rose-500`
+- Line 2431: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2434: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2460: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2480: Raw hex literal `#27272a` -> Intended: semantic token equivalent
+- Line 2625: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 2670: Invalid shade `text-zinc-350` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-400`
+- Line 2869: Invalid shade `border-zinc-805` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-800`
+- Line 2895: Invalid shade `border-zinc-805` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-800`
+- Line 2907: Invalid shade `bg-indigo-550` -> Intended: `var(--accent-primary)` or nearest valid step `bg-indigo-600`
+- Line 2914: Raw hex literal `#020205` -> Intended: semantic token equivalent
+- Line 2931: Invalid shade `border-zinc-205` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-200`
+- Line 2941: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 2990: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 3018: Invalid shade `border-zinc-205` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-200`
+- Line 3018: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 3030: Invalid shade `border-zinc-205` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-200`
+- Line 3030: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 3042: Invalid shade `border-zinc-205` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-200`
+- Line 3042: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+
+### `src/components/BudgetsSection.tsx`
+- Line 86: Raw hex literal `#F87171` -> Intended: semantic token equivalent
+- Line 87: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 93: Raw hex literal `#F87171` -> Intended: semantic token equivalent
+- Line 94: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 174: Raw hex literal `#F87171` -> Intended: semantic token equivalent
+- Line 174: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 203: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 222: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 231: Raw hex literal `#F87171` -> Intended: semantic token equivalent
+- Line 231: Raw hex literal `#F87171` -> Intended: semantic token equivalent
+- Line 231: Raw hex literal `#F87171` -> Intended: semantic token equivalent
+- Line 249: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 316: Invalid shade `bg-slate-705` -> Intended: `var(--bg-card)` or nearest valid step `bg-slate-700`
+- Line 316: Invalid shade `border-slate-750` -> Intended: `var(--border-primary)` or nearest valid step `border-slate-800`
+- Line 340: Invalid shade `border-slate-750` -> Intended: `var(--border-primary)` or nearest valid step `border-slate-800`
+- Line 354: Raw hex literal `#F87171` -> Intended: semantic token equivalent
+- Line 458: Invalid shade `text-slate-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-slate-700`
+- Line 479: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 479: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 498: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 498: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 498: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 507: Invalid shade `border-zinc-650` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-700`
+- Line 532: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 532: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 550: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 550: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 576: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 576: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 591: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 591: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 591: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 599: Invalid shade `border-zinc-650` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-700`
+
+### `src/components/CashCardManagement.tsx`
+- Line 151: Raw hex literal `#ffffff` -> Intended: semantic token equivalent
+- Line 151: Raw hex literal `#ffffff` -> Intended: semantic token equivalent
+- Line 654: Raw hex literal `#0e0e15` -> Intended: semantic token equivalent
+- Line 677: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 698: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 706: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 746: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 746: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 777: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 782: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 782: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 802: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 816: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 821: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 821: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 840: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 845: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 845: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 864: Raw hex literal `#0e0e15` -> Intended: semantic token equivalent
+- Line 885: Invalid shade `bg-zinc-850` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-900`
+- Line 894: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 894: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 895: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 918: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 918: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 923: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 923: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 942: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 942: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 947: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 947: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 962: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 962: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 962: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 982: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 982: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 987: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 987: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 1004: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1004: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 1004: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 1004: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1020: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1020: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 1020: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 1020: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1037: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 1037: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1042: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1042: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 1055: Invalid shade `bg-zinc-850` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-900`
+- Line 1072: Invalid shade `ring-offset-2` -> Intended: `var(--border-primary)` or nearest valid step `ring-offset-0`
+- Line 1072: Raw hex literal `#0a0a0f` -> Intended: semantic token equivalent
+- Line 1125: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1125: Raw hex literal `#09090d` -> Intended: semantic token equivalent
+- Line 1157: Invalid shade `border-zinc-250` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-300`
+- Line 1157: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 1157: Raw hex literal `#0d0d12` -> Intended: semantic token equivalent
+- Line 1157: Raw hex literal `#12121a` -> Intended: semantic token equivalent
+- Line 1212: Invalid shade `border-t-0` -> Intended: `var(--border-primary)` or nearest valid step `border-t-0`
+- Line 1218: Invalid shade `border-t-0` -> Intended: `var(--border-primary)` or nearest valid step `border-t-0`
+- Line 1285: Invalid shade `border-t-0` -> Intended: `var(--border-primary)` or nearest valid step `border-t-0`
+- Line 1291: Invalid shade `border-t-0` -> Intended: `var(--border-primary)` or nearest valid step `border-t-0`
+- Line 1314: Raw hex literal `#080808` -> Intended: semantic token equivalent
+- Line 1314: Raw hex literal `#0c0c0c` -> Intended: semantic token equivalent
+- Line 1376: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 1387: Invalid shade `text-zinc-450` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 1401: Invalid shade `text-zinc-450` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 1402: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1402: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 1413: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1416: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1435: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 1435: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1438: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1454: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1454: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 1454: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 1454: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1464: Invalid shade `bg-zinc-850` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-900`
+- Line 1475: Invalid shade `ring-offset-2` -> Intended: `var(--border-primary)` or nearest valid step `ring-offset-0`
+- Line 1475: Raw hex literal `#050505` -> Intended: semantic token equivalent
+- Line 1488: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 1503: Invalid shade `border-t-0` -> Intended: `var(--border-primary)` or nearest valid step `border-t-0`
+- Line 1510: Invalid shade `border-zinc-905` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1557: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1557: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 1570: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1570: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1587: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1587: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 1587: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1602: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1602: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 1602: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1622: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1622: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1638: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 1638: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 1638: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 1692: Raw hex literal `#0a0a0a` -> Intended: semantic token equivalent
+
+### `src/components/Charts.tsx`
+- Line 16: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 18: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 46: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 128: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 140: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 140: Raw hex literal `#050505` -> Intended: semantic token equivalent
+- Line 145: Invalid shade `text-zinc-350` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-400`
+- Line 155: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 155: Raw hex literal `#050505` -> Intended: semantic token equivalent
+- Line 160: Invalid shade `text-zinc-350` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-400`
+- Line 170: Raw hex literal `#8B5CF6` -> Intended: semantic token equivalent
+- Line 171: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 172: Raw hex literal `#64748B` -> Intended: semantic token equivalent
+- Line 173: Raw hex literal `#EF4444` -> Intended: semantic token equivalent
+- Line 174: Raw hex literal `#EC4899` -> Intended: semantic token equivalent
+- Line 175: Raw hex literal `#0EA5E9` -> Intended: semantic token equivalent
+- Line 176: Raw hex literal `#F97316` -> Intended: semantic token equivalent
+- Line 177: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 178: Raw hex literal `#EC4899` -> Intended: semantic token equivalent
+- Line 179: Raw hex literal `#F43F5E` -> Intended: semantic token equivalent
+- Line 180: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 181: Raw hex literal `#6366F1` -> Intended: semantic token equivalent
+- Line 190: Raw hex literal `#8B5CF6` -> Intended: semantic token equivalent
+- Line 190: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 190: Raw hex literal `#EF4444` -> Intended: semantic token equivalent
+- Line 190: Raw hex literal `#EC4899` -> Intended: semantic token equivalent
+- Line 191: Raw hex literal `#0EA5E9` -> Intended: semantic token equivalent
+- Line 191: Raw hex literal `#F97316` -> Intended: semantic token equivalent
+- Line 191: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 191: Raw hex literal `#6366F1` -> Intended: semantic token equivalent
+- Line 192: Raw hex literal `#14B8A6` -> Intended: semantic token equivalent
+- Line 192: Raw hex literal `#F43F5E` -> Intended: semantic token equivalent
+- Line 192: Raw hex literal `#D946EF` -> Intended: semantic token equivalent
+- Line 192: Raw hex literal `#84CC16` -> Intended: semantic token equivalent
+- Line 370: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+
+### `src/components/CreditCardManagement.tsx`
+- Line 176: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 181: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 181: Raw hex literal `#a1a1a9` -> Intended: semantic token equivalent
+- Line 192: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 200: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 213: Invalid shade `text-rose-650` -> Intended: `var(--negative) or var(--danger)` or nearest valid step `text-rose-700`
+- Line 218: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 255: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 269: Invalid shade `bg-zinc-955` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-1000`
+- Line 289: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 294: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 294: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 305: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 310: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 310: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 315: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 381: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 381: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 398: Invalid shade `text-zinc-350` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-400`
+- Line 398: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 403: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 403: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 407: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 425: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 425: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 430: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 430: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 448: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 453: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 453: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 470: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 470: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 470: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+
+### `src/components/Dashboard.tsx`
+- Line 390: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+
+### `src/components/DatePicker.tsx`
+- Line 295: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 300: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 314: Raw hex literal `#0C0C0F` -> Intended: semantic token equivalent
+- Line 387: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 404: Invalid shade `bg-zinc-855` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-900`
+- Line 416: Invalid shade `bg-zinc-855` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-900`
+- Line 426: Invalid shade `bg-zinc-750` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-800`
+- Line 441: Raw hex literal `#0C0C0F` -> Intended: semantic token equivalent
+
+### `src/components/DebtTracker.tsx`
+- Line 247: Invalid shade `to-amber-955` -> Intended: `var(--warning)` or nearest valid step `to-amber-1000`
+- Line 259: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 268: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 293: Raw hex literal `#070707` -> Intended: semantic token equivalent
+- Line 314: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 314: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 317: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 347: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 352: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 372: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 372: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 377: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 400: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 400: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 403: Invalid shade `text-zinc-450` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 403: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 408: Invalid shade `text-zinc-450` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 408: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 439: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 439: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 456: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 456: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 473: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 500: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 500: Duplicate `text-color` classes `[text-zinc-550, text-zinc-500]` in className string -> Intended: keep standard semantic class
+- Line 543: Invalid shade `border-zinc-905` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 593: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 593: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 594: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 595: Duplicate `text-color` classes `[text-white, text-amber-400]` in className string -> Intended: keep standard semantic class
+- Line 624: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 624: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 627: Invalid shade `text-zinc-455` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 627: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 632: Invalid shade `text-zinc-455` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 632: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 647: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 647: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 661: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 661: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 662: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 663: Duplicate `text-color` classes `[text-white, text-indigo-400]` in className string -> Intended: keep standard semantic class
+- Line 691: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 691: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 700: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 700: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 703: Invalid shade `text-zinc-450` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 703: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 709: Invalid shade `text-zinc-455` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 709: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 719: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 719: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 720: Invalid shade `text-zinc-455` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 730: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 730: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 737: Raw hex literal `#1a0c0a` -> Intended: semantic token equivalent
+- Line 754: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 760: Invalid shade `border-zinc-905` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+
+### `src/components/EmailLogin.tsx`
+- Line 228: Raw hex literal `#0A0A0C` -> Intended: semantic token equivalent
+- Line 230: Invalid shade `bg-zinc-955` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-1000`
+- Line 232: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 237: Invalid shade `border-zinc-805` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-800`
+- Line 272: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 272: Raw hex literal `#060608` -> Intended: semantic token equivalent
+- Line 296: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 296: Raw hex literal `#060608` -> Intended: semantic token equivalent
+- Line 341: Invalid shade `text-indigo-405` -> Intended: `var(--accent-primary)` or nearest valid step `text-indigo-400`
+- Line 341: Raw hex literal `#060608` -> Intended: semantic token equivalent
+- Line 348: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 348: Duplicate `text-color` classes `[text-zinc-650, text-zinc-600]` in className string -> Intended: keep standard semantic class
+- Line 358: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 378: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 378: Raw hex literal `#060608` -> Intended: semantic token equivalent
+- Line 398: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 398: Raw hex literal `#060608` -> Intended: semantic token equivalent
+- Line 438: Invalid shade `text-indigo-405` -> Intended: `var(--accent-primary)` or nearest valid step `text-indigo-400`
+- Line 438: Duplicate `text-color` classes `[text-indigo-405, text-indigo-400]` in className string -> Intended: keep standard semantic class
+
+### `src/components/ErrorBoundary.tsx`
+- Line 49: Raw hex literal `#070708` -> Intended: semantic token equivalent
+- Line 50: Raw hex literal `#0c0c0e` -> Intended: semantic token equivalent
+- Line 78: Raw hex literal `#0c0c0e` -> Intended: semantic token equivalent
+
+### `src/components/GoalsSection.tsx`
+- Line 107: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 108: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 121: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 158: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 158: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 168: Raw hex literal `#0F172A` -> Intended: semantic token equivalent
+- Line 168: Raw hex literal `#1E293B` -> Intended: semantic token equivalent
+- Line 182: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 199: Invalid shade `border-amber-505` -> Intended: `var(--warning)` or nearest valid step `border-amber-500`
+- Line 199: Duplicate `border-color` classes `[border-amber-505/30, border-amber-500/40]` in className string -> Intended: keep standard semantic class
+- Line 203: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 210: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 234: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 251: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 257: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 269: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 269: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 269: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 274: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 274: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 274: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 316: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 316: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 336: Raw hex literal `#F87171` -> Intended: semantic token equivalent
+- Line 347: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 347: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 347: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 348: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 348: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 348: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 370: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 370: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 389: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 389: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 400: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 400: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 416: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 416: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 441: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 441: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 466: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 466: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 479: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 479: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 482: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 487: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 495: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 495: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+
+### `src/components/InflowsOutflows.tsx`
+- Line 281: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 281: Raw hex literal `#0a0a0f` -> Intended: semantic token equivalent
+- Line 305: Invalid shade `text-rose-455` -> Intended: `var(--negative) or var(--danger)` or nearest valid step `text-rose-500`
+- Line 305: Invalid shade `text-rose-450` -> Intended: `var(--negative) or var(--danger)` or nearest valid step `text-rose-500`
+- Line 305: Duplicate `text-color` classes `[text-rose-455, text-rose-450]` in className string -> Intended: keep standard semantic class
+- Line 311: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 311: Raw hex literal `#0c0c0f` -> Intended: semantic token equivalent
+- Line 331: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 336: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 356: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 361: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 374: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 374: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 402: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 402: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 405: Raw hex literal `#0c0c0e` -> Intended: semantic token equivalent
+- Line 410: Raw hex literal `#0c0c0e` -> Intended: semantic token equivalent
+- Line 447: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 452: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 464: Raw hex literal `#8291` -> Intended: semantic token equivalent
+- Line 470: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 470: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 487: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 492: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 505: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 505: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 537: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 542: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 546: Raw hex literal `#0c0c0e` -> Intended: semantic token equivalent
+- Line 551: Raw hex literal `#0c0c0e` -> Intended: semantic token equivalent
+- Line 564: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 577: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 604: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 604: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+
+### `src/components/LoansTracker.tsx`
+- Line 257: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 269: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 281: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 296: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 296: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 313: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 313: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 316: Invalid shade `text-rose-455` -> Intended: `var(--negative) or var(--danger)` or nearest valid step `text-rose-500`
+- Line 328: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 328: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 328: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 344: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 344: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 359: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 359: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 367: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 367: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 395: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 395: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 404: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 438: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 438: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 459: Raw hex literal `#0c0c0f` -> Intended: semantic token equivalent
+- Line 459: Raw hex literal `#040405` -> Intended: semantic token equivalent
+- Line 460: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 477: Invalid shade `text-yellow-450` -> Intended: `var(--warning)` or nearest valid step `text-yellow-500`
+- Line 477: Invalid shade `border-yellow-905` -> Intended: `var(--warning)` or nearest valid step `border-yellow-900`
+- Line 496: Invalid shade `bg-zinc-850` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-900`
+- Line 517: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 517: Duplicate `text-color` classes `[text-zinc-650, text-zinc-600]` in className string -> Intended: keep standard semantic class
+- Line 548: Invalid shade `text-indigo-455` -> Intended: `var(--accent-primary)` or nearest valid step `text-indigo-500`
+- Line 548: Duplicate `text-color` classes `[text-indigo-455, text-indigo-400]` in className string -> Intended: keep standard semantic class
+- Line 570: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 570: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 587: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 587: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 602: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 602: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 625: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 625: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 633: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 633: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 647: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 647: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 665: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 665: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 680: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 680: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 698: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 698: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 715: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 715: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 723: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 723: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 767: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 767: Duplicate `text-color` classes `[text-zinc-650, text-zinc-600]` in className string -> Intended: keep standard semantic class
+
+### `src/components/NotificationDrawer.tsx`
+- Line 25: Raw hex literal `#05050a` -> Intended: semantic token equivalent
+
+### `src/components/ProfileSection.tsx`
+- Line 82: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 82: Raw hex literal `#0a0a0d` -> Intended: semantic token equivalent
+- Line 118: Raw hex literal `#050505` -> Intended: semantic token equivalent
+- Line 170: Raw hex literal `#070707` -> Intended: semantic token equivalent
+- Line 197: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 197: Duplicate `text-color` classes `[text-zinc-550, text-zinc-400]` in className string -> Intended: keep standard semantic class
+- Line 201: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 201: Duplicate `text-color` classes `[text-zinc-550, text-zinc-500]` in className string -> Intended: keep standard semantic class
+- Line 212: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 212: Duplicate `text-color` classes `[text-zinc-550, text-zinc-500]` in className string -> Intended: keep standard semantic class
+
+### `src/components/ReportsCentre.tsx`
+- Line 82: Raw hex literal `#6B7280` -> Intended: semantic token equivalent
+- Line 160: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 160: Raw hex literal `#0a0a0f` -> Intended: semantic token equivalent
+- Line 183: Raw hex literal `#050510` -> Intended: semantic token equivalent
+- Line 188: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 208: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 225: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 293: Invalid shade `bg-zinc-905` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-900`
+- Line 293: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 293: Duplicate `bg-color` classes `[bg-zinc-905, bg-zinc-900/40]` in className string -> Intended: keep standard semantic class
+- Line 300: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 300: Duplicate `text-color` classes `[text-zinc-550, text-zinc-500]` in className string -> Intended: keep standard semantic class
+- Line 341: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 358: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 358: Raw hex literal `#0a0a0d` -> Intended: semantic token equivalent
+- Line 365: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 379: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 390: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 390: Raw hex literal `#050510` -> Intended: semantic token equivalent
+- Line 408: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 408: Raw hex literal `#050510` -> Intended: semantic token equivalent
+- Line 424: Raw hex literal `#888888` -> Intended: semantic token equivalent
+- Line 432: Raw hex literal `#888888` -> Intended: semantic token equivalent
+- Line 447: Invalid shade `text-rose-450` -> Intended: `var(--negative) or var(--danger)` or nearest valid step `text-rose-500`
+- Line 447: Duplicate `text-color` classes `[text-rose-450, text-rose-400]` in className string -> Intended: keep standard semantic class
+- Line 458: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 458: Invalid shade `bg-zinc-955` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-1000`
+- Line 458: Raw hex literal `#050505` -> Intended: semantic token equivalent
+- Line 485: Raw hex literal `#a1a1a9` -> Intended: semantic token equivalent
+- Line 488: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 488: Duplicate `text-color` classes `[text-zinc-550, text-zinc-500]` in className string -> Intended: keep standard semantic class
+- Line 498: Invalid shade `text-emerald-450` -> Intended: `var(--success)` or nearest valid step `text-emerald-500`
+- Line 498: Invalid shade `text-rose-455` -> Intended: `var(--negative) or var(--danger)` or nearest valid step `text-rose-500`
+
+### `src/components/SettingsModal.tsx`
+- Line 340: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 340: Raw hex literal `#09090b` -> Intended: semantic token equivalent
+- Line 344: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 344: Raw hex literal `#070709` -> Intended: semantic token equivalent
+- Line 357: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 368: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 374: Invalid shade `bg-teal-980` -> Intended: `var(--bg-card)` or nearest valid step `bg-teal-1000`
+- Line 423: Invalid shade `text-amber-550` -> Intended: `var(--warning)` or nearest valid step `text-amber-600`
+- Line 437: Invalid shade `ring-offset-0` -> Intended: `var(--border-primary)` or nearest valid step `ring-offset-0`
+- Line 481: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 497: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 531: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 565: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 600: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 612: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 661: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 672: Invalid shade `text-zinc-350` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-400`
+- Line 736: Invalid shade `bg-zinc-850` -> Intended: `var(--bg-card)` or nearest valid step `bg-zinc-900`
+- Line 744: Invalid shade `bg-red-650` -> Intended: `var(--negative) or var(--danger)` or nearest valid step `bg-red-700`
+- Line 766: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 783: Raw hex literal `#1d0e11` -> Intended: semantic token equivalent
+- Line 783: Raw hex literal `#2c1216` -> Intended: semantic token equivalent
+- Line 793: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 793: Raw hex literal `#070709` -> Intended: semantic token equivalent
+
+### `src/components/SubscriptionManagement.tsx`
+- Line 188: Invalid shade `bg-amber-955` -> Intended: `var(--warning)` or nearest valid step `bg-amber-1000`
+- Line 193: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 193: Raw hex literal `#8aa8bb` -> Intended: semantic token equivalent
+- Line 193: Raw hex literal `#050510` -> Intended: semantic token equivalent
+- Line 247: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 247: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 265: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 268: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 289: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 292: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 304: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 304: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 326: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 326: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 355: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 355: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 373: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 373: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 373: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 396: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 410: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 410: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 427: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 427: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 429: Invalid shade `text-zinc-450` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 429: Raw hex literal `#0c0c0e` -> Intended: semantic token equivalent
+- Line 434: Invalid shade `text-zinc-455` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 434: Raw hex literal `#0c0c0e` -> Intended: semantic token equivalent
+- Line 452: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 452: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 460: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 460: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 460: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 478: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 478: Raw hex literal `#050505` -> Intended: semantic token equivalent
+- Line 494: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+
+### `src/components/TransactionEditModal.tsx`
+- Line 139: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 139: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 143: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 143: Raw hex literal `#a1a1a9` -> Intended: semantic token equivalent
+- Line 156: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 165: Invalid shade `text-zinc-450` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 165: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 170: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 170: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 179: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 190: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 195: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 195: Invalid shade `border-zinc-350` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-400`
+- Line 204: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 219: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 225: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 225: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 230: Invalid shade `text-zinc-550` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-600`
+- Line 239: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 239: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 242: Invalid shade `text-zinc-450` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 242: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 247: Invalid shade `text-zinc-455` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-500`
+- Line 247: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 262: Invalid shade `border-zinc-650` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-700`
+
+### `src/components/TransferFunds.tsx`
+- Line 167: Invalid shade `border-zinc-850` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 167: Raw hex literal `#050508` -> Intended: semantic token equivalent
+- Line 172: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 186: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 186: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 198: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 203: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 206: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 208: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 224: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 224: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 240: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 245: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 248: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 250: Raw hex literal `#0c0c12` -> Intended: semantic token equivalent
+- Line 279: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 284: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 304: Invalid shade `text-zinc-650` -> Intended: `var(--text-secondary)` or nearest valid step `text-zinc-700`
+- Line 304: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+- Line 309: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 336: Invalid shade `border-zinc-855` -> Intended: `var(--border-primary)` or nearest valid step `border-zinc-900`
+- Line 336: Raw hex literal `#08080c` -> Intended: semantic token equivalent
+
+### `src/services/logger.ts`
+- Line 61: Raw hex literal `#f87171` -> Intended: semantic token equivalent
+- Line 61: Raw hex literal `#fbbf24` -> Intended: semantic token equivalent
+- Line 61: Raw hex literal `#60a5fa` -> Intended: semantic token equivalent
+
+### `src/utils.ts`
+- Line 102: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 103: Raw hex literal `#3B82F6` -> Intended: semantic token equivalent
+- Line 104: Raw hex literal `#EC4899` -> Intended: semantic token equivalent
+- Line 105: Raw hex literal `#A855F7` -> Intended: semantic token equivalent
+- Line 106: Raw hex literal `#EF4444` -> Intended: semantic token equivalent
+- Line 107: Raw hex literal `#14B8A6` -> Intended: semantic token equivalent
+- Line 108: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 109: Raw hex literal `#6366F1` -> Intended: semantic token equivalent
+- Line 110: Raw hex literal `#E11D48` -> Intended: semantic token equivalent
+- Line 111: Raw hex literal `#6B7280` -> Intended: semantic token equivalent
+- Line 115: Raw hex literal `#10B981` -> Intended: semantic token equivalent
+- Line 116: Raw hex literal `#06B6D4` -> Intended: semantic token equivalent
+- Line 117: Raw hex literal `#3B82F6` -> Intended: semantic token equivalent
+- Line 118: Raw hex literal `#F59E0B` -> Intended: semantic token equivalent
+- Line 119: Raw hex literal `#84CC16` -> Intended: semantic token equivalent
+- Line 120: Raw hex literal `#6B7280` -> Intended: semantic token equivalent
+
+## Summary Audit Totals
+- **Invalid Tailwind Shade Classes:** 334
+- **Duplicate Property Classes:** 17
+- **Raw Hex Color Literals:** 284

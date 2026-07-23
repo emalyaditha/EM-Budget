@@ -185,12 +185,12 @@ export default function SubscriptionManagement({
       return { label: `Overdue by ${Math.abs(diffDays)}d`, color: 'text-rose-400 bg-rose-950/40 border border-rose-900/40 font-mono font-bold text-[9px]' };
     }
     if (diffDays === 0) {
-      return { label: 'Due Today', color: 'text-amber-400 bg-amber-955/45 border border-amber-900/50 animate-pulse font-mono font-bold text-[9px]' };
+      return { label: 'Due Today', color: 'text-amber-400 bg-[var(--warning)]/10/45 border border-amber-900/50 animate-pulse font-mono font-bold text-[9px]' };
     }
     if (diffDays <= 5) {
       return { label: `Due in ${diffDays}d`, color: 'text-amber-500 bg-amber-950/20 border border-amber-900/20 font-mono font-bold text-[9px]' };
     }
-    return { label: `Due in ${diffDays}d`, color: 'text-[#8aa8bb] bg-[#050510]/60 border border-zinc-850 font-mono font-bold text-[9px]' };
+    return { label: `Due in ${diffDays}d`, color: 'text-[#8aa8bb] bg-[#050510]/60 border border-[var(--border-primary)] font-mono font-bold text-[9px]' };
   };
 
   const selectedSubscription = subscriptions.find(s => s.id === selectedSubId);
@@ -244,7 +244,7 @@ export default function SubscriptionManagement({
 
       {/* 2. New Subscription Panel */}
       {isAdding && (
-        <form onSubmit={handleCreate} className="bg-[#050508] border border-zinc-850 rounded-[24px] p-6 md:p-8 shadow-2xl space-y-6 animate-fade-in text-left" id="add-subscription-form">
+        <form onSubmit={handleCreate} className="bg-[#050508] border border-[var(--border-primary)] rounded-[24px] p-6 md:p-8 shadow-2xl space-y-6 animate-fade-in text-left" id="add-subscription-form">
           <div className="flex gap-2 items-center text-emerald-400 font-black text-lg tracking-tight mb-2">
             <Sparkles size={18} />
             <span>Setup New Recurring Subscription</span>
@@ -265,7 +265,7 @@ export default function SubscriptionManagement({
                 className={`w-full bg-[#08080c] border text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all placeholder:text-zinc-600/70 font-semibold ${
                   errors.name
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                    : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
               {errors.name && (
@@ -289,7 +289,7 @@ export default function SubscriptionManagement({
                   className={`w-full bg-[#08080c] border text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-zinc-600/70 ${
                     errors.amount
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                      : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
                 {errors.amount && (
@@ -301,7 +301,7 @@ export default function SubscriptionManagement({
                 <select
                   value={billingCycle}
                   onChange={(e) => setBillingCycle(e.target.value as 'Monthly' | 'Yearly')}
-                  className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 text-zinc-300 rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
+                  className="w-full bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 text-zinc-300 rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
                 >
                   <option value="Monthly">Monthly Cycle</option>
                   <option value="Yearly">Yearly Cycle</option>
@@ -323,7 +323,7 @@ export default function SubscriptionManagement({
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as CategoryExpense)}
-                  className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 text-zinc-300 rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
+                  className="w-full bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 text-zinc-300 rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
                 >
                   <option value="Entertainment">Entertainment</option>
                   <option value="Utilities">Utilities</option>
@@ -352,7 +352,7 @@ export default function SubscriptionManagement({
                       setInstanceType('');
                     }
                   }}
-                  className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 text-zinc-300 rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
+                  className="w-full bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 text-zinc-300 rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
                 >
                   <option value="none">Not a Server / Cloud Instance</option>
                   <option value="Web Service">Web Service</option>
@@ -370,7 +370,7 @@ export default function SubscriptionManagement({
                     placeholder="e.g. Node VM, Docker container, etc."
                     value={instanceType}
                     onChange={(e) => setInstanceType(e.target.value)}
-                    className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold placeholder:text-zinc-650"
+                    className="w-full bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold placeholder:text-[var(--text-muted)]"
                   />
                 ) : (
                   <div className="hidden sm:flex items-center text-xs text-zinc-500 italic pl-1">
@@ -407,7 +407,7 @@ export default function SubscriptionManagement({
             </button>
           </div>
 
-          <div className="bg-[#08080c] p-5 border border-zinc-855 rounded-2xl flex justify-between items-center">
+          <div className="bg-[#08080c] p-5 border border-[var(--border-primary)] rounded-2xl flex justify-between items-center">
             <div>
               <span className="text-[9px] font-mono font-black uppercase block text-zinc-500">SERVICE TO DEBIT</span>
               <span className="text-white text-sm font-black leading-relaxed">{selectedSubscription.name}</span>
@@ -424,14 +424,14 @@ export default function SubscriptionManagement({
               <select
                 value={`${payAccountId}:${payAccountType}`}
                 onChange={(e) => handleSelectPayAccount(e.target.value)}
-                className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 text-zinc-300 text-xs rounded-2xl px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-bold"
+                className="w-full bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 text-zinc-300 text-xs rounded-2xl px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-bold"
               >
-                <optgroup label="Cash Wallets/Accounts" className="bg-[#0c0c0e] text-zinc-450">
+                <optgroup label="Cash Wallets/Accounts" className="bg-[#0c0c0e] text-[var(--text-secondary)]">
                   {cashAccounts.map(c => (
                     <option key={c.id} value={`${c.id}:cash`}>Wallet: {c.name} ({currency}{c.balance.toLocaleString()})</option>
                   ))}
                 </optgroup>
-                <optgroup label="Bank Cards" className="bg-[#0c0c0e] text-zinc-455">
+                <optgroup label="Bank Cards" className="bg-[#0c0c0e] text-[var(--text-secondary)]">
                   {cards.filter(c => !c.isCanceled).map(c => (
                     <option key={c.id} value={`${c.id}:card`}>{c.bankName} - {c.cardName} ({currency}{c.currentBalance.toLocaleString()})</option>
                   ))}
@@ -449,7 +449,7 @@ export default function SubscriptionManagement({
           </div>
 
           {payAccountType === 'card' && payAccountId && (
-            <div className="p-4 bg-[#08080c] border border-zinc-855 rounded-2xl space-y-2 animate-fade-in text-xs">
+            <div className="p-4 bg-[#08080c] border border-[var(--border-primary)] rounded-2xl space-y-2 animate-fade-in text-xs">
               <label className="text-[10px] text-zinc-400 font-mono font-black block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
               <input
                 type="number"
@@ -457,7 +457,7 @@ export default function SubscriptionManagement({
                 placeholder="e.g. 1.50 (Leave blank or 0 if none)"
                 value={payBankCharge}
                 onChange={(e) => setPayBankCharge(e.target.value)}
-                className="w-full bg-[#050508] border border-zinc-855 rounded-2xl text-xs px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono text-white placeholder:text-zinc-650"
+                className="w-full bg-[#050508] border border-[var(--border-primary)] rounded-2xl text-xs px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono text-white placeholder:text-[var(--text-muted)]"
               />
               <p className="text-[9px] text-zinc-500 font-mono pl-0.5 leading-normal">Paying subscriptions from a card might trigger transaction processing fees. This charge is recorded as a bank fee expense and deducted from the card balance.</p>
             </div>
@@ -475,7 +475,7 @@ export default function SubscriptionManagement({
 
       {/* 4. Subscriptions List view */}
       {subscriptions.length === 0 ? (
-        <div className="bg-[#050505]/45 border border-zinc-850 p-12 rounded-[28px] text-center text-zinc-500 space-y-3 animate-fade-in">
+        <div className="bg-[#050505]/45 border border-[var(--border-primary)] p-12 rounded-[28px] text-center text-zinc-500 space-y-3 animate-fade-in">
           <Clock className="mx-auto text-zinc-600" size={28} />
           <h4 className="text-xs font-bold font-mono text-zinc-400 uppercase tracking-widest">Ready for recurring Dues</h4>
           <p className="text-[11px] leading-relaxed max-w-[325px] mx-auto text-zinc-500">

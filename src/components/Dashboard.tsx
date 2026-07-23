@@ -1,16 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { AppState, Transaction } from '../types';
+import { motion } from 'motion/react';
+import { AppState } from '../types';
 import { 
-  Bell, Plus, Send, ArrowUpRight, ArrowDownLeft, CreditCard, 
-  Wallet, PieChart, Landmark, TrendingUp, AlertTriangle, 
-  CheckCircle2, Flame, RefreshCw, Calendar, ChevronRight, UserCheck, Heart, ArrowRight,
-  X, Info, Sparkles
+  Bell, Plus, Send, ArrowUpRight, ArrowDownLeft,
+  PieChart, TrendingUp, ChevronRight, ArrowRight
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid 
 } from 'recharts';
-import { EXPENSE_COLORS } from '../utils';
+import { DashboardHero } from './dashboard/DashboardHero';
+import { DashboardMetricsGrid } from './dashboard/DashboardMetricsGrid';
+import { QuickActionModal } from './dashboard/QuickActionModal';
 
 // Premium CountUp Animator for oversized numeric values
 export function AnimatedCountUp({ value, duration = 1200, prefix = "", suffix = "" }: { value: number, duration?: number, prefix?: string, suffix?: string }) {
@@ -61,14 +61,6 @@ interface DashboardProps {
   onAddExpense?: (title: string, description: string, amount: number, date: string, category: any, paymentMethodId: string, paymentMethodType: 'cash' | 'card', bankCharge?: number) => void;
 }
 
-const FORMULAS = {
-  netWorth: "Net Worth Tier: Evaluates accumulated wealth against baseline milestones.",
-  liquidity: "Liquidity ratio: Liquid reserves (Cash + Debit cards) divided by monthly expenses.",
-  debt: "Debt safety: Ratio of outstanding debt liabilities relative to liquid capital.",
-  cashFlow: "Flow Margin: Percent of income retained after monthly outflows.",
-  savings: "Savings Speed: Dynamic rate of net savings growth this month."
-};
-
 export default function Dashboard({ 
   state, 
   aggregateActiveWealth, 
@@ -89,156 +81,10 @@ export default function Dashboard({
 }: DashboardProps) {
 
   const [timeRange, setTimeRange] = useState<'1W' | '1M' | '3M' | 'YTD' | '1Y' | 'All'>('1M');
-  const [hoveredMetricFormula, setHoveredMetricFormula] = useState<string | null>(null);
   const [isQuickTxOpen, setIsQuickTxOpen] = useState(false);
-
-  // Quick Action form state
   const [txType, setTxType] = useState<'expense' | 'income'>('expense');
-  const [txTitle, setTxTitle] = useState('');
-  const [txAmount, setTxAmount] = useState('');
-  const [txCategory, setTxCategory] = useState('Utilities');
-  const [txAccountId, setTxAccountId] = useState('');
-  const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
-
-  // Handle setting default account when opening Quick Transaction Form
-  React.useEffect(() => {
-    if (isQuickTxOpen) {
-      if (state.cashAccounts.length > 0) {
-        setTxAccountId(`cash-${state.cashAccounts[0].id}`);
-      } else if (state.cards.length > 0) {
-        setTxAccountId(`card-${state.cards[0].id}`);
-      }
-    }
-  }, [isQuickTxOpen, state.cashAccounts, state.cards]);
 
   const unreadCount = state.notifications ? state.notifications.filter(n => !n.read).length : 0;
-
-  // Calculate Savings Rate 
-  const netSavingsRate = currentMonthInflow > 0 
-    ? Math.round(((currentMonthInflow - currentMonthOutflow) / currentMonthInflow) * 100) 
-    : 0;
-  const displaySavingsRate = Math.max(0, netSavingsRate);
-
-  // Calculate high-fidelity, fully data-driven Financial Health Score across 5 metrics
-  const healthMetrics = useMemo(() => {
-    const hasAnyData = state.cashAccounts.length > 0 || state.cards.length > 0 || state.transactions.length > 0 || state.debts.length > 0;
-    if (!hasAnyData) {
-      return {
-        netWorthScore: 0,
-        liquidityScore: 0,
-        debtScore: 0,
-        cashFlowScore: 0,
-        savingsRateScore: 0,
-        totalScore: 0,
-        hasData: false
-      };
-    }
-
-    // 1. Net Worth Score (max 30)
-    let netWorthScore = 0;
-    if (aggregateActiveWealth > 0) {
-      netWorthScore = Math.min(30, Math.round(15 + (aggregateActiveWealth / 50000) * 15));
-    } else if (aggregateActiveWealth < 0) {
-      netWorthScore = Math.max(0, Math.round(10 - (Math.abs(aggregateActiveWealth) / 10000) * 10));
-    } else {
-      netWorthScore = 0;
-    }
-
-    // 2. Liquidity Score (max 25)
-    let liquidityScore = 0;
-    const liquidAssets = totalCashAmount + totalDebitCardsAmount;
-    if (currentMonthOutflow > 0) {
-      const ratio = liquidAssets / currentMonthOutflow;
-      if (ratio >= 3) liquidityScore = 25;
-      else if (ratio >= 1.5) liquidityScore = 20;
-      else if (ratio >= 1.0) liquidityScore = 15;
-      else liquidityScore = Math.min(15, Math.round(5 + ratio * 10));
-    } else {
-      if (liquidAssets >= 5000) liquidityScore = 25;
-      else if (liquidAssets >= 2000) liquidityScore = 20;
-      else if (liquidAssets >= 500) liquidityScore = 15;
-      else if (liquidAssets > 0) liquidityScore = 10;
-      else liquidityScore = 0;
-    }
-
-    // 3. Debt Ratio Score (max 20)
-    let debtScore = 20;
-    const totalAssets = totalCashAmount + totalDebitCardsAmount;
-    if (totalDebtsAmount > 0) {
-      const dRatio = totalDebtsAmount / (totalAssets || 1);
-      if (dRatio <= 0.1) debtScore = 18;
-      else if (dRatio <= 0.3) debtScore = 15;
-      else if (dRatio <= 0.5) debtScore = 10;
-      else debtScore = Math.max(0, Math.round(10 - (dRatio - 0.5) * 20));
-    } else {
-      debtScore = totalAssets > 0 ? 20 : 0;
-    }
-
-    // 4. Cash Flow Score (max 15)
-    let cashFlowScore = 0;
-    const netCashFlow = currentMonthInflow - currentMonthOutflow;
-    if (currentMonthInflow > 0) {
-      if (netCashFlow > 0) {
-        const margin = netCashFlow / currentMonthInflow;
-        if (margin >= 0.3) cashFlowScore = 15;
-        else if (margin >= 0.15) cashFlowScore = 12;
-        else cashFlowScore = Math.round(5 + margin * 20);
-      } else {
-        cashFlowScore = Math.max(0, Math.round(5 + (netCashFlow / currentMonthInflow) * 10));
-      }
-    } else if (currentMonthOutflow > 0) {
-      cashFlowScore = 0;
-    } else {
-      cashFlowScore = 0;
-    }
-
-    // 5. Savings Rate Score (max 10)
-    let savingsRateScore = 0;
-    if (displaySavingsRate > 0) {
-      if (displaySavingsRate >= 30) savingsRateScore = 10;
-      else if (displaySavingsRate >= 20) savingsRateScore = 8;
-      else if (displaySavingsRate >= 10) savingsRateScore = 6;
-      else if (displaySavingsRate >= 5) savingsRateScore = 4;
-      else savingsRateScore = 2;
-    } else {
-      savingsRateScore = 0;
-    }
-
-    const totalScore = netWorthScore + liquidityScore + debtScore + cashFlowScore + savingsRateScore;
-
-    return {
-      netWorthScore,
-      liquidityScore,
-      debtScore,
-      cashFlowScore,
-      savingsRateScore,
-      totalScore,
-      hasData: true
-    };
-  }, [
-    state.cashAccounts,
-    state.cards,
-    state.transactions,
-    state.debts,
-    aggregateActiveWealth,
-    totalCashAmount,
-    totalDebitCardsAmount,
-    totalCreditCardsAmount,
-    totalDebtsAmount,
-    currentMonthInflow,
-    currentMonthOutflow,
-    displaySavingsRate
-  ]);
-
-  const finalHealthScore = healthMetrics.totalScore;
-
-  const getHealthStatus = (score: number) => {
-    if (score >= 85) return { label: 'Excellent', color: 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/20', desc: 'Your savings speed and wallet leverage are optimized.' };
-    if (score >= 70) return { label: 'Healthy', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20', desc: 'Solid reserves, but watch secondary subscription leaks.' };
-    return { label: 'Attention Needed', color: 'text-[var(--negative)] bg-[var(--negative)]/10 border-[var(--negative)]/20', desc: 'High outflow velocities detected. Increase capital limits.' };
-  };
-
-  const healthState = getHealthStatus(finalHealthScore);
 
   // Spend category calculations for Category Spread Analysis
   const categoriesBudgets = state.budgets && state.budgets.length > 0 ? state.budgets : [];
@@ -455,83 +301,40 @@ export default function Dashboard({
     return null;
   };
 
-  // Submit Quick Transaction Form
-  const handleQuickTxSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = parseFloat(txAmount);
-    if (!txTitle || isNaN(amountNum) || amountNum <= 0 || !txAccountId) {
-      return;
-    }
-
-    const typePrefix = txAccountId.split('-')[0];
-    const rawId = txAccountId.split('-').slice(1).join('-');
-    const accountType: 'cash' | 'card' = typePrefix === 'cash' ? 'cash' : 'card';
-
-    if (txType === 'income' && onAddIncome) {
-      onAddIncome(amountNum, txDate, txTitle, txCategory as any, rawId, accountType);
-    } else if (txType === 'expense' && onAddExpense) {
-      onAddExpense(txTitle, 'Quick Dashboard Expense Entry', amountNum, txDate, txCategory as any, rawId, accountType, 0);
-    }
-
-    // Reset Form & Close
-    setTxTitle('');
-    setTxAmount('');
-    setIsQuickTxOpen(false);
-  };
-
   const totalAssets = totalCashAmount + totalDebitCardsAmount;
   const totalLiabilities = totalCreditCardsAmount + totalDebtsAmount;
   const ratioCap = totalAssets + totalLiabilities || 1;
   const assetRatioPct = (totalAssets / ratioCap) * 100;
   const liabilityRatioPct = (totalLiabilities / ratioCap) * 100;
 
-  // Render SVG stroke circumference variables for gauge meter
-  const gaugeRadius = 40;
-  const gaugeCircumference = 2 * Math.PI * gaugeRadius;
-  const gaugeOffset = gaugeCircumference - (finalHealthScore / 100) * gaugeCircumference;
-
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans animate-fade-in space-y-8 p-1 relative" id="command-dashboard">
       
-      {/* ======================= FLOATING "+" BUTTON ADD TRANSACTION ======================= */}
-      <motion.button
-        onClick={() => setIsQuickTxOpen(true)}
-        className="fixed bottom-24 right-5 sm:right-10 z-40 w-14 h-14 bg-[var(--accent-primary)] text-slate-950 rounded-full flex items-center justify-center shadow-[var(--shadow-soft)] hover:scale-110 cursor-pointer active:scale-95 duration-200 border border-[var(--accent-primary)]/20"
-        whileHover={{ rotate: 90 }}
-        title="Quick Record Transaction"
-        id="floating-action-button"
-      >
-        <Plus size={28} className="stroke-[2.5]" />
-      </motion.button>
-
       {/* 1. TOP PERSONALIZED BANNER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-2 gap-4">
         <div className="space-y-1 text-left">
           <span className="text-[10px] tracking-widest text-[var(--text-muted)] font-mono font-bold uppercase block">SECURE FINTECH LEDGER</span>
           <h1 className="text-3xl sm:text-4xl font-extrabold font-display text-[var(--text-primary)] flex items-center gap-2 leading-none">
             Hello, {state.userProfile?.name || 'User'}
-            <span className="text-2xl hover:scale-125 duration-150 cursor-pointer">👋</span>
           </h1>
         </div>
 
-        {/* Desktop Header Quick Tools (hidden on mobile, visible on desktop/tablet) */}
+        {/* Desktop Header Quick Tools */}
         <div className="hidden sm:flex items-center gap-3">
-          {/* Notifications bell */}
           <button
             onClick={onNotificationClick}
-            className="p-3 bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 rounded-2xl text-zinc-400 hover:text-white transition-all cursor-pointer relative flex items-center justify-center shrink-0 w-11 h-11"
+            className="p-3 bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-2xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer relative flex items-center justify-center shrink-0 w-11 h-11"
             title="Notification Alerts Center"
           >
-            <Bell size={16} className="text-indigo-400" />
+            <Bell size={16} className="text-[var(--accent-primary)]" />
             {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--success)] rounded-full animate-pulse" />
             )}
           </button>
 
-          {/* Profile pic */}
           <button
             onClick={onProfileClick}
-            className="w-11 h-11 rounded-2xl bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-slate-950 font-black transition-all cursor-pointer overflow-hidden border border-zinc-800 flex items-center justify-center shrink-0"
+            className="w-11 h-11 rounded-2xl bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-slate-950 font-black transition-all cursor-pointer overflow-hidden border border-[var(--border-primary)] flex items-center justify-center shrink-0"
             title="Profile Suite"
           >
             {state.userProfile?.avatarUrl ? (
@@ -548,101 +351,19 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* 2. PORTFOLIO SUMMARY HERO (Full Width) */}
-      <div id="vault-portfolio-hero" className="relative overflow-hidden bg-[var(--bg-card)] rounded-[20px] p-5 sm:p-6 flex flex-col justify-between border border-[var(--border-primary)] shadow-[var(--shadow-soft)] transition-all text-left">
-        <div className="flex justify-between items-start z-10">
-          <div className="space-y-1">
-            <h3 className="text-[10px] tracking-wider text-[var(--text-muted)] font-mono font-bold uppercase flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)] animate-pulse" />
-              PORTFOLIO NET WORTH
-            </h3>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Compact sparkline */}
-            {sparklineData.length > 0 && (
-              <div className="w-16 h-6 hidden sm:block opacity-60">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={sparklineData}>
-                    <defs>
-                      <linearGradient id="heroSparklineGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <Area 
-                      type="monotone" 
-                      dataKey="value" 
-                      stroke="var(--accent-primary)" 
-                      strokeWidth={1.5} 
-                      fill="url(#heroSparklineGrad)" 
-                      dot={false} 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            <div className={`flex items-center gap-1 border py-0.5 px-2 rounded-full text-[9px] font-bold font-mono ${trendColorClass}`}>
-              <TrendingUp size={10} />
-              <span>{trendLabel}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 mb-5 z-10">
-          <div className="text-3xl sm:text-4xl font-extrabold font-display tracking-tight text-[var(--text-primary)] flex items-baseline gap-0.5 select-all">
-            <span className="text-xl font-light text-[var(--text-secondary)] select-none mr-1">{state.currency}</span>
-            <AnimatedCountUp value={aggregateActiveWealth} />
-            <span className="text-lg font-bold text-[var(--accent-primary)] opacity-80">.00</span>
-          </div>
-        </div>
-
-        <div className="border-t border-[var(--border-primary)]/60 pt-4 z-10 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
-          <div className="flex-1 space-y-2">
-            {/* Compact 2-Column Stats layout for mobile and desktop */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1 text-[10px] text-[var(--text-secondary)] font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
-                  <span>Liquid ({assetRatioPct.toFixed(0)}%)</span>
-                </div>
-                <p className="text-xs font-bold text-[var(--text-primary)] font-mono">
-                  +{state.currency}{totalAssets.toLocaleString()}
-                </p>
-              </div>
-
-              <div className="space-y-0.5 text-right sm:text-left">
-                <div className="flex items-center justify-end sm:justify-start gap-1 text-[10px] text-[var(--text-secondary)] font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--negative)]" />
-                  <span>Liabilities ({liabilityRatioPct.toFixed(0)}%)</span>
-                </div>
-                <p className="text-xs font-bold text-[var(--text-primary)] font-mono">
-                  -{state.currency}{totalLiabilities.toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            {/* Slim dynamic ratio horizontal bar */}
-            <div className="w-full h-1 bg-[var(--bg-surface)] rounded-full overflow-hidden flex border border-[var(--border-primary)]/40">
-              <div style={{ width: `${assetRatioPct}%` }} className="h-full bg-[var(--accent-primary)] transition-all duration-1000" />
-              <div style={{ width: `${liabilityRatioPct}%` }} className="h-full bg-[var(--negative)] transition-all duration-1000" />
-            </div>
-          </div>
-
-          <div className="flex justify-end sm:block shrink-0">
-            <motion.button 
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setActiveTab('accounts')}
-              className="bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--bg-primary)] py-1.5 px-4 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center gap-1.5 shadow-sm"
-            >
-              <span>Manage Wallets</span>
-              <ChevronRight size={12} className="stroke-[2.5]" />
-            </motion.button>
-          </div>
-        </div>
-      </div>
+      {/* 2. PORTFOLIO SUMMARY HERO */}
+      <DashboardHero
+        currency={state.currency}
+        aggregateActiveWealth={aggregateActiveWealth}
+        totalAssets={totalAssets}
+        totalLiabilities={totalLiabilities}
+        assetRatioPct={assetRatioPct}
+        liabilityRatioPct={liabilityRatioPct}
+        sparklineData={sparklineData}
+        trendLabel={trendLabel}
+        trendColorClass={trendColorClass}
+        onManageWallets={() => setActiveTab('accounts')}
+      />
 
       {/* 3. FOUR MONZO-STYLE PILL ACTIONS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4" id="monzo-shortcuts-tray">
@@ -713,351 +434,84 @@ export default function Dashboard({
         </motion.button>
       </div>
 
-      {/* 4. MAIN DOUBLE BLOCK: TREND CHART & FINANCIAL HEALTH */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* PORTFOLIO TREND CHART (8 COLS) */}
-        <div className="lg:col-span-8 bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-[20px] p-6 shadow-[var(--shadow-soft)] flex flex-col justify-between text-left min-h-[440px] relative">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold font-display text-[var(--text-primary)] flex items-center gap-2">
-                <span>Portfolio Trend Analysis</span>
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)]">Historical cumulative net worth evaluation curve</p>
-            </div>
-
-            {/* Premium Pill Range Filters */}
-            <div className="flex flex-wrap bg-[var(--bg-surface)] border border-[var(--border-primary)] p-1 rounded-xl">
-              {(['1W', '1M', '3M', 'YTD', '1Y', 'All'] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setTimeRange(r)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all ${
-                    timeRange === r 
-                      ? 'bg-[var(--accent-primary)] text-slate-950 shadow-sm' 
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
+      {/* 4. MAIN TREND CHART */}
+      <div className="w-full bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-[20px] p-6 shadow-[var(--shadow-soft)] flex flex-col justify-between text-left min-h-[440px] relative">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold font-display text-[var(--text-primary)] flex items-center gap-2">
+              <span>Portfolio Trend Analysis</span>
+            </h3>
+            <p className="text-xs text-[var(--text-secondary)]">Historical cumulative net worth evaluation curve</p>
           </div>
 
-          {/* Recharts Area Chart Integration */}
-          <div className="w-full h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={fullTrendChartData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" vertical={false} opacity={0.5} />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatXAxis} 
-                  stroke="var(--text-muted)" 
-                  fontSize={10} 
-                  fontFamily="JetBrains Mono" 
-                  dy={10}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  stroke="var(--text-muted)" 
-                  fontSize={10} 
-                  fontFamily="JetBrains Mono" 
-                  dx={-10}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(val) => `${state.currency}${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`}
-                />
-                <RechartsTooltip content={<CustomChartTooltip />} cursor={{ stroke: 'var(--accent-primary)', strokeWidth: 1, strokeDasharray: '3 3' }} />
-                <Area 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="var(--accent-primary)" 
-                  strokeWidth={2} 
-                  fillOpacity={1} 
-                  fill="url(#trendGradient)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          {/* Premium Pill Range Filters */}
+          <div className="flex flex-wrap bg-[var(--bg-surface)] border border-[var(--border-primary)] p-1 rounded-xl">
+            {(['1W', '1M', '3M', 'YTD', '1Y', 'All'] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setTimeRange(r)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all ${
+                  timeRange === r 
+                    ? 'bg-[var(--accent-primary)] text-slate-950 shadow-sm' 
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* FINANCIAL HEALTH INDEX CARD (4 COLS) */}
-        <div className="lg:col-span-4 bg-[var(--bg-card)] rounded-[20px] p-6 border border-[var(--border-primary)] shadow-[var(--shadow-soft)] flex flex-col justify-between relative overflow-hidden text-left min-h-[440px]" id="financial-health-card">
-          <div className="space-y-6">
-            <div className="flex justify-between items-center pb-1">
-              <h3 className="text-lg font-bold font-display text-[var(--text-primary)]">Financial Health Index</h3>
-              <Heart size={16} className="text-[var(--negative)] fill-[var(--negative)] animate-pulse" />
-            </div>
-
-            {/* Circular Gauge Center Block */}
-            <div className="flex flex-col sm:flex-row lg:flex-col items-center gap-6 py-2">
-              <div className="relative flex items-center justify-center w-36 h-36">
-                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                  <defs>
-                    <linearGradient id="healthGaugeGrad" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="var(--accent-primary)" />
-                      <stop offset="100%" stopColor="oklch(0.75 0.15 150)" />
-                    </linearGradient>
-                  </defs>
-                  {/* Outer track background */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={gaugeRadius}
-                    className="stroke-[var(--bg-surface)]"
-                    strokeWidth="7"
-                    fill="none"
-                  />
-                  {/* Gauge fill circle */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={gaugeRadius}
-                    stroke="url(#healthGaugeGrad)"
-                    strokeWidth="7"
-                    strokeDasharray={gaugeCircumference}
-                    strokeDashoffset={gaugeOffset}
-                    strokeLinecap="round"
-                    fill="none"
-                    className="transition-all duration-1000 ease-out"
-                  />
-                </svg>
-
-                {/* Score centered display */}
-                <div className="absolute flex flex-col items-center justify-center text-center">
-                  <span className="text-3xl font-black font-display tracking-tight text-[var(--text-primary)]">
-                    {finalHealthScore}
-                  </span>
-                  <span className="text-[9px] font-mono tracking-widest text-[var(--text-muted)] uppercase mt-0.5">SCORE</span>
-                </div>
-              </div>
-
-              <div className="flex-1 w-full space-y-2">
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase inline-block border ${healthState.color}`}>
-                  {healthState.label}
-                </span>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed font-sans">
-                  {healthState.desc}
-                </p>
-              </div>
-            </div>
-
-            {/* Score Component Breakdown */}
-            <div className="pt-4 border-t border-[var(--border-primary)] space-y-3 relative">
-              <div className="flex justify-between items-center pb-1">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--accent-primary)] font-mono">Index Components</span>
-                <span className="text-[9px] text-[var(--text-muted)] font-mono font-bold">MAX 100 PTS</span>
-              </div>
-
-              {/* Hover Formula Tooltip Bubble */}
-              <AnimatePresence>
-                {hoveredMetricFormula && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 5 }}
-                    className="absolute left-0 right-0 -top-8 bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-lg p-2.5 shadow-md z-20 text-xs font-sans text-[var(--text-secondary)] flex items-start gap-2 backdrop-blur-md"
-                  >
-                    <Info size={14} className="text-[var(--accent-primary)] shrink-0 mt-0.5" />
-                    <span>{hoveredMetricFormula}</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Component: Net Worth Score */}
-              <div 
-                className="space-y-1 cursor-help"
-                onMouseEnter={() => setHoveredMetricFormula(FORMULAS.netWorth)}
-                onMouseLeave={() => setHoveredMetricFormula(null)}
-              >
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)] font-medium font-sans">Net Worth Tier</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {healthMetrics.netWorthScore}<span className="text-[var(--text-muted)] font-normal"> / 30</span>
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--bg-surface)] h-1 rounded-full overflow-hidden border border-[var(--border-primary)]/45">
-                  <div className="bg-[var(--accent-primary)] h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.netWorthScore / 30) * 100}%` }} />
-                </div>
-              </div>
-
-              {/* Component: Liquidity Score */}
-              <div 
-                className="space-y-1 cursor-help"
-                onMouseEnter={() => setHoveredMetricFormula(FORMULAS.liquidity)}
-                onMouseLeave={() => setHoveredMetricFormula(null)}
-              >
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)] font-medium font-sans">Cash Liquidity</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {healthMetrics.liquidityScore}<span className="text-[var(--text-muted)] font-normal"> / 25</span>
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--bg-surface)] h-1 rounded-full overflow-hidden border border-[var(--border-primary)]/45">
-                  <div className="bg-cyan-400 h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.liquidityScore / 25) * 100}%` }} />
-                </div>
-              </div>
-
-              {/* Component: Debt Ratio Score */}
-              <div 
-                className="space-y-1 cursor-help"
-                onMouseEnter={() => setHoveredMetricFormula(FORMULAS.debt)}
-                onMouseLeave={() => setHoveredMetricFormula(null)}
-              >
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)] font-medium font-sans">Liability Safety</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {healthMetrics.debtScore}<span className="text-[var(--text-muted)] font-normal"> / 20</span>
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--bg-surface)] h-1 rounded-full overflow-hidden border border-[var(--border-primary)]/45">
-                  <div className="bg-amber-400 h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.debtScore / 20) * 100}%` }} />
-                </div>
-              </div>
-
-              {/* Component: Cash Flow Score */}
-              <div 
-                className="space-y-1 cursor-help"
-                onMouseEnter={() => setHoveredMetricFormula(FORMULAS.cashFlow)}
-                onMouseLeave={() => setHoveredMetricFormula(null)}
-              >
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)] font-medium font-sans">Flow Margin</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {healthMetrics.cashFlowScore}<span className="text-[var(--text-muted)] font-normal"> / 15</span>
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--bg-surface)] h-1 rounded-full overflow-hidden border border-[var(--border-primary)]/45">
-                  <div className="bg-indigo-400 h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.cashFlowScore / 15) * 100}%` }} />
-                </div>
-              </div>
-
-              {/* Component: Savings Rate Score */}
-              <div 
-                className="space-y-1 cursor-help"
-                onMouseEnter={() => setHoveredMetricFormula(FORMULAS.savings)}
-                onMouseLeave={() => setHoveredMetricFormula(null)}
-              >
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)] font-medium font-sans">Savings Delta</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {healthMetrics.savingsRateScore}<span className="text-[var(--text-muted)] font-normal"> / 10</span>
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--bg-surface)] h-1 rounded-full overflow-hidden border border-[var(--border-primary)]/45">
-                  <div className="bg-[var(--negative)] h-full rounded-full transition-all duration-500" style={{ width: `${(healthMetrics.savingsRateScore / 10) * 100}%` }} />
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Recharts Area Chart Integration */}
+        <div className="w-full h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={fullTrendChartData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" vertical={false} opacity={0.5} />
+              <XAxis 
+                dataKey="date" 
+                tickFormatter={formatXAxis} 
+                stroke="var(--text-muted)" 
+                fontSize={10} 
+                fontFamily="JetBrains Mono" 
+                dy={10}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis 
+                stroke="var(--text-muted)" 
+                fontSize={10} 
+                fontFamily="JetBrains Mono" 
+                dx={-10}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(val) => `${state.currency}${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`}
+              />
+              <RechartsTooltip content={<CustomChartTooltip />} cursor={{ stroke: 'var(--accent-primary)', strokeWidth: 1, strokeDasharray: '3 3' }} />
+              <Area 
+                type="monotone" 
+                dataKey="value" 
+                stroke="var(--accent-primary)" 
+                strokeWidth={2} 
+                fillOpacity={1} 
+                fill="url(#trendGradient)" 
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
       {/* 5. SPENDING ENVELOPES SECTION */}
-      <div className="space-y-5">
-        <div className="flex justify-between items-end px-1">
-          <div className="text-left space-y-1">
-            <h2 className="text-2xl font-bold font-display tracking-tight text-[var(--text-primary)]">Spending Envelopes</h2>
-            <p className="text-xs text-[var(--text-secondary)] font-sans">Active monthly envelope controls and limits</p>
-          </div>
-          <button 
-            onClick={() => setActiveTab('budgets')}
-            className="text-xs font-bold text-[var(--accent-primary)] hover:underline flex items-center gap-1.5 transition-all"
-          >
-            <span>Budgets Portal</span>
-            <ArrowRight size={14} className="stroke-[2.5]" />
-          </button>
-        </div>
-
-        {/* Categories grid/slider */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="category-spend-slider-tray">
-          {liveBudgetTray.length > 0 ? (
-            liveBudgetTray.slice(0, 4).map((category) => {
-              const ratio = category.spent / category.limit;
-              const isWarning = ratio >= 0.8 && ratio <= 1.0;
-              const isOver = ratio > 1.0;
-
-              return (
-                <motion.div
-                  key={category.id}
-                  whileHover={{ y: -3 }}
-                  className={`bg-[var(--bg-card)] border rounded-[20px] p-5 flex flex-col justify-between h-44 text-left transition-all relative ${
-                    isOver 
-                      ? 'border-[var(--negative)] shadow-[0_0_15px_rgba(239,68,68,0.08)]' 
-                      : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)] shadow-[var(--shadow-soft)]'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg w-9 h-9 bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl flex items-center justify-center shrink-0">
-                        {category.icon}
-                      </span>
-                      <div className="min-w-0">
-                        <span className="text-xs font-extrabold text-[var(--text-primary)] truncate block font-display">{category.category}</span>
-                        <span className="text-[9px] font-mono text-[var(--text-muted)] uppercase block mt-0.5">Envelope Limit</span>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
-                      isOver 
-                        ? 'bg-[var(--negative)]/10 text-[var(--negative)] border border-[var(--negative)]/15' 
-                        : isWarning 
-                          ? 'bg-amber-400/10 text-amber-500 border border-amber-400/15' 
-                          : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-primary)]'
-                    }`}>
-                      {category.percent}%
-                    </span>
-                  </div>
-
-                  <div className="mt-4 space-y-2">
-                    <div className="flex justify-between text-xs font-mono">
-                      <span className="text-[var(--text-secondary)]">Spent</span>
-                      <span className="font-extrabold text-[var(--text-primary)]">
-                        {state.currency}{category.spent.toLocaleString()}
-                      </span>
-                    </div>
-
-                    {/* Thermometer Progress Bar with Dashed 80% & 90% Markers */}
-                    <div className="w-full h-2.5 bg-[var(--bg-surface)] rounded-full overflow-hidden border border-[var(--border-primary)] relative">
-                      <div className="absolute top-0 bottom-0 left-[80%] w-[1px] border-l border-dashed border-[var(--text-muted)]/40 z-10" />
-                      <div className="absolute top-0 bottom-0 left-[90%] w-[1px] border-l border-dashed border-[var(--text-muted)]/40 z-10" />
-                      
-                      <div 
-                        className={`h-full rounded-full transition-all duration-700 ${
-                          isOver 
-                            ? 'bg-[var(--negative)]' 
-                            : isWarning 
-                              ? 'bg-amber-400 animate-pulse' 
-                              : 'bg-[var(--accent-primary)]'
-                        }`}
-                        style={{ width: `${category.percent}%` }}
-                      />
-                    </div>
-
-                    <div className="flex justify-between text-[9px] uppercase tracking-wider text-[var(--text-muted)] pt-0.5 font-mono">
-                      <span>Limit: {state.currency}{category.limit.toLocaleString()}</span>
-                      <span className={isOver ? 'text-[var(--negative)] font-bold' : 'text-[var(--accent-primary)] font-bold'}>
-                        {isOver ? 'DEFICIT' : `${state.currency}${category.remaining.toLocaleString()} left`}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })
-          ) : (
-            <div className="col-span-4 py-8 px-4 text-center border border-dashed border-[var(--border-primary)] text-[var(--text-muted)] rounded-2xl bg-[var(--bg-surface)]/30">
-              <p className="text-xs font-semibold text-[var(--text-secondary)]">No active spending envelopes configured</p>
-              <p className="text-[10px] text-[var(--text-muted)] mt-1 font-sans">Navigate to the Smart Budgets tab to setup envelope control limits.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      <DashboardMetricsGrid
+        liveBudgetTray={liveBudgetTray}
+        currency={state.currency}
+        onNavigateToBudgets={() => setActiveTab('budgets')}
+      />
 
       {/* 6. TIMELINE TRANSACTION FEEDS & RECURRING MONITOR */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -1224,191 +678,15 @@ export default function Dashboard({
 
       </div>
 
-      {/* QUICK TRANSACTION ENTRY MODAL / BOTTOM SHEET */}
-      <AnimatePresence>
-        {isQuickTxOpen && (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-            {/* Overlay backdrop with high-end blur */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsQuickTxOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            />
-
-            {/* Bottom Sheet on Mobile, Centered Dialog on Desktop */}
-            <motion.div 
-              initial={{ y: "100%", opacity: 0.5 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0.5 }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="relative w-full md:max-w-md bg-[var(--bg-card)] border-t md:border border-[var(--border-primary)] rounded-t-[24px] md:rounded-[24px] shadow-2xl p-6 text-left z-10 flex flex-col max-h-[90vh] overflow-y-auto"
-            >
-              {/* Header */}
-              <div className="flex justify-between items-center pb-4 border-b border-[var(--border-primary)]">
-                <div className="space-y-1">
-                  <h4 className="text-base font-bold font-display text-[var(--text-primary)]">Quick Register</h4>
-                  <p className="text-[10px] text-[var(--text-muted)] font-sans">Instant single-entry ledger record</p>
-                </div>
-                <button 
-                  onClick={() => setIsQuickTxOpen(false)}
-                  className="p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Toggle Switch */}
-              <div className="flex bg-[var(--bg-surface)] p-1 rounded-xl border border-[var(--border-primary)] my-5 relative">
-                <button
-                  type="button"
-                  onClick={() => setTxType('expense')}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all z-10 ${
-                    txType === 'expense' ? 'bg-[var(--bg-card)] text-[var(--negative)] shadow-sm border border-[var(--border-primary)]' : 'text-[var(--text-secondary)]'
-                  }`}
-                >
-                  Expense Outflow
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTxType('income')}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all z-10 ${
-                    txType === 'income' ? 'bg-[var(--bg-card)] text-[var(--accent-primary)] shadow-sm border border-[var(--border-primary)]' : 'text-[var(--text-secondary)]'
-                  }`}
-                >
-                  Income Inflow
-                </button>
-              </div>
-
-              <form onSubmit={handleQuickTxSubmit} className="space-y-4">
-                {/* Receipt Live Preview Box */}
-                <div className="bg-[var(--bg-surface)] border border-[var(--border-primary)] p-4 rounded-xl space-y-2.5 relative overflow-hidden">
-                  <div className="absolute right-2 top-2">
-                    <Sparkles size={14} className="text-[var(--accent-primary)] opacity-40 animate-pulse" />
-                  </div>
-                  <span className="text-[8px] font-mono text-[var(--text-muted)] uppercase tracking-widest block font-bold">TICKET PREVIEW</span>
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-[var(--text-primary)] truncate max-w-[200px]">{txTitle || "Untitled Statement"}</span>
-                    <span className={`text-sm font-black font-mono ${txType === 'expense' ? 'text-[var(--negative)]' : 'text-[var(--accent-primary)]'}`}>
-                      {txType === 'expense' ? '-' : '+'}{state.currency}{parseFloat(txAmount || "0").toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[9px] font-mono text-[var(--text-muted)] border-t border-[var(--border-primary)]/70 pt-2">
-                    <span>Category: {txCategory}</span>
-                    <span>Date: {txDate}</span>
-                  </div>
-                </div>
-
-                {/* Inputs */}
-                <div className="space-y-1 text-left">
-                  <label className="text-[10px] uppercase font-bold tracking-wider font-mono text-[var(--text-secondary)]">Statement/Title</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Monzo Weekly Grocery"
-                    value={txTitle}
-                    onChange={(e) => setTxTitle(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-primary)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all placeholder-[var(--text-muted)] font-sans"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1 text-left">
-                    <label className="text-[10px] uppercase font-bold tracking-wider font-mono text-[var(--text-secondary)]">Amount ({state.currency})</label>
-                    <input
-                      type="number"
-                      required
-                      min="0.01"
-                      step="any"
-                      placeholder="0.00"
-                      value={txAmount}
-                      onChange={(e) => setTxAmount(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-primary)] text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all placeholder-[var(--text-muted)]"
-                    />
-                  </div>
-
-                  <div className="space-y-1 text-left">
-                    <label className="text-[10px] uppercase font-bold tracking-wider font-mono text-[var(--text-secondary)]">Category</label>
-                    <select
-                      value={txCategory}
-                      onChange={(e) => setTxCategory(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-primary)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all cursor-pointer font-sans"
-                    >
-                      {txType === 'expense' ? (
-                        <>
-                          <option value="Utilities">Utilities</option>
-                          <option value="Food & Dining">Food & Dining</option>
-                          <option value="Rent & Housing">Rent & Housing</option>
-                          <option value="Shopping">Shopping</option>
-                          <option value="Entertainment">Entertainment</option>
-                          <option value="Transport">Transport</option>
-                          <option value="Investment">Investment</option>
-                          <option value="Others">Others</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="Salary">Salary</option>
-                          <option value="Freelance">Freelance</option>
-                          <option value="Investments">Investments</option>
-                          <option value="Gifts">Gifts</option>
-                          <option value="Refunds">Refunds</option>
-                          <option value="Others">Others</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1 text-left">
-                    <label className="text-[10px] uppercase font-bold tracking-wider font-mono text-[var(--text-secondary)]">Settle Account</label>
-                    <select
-                      value={txAccountId}
-                      onChange={(e) => setTxAccountId(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-primary)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all cursor-pointer font-sans"
-                    >
-                      <optgroup label="Cash Accounts">
-                        {state.cashAccounts.map(c => (
-                          <option key={c.id} value={`cash-${c.id}`}>{c.name} ({state.currency}{c.balance.toLocaleString()})</option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="Bank/Debit Cards">
-                        {state.cards.filter(c => c.cardType === 'Debit' && !c.isCanceled).map(c => (
-                          <option key={c.id} value={`card-${c.id}`}>{c.cardName} ({state.currency}{c.currentBalance.toLocaleString()})</option>
-                        ))}
-                      </optgroup>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1 text-left">
-                    <label className="text-[10px] uppercase font-bold tracking-wider font-mono text-[var(--text-secondary)]">Record Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={txDate}
-                      onChange={(e) => setTxDate(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-primary)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-all cursor-pointer font-mono"
-                    />
-                  </div>
-                </div>
-
-                {/* Submit Action */}
-                <div className="pt-4 border-t border-[var(--border-primary)] mt-4">
-                  <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    type="submit"
-                    className="w-full bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--bg-primary)] py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-150 cursor-pointer"
-                  >
-                    Confirm Ledger Registry
-                  </motion.button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* QUICK TRANSACTION ENTRY MODAL */}
+      <QuickActionModal
+        isOpen={isQuickTxOpen}
+        onClose={() => setIsQuickTxOpen(false)}
+        state={state}
+        initialType={txType}
+        onAddIncome={onAddIncome}
+        onAddExpense={onAddExpense}
+      />
 
     </div>
   );

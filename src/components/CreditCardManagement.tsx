@@ -173,12 +173,12 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
   };
 
   return (
-    <div className="bg-white dark:bg-gradient-to-br dark:from-zinc-900/40 dark:to-zinc-950 p-6 md:p-8 rounded-[32px] border border-zinc-200 dark:border-zinc-850 shadow-xl dark:shadow-none space-y-6 animate-fade-in" id="credit-cards-vault">
+    <div className="bg-white dark:bg-gradient-to-br dark:from-zinc-900/40 dark:to-zinc-950 p-6 md:p-8 rounded-[32px] border border-zinc-200 dark:border-[var(--border-primary)] shadow-xl dark:shadow-none space-y-6 animate-fade-in" id="credit-cards-vault">
       
       {/* Header Info */}
       <div className="flex justify-between items-center pb-3 border-b border-zinc-200 dark:border-zinc-900">
         <div>
-          <span className="text-[9px] font-mono tracking-widest text-zinc-650 dark:text-[#a1a1a9] font-black uppercase bg-zinc-100 dark:bg-zinc-950 px-2.5 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-900">CREDIT LEDGER</span>
+          <span className="text-[9px] font-mono tracking-widest text-[var(--text-muted)] dark:text-[#a1a1a9] font-black uppercase bg-zinc-100 dark:bg-zinc-950 px-2.5 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-900">CREDIT LEDGER</span>
           <h3 className="text-base font-extrabold text-zinc-900 dark:text-white mt-1.5 flex items-center gap-1.5 font-sans leading-none">
             <CcIcon size={16} className="text-indigo-500 dark:text-indigo-400" />
             Credit Card Facilities
@@ -189,7 +189,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
       {/* Credit Cards list */}
       <div className="space-y-4">
         {creditCards.length === 0 ? (
-          <div className="p-8 text-center text-zinc-500 text-xs italic border border-dashed border-zinc-200 dark:border-zinc-850 rounded-[20px]">
+          <div className="p-8 text-center text-zinc-500 text-xs italic border border-dashed border-zinc-200 dark:border-[var(--border-primary)] rounded-[20px]">
             No credit cards currently on record. Build one in Cash & Card Management.
           </div>
         ) : (
@@ -197,7 +197,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
             const outstandingDebt = c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0;
             const utilization = c.limit && c.limit > 0 ? Math.round((outstandingDebt / c.limit) * 100) : 0;
             return (
-              <div key={c.id} className="bg-zinc-50 dark:bg-zinc-900/60 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-800 transition-colors space-y-4 shadow-md">
+              <div key={c.id} className="bg-zinc-50 dark:bg-zinc-900/60 p-5 rounded-2xl border border-zinc-200 dark:border-[var(--border-primary)] hover:border-zinc-300 dark:hover:border-zinc-800 transition-colors space-y-4 shadow-md">
                 
                 {/* Visual Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-200 dark:border-zinc-900/45">
@@ -210,12 +210,12 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                     {/* Utilization Indicator */}
                     <div className="flex items-center gap-2 mt-1.5">
                       <span className="text-[9px] text-zinc-500 uppercase font-mono font-bold">utilization rate:</span>
-                      <span className={`text-[9.5px] font-mono font-black ${utilization > 80 ? 'text-rose-650 dark:text-rose-400' : 'text-zinc-600 dark:text-zinc-300'}`}>{utilization}% used</span>
+                      <span className={`text-[9.5px] font-mono font-black ${utilization > 80 ? 'text-[var(--negative)] dark:text-rose-400' : 'text-zinc-600 dark:text-zinc-300'}`}>{utilization}% used</span>
                     </div>
                   </div>
 
                   <div className="text-left sm:text-right">
-                    <span className="text-[9px] uppercase tracking-wider block font-mono text-zinc-550 dark:text-zinc-500">outstanding debt</span>
+                    <span className="text-[9px] uppercase tracking-wider block font-mono text-[var(--text-secondary)] dark:text-zinc-500">outstanding debt</span>
                     <span className="font-mono text-sm font-black text-rose-500 dark:text-rose-400">
                       {currency} {outstandingDebt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
@@ -252,7 +252,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             showToast('success', `Limit of ${currency}${c.limit || 0} locked & synchronized!`);
                           }
                         }}
-                        className={`w-24 bg-white dark:bg-black border border-zinc-200 dark:border-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl px-2.5 py-1 text-[11px] text-zinc-900 dark:text-white font-mono font-bold transition-all ${c.isLimitLocked ?? true ? 'opacity-55' : 'border-indigo-500 ring-1 ring-indigo-500/10'}`}
+                        className={`w-24 bg-white dark:bg-black border border-zinc-200 dark:border-[var(--border-primary)] hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl px-2.5 py-1 text-[11px] text-zinc-900 dark:text-white font-mono font-bold transition-all ${c.isLimitLocked ?? true ? 'opacity-55' : 'border-indigo-500 ring-1 ring-indigo-500/10'}`}
                       />
                       
                       <button 
@@ -266,7 +266,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             showToast('success', `Limit of ${currency}${c.limit || 0} locked & synchronized!`);
                           }
                         }}
-                        className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-955 text-zinc-500 hover:text-zinc-800 dark:hover:text-white rounded-lg border border-zinc-200 dark:border-zinc-900 transition cursor-pointer"
+                        className="p-1.5 hover:bg-zinc-100 dark:hover:bg-[var(--bg-surface)] text-zinc-500 hover:text-zinc-800 dark:hover:text-white rounded-lg border border-zinc-200 dark:border-zinc-900 transition cursor-pointer"
                         title={c.isLimitLocked ?? true ? "Unlock limit editing" : "Lock limit"}
                       >
                         {c.isLimitLocked ?? true ? <Lock size={12} className="text-zinc-500" /> : <Unlock size={12} className="text-indigo-500 animate-pulse" />}
@@ -291,7 +291,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                             : payAmounts[c.id] && !payErrors[c.id]
                             ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                            : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                            : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                         }`} 
                       />
 
@@ -307,7 +307,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             ? 'border-rose-500 focus:border-rose-500'
                             : paySources[c.id] && !payErrors[c.id]
                             ? 'border-emerald-500/50 focus:border-indigo-500'
-                            : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500'
+                            : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500'
                         }`}
                       >
                         <option value="">Source Account</option>
@@ -378,7 +378,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
       </div>
 
       {/* Record purchase form */}
-      <form onSubmit={handleAddPurchase} className="grid grid-cols-1 sm:grid-cols-2 gap-5 bg-zinc-50 dark:bg-[#050508] border border-zinc-200 dark:border-zinc-850 p-6 md:p-8 rounded-[24px] shadow-xl dark:shadow-none relative overflow-hidden text-left">
+      <form onSubmit={handleAddPurchase} className="grid grid-cols-1 sm:grid-cols-2 gap-5 bg-zinc-50 dark:bg-[#050508] border border-zinc-200 dark:border-[var(--border-primary)] p-6 md:p-8 rounded-[24px] shadow-xl dark:shadow-none relative overflow-hidden text-left">
         <div className="absolute -top-12 -right-12 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
         
         <h4 className='sm:col-span-2 text-zinc-900 dark:text-white font-black text-xs uppercase tracking-wider font-mono flex items-center gap-1.5 pb-2 border-b border-zinc-200 dark:border-zinc-900'>
@@ -395,12 +395,12 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               setPurCardId(e.target.value);
               validatePurchase(e.target.value, purAmount, purMerchant, purDesc, purchaseSubmitted);
             }}
-            className={`w-full bg-white dark:bg-[#08080c] border text-xs text-zinc-700 dark:text-zinc-350 rounded-2xl p-3.5 focus:outline-none focus:ring-1 transition-all font-semibold cursor-pointer ${
+            className={`w-full bg-white dark:bg-[#08080c] border text-xs text-zinc-700 dark:text-[var(--text-secondary)] rounded-2xl p-3.5 focus:outline-none focus:ring-1 transition-all font-semibold cursor-pointer ${
               purchaseErrors.cardId
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : purCardId && !purchaseErrors.cardId
                 ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`}
           >
             <option value="">Select Target Card</option>
@@ -422,12 +422,12 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               setPurAmount(e.target.value);
               validatePurchase(purCardId, e.target.value, purMerchant, purDesc, purchaseSubmitted);
             }} 
-            className={`w-full bg-white dark:bg-[#08080c] border text-xs text-zinc-900 dark:text-white rounded-2xl p-3.5 focus:outline-none focus:ring-1 font-mono font-black transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-650 ${
+            className={`w-full bg-white dark:bg-[#08080c] border text-xs text-zinc-900 dark:text-white rounded-2xl p-3.5 focus:outline-none focus:ring-1 font-mono font-black transition-all placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)] ${
               purchaseErrors.amount
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : purAmount && !purchaseErrors.amount
                 ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`} 
           />
           {purchaseErrors.amount && (
@@ -450,7 +450,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                 ? 'border-rose-500 focus:border-rose-500'
                 : purMerchant && !purchaseErrors.merchant
                 ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`} 
           />
           {purchaseErrors.merchant && (
@@ -467,7 +467,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               setPurDesc(e.target.value);
               validatePurchase(purCardId, purAmount, purMerchant, e.target.value, purchaseSubmitted);
             }} 
-            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 text-zinc-900 dark:text-white rounded-2xl p-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600" 
+            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 text-zinc-900 dark:text-white rounded-2xl p-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600" 
           />
         </div>
 

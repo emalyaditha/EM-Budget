@@ -104,7 +104,7 @@ export default function BudgetsSection({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[var(--bg-card)] border border-[var(--border-primary)] p-6 rounded-[24px] shadow-[var(--shadow-soft)]">
         <div className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-primary)] font-sans block">
-            Financial Health Limits
+            Envelope Spending Limits
           </span>
           <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)] leading-tight">Master Budget Ledger</h2>
           <p className="text-sm text-[var(--text-secondary)] mt-1.5 leading-relaxed">
@@ -313,7 +313,7 @@ export default function BudgetsSection({
                             e.stopPropagation();
                             handleOpenEdit(budget);
                           }}
-                          className="p-1.5 hover:bg-slate-705 bg-slate-800/80 border border-slate-750 rounded-lg text-[var(--text-secondary)] hover:text-white transition-colors cursor-pointer"
+                          className="p-1.5 hover:bg-[var(--bg-card)] bg-slate-800/80 border border-[var(--border-primary)] rounded-lg text-[var(--text-secondary)] hover:text-white transition-colors cursor-pointer"
                           title="Adjust limit"
                         >
                           <Edit2 size={12} />
@@ -337,7 +337,7 @@ export default function BudgetsSection({
                             className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
                               deleteConfirmId === budget.id
                                 ? 'bg-red-600 border border-red-500 text-white font-bold animate-pulse px-2'
-                                : 'hover:bg-red-950/40 hover:border-red-500/40 hover:text-red-400 bg-slate-800/80 border border-slate-750 text-[var(--text-secondary)]'
+                                : 'hover:bg-red-950/40 hover:border-red-500/40 hover:text-red-400 bg-slate-800/80 border border-[var(--border-primary)] text-[var(--text-secondary)]'
                             }`}
                             title={deleteConfirmId === budget.id ? 'Click again to confirm delete' : 'Delete envelope'}
                           >
@@ -455,7 +455,7 @@ export default function BudgetsSection({
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center p-12 text-center h-full text-[var(--text-secondary)] space-y-4">
-              <HelpCircle size={40} className="text-slate-650" />
+              <HelpCircle size={40} className="text-[var(--text-muted)]" />
               <div>
                 <p className="font-bold text-sm text-[var(--text-primary)]">No Category Selected</p>
                 <p className="text-xs text-[var(--text-secondary)] mt-1">
@@ -476,7 +476,7 @@ export default function BudgetsSection({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#050508] border border-zinc-850 rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative"
+              className="bg-[#050508] border border-[var(--border-primary)] rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative"
             >
               <button
                 onClick={() => setIsEditModalOpen(false)}
@@ -495,7 +495,7 @@ export default function BudgetsSection({
                     type="number"
                     value={editLimitVal}
                     onChange={(e) => setEditLimitVal(e.target.value)}
-                    className="w-full p-4 bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs font-mono font-bold text-white focus:outline-none placeholder:text-zinc-650/75 transition-all"
+                    className="w-full p-4 bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs font-mono font-bold text-white focus:outline-none placeholder:text-[var(--text-muted)]/75 transition-all"
                     placeholder="Enter limit"
                     autoFocus
                   />
@@ -504,7 +504,7 @@ export default function BudgetsSection({
                 <div className="flex gap-3 justify-end pt-2">
                   <button
                     onClick={() => setIsEditModalOpen(false)}
-                    className="h-11 bg-zinc-900 border border-zinc-800 hover:border-zinc-650 text-white font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer flex items-center justify-center px-5"
+                    className="h-11 bg-zinc-900 border border-zinc-800 hover:border-[var(--border-primary)] text-white font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer flex items-center justify-center px-5"
                   >
                     Cancel
                   </button>
@@ -529,7 +529,7 @@ export default function BudgetsSection({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#050508] border border-zinc-850 rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative"
+              className="bg-[#050508] border border-[var(--border-primary)] rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative"
             >
               <button
                 onClick={() => setIsAddModalOpen(false)}
@@ -547,7 +547,7 @@ export default function BudgetsSection({
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value as CategoryExpense)}
-                    className="w-full p-4 bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-white focus:outline-none cursor-pointer font-semibold transition-all"
+                    className="w-full p-4 bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-white focus:outline-none cursor-pointer font-semibold transition-all"
                   >
                     <option value="Food">🍔 Food / Dining</option>
                     <option value="Transport">🚗 Transport & Vehicle</option>
@@ -573,7 +573,7 @@ export default function BudgetsSection({
                         className={`p-2.5 rounded-2xl text-lg flex items-center justify-center transition-all cursor-pointer ${
                           newIcon === ico 
                             ? 'bg-indigo-600/20 border border-indigo-500 text-white scale-105' 
-                            : 'bg-[#08080c] hover:bg-zinc-900 border border-zinc-855 hover:border-zinc-700'
+                            : 'bg-[#08080c] hover:bg-zinc-900 border border-[var(--border-primary)] hover:border-zinc-700'
                         }`}
                       >
                         {ico}
@@ -588,7 +588,7 @@ export default function BudgetsSection({
                     type="number"
                     value={newLimit}
                     onChange={(e) => setNewLimit(e.target.value)}
-                    className="w-full p-4 bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs font-mono font-bold text-white focus:outline-none placeholder:text-zinc-650/75 transition-all"
+                    className="w-full p-4 bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs font-mono font-bold text-white focus:outline-none placeholder:text-[var(--text-muted)]/75 transition-all"
                     placeholder="e.g. 500"
                   />
                 </div>
@@ -596,7 +596,7 @@ export default function BudgetsSection({
                 <div className="flex gap-3 justify-end pt-2">
                   <button
                     onClick={() => setIsAddModalOpen(false)}
-                    className="h-11 bg-zinc-900 border border-zinc-800 hover:border-zinc-650 text-white font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer flex items-center justify-center px-5"
+                    className="h-11 bg-zinc-900 border border-zinc-800 hover:border-[var(--border-primary)] text-white font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer flex items-center justify-center px-5"
                   >
                     Cancel
                   </button>

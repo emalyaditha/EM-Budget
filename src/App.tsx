@@ -26,6 +26,8 @@ import SettingsModal from './components/SettingsModal';
 import TransactionEditModal from './components/TransactionEditModal';
 import BudgetsSection from './components/BudgetsSection';
 import GoalsSection from './components/GoalsSection';
+import { CommandPalette } from './components/CommandPalette';
+import { BottomNavigation } from './components/BottomNavigation';
 import { CategorySpreadAnalysis } from './components/Charts';
 import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud } from './supabase';
 import { useNotifications } from './context/NotificationContext';
@@ -48,6 +50,7 @@ export default function App() {
   const [showConfigPanel, setShowConfigPanel] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -2279,7 +2282,7 @@ export default function App() {
       
       {/* ======================= DOCKED LEFT SIDEBAR NAVIGATION (Desktop Only) ======================= */}
       {isUnlocked && (
-        <aside className={`hidden lg:flex flex-col h-screen fixed top-0 left-0 bg-[#08080c]/90 border-r border-zinc-850/65 backdrop-blur-md transition-all duration-300 z-30 p-5 ${
+        <aside className={`hidden lg:flex flex-col h-screen fixed top-0 left-0 bg-[#08080c]/90 border-r border-[var(--border-primary)]/65 backdrop-blur-md transition-all duration-300 z-30 p-5 ${
           isNavCollapsed ? 'w-20' : 'w-64'
         } justify-between overflow-y-auto select-none`} id="docked-desktop-sidebar">
           <div className="space-y-6">
@@ -2338,7 +2341,7 @@ export default function App() {
                   className={`w-full py-3 px-3.5 rounded-xl font-sans font-bold text-xs flex items-center gap-3.5 transition-all duration-200 cursor-pointer border ${
                     activeTab === item.tab
                       ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-slate-950 shadow-md font-extrabold'
-                      : 'text-zinc-400 bg-transparent border-transparent hover:text-white hover:border-zinc-850 hover:bg-zinc-900/40'
+                      : 'text-zinc-400 bg-transparent border-transparent hover:text-white hover:border-[var(--border-primary)] hover:bg-zinc-900/40'
                   } ${isNavCollapsed ? 'justify-center px-1' : ''}`}
                   title={isNavCollapsed ? item.label : undefined}
                 >
@@ -2354,7 +2357,7 @@ export default function App() {
           <div className="space-y-4">
             {/* Security Vault Indicator */}
             {!isNavCollapsed ? (
-              <div className="bg-zinc-900/40 text-left border border-zinc-850/60 p-4 rounded-2xl space-y-3 shadow-md animate-fade-in">
+              <div className="bg-zinc-900/40 text-left border border-[var(--border-primary)]/60 p-4 rounded-2xl space-y-3 shadow-md animate-fade-in">
                 <h3 className="text-[9px] tracking-wider text-blue-400 font-mono font-bold uppercase flex items-center gap-1.5">
                   <span className="w-1 h-1 bg-blue-500 rounded-full animate-pulse" />
                   SECURITY VAULT ACTIVE
@@ -2366,29 +2369,29 @@ export default function App() {
                   </div>
                   <div className="flex justify-between items-center text-[9px] text-zinc-400 font-mono">
                     <span>State Syncing</span>
-                    <span className="text-blue-450 font-bold uppercase">Active</span>
+                    <span className="text-[var(--accent-primary)] font-bold uppercase">Active</span>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="bg-zinc-900/40 border border-zinc-850/60 p-2.5 rounded-xl flex items-center justify-center text-blue-400 animate-fade-in cursor-pointer" title={`Secured Connection for ${userEmail}`}>
+              <div className="bg-zinc-900/40 border border-[var(--border-primary)]/60 p-2.5 rounded-xl flex items-center justify-center text-blue-400 animate-fade-in cursor-pointer" title={`Secured Connection for ${userEmail}`}>
                 <Lock size={13} className="animate-pulse" />
               </div>
             )}
 
             {/* Sidebar bottom control buttons */}
             {!isNavCollapsed ? (
-              <div className="flex items-center justify-between border-t border-zinc-850/60 pt-3">
+              <div className="flex items-center justify-between border-t border-[var(--border-primary)]/60 pt-3">
                 <button 
                   onClick={() => setIsSettingsOpen(true)}
-                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer"
+                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-[var(--border-primary)]/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer"
                   title="Application Settings"
                 >
                   <Settings size={13} />
                 </button>
                 <button 
                   onClick={() => setIsNotifOpen(true)}
-                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer relative"
+                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-[var(--border-primary)]/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer relative"
                   title="Notification Alerts Center"
                 >
                   <Bell size={13} />
@@ -2421,17 +2424,17 @@ export default function App() {
                     setState(DEFAULT_APP_STATE);
                     setIsUnlocked(false);
                   }}
-                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850/60 hover:border-zinc-750 text-rose-450 hover:text-rose-400 transition-all cursor-pointer"
+                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-[var(--border-primary)]/60 hover:border-[var(--border-primary)] text-[var(--negative)] hover:text-rose-400 transition-all cursor-pointer"
                   title="Disconnect Identity"
                 >
                   <LogOut size={13} />
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-3 border-t border-zinc-850/60 pt-3">
+              <div className="flex flex-col items-center gap-3 border-t border-[var(--border-primary)]/60 pt-3">
                 <button 
                   onClick={() => setIsNotifOpen(true)}
-                  className="p-2.5 rounded-xl bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer relative"
+                  className="p-2.5 rounded-xl bg-zinc-900/50 hover:bg-zinc-900 border border-[var(--border-primary)]/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer relative"
                   title="Notification Alerts Center"
                 >
                   <Bell size={13} />
@@ -2457,7 +2460,7 @@ export default function App() {
                 </button>
                 <button 
                   onClick={() => setIsSettingsOpen(true)}
-                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center"
+                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-[var(--border-primary)]/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center"
                   title="Application Settings"
                 >
                   <Settings size={13} />
@@ -2531,6 +2534,17 @@ export default function App() {
                 <CloudOff size={15} />
               </button>
             )}
+
+            {/* Quick Command Palette Button */}
+            <button
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-700 transition-all cursor-pointer text-xs font-mono"
+              title="Command Palette (Cmd + K)"
+            >
+              <Search size={13} className="text-[var(--accent-primary)]" />
+              <span>Quick Action</span>
+              <span className="px-1.5 py-0.5 text-[9px] rounded bg-zinc-800 text-zinc-300 font-bold border border-zinc-700">⌘K</span>
+            </button>
 
             {/* Notification Button */}
             <button
@@ -2622,7 +2636,7 @@ export default function App() {
           
           {/* Header block for current active tab */}
           {activeTab !== 'dashboard' && (
-            <div className="flex justify-between items-center bg-zinc-900/50 border border-zinc-850 p-6 rounded-[28px] shadow-xl">
+            <div className="flex justify-between items-center bg-zinc-900/50 border border-[var(--border-primary)] p-6 rounded-[28px] shadow-xl">
               <div className="min-w-0 pr-3 space-y-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] font-sans">
                   {activeTab === 'accounts' ? 'Wallets Core' :
@@ -2667,7 +2681,7 @@ export default function App() {
                 <CloudOff size={15} className="shrink-0" />
                 <span>REAL-TIME CLOUD SYNC ERROR DETECTED</span>
               </div>
-              <p className="text-[11px] text-zinc-350 leading-relaxed">
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
                 Your local ledger tracks couldn't synchronize instantly to Supabase. This is why some newly created Cash Wallets or cards/transactions might not appear in your database table.
               </p>
               <div className="bg-black/50 p-3 rounded-xl border border-red-950/50 space-y-1 font-mono text-[10px]">
@@ -2845,70 +2859,6 @@ export default function App() {
 
             </div>
 
-            {/* =================== MOBILE BOTTOM BAR NAVIGATOR =================== */}
-            <nav className="fixed bottom-4 inset-x-4 bg-card/85 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-3xl pb-3 pt-2.5 flex justify-around items-center z-30 shadow-[0_4px_22px_rgba(20,20,30,0.08)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.4)] lg:hidden">
-              {[
-                { tab: 'dashboard', icon: <LayoutDashboard size={15} />, label: 'Dashboard' },
-                { tab: 'accounts', icon: <Wallet size={15} />, label: 'Wallets' },
-                { tab: 'inflow_outflow', icon: <Plus size={15} />, label: 'Transact' },
-                { tab: 'reports', icon: <TrendingUp size={15} />, label: 'Reports' },
-              ].map((item) => {
-                const isActive = activeTab === item.tab;
-                return (
-                  <button
-                    key={item.tab}
-                    onClick={() => {
-                      setActiveTab(item.tab as any);
-                      setIsMobileNavOpen(false);
-                    }}
-                    className="flex flex-col items-center gap-1.5 relative cursor-pointer group"
-                  >
-                    <div className={`p-2.5 rounded-2xl transition-all duration-300 flex items-center justify-center ${
-                      isActive && !isMobileNavOpen
-                        ? 'bg-[var(--accent-primary)] text-slate-950 shadow-md scale-105 border border-[var(--accent-primary)]' 
-                        : 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-805 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800 group-hover:text-zinc-800 dark:group-hover:text-zinc-200'
-                    }`}>
-                      {item.icon}
-                    </div>
-                    <span className={`text-[8.5px] uppercase tracking-wider transition-colors duration-300 ${
-                      isActive && !isMobileNavOpen
-                        ? 'text-[var(--accent-primary)] font-extrabold font-sans' 
-                        : 'text-zinc-500 dark:text-zinc-400 font-medium font-sans group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
-                    }`}>
-                      {item.label}
-                    </span>
-                    {isActive && !isMobileNavOpen && (
-                      <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-pulse" />
-                    )}
-                  </button>
-                );
-              })}
-              
-              {/* Added native Menu button node for extra capabilities */}
-              <button
-                onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
-                className="flex flex-col items-center gap-1.5 relative cursor-pointer group"
-              >
-                <div className={`p-2.5 rounded-2xl transition-all duration-300 flex items-center justify-center ${
-                  isMobileNavOpen
-                    ? 'bg-indigo-600 text-white shadow-md scale-105 border border-indigo-500' 
-                    : 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-805 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800 group-hover:text-zinc-800 dark:group-hover:text-zinc-200'
-                }`}>
-                  <Menu size={15} />
-                </div>
-                <span className={`text-[8.5px] uppercase tracking-wider transition-colors duration-300 ${
-                  isMobileNavOpen
-                    ? 'text-indigo-500 font-extrabold' 
-                    : 'text-zinc-500 dark:text-zinc-400 font-medium group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
-                }`}>
-                  More
-                </span>
-                {isMobileNavOpen && (
-                  <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-indigo-550 rounded-full animate-pulse" />
-                )}
-              </button>
-            </nav>
-
             {/* =================== MOBILE CORE SLIDE-UP HUB DRAWER =================== */}
             {isMobileNavOpen && (
               <div id="mobile-core-nav-drawer" className="fixed inset-0 bg-black/60 dark:bg-[#020205]/90 backdrop-blur-sm z-50 flex flex-col justify-end transition-all duration-350 lg:hidden">
@@ -2928,7 +2878,7 @@ export default function App() {
                     </div>
                     <button
                       onClick={() => setIsMobileNavOpen(false)}
-                      className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-205 dark:border-zinc-800 text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-[var(--border-primary)] dark:border-zinc-800 text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                     >
                       Dismiss
                     </button>
@@ -2987,7 +2937,7 @@ export default function App() {
                               className={`p-3.5 rounded-2xl flex flex-col items-start gap-1.5 text-left border cursor-pointer transition-all ${
                                 isActive
                                   ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-black'
-                                  : 'bg-zinc-100 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-850 text-[var(--text-primary)] hover:border-zinc-700'
+                                  : 'bg-zinc-100 dark:bg-zinc-900/60 border-zinc-200 dark:border-[var(--border-primary)] text-[var(--text-primary)] hover:border-zinc-700'
                               }`}
                             >
                               <div className="flex justify-between items-center w-full">
@@ -3015,7 +2965,7 @@ export default function App() {
                             setIsProfileOpen(true);
                             setIsMobileNavOpen(false);
                           }}
-                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center"
+                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-[var(--border-primary)] dark:border-[var(--border-primary)] text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center"
                         >
                           <User size={14} className="text-indigo-400" />
                           <span className="text-[9px] font-bold block">My Profile</span>
@@ -3027,7 +2977,7 @@ export default function App() {
                             setIsSettingsOpen(true);
                             setIsMobileNavOpen(false);
                           }}
-                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center"
+                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-[var(--border-primary)] dark:border-[var(--border-primary)] text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center"
                         >
                           <Settings size={14} className="text-zinc-400" />
                           <span className="text-[9px] font-bold block">Settings</span>
@@ -3039,7 +2989,7 @@ export default function App() {
                             setIsNotifOpen(true);
                             setIsMobileNavOpen(false);
                           }}
-                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center relative"
+                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-[var(--border-primary)] dark:border-[var(--border-primary)] text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center relative"
                         >
                           <Bell size={14} className="text-amber-400" />
                           <span className="text-[9px] font-bold block">Alerts</span>
@@ -3103,6 +3053,50 @@ export default function App() {
           currency={state.currency}
         />
       )}
+
+      {/* Global Command Palette System */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onSelectAction={(actionId) => {
+          if (actionId === 'add-expense' || actionId === 'add-income') {
+            setActiveTab('inflow_outflow');
+          } else if (actionId === 'transfer-funds' || actionId === 'add-card') {
+            setActiveTab('accounts');
+          } else if (actionId === 'nav-dashboard') {
+            setActiveTab('dashboard');
+          } else if (actionId === 'nav-transactions') {
+            setActiveTab('reports');
+          } else if (actionId === 'nav-budgets') {
+            setActiveTab('budgets');
+          } else if (actionId === 'nav-reports') {
+            setActiveTab('reports');
+          }
+        }}
+      />
+
+      {/* Mobile Bottom Navigation Bar */}
+      <BottomNavigation
+        activeTab={
+          activeTab === 'accounts'
+            ? 'wallets'
+            : activeTab === 'inflow_outflow'
+            ? 'transactions'
+            : activeTab === 'reports'
+            ? 'reports'
+            : 'dashboard'
+        }
+        isMoreOpen={isMobileNavOpen}
+        onTabChange={(tabId) => {
+          setIsMobileNavOpen(false);
+          if (tabId === 'home' || tabId === 'dashboard') setActiveTab('dashboard');
+          else if (tabId === 'wallets') setActiveTab('accounts');
+          else if (tabId === 'transactions') setActiveTab('inflow_outflow');
+          else if (tabId === 'reports') setActiveTab('reports');
+        }}
+        onMoreClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+        onQuickActionClick={() => setIsCommandPaletteOpen(true)}
+      />
 
       {/* 3. WORKSPACE FOOTER CORE STATUS */}
       <footer className="bg-[var(--bg-sidebar)] border-t border-[var(--border-primary)] px-6 py-3.5 z-10 flex flex-col md:flex-row justify-between items-center text-[11px] text-[var(--text-secondary)] font-mono gap-3">

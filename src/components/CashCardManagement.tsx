@@ -674,7 +674,7 @@ export default function CashCardManagement({
         {/* List Cash Accounts */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {cashAccounts.map(account => (
-            <div key={account.id} id={`cash-row-${account.id}`} className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl hover:border-zinc-700 hover:bg-zinc-900/60 transition-all duration-300 shadow-sm group space-y-4">
+            <div key={account.id} id={`cash-row-${account.id}`} className="bg-zinc-900/40 border border-[var(--border-primary)] p-5 rounded-2xl hover:border-zinc-700 hover:bg-zinc-900/60 transition-all duration-300 shadow-sm group space-y-4">
               {/* Top Section: Icon, Name and Delete Button */}
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 min-w-0">
@@ -695,7 +695,7 @@ export default function CashCardManagement({
                       onConfirm: () => onDeleteCashAccount(account.id)
                     });
                   }}
-                  className="p-2.5 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 hover:border-rose-500/30 text-zinc-500 hover:text-rose-500 dark:hover:text-rose-400 rounded-xl transition-all cursor-pointer active:scale-90 shadow-sm shrink-0"
+                  className="p-2.5 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-[var(--border-primary)] hover:border-rose-500/30 text-zinc-500 hover:text-rose-500 dark:hover:text-rose-400 rounded-xl transition-all cursor-pointer active:scale-90 shadow-sm shrink-0"
                   title="Remove Account"
                 >
                   <Trash2 size={13} />
@@ -703,7 +703,7 @@ export default function CashCardManagement({
               </div>
 
               {/* Subtle Divider */}
-              <div className="border-t border-zinc-200 dark:border-zinc-850/60" />
+              <div className="border-t border-zinc-200 dark:border-[var(--border-primary)]/60" />
 
               {/* Bottom Section: Balance & Action Buttons */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
@@ -743,7 +743,7 @@ export default function CashCardManagement({
 
         {/* Quick Deposit/Withdraw Action Slider */}
         {selectedCashId && actionType && (
-          <form onSubmit={handleQuickAdjustCash} className="bg-zinc-50 dark:bg-[#050508] border border-zinc-200 dark:border-zinc-850 p-6 rounded-[24px] mb-6 space-y-4 animation-fade-in text-left">
+          <form onSubmit={handleQuickAdjustCash} className="bg-zinc-50 dark:bg-[#050508] border border-zinc-200 dark:border-[var(--border-primary)] p-6 rounded-[24px] mb-6 space-y-4 animation-fade-in text-left">
             <div className="flex justify-between items-center">
               <span className="text-[11px] font-mono font-bold text-zinc-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                 <CornerDownRight size={13} className="text-emerald-500 dark:text-emerald-400 animate-pulse" />
@@ -779,7 +779,7 @@ export default function CashCardManagement({
                         ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                         : qtyAction && !quickErrors.qty
                         ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
-                        : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                        : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                     }`}
                     required
                   />
@@ -799,7 +799,7 @@ export default function CashCardManagement({
         )}
 
         {/* Add Cash Account Form inline */}
-        <form onSubmit={handleCreateCash} className="border-t border-zinc-200 dark:border-zinc-850/60 pt-6 flex flex-col gap-5 text-left">
+        <form onSubmit={handleCreateCash} className="border-t border-zinc-200 dark:border-[var(--border-primary)]/60 pt-6 flex flex-col gap-5 text-left">
           <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Record New Cash Holdings</span>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
@@ -818,7 +818,7 @@ export default function CashCardManagement({
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : cashName && !cashErrors.name
                     ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
-                    : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
               {cashErrors.name && (
@@ -842,7 +842,7 @@ export default function CashCardManagement({
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : cashBalance !== '' && !cashErrors.balance
                     ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
-                    : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
               {cashErrors.balance && (
@@ -882,7 +882,7 @@ export default function CashCardManagement({
           {!isAddingCard && (
             <button
               onClick={() => setIsAddingCard(true)}
-              className="text-[11px] font-bold text-zinc-700 dark:text-white uppercase bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-200 dark:hover:bg-zinc-850 active:scale-95 cursor-pointer transition-all shadow-sm self-start sm:self-auto"
+              className="text-[11px] font-bold text-zinc-700 dark:text-white uppercase bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-200 dark:hover:bg-[var(--bg-card)] active:scale-95 cursor-pointer transition-all shadow-sm self-start sm:self-auto"
             >
               <Plus size={13} /> New Bank Card
             </button>
@@ -891,8 +891,8 @@ export default function CashCardManagement({
 
         {/* Card Creation form toggle sheet */}
         {isAddingCard && (
-          <form onSubmit={handleCreateCard} className="bg-zinc-50 dark:bg-[#050508] border border-zinc-200 dark:border-zinc-850 p-6 md:p-8 rounded-[24px] mb-6 space-y-6 animation-fade-in text-left">
-            <div className="flex justify-between items-center pb-4 border-b border-zinc-200 dark:border-zinc-850/60">
+          <form onSubmit={handleCreateCard} className="bg-zinc-50 dark:bg-[#050508] border border-zinc-200 dark:border-[var(--border-primary)] p-6 md:p-8 rounded-[24px] mb-6 space-y-6 animation-fade-in text-left">
+            <div className="flex justify-between items-center pb-4 border-b border-zinc-200 dark:border-[var(--border-primary)]/60">
               <span className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-widest font-mono">Issue Electronic Card</span>
               <button
                 type="button"
@@ -915,12 +915,12 @@ export default function CashCardManagement({
                     setCardName(e.target.value);
                     validateCard(e.target.value, bankName, cardBalance, cardNumber, cardSubmitted);
                   }}
-                  className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70 ${
+                  className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]/70 ${
                     cardErrors.name
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                       : cardName && !cardErrors.name
                       ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
-                      : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
                 {cardErrors.name && (
@@ -939,12 +939,12 @@ export default function CashCardManagement({
                     setBankName(e.target.value);
                     validateCard(cardName, e.target.value, cardBalance, cardNumber, cardSubmitted);
                   }}
-                  className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70 ${
+                  className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]/70 ${
                     cardErrors.bank
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                       : bankName && !cardErrors.bank
                       ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
-                      : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
                 {cardErrors.bank && (
@@ -959,7 +959,7 @@ export default function CashCardManagement({
                 <select
                   value={cardType}
                   onChange={(e) => setCardType(e.target.value as 'Debit' | 'Credit')}
-                  className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold hover:border-zinc-350 dark:hover:border-zinc-700/80 transition-all cursor-pointer"
+                  className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 transition-all cursor-pointer"
                 >
                   <option value="Debit">Debit Account</option>
                   <option value="Credit">Credit Card</option>
@@ -979,12 +979,12 @@ export default function CashCardManagement({
                     setCardBalance(e.target.value);
                     validateCard(cardName, bankName, e.target.value, cardNumber, cardSubmitted);
                   }}
-                  className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70 ${
+                  className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]/70 ${
                     cardErrors.balance
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                       : cardBalance !== '' && !cardErrors.balance
                       ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
-                      : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
                 {cardErrors.balance && (
@@ -1001,7 +1001,7 @@ export default function CashCardManagement({
                   placeholder="e.g. 50000"
                   value={cardLimit}
                   onChange={(e) => setCardLimit(e.target.value)}
-                  className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-zinc-350 dark:hover:border-zinc-700/80 font-mono transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70"
+                  className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 font-mono transition-all placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]/70"
                 />
               </div>
             )}
@@ -1017,7 +1017,7 @@ export default function CashCardManagement({
                   placeholder="e.g. 500 (Optional)"
                   value={cardLockedAmount}
                   onChange={(e) => setCardLockedAmount(e.target.value)}
-                  className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-zinc-350 dark:hover:border-zinc-700/80 font-mono transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70"
+                  className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 font-mono transition-all placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]/70"
                 />
               </div>
             )}
@@ -1034,12 +1034,12 @@ export default function CashCardManagement({
                   validateCard(cardName, bankName, cardBalance, e.target.value, cardSubmitted);
                 }}
                 maxLength={19}
-                className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70 ${
+                className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]/70 ${
                   cardErrors.number
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : cardNumber && !cardErrors.number
                     ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
-                    : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
               {cardErrors.number && (
@@ -1052,7 +1052,7 @@ export default function CashCardManagement({
               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-black block uppercase tracking-widest pl-0.5">Gloss/Hologram Hue</span>
               <div className="flex gap-2.5 flex-wrap pl-0.5">
                 {[
-                  { name: 'obsidian', color: 'bg-zinc-800 dark:bg-zinc-850 ring-zinc-500 dark:ring-white' },
+                  { name: 'obsidian', color: 'bg-zinc-800 dark:bg-[var(--bg-card)] ring-zinc-500 dark:ring-white' },
                   { name: 'sapphire', color: 'bg-blue-600 ring-blue-400' },
                   { name: 'blue', color: 'bg-sky-600 ring-sky-400' },
                   { name: 'emerald', color: 'bg-emerald-600 ring-emerald-400' },
@@ -1122,7 +1122,7 @@ export default function CashCardManagement({
                     const isExpanded = !!expandedCardIds[card.id];
 
                     return (
-                      <div key={card.id} className={`p-4 rounded-[32px] border ${isCredit ? 'border-zinc-200 dark:border-zinc-850 bg-zinc-50 dark:bg-[#09090d]/65 shadow-xl' : 'border-transparent bg-transparent'} space-y-3`}>
+                      <div key={card.id} className={`p-4 rounded-[32px] border ${isCredit ? 'border-zinc-200 dark:border-[var(--border-primary)] bg-zinc-50 dark:bg-[#09090d]/65 shadow-xl' : 'border-transparent bg-transparent'} space-y-3`}>
                         <InteractiveBankCard
                           card={card}
                           idx={idx}
@@ -1154,7 +1154,7 @@ export default function CashCardManagement({
                                 e.stopPropagation();
                                 setExpandedCardIds(prev => ({ ...prev, [card.id]: !prev[card.id] }));
                               }}
-                              className="flex items-center gap-1.5 px-4 py-1.5 bg-zinc-100 dark:bg-[#0d0d12] border border-zinc-250 dark:border-zinc-800/80 hover:border-zinc-350 dark:hover:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-[#12121a] text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-full text-[10px] font-mono uppercase tracking-wider font-bold transition-all shadow-md cursor-pointer active:scale-95"
+                              className="flex items-center gap-1.5 px-4 py-1.5 bg-zinc-100 dark:bg-[#0d0d12] border border-[var(--border-primary)] dark:border-zinc-800/80 hover:border-[var(--border-primary)] dark:hover:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-[#12121a] text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-full text-[10px] font-mono uppercase tracking-wider font-bold transition-all shadow-md cursor-pointer active:scale-95"
                               title={isExpanded ? 'Collapse Details' : 'Expand Details'}
                             >
                               <span>{isExpanded ? 'Hide Details' : 'Show Details'}</span>
@@ -1384,7 +1384,7 @@ export default function CashCardManagement({
                     <Edit size={16} className="text-emerald-500" />
                     Edit Card Settings
                   </h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-450 font-medium">Configure active holdings for <strong className="text-zinc-700 dark:text-zinc-300">{editingCard.cardName}</strong></p>
+                  <p className="text-xs text-zinc-500 dark:text-[var(--text-secondary)] font-medium">Configure active holdings for <strong className="text-zinc-700 dark:text-zinc-300">{editingCard.cardName}</strong></p>
                 </div>
                 <button 
                   onClick={() => setEditingCard(null)} 
@@ -1398,8 +1398,8 @@ export default function CashCardManagement({
                 {/* Left side: Card Fields */}
                 <form onSubmit={handleSaveEditCard} className="space-y-5 text-left">
                   <div className="space-y-4">
-                    <span className="text-[10px] text-zinc-450 dark:text-zinc-500 font-mono tracking-widest font-bold uppercase block pl-0.5">General Settings</span>
-                    <div className="border border-zinc-200 dark:border-zinc-850/80 p-5 rounded-[24px] bg-zinc-50 dark:bg-[#050508] space-y-5">
+                    <span className="text-[10px] text-[var(--text-secondary)] dark:text-zinc-500 font-mono tracking-widest font-bold uppercase block pl-0.5">General Settings</span>
+                    <div className="border border-zinc-200 dark:border-[var(--border-primary)]/80 p-5 rounded-[24px] bg-zinc-50 dark:bg-[#050508] space-y-5">
                       <div className="flex flex-col gap-2">
                         <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Card Nickname</label>
                         <input
@@ -1413,7 +1413,7 @@ export default function CashCardManagement({
                           className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-zinc-400 dark:placeholder:text-zinc-600/70 ${
                             editCardErrors.name
                               ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                              : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                              : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-zinc-300 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                           }`}
                         />
                         {editCardErrors.name && (
@@ -1432,10 +1432,10 @@ export default function CashCardManagement({
                             validateEditCard(editCardName, e.target.value);
                           }}
                           maxLength={19}
-                          className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70 ${
+                          className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]/70 ${
                             editCardErrors.number
                               ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                              : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                              : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-zinc-300 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                           }`}
                         />
                         {editCardErrors.number && (
@@ -1451,7 +1451,7 @@ export default function CashCardManagement({
                             placeholder="e.g. 500"
                             value={editCardLockedAmount}
                             onChange={(e) => setEditCardLockedAmount(e.target.value)}
-                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-zinc-350 dark:hover:border-zinc-700/80 font-mono transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-900 dark:text-white rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 font-mono transition-all placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]/70"
                           />
                         </div>
                       )}
@@ -1461,7 +1461,7 @@ export default function CashCardManagement({
                         <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-black block uppercase tracking-widest pl-0.5">Gloss/Hologram Hue</span>
                         <div className="flex gap-2.5 flex-wrap pl-0.5">
                           {[
-                            { name: 'obsidian', color: 'bg-zinc-800 dark:bg-zinc-850 ring-zinc-400 dark:ring-white' },
+                            { name: 'obsidian', color: 'bg-zinc-800 dark:bg-[var(--bg-card)] ring-zinc-400 dark:ring-white' },
                             { name: 'sapphire', color: 'bg-blue-600 ring-blue-400' },
                             { name: 'emerald', color: 'bg-emerald-600 ring-emerald-400' },
                             { name: 'copper', color: 'bg-amber-600 ring-amber-400' },
@@ -1485,7 +1485,7 @@ export default function CashCardManagement({
                     <button
                       type="button"
                       onClick={() => setEditingCard(null)}
-                      className="px-4 h-12 text-xs font-mono font-bold text-zinc-400 hover:text-zinc-650 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+                      className="px-4 h-12 text-xs font-mono font-bold text-zinc-400 hover:text-[var(--text-muted)] dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -1507,7 +1507,7 @@ export default function CashCardManagement({
                     <div className="space-y-2 max-h-44 overflow-y-auto scrollbar-none border-b border-zinc-200 dark:border-zinc-900 pb-3">
                       <span className="text-[9px] text-zinc-500 font-bold uppercase font-mono block">Active Charges ({currentCharges.length})</span>
                       {currentCharges.length === 0 ? (
-                        <div className="p-4 text-center text-[10px] text-zinc-500 dark:text-zinc-600 border border-dashed border-zinc-200 dark:border-zinc-905 rounded-xl">
+                        <div className="p-4 text-center text-[10px] text-zinc-500 dark:text-zinc-600 border border-dashed border-zinc-200 dark:border-[var(--border-primary)] rounded-xl">
                           No charges or penalties applied yet.
                         </div>
                       ) : (
@@ -1554,7 +1554,7 @@ export default function CashCardManagement({
                     </div>
 
                     {/* Add Charge Form Section */}
-                    <div className="border border-zinc-200 dark:border-zinc-850 p-4 rounded-2xl bg-zinc-50 dark:bg-[#050508] space-y-3">
+                    <div className="border border-zinc-200 dark:border-[var(--border-primary)] p-4 rounded-2xl bg-zinc-50 dark:bg-[#050508] space-y-3">
                       <span className="text-[10px] text-zinc-600 dark:text-zinc-400 font-bold uppercase tracking-wider font-mono block">Apply Charging / Penalty</span>
                       
                       <div className="grid grid-cols-2 gap-2">
@@ -1567,7 +1567,7 @@ export default function CashCardManagement({
                               setChargeType(val);
                               setChargeName(CHARGE_DEFAULT_NAMES[val] || 'Custom Charge');
                             }}
-                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
                           >
                             <option value="Interest">Interest Charge</option>
                             <option value="LatePayment">Late Payment Fee</option>
@@ -1584,7 +1584,7 @@ export default function CashCardManagement({
                             value={chargeName}
                             onChange={(e) => setChargeName(e.target.value)}
                             placeholder="Interest Charge"
-                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-650"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]"
                           />
                         </div>
                       </div>
@@ -1599,7 +1599,7 @@ export default function CashCardManagement({
                             value={chargeAmount}
                             onChange={(e) => setChargeAmount(e.target.value)}
                             placeholder="50.00"
-                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-650"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none font-mono placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]"
                           />
                         </div>
 
@@ -1619,7 +1619,7 @@ export default function CashCardManagement({
                           <select
                             value={chargeRecurring}
                             onChange={(e) => setChargeRecurring(e.target.value as any)}
-                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none cursor-pointer"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none cursor-pointer"
                           >
                             <option value="none">One-off Charge</option>
                             <option value="Monthly">Monthly Recurring</option>
@@ -1635,7 +1635,7 @@ export default function CashCardManagement({
                             value={chargeDescription}
                             onChange={(e) => setChargeDescription(e.target.value)}
                             placeholder="Optional notes..."
-                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-650"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-[var(--text-muted)]"
                           />
                         </div>
                       </div>

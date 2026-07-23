@@ -79,7 +79,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
   const isAllowedEmail = state.userProfile?.email === 'emalyaditha@gmail.com';
 
   return (
-    <div className="bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-zinc-850 p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6" id="secure-profile-card">
+    <div className="bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-[var(--border-primary)] p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6" id="secure-profile-card">
       
       {/* HEADER SECTION */}
       <div className="flex justify-between items-start pb-4 border-b border-zinc-900">
@@ -194,11 +194,11 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
       <div className="space-y-3">
         {/* Email information */}
         <div className="flex items-center gap-3.5 bg-zinc-950 border border-zinc-900 p-4 rounded-xl">
-          <div className="p-2 bg-zinc-900 rounded-lg text-zinc-550 text-zinc-400">
+          <div className="p-2 bg-zinc-900 rounded-lg text-[var(--text-secondary)] text-zinc-400">
             <Mail size={15} />
           </div>
           <div className="min-w-0 flex-1">
-            <span className="text-[9px] font-mono text-zinc-550 block uppercase font-bold text-zinc-500">Linked Account Email</span>
+            <span className="text-[9px] font-mono text-[var(--text-secondary)] block uppercase font-bold text-zinc-500">Linked Account Email</span>
             <span className="text-xs font-mono font-bold text-zinc-300 block truncate">{state.userProfile?.email || 'Client Local Storage'}</span>
           </div>
         </div>
@@ -209,7 +209,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
             <CreditCard size={15} />
           </div>
           <div className="min-w-0 flex-1">
-            <span className="text-[9px] font-mono text-zinc-550 block uppercase font-bold text-zinc-500">Preferred Local Currency</span>
+            <span className="text-[9px] font-mono text-[var(--text-secondary)] block uppercase font-bold text-zinc-500">Preferred Local Currency</span>
             <select
               value={state.currency}
               onChange={(e) => updateState(prev => ({ ...prev, currency: e.target.value }))}

@@ -297,7 +297,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               ? 'border-rose-500 focus:border-rose-500' 
               : isOpen 
               ? 'border-emerald-500 shadow-[0_0_0_3px_rgba(52,211,153,0.15)]' 
-              : 'border-zinc-855 hover:border-zinc-700/80'
+              : 'border-[var(--border-primary)] hover:border-zinc-700/80'
           } ${className}`}
         />
       </div>
@@ -384,7 +384,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                           ? 'bg-emerald-500 text-black font-bold shadow-md shadow-emerald-500/20'
                           : isCurrentMonth
                           ? 'text-zinc-200 hover:bg-zinc-800 hover:text-white'
-                          : 'text-zinc-650 hover:bg-zinc-800/40'
+                          : 'text-[var(--text-muted)] hover:bg-zinc-800/40'
                       }`}
                     >
                       {cell.day}
@@ -401,7 +401,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     const todayStr = new Date().toISOString().split('T')[0];
                     handleSelectDay(todayStr, e);
                   }}
-                  className="py-2 px-3 text-xs font-mono bg-zinc-900 hover:bg-zinc-855 text-zinc-300 hover:text-white rounded-xl transition-colors cursor-pointer text-center font-medium"
+                  className="py-2 px-3 text-xs font-mono bg-zinc-900 hover:bg-[var(--bg-surface)] text-zinc-300 hover:text-white rounded-xl transition-colors cursor-pointer text-center font-medium"
                 >
                   Today
                 </button>
@@ -413,7 +413,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     const yesterdayStr = yesterday.toISOString().split('T')[0];
                     handleSelectDay(yesterdayStr, e);
                   }}
-                  className="py-2 px-3 text-xs font-mono bg-zinc-900 hover:bg-zinc-855 text-zinc-300 hover:text-white rounded-xl transition-colors cursor-pointer text-center font-medium"
+                  className="py-2 px-3 text-xs font-mono bg-zinc-900 hover:bg-[var(--bg-surface)] text-zinc-300 hover:text-white rounded-xl transition-colors cursor-pointer text-center font-medium"
                 >
                   Yesterday
                 </button>
@@ -423,7 +423,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="mt-4 w-full py-2.5 bg-zinc-800 hover:bg-zinc-750 text-zinc-200 hover:text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                className="mt-4 w-full py-2.5 bg-zinc-800 hover:bg-[var(--bg-card)] text-zinc-200 hover:text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
                 Close Picker
               </button>

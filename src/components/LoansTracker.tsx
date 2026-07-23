@@ -254,7 +254,7 @@ export default function LoansTracker({
       
       {/* STATISTICS PANEL */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="loans-stats-panel">
-        <div className="bg-zinc-900/40 p-5 rounded-2xl border border-zinc-850 flex items-center gap-4">
+        <div className="bg-zinc-900/40 p-5 rounded-2xl border border-[var(--border-primary)] flex items-center gap-4">
           <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400 border border-amber-950/40">
             <TrendingUp size={20} />
           </div>
@@ -266,7 +266,7 @@ export default function LoansTracker({
           </div>
         </div>
 
-        <div className="bg-zinc-900/40 p-5 rounded-2xl border border-zinc-850 flex items-center gap-4">
+        <div className="bg-zinc-900/40 p-5 rounded-2xl border border-[var(--border-primary)] flex items-center gap-4">
           <div className="p-3 bg-[var(--accent-primary)]/10 rounded-xl text-[var(--accent-primary)] border border-[var(--accent-primary)]/40">
             <ArrowUpRight size={20} />
           </div>
@@ -278,7 +278,7 @@ export default function LoansTracker({
           </div>
         </div>
 
-        <div className="bg-zinc-900/40 p-5 rounded-2xl border border-zinc-850 flex items-center gap-4">
+        <div className="bg-zinc-900/40 p-5 rounded-2xl border border-[var(--border-primary)] flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 rounded-xl text-[var(--accent-primary)] border border-[var(--accent-primary)]/40">
             <ArrowDownLeft size={20} />
           </div>
@@ -293,7 +293,7 @@ export default function LoansTracker({
 
       {/* NEW LOAN ENTRY FORM */}
       {isGivingLoan && (
-        <form onSubmit={handleGiveLoanSubmit} className="bg-[#050508] border border-zinc-850 p-6 md:p-8 rounded-[24px] space-y-5 animate-fade-in relative overflow-hidden text-left" id="add-loan-form-panel">
+        <form onSubmit={handleGiveLoanSubmit} className="bg-[#050508] border border-[var(--border-primary)] p-6 md:p-8 rounded-[24px] space-y-5 animate-fade-in relative overflow-hidden text-left" id="add-loan-form-panel">
           <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--accent-primary)]/30 to-transparent" />
           <div className="flex items-center gap-2 mb-2 text-[var(--accent-primary)]">
             <Sparkles size={14} className="text-[var(--accent-primary)] animate-spin" />
@@ -310,10 +310,10 @@ export default function LoansTracker({
                 placeholder="e.g. John Doe, Alice Smith"
                 value={borrowerName}
                 onChange={(e) => setBorrowerName(e.target.value)}
-                className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3.5 px-4 text-xs font-medium text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors placeholder:text-zinc-600"
+                className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3.5 px-4 text-xs font-medium text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors placeholder:text-zinc-600"
                 required
               />
-              {errors.borrowerName && <p className="text-[10px] text-rose-455 font-mono font-semibold mt-1.5 block pl-1">{errors.borrowerName}</p>}
+              {errors.borrowerName && <p className="text-[10px] text-[var(--negative)] font-mono font-semibold mt-1.5 block pl-1">{errors.borrowerName}</p>}
             </div>
 
             {/* Total Principal Amount */}
@@ -325,7 +325,7 @@ export default function LoansTracker({
                 placeholder="0.00"
                 value={totalAmount}
                 onChange={(e) => setTotalAmount(e.target.value)}
-                className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3.5 px-4 text-xs font-mono text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors placeholder:text-zinc-650"
+                className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3.5 px-4 text-xs font-mono text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors placeholder:text-[var(--text-muted)]"
                 required
               />
               {errors.totalAmount && <p className="text-[10px] text-amber-500 font-mono font-semibold mt-1.5 block pl-1 leading-normal">{errors.totalAmount}</p>}
@@ -341,7 +341,7 @@ export default function LoansTracker({
                   setSourceAccountId(id);
                   setSourceAccountType(type as 'cash' | 'card');
                 }}
-                className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3.5 px-3.5 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors cursor-pointer"
+                className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3.5 px-3.5 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors cursor-pointer"
               >
                 {availableAccounts.length === 0 ? (
                   <option value="">No Accounts Found</option>
@@ -356,7 +356,7 @@ export default function LoansTracker({
             </div>
 
             {sourceAccountType === 'card' && sourceAccountId && (
-              <div className="space-y-1.5 animate-fade-in md:col-span-3 bg-[#08080c]/60 p-4 border border-zinc-855 rounded-2xl">
+              <div className="space-y-1.5 animate-fade-in md:col-span-3 bg-[#08080c]/60 p-4 border border-[var(--border-primary)] rounded-2xl">
                 <label className="text-[10px] text-zinc-400 font-mono font-black uppercase tracking-wider block pl-0.5">Optional Bank Card Charge ({currency})</label>
                 <input
                   type="number"
@@ -364,7 +364,7 @@ export default function LoansTracker({
                   placeholder="e.g. 150 (Leave blank or 0 if none)"
                   value={giveLoanBankCharge}
                   onChange={(e) => setGiveLoanBankCharge(e.target.value)}
-                  className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono"
+                  className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono"
                 />
                 <p className="text-[9.5px] text-zinc-500 font-mono pl-0.5 leading-normal">Lending from a bank card might trigger fees. Entering a charge will record the fee as a bank charge expense and reduce your card balance.</p>
               </div>
@@ -392,7 +392,7 @@ export default function LoansTracker({
                 placeholder="e.g. Friendly loan, paid back in weekly installments..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3.5 px-4 text-xs font-medium text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors placeholder:text-zinc-600"
+                className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3.5 px-4 text-xs font-medium text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors placeholder:text-zinc-600"
               />
             </div>
           </div>
@@ -401,7 +401,7 @@ export default function LoansTracker({
             <button
               type="button"
               onClick={() => { setIsGivingLoan(false); setErrors({}); }}
-              className="bg-transparent hover:bg-zinc-900 border border-zinc-855 text-zinc-400 hover:text-white py-3 px-6 rounded-2xl text-xs font-bold transition-all cursor-pointer font-mono font-black uppercase tracking-widest"
+              className="bg-transparent hover:bg-zinc-900 border border-[var(--border-primary)] text-zinc-400 hover:text-white py-3 px-6 rounded-2xl text-xs font-bold transition-all cursor-pointer font-mono font-black uppercase tracking-widest"
             >
               Cancel Setup
             </button>
@@ -435,7 +435,7 @@ export default function LoansTracker({
         
         {activeLoans.length === 0 ? (
           <div className="bg-zinc-900/15 border border-zinc-900 rounded-[32px] p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-inner">
-            <div className="p-4 bg-zinc-950/60 rounded-2xl border border-zinc-855 text-zinc-650">
+            <div className="p-4 bg-zinc-950/60 rounded-2xl border border-[var(--border-primary)] text-[var(--text-muted)]">
               <Wallet size={24} className="text-zinc-600" />
             </div>
             <div>
@@ -457,7 +457,7 @@ export default function LoansTracker({
                   key={loan.id}
                   data-loan-status={loan.status === 'Settled' ? 'completed' : loan.status === 'Partially Settled' ? 'partial' : 'active'}
                   className={`bg-gradient-to-br from-[#0c0c0f] to-[#040405] border rounded-3xl p-6 shadow-xl transition-all relative overflow-hidden ${
-                    loan.status === 'Settled' ? 'border-[var(--accent-primary)]/50' : 'border-zinc-850'
+                    loan.status === 'Settled' ? 'border-[var(--accent-primary)]/50' : 'border-[var(--border-primary)]'
                   }`}
                 >
                   {/* Subtle right glow line depending on status */}
@@ -474,7 +474,7 @@ export default function LoansTracker({
                           loan.status === 'Settled' 
                             ? 'bg-emerald-950/30 text-emerald-400 border-emerald-900/50' 
                             : loan.status === 'Partially Settled'
-                            ? 'bg-yellow-950/30 text-yellow-450 border-yellow-905/30'
+                            ? 'bg-yellow-950/30 text-[var(--warning)] border-[var(--warning)]/30/30'
                             : 'bg-rose-950/30 text-rose-400 border-rose-900/50'
                         }`}>
                           {loan.status}
@@ -493,7 +493,7 @@ export default function LoansTracker({
                           setIncreaseError(null);
                           setSettlingLoanId(null); // exclusive with settling
                         }}
-                        className="bg-zinc-900 hover:bg-zinc-850 text-amber-400 border border-zinc-800 py-1.5 px-3 rounded-xl text-[10px] font-extrabold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                        className="bg-zinc-900 hover:bg-[var(--bg-card)] text-amber-400 border border-zinc-800 py-1.5 px-3 rounded-xl text-[10px] font-extrabold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
                       >
                         <Plus size={12} />
                         <span>Lend More</span>
@@ -514,7 +514,7 @@ export default function LoansTracker({
                       )}
                       <button
                         onClick={() => handleDeleteLoanClick(loan.id, loan.borrowerName)}
-                        className="text-zinc-650 text-zinc-600 hover:text-rose-400 p-2 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
+                        className="text-[var(--text-muted)] text-zinc-600 hover:text-rose-400 p-2 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
                         title="Delete record"
                       >
                         <Trash2 size={14} />
@@ -545,7 +545,7 @@ export default function LoansTracker({
                     <div className="md:col-span-2 space-y-1.5">
                       <div className="flex justify-between items-center text-[10px] font-mono">
                         <span className="text-zinc-500 font-bold uppercase">Repayment Progress</span>
-                        <span className="text-indigo-455 text-indigo-400 font-bold">{activeProgress}% Settled</span>
+                        <span className="text-[var(--accent-primary)] text-indigo-400 font-bold">{activeProgress}% Settled</span>
                       </div>
                       <div className="w-full bg-zinc-950/80 border border-zinc-900 rounded-full h-2 overflow-hidden shadow-inner flex">
                         <div 
@@ -567,7 +567,7 @@ export default function LoansTracker({
 
                   {/* SETTLING ACTION PANEL inline drawer */}
                   {settlingLoanId === loan.id && (
-                    <form onSubmit={handleSettleSubmit} className="mt-4 bg-[#050508] border border-zinc-850 p-5 rounded-[20px] space-y-4 shadow-inner scale-98 transition-all animate-fade-in text-xs text-left">
+                    <form onSubmit={handleSettleSubmit} className="mt-4 bg-[#050508] border border-[var(--border-primary)] p-5 rounded-[20px] space-y-4 shadow-inner scale-98 transition-all animate-fade-in text-xs text-left">
                       <div className="flex items-center gap-1.5 text-indigo-400 font-bold mb-1">
                         <CheckCircle2 size={13} className="text-indigo-400" />
                         <span className="uppercase font-mono text-[10px] tracking-wider font-black">Configure Settlement Credit Transaction</span>
@@ -584,7 +584,7 @@ export default function LoansTracker({
                             value={settlementAmount}
                             onChange={(e) => setSettlementAmount(e.target.value)}
                             max={loan.remainingAmount}
-                            className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3.5 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:ring-indigo-500 transition-all font-mono font-bold"
+                            className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3.5 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:ring-indigo-500 transition-all font-mono font-bold"
                             required
                           />
                         </div>
@@ -599,7 +599,7 @@ export default function LoansTracker({
                               setReceivedInId(id);
                               setReceivedInType(type as 'cash' | 'card');
                             }}
-                            className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3.5 px-3.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
+                            className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3.5 px-3.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
                           >
                             {availableAccounts.map(acc => (
                               <option key={`dest:${acc.id}:${acc.type}`} value={`${acc.id}:${acc.type}`}>
@@ -622,7 +622,7 @@ export default function LoansTracker({
                       </div>
 
                       {receivedInType === 'card' && receivedInId && (
-                        <div className="p-4 bg-[#08080c]/60 border border-zinc-855 rounded-2xl space-y-2 animate-fade-in">
+                        <div className="p-4 bg-[#08080c]/60 border border-[var(--border-primary)] rounded-2xl space-y-2 animate-fade-in">
                           <label className="text-[10px] text-zinc-400 font-mono font-black block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
                           <input
                             type="number"
@@ -630,7 +630,7 @@ export default function LoansTracker({
                             placeholder="e.g. 150 (Leave blank or 0 if none)"
                             value={settleLoanBankCharge}
                             onChange={(e) => setSettleLoanBankCharge(e.target.value)}
-                            className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono"
+                            className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono"
                           />
                           <p className="text-[9.5px] text-zinc-500 font-mono pl-0.5 leading-normal">Receiving settled loan funds on a card might incur transaction fees; entering a charge will deduct this fee from the final credited card balance.</p>
                         </div>
@@ -644,7 +644,7 @@ export default function LoansTracker({
 
                   {/* LEND MORE ACTION PANEL inline drawer */}
                   {increasingLoanId === loan.id && (
-                    <form onSubmit={(e) => handleIncreaseSubmit(e, loan)} className="mt-4 bg-[#050508] border border-zinc-850 p-5 rounded-[20px] space-y-4 shadow-inner scale-98 transition-all animate-fade-in text-xs text-left relative overflow-hidden" id={`lend-more-form-${loan.id}`}>
+                    <form onSubmit={(e) => handleIncreaseSubmit(e, loan)} className="mt-4 bg-[#050508] border border-[var(--border-primary)] p-5 rounded-[20px] space-y-4 shadow-inner scale-98 transition-all animate-fade-in text-xs text-left relative overflow-hidden" id={`lend-more-form-${loan.id}`}>
                       <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
                       <div className="flex items-center gap-1 text-amber-400 font-bold mb-1">
                         <ArrowUpRight size={13} className="text-amber-400" />
@@ -662,7 +662,7 @@ export default function LoansTracker({
                             value={increaseAmount}
                             onChange={(e) => setIncreaseAmount(e.target.value)}
                             placeholder="0.00"
-                            className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3.5 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500 transition-all font-mono font-bold"
+                            className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3.5 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500 transition-all font-mono font-bold"
                             required
                           />
                         </div>
@@ -677,7 +677,7 @@ export default function LoansTracker({
                               setIncreaseSourceId(id);
                               setIncreaseSourceType(type as 'cash' | 'card');
                             }}
-                            className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3.5 px-3.5 text-xs text-white focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500 transition-all cursor-pointer font-semibold"
+                            className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3.5 px-3.5 text-xs text-white focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500 transition-all cursor-pointer font-semibold"
                           >
                             {availableAccounts.map(acc => (
                               <option key={`inc-src:${acc.id}:${acc.type}`} value={`${acc.id}:${acc.type}`}>
@@ -695,7 +695,7 @@ export default function LoansTracker({
                             value={increaseNotes}
                             onChange={(e) => setIncreaseNotes(e.target.value)}
                             placeholder="e.g. Added top-up balance"
-                            className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3.5 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500 transition-all font-medium placeholder:text-zinc-600"
+                            className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3.5 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500 transition-all font-medium placeholder:text-zinc-600"
                           />
                         </div>
 
@@ -712,7 +712,7 @@ export default function LoansTracker({
                       </div>
 
                       {increaseSourceType === 'card' && increaseSourceId && (
-                        <div className="p-4 bg-[#08080c]/60 border border-zinc-855 rounded-2xl space-y-2 animate-fade-in text-xs">
+                        <div className="p-4 bg-[#08080c]/60 border border-[var(--border-primary)] rounded-2xl space-y-2 animate-fade-in text-xs">
                           <label className="text-[10px] text-zinc-400 font-mono font-black block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
                           <input
                             type="number"
@@ -720,7 +720,7 @@ export default function LoansTracker({
                             placeholder="e.g. 150 (Leave blank or 0 if none)"
                             value={increaseLoanBankCharge}
                             onChange={(e) => setIncreaseLoanBankCharge(e.target.value)}
-                            className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl py-3 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono"
+                            className="w-full bg-[#08080c] border border-[var(--border-primary)] rounded-2xl py-3 px-4 text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono"
                           />
                           <p className="text-[9.5px] text-zinc-500 font-mono pl-0.5 leading-normal">Lending more funds from a card might incur transaction charges; entering a charge will deduct this fee from your card balance and track it under bank fees.</p>
                         </div>
@@ -764,7 +764,7 @@ export default function LoansTracker({
                                   <span className="text-xs font-black text-white block">
                                     + {currency} {setl.amount.toLocaleString()}
                                   </span>
-                                  <span className="text-[9px] text-zinc-650 text-zinc-600 font-mono">{setl.date}</span>
+                                  <span className="text-[9px] text-[var(--text-muted)] text-zinc-600 font-mono">{setl.date}</span>
                                 </div>
                               </div>
                             ))}

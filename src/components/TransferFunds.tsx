@@ -164,12 +164,12 @@ export default function TransferFunds({
   };
 
   return (
-    <form onSubmit={handleTransfer} className="bg-[#050508] border border-zinc-850 rounded-[24px] p-6 md:p-8 shadow-2xl space-y-6 animate-fade-in relative overflow-hidden" id="transfer-funds-card">
+    <form onSubmit={handleTransfer} className="bg-[#050508] border border-[var(--border-primary)] rounded-[24px] p-6 md:p-8 shadow-2xl space-y-6 animate-fade-in relative overflow-hidden" id="transfer-funds-card">
       <div className="absolute top-0 right-0 p-4 text-zinc-900 pointer-events-none select-none">
         <Sparkles size={45} className="opacity-[0.02]" />
       </div>
 
-      <div className="pb-4 border-b border-zinc-855 flex justify-between items-center text-left">
+      <div className="pb-4 border-b border-[var(--border-primary)] flex justify-between items-center text-left">
         <div className="space-y-1">
           <h3 className="text-sm font-black text-white flex items-center gap-2.5 font-sans tracking-tight">
             <ArrowRightLeft size={16} className="text-emerald-400" />
@@ -183,7 +183,7 @@ export default function TransferFunds({
       </div>
 
       {/* Visual Flow Connection Row */}
-      <div className="grid grid-cols-1 md:grid-cols-7 items-center gap-4 bg-[#08080c]/50 border border-zinc-855 p-5 rounded-[20px] relative text-left">
+      <div className="grid grid-cols-1 md:grid-cols-7 items-center gap-4 bg-[#08080c]/50 border border-[var(--border-primary)] p-5 rounded-[20px] relative text-left">
         {/* Source Account Card */}
         <div className="md:col-span-3 flex flex-col gap-2">
           <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Debit Source</label>
@@ -200,7 +200,7 @@ export default function TransferFunds({
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : fromAccount && !errors.from
                   ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                  : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                  : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`}
             >
               <option value="" className="bg-[#0c0c12]">Select Origin Account</option>
@@ -221,7 +221,7 @@ export default function TransferFunds({
 
         {/* Dynamic connection indicator */}
         <div className="md:col-span-1 flex justify-center items-center py-2 md:py-0">
-          <div className="w-10 h-10 rounded-full bg-[#08080c] border border-zinc-855 flex items-center justify-center text-zinc-400 shadow-md transform rotate-90 md:rotate-0 transition-transform duration-300">
+          <div className="w-10 h-10 rounded-full bg-[#08080c] border border-[var(--border-primary)] flex items-center justify-center text-zinc-400 shadow-md transform rotate-90 md:rotate-0 transition-transform duration-300">
             <ArrowRightLeft size={16} className={fromAccount && toAccount ? "text-emerald-400 animate-pulse" : ""} />
           </div>
         </div>
@@ -242,7 +242,7 @@ export default function TransferFunds({
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : toAccount && !errors.to
                   ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                  : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                  : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`}
             >
               <option value="" className="bg-[#0c0c12]">Select Destination Account</option>
@@ -281,7 +281,7 @@ export default function TransferFunds({
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : amount && !errors.amount
                 ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`}
             required
           />
@@ -301,12 +301,12 @@ export default function TransferFunds({
               setCharge(e.target.value);
               validateTransfer(fromAccount, toAccount, amount, e.target.value, submitted);
             }}
-            className={`w-full bg-[#08080c] border text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-zinc-650/70 ${
+            className={`w-full bg-[#08080c] border text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-[var(--text-muted)]/70 ${
               errors.charge
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : charge && !errors.charge
                 ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`}
           />
           {errors.charge && (
@@ -333,7 +333,7 @@ export default function TransferFunds({
           placeholder="e.g. Settle balances, moving reserves to card, allowance..."
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-2xl px-5 py-4 text-xs focus:outline-none transition-all font-semibold placeholder:text-zinc-600/70"
+          className="w-full bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-2xl px-5 py-4 text-xs focus:outline-none transition-all font-semibold placeholder:text-zinc-600/70"
         />
       </div>
       

@@ -337,11 +337,11 @@ class CloudSyncService {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 bottom-0 w-full max-w-lg bg-[#09090b] border-l border-zinc-850 z-50 shadow-2xl flex flex-col font-sans"
+            className="fixed top-0 right-0 bottom-0 w-full max-w-lg bg-[#09090b] border-l border-[var(--border-primary)] z-50 shadow-2xl flex flex-col font-sans"
             id="settings-panel-drawer"
           >
             {/* Header */}
-            <div className="p-6 border-b border-zinc-850 flex justify-between items-center bg-[#070709]">
+            <div className="p-6 border-b border-[var(--border-primary)] flex justify-between items-center bg-[#070709]">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-zinc-900 rounded-lg border border-zinc-800 text-zinc-300">
                   <Settings size={16} />
@@ -354,7 +354,7 @@ class CloudSyncService {
 
               <button
                 onClick={onClose}
-                className="p-2 text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-850 hover:border-zinc-700 rounded-lg transition-all cursor-pointer"
+                className="p-2 text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-[var(--border-primary)] hover:border-zinc-700 rounded-lg transition-all cursor-pointer"
                 title="Close settings"
               >
                 <X size={15} />
@@ -365,13 +365,13 @@ class CloudSyncService {
             <div className="flex-1 overflow-y-auto p-6 space-y-5" style={{ scrollbarWidth: 'none' }}>
               
               {/* SECTION: Supabase Cloud Synchronization (Flutter Connected) */}
-              <div className="bg-zinc-900/50 border border-zinc-850 p-5 rounded-2xl space-y-4 shadow-sm">
+              <div className="bg-zinc-900/50 border border-[var(--border-primary)] p-5 rounded-2xl space-y-4 shadow-sm">
                 <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
                     <Cloud size={14} className="text-teal-400" />
                     Supabase Cloud Sync
                   </h3>
-                  <span className="text-[9px] py-0.5 px-2 bg-teal-980/30 border border-teal-900/50 text-teal-400 rounded-full font-bold uppercase font-mono tracking-wider animate-pulse">
+                  <span className="text-[9px] py-0.5 px-2 bg-[var(--accent-primary)]/10/30 border border-teal-900/50 text-teal-400 rounded-full font-bold uppercase font-mono tracking-wider animate-pulse">
                     Flutter Capable
                   </span>
                 </div>
@@ -420,7 +420,7 @@ class CloudSyncService {
 
                   {/* Lock Presentation Box */}
                   <div className="bg-amber-950/20 border border-amber-900/40 p-3 rounded-xl flex items-center gap-2.5 text-[10px] text-amber-500/90 font-sans leading-normal">
-                    <Lock size={12} className="shrink-0 text-amber-550" />
+                    <Lock size={12} className="shrink-0 text-[var(--warning)]" />
                     <span>Connection credentials are locked to build-time environment variables for strict security and financial-integrity.</span>
                   </div>
 
@@ -478,7 +478,7 @@ class CloudSyncService {
                       ? 'bg-blue-950/20 border-emerald-900/60 text-emerald-400' 
                       : syncStatus === 'error'
                       ? 'bg-red-950/20 border-red-900/60 text-red-400'
-                      : 'bg-zinc-950/40 border-zinc-850 text-zinc-400'
+                      : 'bg-zinc-950/40 border-[var(--border-primary)] text-zinc-400'
                   }`}>
                     {syncStatus === 'loading' && <RefreshCw size={13} className="animate-spin shrink-0 mt-0.5" />}
                     {syncStatus === 'success' && <Check size={13} className="shrink-0 mt-0.5" />}
@@ -494,7 +494,7 @@ class CloudSyncService {
                   Cross-Platform Developer Blueprints
                 </span>
 
-                <div className="bg-zinc-900/25 border border-zinc-850 rounded-2xl overflow-hidden">
+                <div className="bg-zinc-900/25 border border-[var(--border-primary)] rounded-2xl overflow-hidden">
                   <button
                     onClick={() => setExpandedSection(expandedSection === 'sql' ? 'none' : 'sql')}
                     className="w-full p-4 flex justify-between items-center text-xs font-bold text-zinc-300 hover:bg-zinc-900/45 transition-colors"
@@ -528,7 +528,7 @@ class CloudSyncService {
                 </div>
 
                 {/* Flutter setup guide */}
-                <div className="bg-zinc-900/25 border border-zinc-850 rounded-2xl overflow-hidden">
+                <div className="bg-zinc-900/25 border border-[var(--border-primary)] rounded-2xl overflow-hidden">
                   <button
                     onClick={() => setExpandedSection(expandedSection === 'flutter' ? 'none' : 'flutter')}
                     className="w-full p-4 flex justify-between items-center text-xs font-bold text-zinc-300 hover:bg-zinc-900/45 transition-colors"
@@ -562,7 +562,7 @@ class CloudSyncService {
                 </div>
 
                 {/* SQL structure upgrade migration guide */}
-                <div className="bg-zinc-900/25 border border-zinc-850 rounded-2xl overflow-hidden">
+                <div className="bg-zinc-900/25 border border-[var(--border-primary)] rounded-2xl overflow-hidden">
                   <button
                     onClick={() => setExpandedSection(expandedSection === 'upgrade' ? 'none' : 'upgrade')}
                     className="w-full p-4 flex justify-between items-center text-xs font-bold text-zinc-300 hover:bg-zinc-900/45 transition-colors"
@@ -597,7 +597,7 @@ class CloudSyncService {
               </div>
 
               {/* OLD SECTION 1: Settings & Encryption */}
-              <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl space-y-4">
+              <div className="bg-zinc-900/40 border border-[var(--border-primary)] p-5 rounded-2xl space-y-4">
                 <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Shield size={14} className="text-zinc-500" />
                   Settings & Encryption
@@ -609,7 +609,7 @@ class CloudSyncService {
                     <span className="text-xs font-bold text-white block">Secure Bonded Identity</span>
                     <p className="text-[10px] text-zinc-500">Startup Authentication Bounds</p>
                   </div>
-                  <div className="bg-black/40 border border-zinc-850 p-3.5 rounded-xl space-y-2">
+                  <div className="bg-black/40 border border-[var(--border-primary)] p-3.5 rounded-xl space-y-2">
                     <span className="text-[10px] text-zinc-400 font-mono block">Registered System Owner:</span>
                     <div className="flex items-center gap-2 text-xs text-emerald-400 font-semibold font-mono bg-emerald-950/20 py-2 px-3 border border-emerald-950/35 rounded-lg">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -658,7 +658,7 @@ class CloudSyncService {
               </div>
 
               {/* OLD SECTION 2: Backup & Database State */}
-              <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl space-y-4">
+              <div className="bg-zinc-900/40 border border-[var(--border-primary)] p-5 rounded-2xl space-y-4">
                 <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Database size={14} className="text-zinc-500" />
                   Backup & Database State
@@ -669,7 +669,7 @@ class CloudSyncService {
                     onClick={() => {
                       exportStateAsJSON(state, userEmail);
                     }}
-                    className="w-full py-2.5 bg-black border border-zinc-800 rounded-xl hover:text-white hover:border-zinc-500 transition-colors text-xs font-semibold text-zinc-350 flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99]"
+                    className="w-full py-2.5 bg-black border border-zinc-800 rounded-xl hover:text-white hover:border-zinc-500 transition-colors text-xs font-semibold text-[var(--text-secondary)] flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99]"
                     title="Export all financial ledger records to a transferable JSON file linked to this account"
                   >
                     <FileDown size={13} /> Export Personal Ledger Backup (.JSON)
@@ -733,7 +733,7 @@ class CloudSyncService {
                             setSyncStatus('idle');
                             setSyncMessage(null);
                           }}
-                          className="py-1.5 bg-zinc-900 hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer text-center"
+                          className="py-1.5 bg-zinc-900 hover:bg-[var(--bg-card)] text-zinc-400 hover:text-zinc-200 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer text-center"
                           disabled={purgeLoading}
                         >
                           Abort Deletion
@@ -741,7 +741,7 @@ class CloudSyncService {
                         <button
                           type="button"
                           onClick={handleConfirmPurge2FA}
-                          className="py-1.5 bg-red-650 hover:bg-red-700 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer text-center flex items-center justify-center gap-1.5"
+                          className="py-1.5 bg-[var(--danger)] hover:bg-red-700 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer text-center flex items-center justify-center gap-1.5"
                           disabled={purgeLoading}
                         >
                           {purgeLoading ? 'Purging...' : 'Confirm Purge'}
@@ -763,7 +763,7 @@ class CloudSyncService {
               </div>
 
               {/* OLD SECTION 3: Smart Ledger Directives */}
-              <div className="bg-zinc-900/10 border border-zinc-850 p-5 rounded-2xl space-y-3.5">
+              <div className="bg-zinc-900/10 border border-[var(--border-primary)] p-5 rounded-2xl space-y-3.5">
                 <div className="flex gap-2 items-center text-xs font-bold text-zinc-300">
                   <Zap size={14} className="text-amber-400 animate-pulse" />
                   <span>Smart Ledger Directives</span>
@@ -790,7 +790,7 @@ class CloudSyncService {
             </div>
 
             {/* Sticky footer info */}
-            <div className="p-4 bg-[#070709] border-t border-zinc-850 text-center font-mono text-[9px] text-zinc-600 select-none">
+            <div className="p-4 bg-[#070709] border-t border-[var(--border-primary)] text-center font-mono text-[9px] text-zinc-600 select-none">
               Secured Connection &bull; 64-bit Device Bound
             </div>
           </motion.div>

@@ -157,7 +157,7 @@ export default function ReportsCentre({
     <div id="reports-centre-view" className="space-y-6 animate-fade-in">
       
       {/* 1. Category Switch Header (Glassmorphic Selection Bar) */}
-      <div className="grid grid-cols-4 p-1.5 bg-[#0a0a0f] border border-zinc-850 rounded-[20px] text-center" id="reports-type-selectors">
+      <div className="grid grid-cols-4 p-1.5 bg-[#0a0a0f] border border-[var(--border-primary)] rounded-[20px] text-center" id="reports-type-selectors">
         {[
           { key: 'monthly', label: 'Monthly Report' },
           { key: 'yearly', label: 'Annual Analytics' },
@@ -185,7 +185,7 @@ export default function ReportsCentre({
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="flex-1 bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 rounded-xl text-xs px-4 py-3 focus:outline-none transition-colors font-bold cursor-pointer"
+              className="flex-1 bg-black border border-[var(--border-primary)] hover:border-zinc-700 text-zinc-300 rounded-xl text-xs px-4 py-3 focus:outline-none transition-colors font-bold cursor-pointer"
             >
               <option value="01">January</option>
               <option value="02">February</option>
@@ -205,7 +205,7 @@ export default function ReportsCentre({
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className="flex-1 bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 rounded-xl text-xs px-4 py-3 focus:outline-none transition-colors font-bold cursor-pointer"
+            className="flex-1 bg-black border border-[var(--border-primary)] hover:border-zinc-700 text-zinc-300 rounded-xl text-xs px-4 py-3 focus:outline-none transition-colors font-bold cursor-pointer"
           >
             <option value="2025">Year 2025</option>
             <option value="2026">Year 2026</option>
@@ -222,7 +222,7 @@ export default function ReportsCentre({
          <div className="lg:col-span-7 space-y-6">
           
           {/* Executive Net Savings card */}
-          <div className="bg-card text-card-foreground border border-zinc-200 dark:border-zinc-850 rounded-[32px] p-6 shadow-2xl relative overflow-hidden">
+          <div className="bg-card text-card-foreground border border-zinc-200 dark:border-[var(--border-primary)] rounded-[32px] p-6 shadow-2xl relative overflow-hidden">
             {/* Ambient lighting ring */}
             <div className="absolute top-0 right-0 p-4 text-[var(--accent-primary)]/10 pointer-events-none">
               <Award size={80} className="stroke-[1.5px] opacity-15" />
@@ -290,14 +290,14 @@ export default function ReportsCentre({
             </div>
           ) : (
             /* Debt Liabilities Ratio trackers */
-            <div className="bg-zinc-905 bg-zinc-900/40 border border-zinc-850 rounded-[32px] p-6 space-y-4 shadow-xl">
+            <div className="bg-[var(--bg-card)] bg-zinc-900/40 border border-[var(--border-primary)] rounded-[32px] p-6 space-y-4 shadow-xl">
               <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
                 <div>
                   <h4 className="text-sm font-bold text-white font-sans flex items-center gap-2">
                     <Landmark size={15} className="text-[var(--accent-primary)]" />
                     Passive Liabilities Ratio Track
                   </h4>
-                  <span className="text-[10px] text-zinc-550 block mt-0.5 text-zinc-500 font-mono">Comparing remaining values to original principles</span>
+                  <span className="text-[10px] text-[var(--text-secondary)] block mt-0.5 text-zinc-500 font-mono">Comparing remaining values to original principles</span>
                 </div>
               </div>
 
@@ -338,7 +338,7 @@ export default function ReportsCentre({
           <div className="grid grid-cols-2 gap-3 pt-2">
             <button
               onClick={handleExcelExport}
-              className="py-4 bg-zinc-950 border border-zinc-850 hover:border-zinc-700 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-center hover:scale-[1.01]"
+              className="py-4 bg-zinc-950 border border-[var(--border-primary)] hover:border-zinc-700 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-center hover:scale-[1.01]"
             >
               <FileDown size={14} className="text-[var(--accent-primary)]" />
               Export CSV Ledger
@@ -355,14 +355,14 @@ export default function ReportsCentre({
         </div>
 
         {/* RIGHT COLUMN: SEARCHABLE HISTORY - UNIFIED LEDGER JOURNALS */}
-         <div className="lg:col-span-5 bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-zinc-850 p-6 rounded-[32px] space-y-5 shadow-2xl w-full" id="unified-audits-column">
+         <div className="lg:col-span-5 bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-[var(--border-primary)] p-6 rounded-[32px] space-y-5 shadow-2xl w-full" id="unified-audits-column">
           
           <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
             <div>
               <span className="text-[9px] font-mono tracking-wider text-[var(--accent-primary)] font-bold block uppercase">LEDGER AUDIT TRACK</span>
               <p className="text-base font-extrabold text-white">Unified Journals</p>
             </div>
-            <span className="text-[9.5px] font-mono bg-black px-2.5 py-1 border border-zinc-850 rounded-xl text-zinc-400 font-bold uppercase shrink-0">
+            <span className="text-[9.5px] font-mono bg-black px-2.5 py-1 border border-[var(--border-primary)] rounded-xl text-zinc-400 font-bold uppercase shrink-0">
               {filteredHistory.length} EVENTS
             </span>
           </div>
@@ -376,7 +376,7 @@ export default function ReportsCentre({
                 placeholder="Lookup journals, categories, descriptions..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black text-xs !pl-11 !pr-4 py-3.5 rounded-xl border border-zinc-850 focus:border-zinc-700 focus:outline-none text-white font-medium transition-all"
+                className="w-full bg-black text-xs !pl-11 !pr-4 py-3.5 rounded-xl border border-[var(--border-primary)] focus:border-zinc-700 focus:outline-none text-white font-medium transition-all"
               />
             </div>
 
@@ -387,7 +387,7 @@ export default function ReportsCentre({
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="w-full bg-[#050510]/50 border border-zinc-850 hover:border-zinc-700 rounded-xl text-xs px-3 py-2.5 font-bold cursor-pointer transition-colors focus:outline-none"
+                  className="w-full bg-[#050510]/50 border border-[var(--border-primary)] hover:border-zinc-700 rounded-xl text-xs px-3 py-2.5 font-bold cursor-pointer transition-colors focus:outline-none"
                 >
                   <option value="all">All Inflow/Outflow</option>
                   <option value="income">Only Incomes</option>
@@ -405,7 +405,7 @@ export default function ReportsCentre({
                 <select
                   value={filterAccount}
                   onChange={(e) => setFilterAccount(e.target.value)}
-                  className="w-full bg-[#050510]/50 border border-zinc-850 hover:border-zinc-700 rounded-xl text-xs px-3 py-2.5 font-bold cursor-pointer transition-colors focus:outline-none"
+                  className="w-full bg-[#050510]/50 border border-[var(--border-primary)] hover:border-zinc-700 rounded-xl text-xs px-3 py-2.5 font-bold cursor-pointer transition-colors focus:outline-none"
                 >
                   <option value="all">All Wallets/Cards</option>
                   {cashAccounts.map(c => (
@@ -444,7 +444,7 @@ export default function ReportsCentre({
                     setStartDate('');
                     setEndDate('');
                   }}
-                  className="text-[10px] font-mono text-rose-450 text-rose-400 hover:underline cursor-pointer font-bold"
+                  className="text-[10px] font-mono text-[var(--negative)] text-rose-400 hover:underline cursor-pointer font-bold"
                 >
                   Reset Bound Ranges
                 </button>
@@ -455,7 +455,7 @@ export default function ReportsCentre({
           {/* List display */}
           <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }} id="filtered-list">
             {filteredHistory.length === 0 ? (
-              <div className="py-12 text-center text-zinc-500 text-xs italic border border-dashed border-zinc-850 rounded-2xl bg-zinc-955 bg-[#050505]/40 animate-pulse">
+              <div className="py-12 text-center text-zinc-500 text-xs italic border border-dashed border-[var(--border-primary)] rounded-2xl bg-[var(--bg-surface)] bg-[#050505]/40 animate-pulse">
                 No archived journal entries matched this query.
               </div>
             ) : (
@@ -485,7 +485,7 @@ export default function ReportsCentre({
                       <span className="text-[8px] font-mono tracking-widest text-[#a1a1a9] font-black uppercase bg-zinc-950 px-2.5 py-0.5 rounded-full border border-zinc-900">
                         {t.type}
                       </span>
-                      <span className="text-[10px] font-mono text-zinc-550 text-zinc-500 font-semibold">
+                      <span className="text-[10px] font-mono text-[var(--text-secondary)] text-zinc-500 font-semibold">
                         {t.date}
                       </span>
                     </div>
@@ -495,7 +495,7 @@ export default function ReportsCentre({
                          <h4 className="text-xs font-bold text-white truncate font-sans">{t.title}</h4>
                          <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)] text-[var(--accent-primary)] text-[8px] px-1.5 py-0.5 rounded-md font-bold shrink-0">VIEW</span>
                        </div>
-                      <span className={`text-xs font-mono font-black shrink-0 ${isInc ? 'text-emerald-450 text-emerald-400' : 'text-rose-455 text-rose-400'}`}>
+                      <span className={`text-xs font-mono font-black shrink-0 ${isInc ? 'text-[var(--success)] text-emerald-400' : 'text-[var(--negative)] text-rose-400'}`}>
                         {isInc ? '+' : '-'}{currency}{absAmount.toLocaleString()}
                       </span>
                     </div>

@@ -136,11 +136,11 @@ export default function TransactionEditModal({
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="bg-white dark:bg-[#050508] border border-zinc-200 dark:border-zinc-850 p-6 md:p-8 rounded-[24px] shadow-2xl max-w-sm w-full relative overflow-hidden" id="edit-transaction-modal-container">
+      <div className="bg-white dark:bg-[#050508] border border-zinc-200 dark:border-[var(--border-primary)] p-6 md:p-8 rounded-[24px] shadow-2xl max-w-sm w-full relative overflow-hidden" id="edit-transaction-modal-container">
         
         <div className="flex justify-between items-center mb-6">
           <div>
-            <span className="text-[9px] font-mono tracking-widest text-zinc-650 dark:text-[#a1a1a9] font-black uppercase bg-zinc-100 dark:bg-zinc-950 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-900">AUDIT EDITOR</span>
+            <span className="text-[9px] font-mono tracking-widest text-[var(--text-muted)] dark:text-[#a1a1a9] font-black uppercase bg-zinc-100 dark:bg-zinc-950 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-900">AUDIT EDITOR</span>
             <h3 className="text-xs font-black text-zinc-900 dark:text-white mt-1.5 flex items-center gap-1.5 leading-none font-mono uppercase tracking-wider">
               <Edit3 size={14} className="text-indigo-600 dark:text-[var(--accent-primary)]" />
               Adjust Transaction Ledger
@@ -153,7 +153,7 @@ export default function TransactionEditModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-zinc-550 dark:text-zinc-400">Title / description</label>
+            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-[var(--text-secondary)] dark:text-zinc-400">Title / description</label>
             <input 
               ref={titleInputRef}
               type="text" 
@@ -162,12 +162,12 @@ export default function TransactionEditModal({
                 setTitle(e.target.value);
                 validateTxForm(e.target.value, amount, date, submitted);
               }}
-              className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl px-4 py-3.5 text-xs focus:outline-none focus:ring-1 transition-all placeholder:text-zinc-450 dark:placeholder:text-zinc-600/75 ${
+              className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl px-4 py-3.5 text-xs focus:outline-none focus:ring-1 transition-all placeholder:text-[var(--text-secondary)] dark:placeholder:text-zinc-600/75 ${
                 errors.title
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : title && !errors.title
                   ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                  : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                  : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`} 
             />
             {errors.title && (
@@ -176,7 +176,7 @@ export default function TransactionEditModal({
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-zinc-550 dark:text-zinc-400">Amount ({currency})</label>
+            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-[var(--text-secondary)] dark:text-zinc-400">Amount ({currency})</label>
             <input 
               ref={amountInputRef}
               type="number" 
@@ -192,7 +192,7 @@ export default function TransactionEditModal({
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : amount !== '' && !errors.amount
                   ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                  : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                  : 'border-zinc-200 dark:border-[var(--border-primary)] hover:border-[var(--border-primary)] dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`} 
             />
             {errors.amount && (
@@ -201,7 +201,7 @@ export default function TransactionEditModal({
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-zinc-550 dark:text-zinc-400">Calendar Date</label>
+            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-[var(--text-secondary)] dark:text-zinc-400">Calendar Date</label>
             <DatePicker 
               value={date} 
               onChange={val => {
@@ -216,18 +216,18 @@ export default function TransactionEditModal({
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-zinc-550 dark:text-zinc-400">Categorization Tag</label>
+            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-[var(--text-secondary)] dark:text-zinc-400">Categorization Tag</label>
             <input 
               type="text" 
               required
               value={category} 
               onChange={e => setCategory(e.target.value)}
-              className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-855 text-zinc-900 dark:text-white rounded-2xl px-4 py-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all font-bold" 
+              className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-900 dark:text-white rounded-2xl px-4 py-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all font-bold" 
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-zinc-550 dark:text-zinc-400">Account Source</label>
+            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-[var(--text-secondary)] dark:text-zinc-400">Account Source</label>
             <select
               value={`${accountId}:${accountType}`}
               onChange={e => {
@@ -236,15 +236,15 @@ export default function TransactionEditModal({
                 setAccountType(type as 'cash'|'card');
               }}
               required
-              className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-855 text-zinc-700 dark:text-zinc-300 rounded-2xl px-3.5 py-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer transition-all font-semibold"
+              className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-[var(--border-primary)] text-zinc-700 dark:text-zinc-300 rounded-2xl px-3.5 py-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer transition-all font-semibold"
             >
               <option value="" disabled>Select Account</option>
-              <optgroup label="Wallets / Cash" className="bg-white dark:bg-[#0c0c12] text-zinc-900 dark:text-zinc-450 font-bold">
+              <optgroup label="Wallets / Cash" className="bg-white dark:bg-[#0c0c12] text-zinc-900 dark:text-[var(--text-secondary)] font-bold">
                 {cashAccounts.map(c => (
                   <option key={c.id} value={`${c.id}:cash`}>Cash: {c.name}</option>
                 ))}
               </optgroup>
-              <optgroup label="Bank Cards" className="bg-white dark:bg-[#0c0c12] text-zinc-900 dark:text-zinc-455 font-bold">
+              <optgroup label="Bank Cards" className="bg-white dark:bg-[#0c0c12] text-zinc-900 dark:text-[var(--text-secondary)] font-bold">
                 {cards.filter(c => !c.isCanceled).map(card => (
                   <option key={card.id} value={`${card.id}:card`}>Card: {card.bankName} - {card.cardName}</option>
                 ))}
@@ -259,7 +259,7 @@ export default function TransactionEditModal({
                   type="button"
                   onClick={() => setShowDeleteConfirm(false)}
                   disabled={isProcessing}
-                  className="flex-1 h-12 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 dark:hover:border-zinc-650 text-zinc-800 dark:text-white font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer disabled:opacity-50"
+                  className="flex-1 h-12 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 dark:hover:border-[var(--border-primary)] text-zinc-800 dark:text-white font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>

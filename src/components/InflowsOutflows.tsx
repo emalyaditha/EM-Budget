@@ -278,7 +278,7 @@ export default function InflowsOutflows({
     <div id="inflows-outflows-view" className="space-y-6 animate-fade-in">
       
       {/* Tab Selectors */}
-      <div className="grid grid-cols-2 p-1.5 bg-[#0a0a0f] border border-zinc-850 rounded-[20px]" id="tab-selectors">
+      <div className="grid grid-cols-2 p-1.5 bg-[#0a0a0f] border border-[var(--border-primary)] rounded-[20px]" id="tab-selectors">
         <button
           onClick={() => {
             setToggleForm('income');
@@ -302,13 +302,13 @@ export default function InflowsOutflows({
               : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
-          <MinusCircle size={14} className="text-rose-455 text-rose-450" />
+          <MinusCircle size={14} className="text-[var(--negative)] text-[var(--negative)]" />
           Settle Outflow
         </button>
       </div>
 
       {/* 2. FORM MODULES */}
-      <div className="bg-gradient-to-br from-[#0c0c0f] to-zinc-950 border border-zinc-850 rounded-[32px] p-6 shadow-2xl relative">
+      <div className="bg-gradient-to-br from-[#0c0c0f] to-zinc-950 border border-[var(--border-primary)] rounded-[32px] p-6 shadow-2xl relative">
         <div className="absolute top-0 right-0 p-4 text-zinc-900 pointer-events-none select-none">
           <Sparkles size={60} className="opacity-[0.03]" />
         </div>
@@ -333,7 +333,7 @@ export default function InflowsOutflows({
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : incSource && !incErrors.source
                     ? 'border-emerald-500/85 focus:border-emerald-500 focus:ring-emerald-500'
-                    : 'border-zinc-850 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
               {incErrors.source && (
@@ -358,7 +358,7 @@ export default function InflowsOutflows({
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                       : incAmount && !incErrors.amount
                       ? 'border-emerald-500/85 focus:border-emerald-500 focus:ring-emerald-500'
-                      : 'border-zinc-850 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
                 {incErrors.amount && (
@@ -371,7 +371,7 @@ export default function InflowsOutflows({
                 <select
                   value={incCategory}
                   onChange={(e) => setIncCategory(e.target.value as CategoryIncome)}
-                  className="w-full bg-[#08080c] border border-zinc-850 hover:border-zinc-700/80 text-zinc-300 text-xs rounded-2xl px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 text-zinc-300 text-xs rounded-2xl px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="Salary">Salary Pay</option>
                   <option value="Freelance">Freelance Contract</option>
@@ -399,7 +399,7 @@ export default function InflowsOutflows({
                   ref={incTargetRef}
                   value={incTargetId ? `${incTargetId}:${incTargetType}` : ''}
                   onChange={(e) => handleSelectTargetAccount(e.target.value)}
-                  className="w-full bg-[#08080c] border border-zinc-850 hover:border-zinc-700/80 text-zinc-300 text-xs rounded-2xl px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 text-zinc-300 text-xs rounded-2xl px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="">Select target</option>
                   <optgroup label="Cash Wallets" className="bg-[#0c0c0e] text-zinc-500">
@@ -449,7 +449,7 @@ export default function InflowsOutflows({
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : expTitle && !expErrors.title
                     ? 'border-emerald-500 focus:border-emerald-500'
-                    : 'border-zinc-850 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
               {expErrors.title && (
@@ -467,7 +467,7 @@ export default function InflowsOutflows({
                   setExpDesc(e.target.value);
                   validateExpense(expTitle, e.target.value, expAmount, expMethodId, expMethodType, expSubmitted);
                 }}
-                className="w-full bg-[#08080c] border border-zinc-850 hover:border-zinc-700/80 text-white text-xs rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all font-medium placeholder:text-zinc-600/70"
+                className="w-full bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 text-white text-xs rounded-2xl px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all font-medium placeholder:text-zinc-600/70"
               />
             </div>
 
@@ -489,7 +489,7 @@ export default function InflowsOutflows({
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                       : expAmount && !expErrors.amount
                       ? 'border-emerald-500 focus:border-emerald-500'
-                      : 'border-zinc-850 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
                 {expErrors.amount && (
@@ -502,7 +502,7 @@ export default function InflowsOutflows({
                 <select
                   value={expCategory}
                   onChange={(e) => setExpCategory(e.target.value as CategoryExpense)}
-                  className="w-full bg-[#08080c] border border-zinc-850 hover:border-zinc-700/80 text-zinc-300 text-xs rounded-2xl px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full bg-[#08080c] border border-[var(--border-primary)] hover:border-zinc-700/80 text-zinc-300 text-xs rounded-2xl px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="Food">Food / Groceries</option>
                   <option value="Transport">Public Transport</option>
@@ -539,7 +539,7 @@ export default function InflowsOutflows({
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                       : expMethodId && !expErrors.methodId
                       ? 'border-emerald-500'
-                      : 'border-zinc-850 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-[var(--border-primary)] hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 >
                   <option value="">Select funding source</option>
@@ -574,7 +574,7 @@ export default function InflowsOutflows({
                         const chargeVal = parseFloat(e.target.value) || 0;
                         validateExpense(expTitle, expDesc, expAmount, expMethodId, expMethodType, expSubmitted);
                       }}
-                      className="w-full bg-black border border-zinc-850 rounded-xl py-3 px-4 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono"
+                      className="w-full bg-black border border-[var(--border-primary)] rounded-xl py-3 px-4 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono"
                     />
                     <p className="text-[9px] text-zinc-500 font-mono pl-0.5">Some card transactions incur fees; entering a charge will deduct both the amount and fee from your card balance.</p>
                   </div>
@@ -601,7 +601,7 @@ export default function InflowsOutflows({
         )}
       </div>
 
-      <div className="bg-[#08080c]/50 border border-zinc-850 rounded-[20px] p-4 flex gap-2 justify-center text-center">
+      <div className="bg-[#08080c]/50 border border-[var(--border-primary)] rounded-[20px] p-4 flex gap-2 justify-center text-center">
         <span className="text-[10.5px] font-mono text-zinc-500 font-semibold tracking-tight">
           * Dynamic system triggers will sync balances & log audit lines instantly inside unified ledger.
         </span>

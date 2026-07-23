@@ -227,14 +227,14 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
   return (
     <div id="email-2fa-container" className="fixed inset-0 z-50 bg-[#0A0A0C] text-white flex flex-col justify-center items-center p-6 select-none overflow-y-auto">
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-950/15 rounded-full blur-3xl pointer-events-none animate-pulse duration-[8000ms]" />
-      <div className="absolute bottom-10 left-10 w-64 h-64 bg-zinc-955 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 left-10 w-64 h-64 bg-[var(--bg-surface)] rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md bg-zinc-900/40 border border-zinc-850 backdrop-blur-xl rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden">
+      <div className="w-full max-w-md bg-zinc-900/40 border border-[var(--border-primary)] backdrop-blur-xl rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden">
         {/* Sleek top edge highlight */}
         <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--accent-primary)]/40 to-transparent" />
         
         <div className="flex flex-col items-center text-center">
-          <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-805 shadow-inner mb-6 relative text-[var(--accent-primary)]">
+          <div className="p-4 bg-zinc-950 rounded-2xl border border-[var(--border-primary)] shadow-inner mb-6 relative text-[var(--accent-primary)]">
             <div className="absolute inset-0 bg-[var(--accent-primary)]/5 rounded-2xl blur-sm" />
             {renderIcon()}
           </div>
@@ -269,7 +269,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                     <input
                       type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter verified email..."
-                      className="w-full bg-[#060608]/90 border border-zinc-855 text-white rounded-xl py-3.5 !pl-12 !pr-6 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors placeholder-zinc-700 font-sans"
+                      className="w-full bg-[#060608]/90 border border-[var(--border-primary)] text-white rounded-xl py-3.5 !pl-12 !pr-6 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors placeholder-zinc-700 font-sans"
                     />
                   </div>
                 </div>
@@ -293,7 +293,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                     <input
                       type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-[#060608]/90 border border-zinc-855 text-white tracking-[3px] rounded-xl py-3.5 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full bg-[#060608]/90 border border-[var(--border-primary)] text-white tracking-[3px] rounded-xl py-3.5 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                     />
                     <button
                       type="button"
@@ -338,14 +338,14 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                     <input
                       type="password" required value={otpValue} onChange={(e) => setOtpValue(e.target.value)}
                       placeholder="Input 6-digit OTP"
-                      className="w-full bg-[#060608]/90 border border-indigo-950 text-indigo-405 tracking-[8px] font-mono text-center text-lg font-bold rounded-xl py-3.5 !pl-12 !pr-12 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full bg-[#060608]/90 border border-indigo-950 text-[var(--accent-primary)] tracking-[8px] font-mono text-center text-lg font-bold rounded-xl py-3.5 !pl-12 !pr-12 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                     />
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-xs font-mono">
                   <span className="text-zinc-500">Passcode valid 5m</span>
                   {resendTimer > 0 ? (
-                    <span className="text-zinc-650 text-zinc-600 flex items-center gap-1 font-semibold">Resend in {resendTimer}s</span>
+                    <span className="text-[var(--text-muted)] text-zinc-600 flex items-center gap-1 font-semibold">Resend in {resendTimer}s</span>
                   ) : (
                     <button type="button" onClick={() => initOtpSend()} disabled={loading} className="text-indigo-400 hover:text-indigo-300 cursor-pointer font-bold flex items-center gap-1.5 active:scale-95 transition-all">
                       <RefreshCw size={11} /> Request New Pin
@@ -355,7 +355,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                 <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50">
                   {loading ? <RefreshCw className="animate-spin text-white" size={16} /> : <><ShieldCheck size={16} /><span>Verify Entry PIN</span></>}
                 </button>
-                <button type="button" onClick={() => setStep('enter-email')} className="w-full bg-transparent border border-zinc-850 hover:bg-zinc-900/40 text-zinc-400 hover:text-zinc-300 text-xs py-3 rounded-xl font-bold transition-all cursor-pointer">
+                <button type="button" onClick={() => setStep('enter-email')} className="w-full bg-transparent border border-[var(--border-primary)] hover:bg-zinc-900/40 text-zinc-400 hover:text-zinc-300 text-xs py-3 rounded-xl font-bold transition-all cursor-pointer">
                   Cancel Choice
                 </button>
               </motion.form>
@@ -375,7 +375,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                     <input
                       type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-[#060608]/90 border border-zinc-850 text-white tracking-[3px] rounded-xl py-3.5 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full bg-[#060608]/90 border border-[var(--border-primary)] text-white tracking-[3px] rounded-xl py-3.5 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                     />
                     <button
                       type="button"
@@ -395,7 +395,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                     <input
                       type={showConfirmPassword ? "text" : "password"} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-[#060608]/90 border border-zinc-850 text-white tracking-[3px] rounded-xl py-3 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full bg-[#060608]/90 border border-[var(--border-primary)] text-white tracking-[3px] rounded-xl py-3 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                     />
                     <button
                       type="button"
@@ -435,7 +435,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
               className="mt-5 p-4 rounded-xl border border-indigo-900/25 text-xs leading-relaxed space-y-2 bg-indigo-950/20 text-indigo-400"
             >
               <p className="flex items-center gap-1.5 break-all font-medium animate-fade-in">
-                <ShieldCheck size={13} className="shrink-0 text-indigo-405 text-indigo-400" />
+                <ShieldCheck size={13} className="shrink-0 text-[var(--accent-primary)] text-indigo-400" />
                 <span>{infoMsg}</span>
               </p>
             </motion.div>

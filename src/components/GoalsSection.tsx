@@ -196,7 +196,7 @@ export default function GoalsSection({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border border-amber-505/30 border-amber-500/40 p-6 rounded-[24px] flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left justify-between relative shadow-xl">
+            <div className="bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border border-[var(--warning)]/30 border-amber-500/40 p-6 rounded-[24px] flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left justify-between relative shadow-xl">
               <div className="flex items-center gap-3.5 flex-col sm:flex-row">
                 <span className="text-4xl animate-bounce">🏆</span>
                 <div>
@@ -367,7 +367,7 @@ export default function GoalsSection({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#050508] border border-zinc-850 rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative text-left"
+              className="bg-[#050508] border border-[var(--border-primary)] rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative text-left"
             >
               <button
                 onClick={() => setIsAddModalOpen(false)}
@@ -386,7 +386,7 @@ export default function GoalsSection({
                     type="text"
                     value={goalName}
                     onChange={(e) => setGoalName(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-[#08080c] border border-zinc-855 rounded-2xl text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-zinc-600"
+                    className="w-full px-4 py-3.5 bg-[#08080c] border border-[var(--border-primary)] rounded-2xl text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-zinc-600"
                     placeholder="e.g. Dream Holiday, Laptop Fund"
                   />
                 </div>
@@ -397,7 +397,7 @@ export default function GoalsSection({
                     type="number"
                     value={goalTarget}
                     onChange={(e) => setGoalTarget(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-[#08080c] border border-zinc-855 rounded-2xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-zinc-600"
+                    className="w-full px-4 py-3.5 bg-[#08080c] border border-[var(--border-primary)] rounded-2xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-zinc-600"
                     placeholder="e.g. 5000"
                   />
                 </div>
@@ -413,7 +413,7 @@ export default function GoalsSection({
                 <div className="flex gap-3 justify-end pt-3">
                   <button
                     onClick={() => setIsAddModalOpen(false)}
-                    className="py-2.5 h-12 px-4 bg-[#08080c] border border-zinc-855 text-zinc-400 hover:text-white rounded-2xl text-xs font-mono font-bold cursor-pointer transition-colors"
+                    className="py-2.5 h-12 px-4 bg-[#08080c] border border-[var(--border-primary)] text-zinc-400 hover:text-white rounded-2xl text-xs font-mono font-bold cursor-pointer transition-colors"
                   >
                     Cancel
                   </button>
@@ -438,7 +438,7 @@ export default function GoalsSection({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#050508] border border-zinc-850 rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative text-left"
+              className="bg-[#050508] border border-[var(--border-primary)] rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative text-left"
             >
               <button
                 onClick={() => setIsFundModalOpen(false)}
@@ -463,7 +463,7 @@ export default function GoalsSection({
                     type="number"
                     value={fundAmount}
                     onChange={(e) => setFundAmount(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-[#08080c] border border-zinc-855 rounded-2xl text-sm font-semibold font-mono text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-zinc-600"
+                    className="w-full px-4 py-3.5 bg-[#08080c] border border-[var(--border-primary)] rounded-2xl text-sm font-semibold font-mono text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-zinc-600"
                     placeholder="e.g. 250"
                     autoFocus
                   />
@@ -476,7 +476,7 @@ export default function GoalsSection({
                   <select
                     value={fundSourceAccountId}
                     onChange={(e) => setFundSourceAccountId(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-[#08080c] border border-zinc-855 rounded-2xl text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500"
+                    className="w-full px-4 py-3.5 bg-[#08080c] border border-[var(--border-primary)] rounded-2xl text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500"
                   >
                     {cashAccounts.map((c) => (
                       <option key={c.id} value={c.id} className="bg-[#0c0c12]">
@@ -492,7 +492,7 @@ export default function GoalsSection({
                 <div className="flex gap-3 justify-end pt-3">
                   <button
                     onClick={() => setIsFundModalOpen(false)}
-                    className="py-2.5 h-12 px-4 bg-[#08080c] border border-zinc-855 text-zinc-400 hover:text-white rounded-2xl text-xs font-mono font-bold cursor-pointer transition-colors"
+                    className="py-2.5 h-12 px-4 bg-[#08080c] border border-[var(--border-primary)] text-zinc-400 hover:text-white rounded-2xl text-xs font-mono font-bold cursor-pointer transition-colors"
                   >
                     Cancel
                   </button>

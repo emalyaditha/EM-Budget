@@ -13,9 +13,9 @@ export interface CategorySum {
 export function TrendAnalysisChart({ data, currency }: { data: { date: string; value: number }[]; currency: string }) {
   if (!data || data.length === 0) {
     return (
-      <div className="w-full bg-zinc-900/50 border border-zinc-850 rounded-[28px] p-8 shadow-xl text-center flex flex-col items-center justify-center min-h-[160px]">
-        <span className="text-zinc-500 text-sm font-medium">No trend data available</span>
-        <span className="text-zinc-650 text-xs mt-1">Add transaction logs to map assets over time.</span>
+      <div className="w-full bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-[28px] p-8 shadow-[var(--shadow-soft)] text-center flex flex-col items-center justify-center min-h-[160px]">
+        <span className="text-[var(--text-secondary)] text-sm font-medium">No trend data available</span>
+        <span className="text-[var(--text-muted)] text-xs mt-1">Add transaction logs to map assets over time.</span>
       </div>
     );
   }
@@ -43,10 +43,10 @@ export function TrendAnalysisChart({ data, currency }: { data: { date: string; v
   `;
 
   return (
-    <div className="w-full bg-zinc-900/50 border border-zinc-850 rounded-[28px] p-6 shadow-xl">
+    <div className="w-full bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-[28px] p-6 shadow-[var(--shadow-soft)]">
       <div className="flex justify-between items-center mb-4">
-        <span className="text-xs font-bold text-white font-sans">Net Asset Trend (6 Days)</span>
-        <span className="text-[10px] text-blue-400 bg-blue-950/40 px-2.5 py-1 rounded-md border border-blue-900/40 font-mono font-bold flex items-center gap-1">
+        <span className="text-xs font-bold text-[var(--text-primary)] font-sans">Net Asset Trend (6 Days)</span>
+        <span className="text-[10px] text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2.5 py-1 rounded-md border border-[var(--accent-primary)]/20 font-mono font-bold flex items-center gap-1">
           <TrendingUp size={11} className="animate-pulse" /> Real Time
         </span>
       </div>
@@ -62,7 +62,7 @@ export function TrendAnalysisChart({ data, currency }: { data: { date: string; v
         {/* Soft Grid Horizontal Lines */}
         <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="var(--border-primary)" strokeWidth="1" strokeDasharray="3,3" />
         <line x1={padding} y1={height / 2} x2={width - padding} y2={height / 2} stroke="var(--border-primary)" strokeWidth="1" strokeDasharray="3,3" />
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--border-secondary)" strokeWidth="1" />
+        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--border-primary)" strokeWidth="1" />
 
         {/* Gradient fill under sparkline */}
         <polygon points={fillPoints} fill="url(#trendGradient)" />
@@ -96,7 +96,7 @@ export function TrendAnalysisChart({ data, currency }: { data: { date: string; v
           );
         })}
       </svg>
-      <div className="flex justify-between text-[10px] text-zinc-500 font-mono mt-3 px-1.5">
+      <div className="flex justify-between text-[10px] text-[var(--text-secondary)] font-mono mt-3 px-1.5">
         {data.map((d, idx) => {
           let label = d.date;
           try {
@@ -108,7 +108,7 @@ export function TrendAnalysisChart({ data, currency }: { data: { date: string; v
             }
           } catch (e) {}
           return (
-            <span key={idx} className="text-zinc-400 font-semibold text-center" title={d.date}>
+            <span key={idx} className="text-[var(--text-secondary)] font-semibold text-center" title={d.date}>
               {label}
             </span>
           );
@@ -125,39 +125,39 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
   const expensePct = Math.round((expense / total) * 100);
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-850 rounded-[28px] p-6 shadow-xl">
-      <h3 className="text-sm font-bold text-white mb-4 flex justify-between items-center font-sans leading-snug">
+    <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-[28px] p-6 shadow-[var(--shadow-soft)]">
+      <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4 flex justify-between items-center font-sans leading-snug">
         <span>Inflow vs Outflow Contrast</span>
-        <span className="text-[9px] uppercase font-mono text-zinc-400 tracking-wider">Statement breakdown</span>
+        <span className="text-[9px] uppercase font-mono text-[var(--text-muted)] tracking-wider">Statement breakdown</span>
       </h3>
       <div className="space-y-4.5">
         {/* Income Bar */}
         <div>
           <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-zinc-400 font-medium">Monthly Incomes</span>
-            <span className="text-emerald-500 font-mono font-bold">{currency} {income.toLocaleString()} ({incomePct}%)</span>
+            <span className="text-[var(--text-secondary)] font-medium">Monthly Incomes</span>
+            <span className="text-[var(--success)] font-mono font-bold">{currency} {income.toLocaleString()} ({incomePct}%)</span>
           </div>
-          <div className="w-full h-8 bg-[#050505] border border-zinc-200 dark:border-zinc-850 rounded-xl overflow-hidden flex items-center relative chart-progress-track">
+          <div className="w-full h-8 bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl overflow-hidden flex items-center relative chart-progress-track">
             <div
-              className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-blue-400 rounded-r-md transition-all duration-1000"
+              className="h-full bg-[var(--success)] rounded-r-md transition-all duration-1000"
               style={{ width: `${incomePct || 0}%` }}
             />
-            <span className="absolute left-3 text-[10px] font-mono text-zinc-350 font-bold mix-blend-difference text-white-forced">RECEIPTS</span>
+            <span className="absolute left-3 text-[10px] font-mono text-[var(--text-secondary)] font-bold">RECEIPTS</span>
           </div>
         </div>
 
         {/* Expense Bar */}
         <div>
           <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-zinc-400 font-medium">Invoices & Bills Expenses</span>
-            <span className="text-rose-500 dark:text-rose-400 font-mono font-bold">{currency} {expense.toLocaleString()} ({expensePct}%)</span>
+            <span className="text-[var(--text-secondary)] font-medium">Invoices & Bills Expenses</span>
+            <span className="text-[var(--negative)] font-mono font-bold">{currency} {expense.toLocaleString()} ({expensePct}%)</span>
           </div>
-          <div className="w-full h-8 bg-[#050505] border border-zinc-200 dark:border-zinc-850 rounded-xl overflow-hidden flex items-center relative chart-progress-track">
+          <div className="w-full h-8 bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-xl overflow-hidden flex items-center relative chart-progress-track">
             <div
-              className="h-full bg-gradient-to-r from-rose-600 to-rose-400 rounded-r-md transition-all duration-1000"
+              className="h-full bg-[var(--negative)] rounded-r-md transition-all duration-1000"
               style={{ width: `${expensePct || 0}%` }}
             />
-            <span className="absolute left-3 text-[10px] font-mono text-zinc-350 font-bold mix-blend-difference text-white-forced">CHARGES</span>
+            <span className="absolute left-3 text-[10px] font-mono text-[var(--text-secondary)] font-bold">CHARGES</span>
           </div>
         </div>
       </div>
@@ -212,13 +212,10 @@ export function CategorySpreadAnalysis({
   if (categories.length === 0) {
     return (
       <div 
-        className="border border-zinc-200 dark:border-white/[0.08] rounded-[28px] p-5 text-center flex flex-col items-center justify-center min-h-[180px] bg-white dark:bg-zinc-950/90 shadow-xl"
-        style={{
-          backdropFilter: 'blur(20px)',
-        }}
+        className="border border-[var(--border-primary)] rounded-[28px] p-5 text-center flex flex-col items-center justify-center min-h-[180px] bg-[var(--bg-card)] shadow-[var(--shadow-soft)]"
       >
-        <span className="text-zinc-400 dark:text-white/45 text-[11px] font-bold tracking-[2px] uppercase">Category Spread Analysis</span>
-        <span className="text-zinc-500 dark:text-white/60 text-xs mt-2 max-w-[200px]">No expense data logged to build category distributions</span>
+        <span className="text-[var(--text-muted)] text-[11px] font-bold tracking-[2px] uppercase">Category Spread Analysis</span>
+        <span className="text-[var(--text-secondary)] text-xs mt-2 max-w-[200px]">No expense data logged to build category distributions</span>
       </div>
     );
   }
@@ -228,17 +225,14 @@ export function CategorySpreadAnalysis({
 
   return (
     <div 
-      className="border border-zinc-200 dark:border-white/[0.08] rounded-[20px] p-4.5 w-full max-w-[380px] mx-auto sm:mx-0 relative overflow-hidden transition-all duration-300 text-left select-none flex flex-col justify-between bg-white dark:bg-zinc-950/90 shadow-xl"
-      style={{
-        backdropFilter: 'blur(20px)',
-      }}
+      className="border border-[var(--border-primary)] rounded-[20px] p-4.5 w-full max-w-[380px] mx-auto sm:mx-0 relative overflow-hidden transition-all duration-300 text-left select-none flex flex-col justify-between bg-[var(--bg-card)] shadow-[var(--shadow-soft)]"
     >
       {/* Title & Subtitle Section */}
       <div className="mb-3">
-        <h3 className="text-[14px] sm:text-[15px] font-bold text-zinc-900 dark:text-white tracking-tight leading-tight select-all">
+        <h3 className="text-[14px] sm:text-[15px] font-bold text-[var(--text-primary)] tracking-tight leading-tight select-all">
           Category Spread Analysis
         </h3>
-        <p className="text-[11px] font-normal text-zinc-500 dark:text-white/50 select-all">
+        <p className="text-[11px] font-normal text-[var(--text-secondary)] select-all">
           Breakdown of expenses by category
         </p>
       </div>
@@ -254,7 +248,7 @@ export function CategorySpreadAnalysis({
                   cy="50" 
                   r="39.5" 
                   fill="transparent" 
-                  stroke="var(--border-secondary)" 
+                  stroke="var(--border-primary)" 
                   strokeWidth="11" 
                 />
                 
@@ -300,10 +294,10 @@ export function CategorySpreadAnalysis({
             
             {/* Center Information */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none px-2 text-center">
-                <span className="text-[9px] text-zinc-500 dark:text-white/50 font-bold uppercase tracking-[1px] leading-none mb-0.5">
+                <span className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-[1px] leading-none mb-0.5">
                   TOTAL
                 </span>
-                <span className="text-[15px] sm:text-[17px] font-bold text-zinc-900 dark:text-white font-mono leading-none tracking-tight select-all truncate max-w-full">
+                <span className="text-[15px] sm:text-[17px] font-bold text-[var(--text-primary)] font-mono leading-none tracking-tight select-all truncate max-w-full">
                   {currency}{total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </span>
             </div>
@@ -319,7 +313,7 @@ export function CategorySpreadAnalysis({
             return (
               <div 
                 key={cat.name} 
-                className="grid grid-cols-[8px_minmax(0,1fr)_auto_auto] items-center gap-2 h-9 py-1 px-2.5 bg-zinc-500/5 dark:bg-white/[0.01] hover:scale-[1.01] hover:bg-zinc-500/10 dark:hover:bg-white/[0.03] transition-all duration-200 cursor-pointer rounded-lg animate-brand-fade-up select-all border border-zinc-200/50 dark:border-white/[0.01]"
+                className="grid grid-cols-[8px_minmax(0,1fr)_auto_auto] items-center gap-2 h-9 py-1 px-2.5 bg-[var(--bg-surface)] hover:scale-[1.01] transition-all duration-200 cursor-pointer rounded-lg animate-brand-fade-up select-all border border-[var(--border-primary)]"
                 style={{
                   animationDelay: `${idx * 40}ms`
                 }}
@@ -337,19 +331,19 @@ export function CategorySpreadAnalysis({
                 
                 {/* Category Name */}
                 <span 
-                  className="text-[11px] sm:text-xs font-semibold text-zinc-900 dark:text-white truncate select-all pr-1"
+                  className="text-[11px] sm:text-xs font-semibold text-[var(--text-primary)] truncate select-all pr-1"
                   title={cat.name}
                 >
                   {cat.name}
                 </span>
 
                 {/* Percentage */}
-                <span className="text-[11px] sm:text-xs font-bold text-zinc-400 pr-2 text-right shrink-0 select-all">
+                <span className="text-[11px] sm:text-xs font-bold text-[var(--text-secondary)] pr-2 text-right shrink-0 select-all">
                   {percentage}%
                 </span>
 
                 {/* Amount */}
-                <span className="text-[11px] sm:text-xs font-bold font-mono text-zinc-900 dark:text-white/90 text-right shrink-0 select-all">
+                <span className="text-[11px] sm:text-xs font-bold font-mono text-[var(--text-primary)] text-right shrink-0 select-all">
                   {currency}{cat.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </span>
               </div>
@@ -367,14 +361,14 @@ export function RepaymentGauge({ totalDebt, remaining, name, currency = 'Rs.' }:
   const percentage = totalDebt > 0 ? Math.round((repaid / totalDebt) * 100) : 100;
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-850 rounded-[24px] p-4.5 flex gap-4 items-center shadow-xl">
+    <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-[24px] p-4.5 flex gap-4 items-center shadow-[var(--shadow-soft)]">
       <div className="relative w-14 h-14 shrink-0">
         <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
           <circle
             cx="18"
             cy="18"
             r="15.9155"
-            className="text-zinc-200 dark:text-zinc-900"
+            className="text-[var(--border-primary)]"
             strokeWidth="3.5"
             stroke="currentColor"
             fill="none"
@@ -389,16 +383,16 @@ export function RepaymentGauge({ totalDebt, remaining, name, currency = 'Rs.' }:
             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
           />
         </svg>
-        <div className="absolute inset-0 flex items-center justify-center text-[10px] font-mono font-bold text-zinc-800 dark:text-white">
+        <div className="absolute inset-0 flex items-center justify-center text-[10px] font-mono font-bold text-[var(--text-primary)]">
           {percentage}%
         </div>
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-xs font-bold text-zinc-900 dark:text-white truncate">{name} Repaid</div>
-        <div className="text-[10px] font-mono text-zinc-400 mt-0.5">
+        <div className="text-xs font-bold text-[var(--text-primary)] truncate">{name} Repaid</div>
+        <div className="text-[10px] font-mono text-[var(--text-secondary)] mt-0.5">
           Cleared: <span className="text-[var(--accent-primary)] font-bold">{currency} {repaid.toLocaleString()}</span>
         </div>
-        <div className="text-[10px] font-mono text-zinc-500">
+        <div className="text-[10px] font-mono text-[var(--text-muted)]">
           Outstanding: {currency} {remaining.toLocaleString()}
         </div>
       </div>
