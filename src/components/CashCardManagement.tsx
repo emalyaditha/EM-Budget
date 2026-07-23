@@ -27,9 +27,9 @@ interface InteractiveBankCardProps {
   onDeleteCard: (id: string) => void;
   getCardGradient: (theme: string) => string;
   setEditingCard: (card: BankCard | null) => void;
-  setEditcardName: (name: string) => void;
-  setEditcardNumber: (num: string) => void;
-  setEditcardTheme: (theme: string) => void;
+  setEditCardName: (name: string) => void;
+  setEditCardNumber: (num: string) => void;
+  setEditCardTheme: (theme: string) => void;
   setEditCardErrors: (errs: Record<string, string>) => void;
   setEditCardSubmitted: (sub: boolean) => void;
   onApplyCardCharge?: (cardId: string, charge: any) => void;
@@ -46,9 +46,9 @@ function InteractiveBankCard({
   onDeleteCard,
   getCardGradient,
   setEditingCard,
-  setEditcardName,
-  setEditcardNumber,
-  setEditcardTheme,
+  setEditCardName,
+  setEditCardNumber,
+  setEditCardTheme,
   setEditCardErrors,
   setEditCardSubmitted,
   onApplyCardCharge,
@@ -59,10 +59,10 @@ function InteractiveBankCard({
   const { showToast } = useNotifications();
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
-  const CardRef = React.useRef<HTMLDivElement>(null);
+  const cardRef = React.useRef<HTMLDivElement>(null);
 
-  const themeCodes = ['obsidian', 'sapphire', 'blue', 'emerald', 'copper', 'ruby', 'amethyst', 'amber', 'silver', 'slate', 'graphite'];
-  const derivedTheme = card.cardTheme || themeCodes[idx % themeCodes.length];
+  const themesCodes = ['obsidian', 'sapphire', 'blue', 'emerald', 'copper', 'ruby', 'amethyst', 'amber', 'silver', 'slate', 'graphite'];
+  const derivedTheme = card.cardTheme || themesCodes[idx % themesCodes.length];
   const isCanceled = card.isCanceled || (card as any).is_canceled;
 
   React.useEffect(() => {
@@ -86,38 +86,38 @@ function InteractiveBankCard({
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isCanceled || card.isFrozen) return;
-    const CardEl = CardRef.current;
-    if (!CardEl) return;
+    const cardEl = cardRef.current;
+    if (!cardEl) return;
     setIsHovered(true);
 
-    const rect = CardEl.getBoundingClientRect();
+    const rect = cardEl.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const miaX = rect.width / 2;
-    const miaY = rect.height / 2;
-    const rotX = -((y - miaY) / miaY) * 10; 
-    const rotY = ((x - miaX) / miaX) * 10;  
+    const midX = rect.width / 2;
+    const midY = rect.height / 2;
+    const rotX = -((y - midY) / midY) * 10; 
+    const rotY = ((x - midX) / midX) * 10;  
 
     setCoords({ x: rotX, y: rotY });
 
     const pctX = (x / rect.width) * 100;
     const pctY = (y / rect.height) * 100;
-    CardEl.style.setProperty('--glow-x', `${pctX}%`);
-    CardEl.style.setProperty('--glow-y', `${pctY}%`);
+    cardEl.style.setProperty('--glow-x', `${pctX}%`);
+    cardEl.style.setProperty('--glow-y', `${pctY}%`);
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
     setCoords({ x: 0, y: 0 });
-    const CardEl = CardRef.current;
-    if (CardEl) {
-      CardEl.style.setProperty('--glow-x', '50%');
-      CardEl.style.setProperty('--glow-y', '50%');
+    const cardEl = cardRef.current;
+    if (cardEl) {
+      cardEl.style.setProperty('--glow-x', '50%');
+      cardEl.style.setProperty('--glow-y', '50%');
     }
   };
 
-  const CardGradientStyle = getCardGradient(derivedTheme);
+  const cardGradientStyle = getCardGradient(derivedTheme);
 
   const inlineStyle: React.CSSProperties = {
     transform: isHovered 
@@ -128,13 +128,13 @@ function InteractiveBankCard({
 
   return (
     <div
-      ref={CardRef}
-      id={`Card-view-${card.id}`}
+      ref={cardRef}
+      id={`card-view-${card.id}`}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
       style={inlineStyle}
-      className={`relative p-5 rounded-[24px] bg-card bg-gradient-to-br ${CardGradientStyle} border shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col min-h-[220px] overflow-hidden duration-300 group cursor-pointer ${
+      className={`relative p-6 rounded-[24px] bg-zinc-900 bg-gradient-to-br ${cardGradientStyle} border shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col justify-between h-52 overflow-hidden duration-300 group cursor-pointer ${
         isCanceled ? 'opacity-50 filter grayscale contrast-75 brightness-90 hover:grayscale-0 hover:opacity-85' : ''
       }`}
     >
@@ -148,7 +148,7 @@ function InteractiveBankCard({
       )}
 
       {/* Glossy bank card circuitry overlay pattern */}
-      <div className="absolute inset-0 bg-white/[0.012] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[#ffffff]/[0.012] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
       <div className="absolute -bottom-16 -left-16 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none z-0" />
       
       {card.isFrozen && !isCanceled && (
@@ -165,7 +165,7 @@ function InteractiveBankCard({
               onUpdateCard({ ...card, isFrozen: false });
               showToast('success', `${card.cardName} un-frozen successfully.`);
             }}
-            className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium backdrop-blur-sm transition-all bg-sky-500/20 border border-sky-500/30 text-primary hover:bg-sky-500/35 active:scale-95 cursor-pointer"
+            className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium backdrop-blur-sm transition-all bg-sky-500/20 border border-sky-500/30 text-white hover:bg-sky-500/35 active:scale-95 cursor-pointer"
           >
             <Snowflake size={11} />
             <span>Unfreeze Card</span>
@@ -173,78 +173,70 @@ function InteractiveBankCard({
         </div>
       )}
 
-      {/* Top row: bank name left, action buttons right */}
-      <div className="flex items-start justify-between z-10 gap-2">
-        <div className="min-w-0 flex-1">
+      {!isCanceled && !card.isFrozen && (
+        <div id="wallet-card-buttons" className="absolute top-6 right-6 z-25 flex flex-row gap-2 transition-all duration-300 bg-transparent rounded-none p-0">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingCard(card);
+              setEditCardName(card.cardName);
+              setEditCardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g, '').trim() : '');
+              setEditCardTheme(derivedTheme);
+              setEditCardErrors({});
+              setEditCardSubmitted(false);
+              setEditCardLockedAmount?.(card.lockedAmount?.toString() || '0');
+            }}
+            className="bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] px-3 py-1.5 rounded-full backdrop-blur-md flex items-center gap-1.5 font-semibold transition-all shadow-md active:scale-95 cursor-pointer"
+            title="Edit Card Details"
+          >
+            <Edit size={11} strokeWidth={2.5} className="text-white/90" />
+            <span>Edit</span>
+          </button>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const updated = { ...card, isFrozen: true };
+              onUpdateCard(updated);
+              showToast('warning', `${card.cardName} soft-locked and frozen.`);
+            }}
+            className="bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] px-3 py-1.5 rounded-full backdrop-blur-md flex items-center gap-1.5 font-semibold transition-all shadow-md active:scale-95 cursor-pointer"
+            title="Freeze Card"
+          >
+            <Snowflake size={11} strokeWidth={2.5} className="text-white/90" />
+            <span>Freeze</span>
+          </button>
+        </div>
+      )}
+
+      {/* Card Header: Brand & chip */}
+      <div className="flex justify-between items-start z-10">
+        <div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[9px] uppercase font-bold tracking-[0.15em] text-primary/50 truncate">{card.bankName}</span>
-            <span className="w-1 h-1 rounded-full bg-white/30 shrink-0" />
-            <span className="text-[8px] font-mono font-bold uppercase text-primary/70 bg-white/10 px-1.5 py-0.5 rounded leading-none shrink-0">{card.cardType}</span>
+            <span className="text-[9px] uppercase font-bold tracking-[0.15em] text-white/50">{card.bankName}</span>
+            <span className="w-1 h-1 rounded-full bg-white/30" />
+            <span className="text-[8px] font-mono font-bold uppercase text-white/70 bg-white/10 px-1.5 py-0.5 rounded leading-none">{card.cardType}</span>
           </div>
-          <h4 className="text-base font-bold text-primary mt-1 truncate tracking-tight">
+          <h4 className="text-base font-bold text-white mt-1.5 flex items-center gap-1.5 truncate max-w-[150px] tracking-tight">
             {card.cardName}
           </h4>
         </div>
-
-        {!isCanceled && !card.isFrozen && (
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingCard(card);
-                setEditcardName(card.cardName);
-                setEditcardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g, '').trim() : '');
-                setEditcardTheme(derivedTheme);
-                setEditCardErrors({});
-                setEditCardSubmitted(false);
-                setEditCardLockedAmount?.(card.lockedAmount?.toString() || '0');
-              }}
-              className="bg-white/10 hover:bg-white/20 border border-white/15 text-primary text-[11px] px-3 py-1.5 rounded-full backdrop-blur-md flex items-center gap-1.5 font-semibold transition-all shadow-md active:scale-95 cursor-pointer"
-              title="Edit card details"
-            >
-              <Edit size={11} strokeWidth={2.5} className="text-primary/90" />
-              <span>Edit</span>
-            </button>
-            
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const Updated = { ...card, isFrozen: true };
-                onUpdateCard(Updated);
-                showToast('warning', `${card.cardName} soft-locked and frozen.`);
-              }}
-              className="bg-white/10 hover:bg-white/20 border border-white/15 text-primary text-[11px] px-3 py-1.5 rounded-full backdrop-blur-md flex items-center gap-1.5 font-semibold transition-all shadow-md active:scale-95 cursor-pointer"
-              title="Freeze Card"
-            >
-              <Snowflake size={11} strokeWidth={2.5} className="text-primary/90" />
-              <span>Freeze</span>
-            </button>
-
-            <button
-              onClick={(e) => { e.stopPropagation(); onDeleteCard(card.id); }}
-              className="bg-white/10 hover:bg-rose-500/30 border border-white/15 text-rose-300 text-[11px] p-1.5 rounded-full backdrop-blur-md flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer"
-              title="Delete card"
-            >
-              <Trash2 size={11} />
-            </button>
+        
+        {/* Holographic physical chip visual details */}
+        <div className="flex flex-col items-end shrink-0">
+          <div className="w-9 h-7 rounded-lg bg-gradient-to-r from-amber-500/20 via-yellow-400/10 to-amber-600/20 border border-amber-500/35 opacity-90 shadow-inner relative overflow-hidden flex items-center justify-center">
+            <div className="w-3.5 h-full border-r border-white/10 absolute left-1" />
+            <div className="w-full h-2.5 border-b border-t border-white/10 absolute" />
           </div>
-        )}
-      </div>
-
-      {/* Chip visual */}
-      <div className="z-10 -my-1">
-        <div className="w-9 h-7 rounded-lg bg-gradient-to-r from-amber-500/20 via-yellow-400/10 to-amber-600/20 border border-amber-500/35 opacity-90 shadow-inner relative overflow-hidden flex items-center justify-center">
-          <div className="w-3.5 h-full border-r border-white/10 absolute left-1" />
-          <div className="w-full h-2.5 border-b border-t border-white/10 absolute" />
         </div>
       </div>
 
-      {/* card Middle: Balance as the absolute visual focus */}
-      <div className="z-10 flex-1 flex flex-col justify-center py-1">
-        <span className="text-[9px] uppercase tracking-widest text-primary/40 block font-medium">
+      {/* Card Middle: Balance as the absolute visual focus */}
+      <div className="z-10 py-1">
+        <span className="text-[9px] uppercase tracking-widest text-white/40 block font-medium">
           {card.cardType === 'Credit' ? 'Available Limit' : 'Available Balance'}
         </span>
-        <span className="text-2xl sm:text-3xl font-bold font-mono text-primary leading-none tracking-tight block mt-1 drop-shadow-md">
+        <span className="text-2xl sm:text-3xl font-bold font-mono text-white leading-none tracking-tight block mt-1 drop-shadow-md">
           {currency}{
             card.cardType === 'Credit' 
               ? ((card.limit ?? 0) + card.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -252,22 +244,41 @@ function InteractiveBankCard({
           }
         </span>
         {card.cardType === 'Debit' && card.lockedAmount && card.lockedAmount > 0 ? (
-          <span className="text-[9px] font-bold text-amber-300 inline-flex items-center gap-1 mt-1.5 font-mono uppercase bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md leading-none self-start">
+          <span className="text-[9px] font-bold text-amber-300 inline-flex items-center gap-1 mt-1 font-mono uppercase bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md leading-none">
             <Lock size={8} /> {currency}{card.lockedAmount.toLocaleString()} locked
           </span>
         ) : null}
       </div>
 
-      {/* card Footer: Card number left, network orbs right */}
-      <div className="z-10 flex justify-between items-center border-t border-white/5 pt-3 mt-auto">
-        <div className="text-[12px] font-mono tracking-[0.2em] text-primary/70 font-semibold select-all min-w-0 truncate">
-          {card.cardNumber ? card.cardNumber : '•••• •••• •••• 1234'}
+      {/* Card Footer: Balances & Brand circle emblems */}
+      <div className="z-10 flex justify-between items-center border-t border-white/5 pt-3">
+        <div className="flex items-center gap-3">
+          <div className="text-[12px] font-mono tracking-[0.2em] text-white/70 font-semibold select-all">
+            {card.cardNumber ? card.cardNumber : '•••• •••• •••• 1234'}
+          </div>
+          <div className="flex items-center gap-0.5 opacity-30">
+            <span className="w-[1.5px] h-2.5 bg-white" />
+            <span className="w-[1.5px] h-2 bg-white" />
+            <span className="w-[1.5px] h-1.5 bg-white" />
+          </div>
         </div>
 
-        {/* Overlapping orbs (MasterCard style visual signature) */}
-        <div className="flex -space-x-2.5 shrink-0 select-none">
-          <span className="w-5 h-5 rounded-full bg-rose-500/60 backdrop-blur-sm" />
-          <span className="w-5 h-5 rounded-full bg-amber-500/60 backdrop-blur-sm" />
+        <div className="text-right flex items-center gap-3.5">
+          {!isCanceled && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDeleteCard(card.id); }}
+              className="text-[10px] text-rose-300 opacity-50 hover:opacity-100 flex items-center gap-1 font-semibold cursor-pointer transition-opacity"
+              title="Delete Card"
+            >
+              <Trash2 size={11} />
+            </button>
+          )}
+
+          {/* Overlapping orbs (Mastercard style visual signature) */}
+          <div className="flex -space-x-2.5 shrink-0 select-none">
+            <span className="w-5 h-5 rounded-full bg-rose-500/60 backdrop-blur-sm" />
+            <span className="w-5 h-5 rounded-full bg-amber-500/60 backdrop-blur-sm" />
+          </div>
         </div>
       </div>
     </div>
@@ -292,38 +303,38 @@ export default function CashCardManagement({
   const [cashName, setCashName] = useState('');
   const [cashBalance, setCashBalance] = useState('');
   const [cashErrors, setCashErrors] = useState<Record<string, string>>({});
-  const [cashsubmitted, setCashsubmitted] = useState(false);
+  const [cashSubmitted, setCashSubmitted] = useState(false);
 
-  // card form states
+  // Card form states
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [cardName, setCardName] = useState('');
   const [bankName, setBankName] = useState('');
   const [cardType, setCardType] = useState<'Debit' | 'Credit'>('Debit');
-  const [CardBalance, setCardBalance] = useState('');
-  const [CardLimit, setCardLimit] = useState('50000');
-  const [cardNumber, setcardNumber] = useState('');
+  const [cardBalance, setCardBalance] = useState('');
+  const [cardLimit, setCardLimit] = useState('50000');
+  const [cardNumber, setCardNumber] = useState('');
   const [cardTheme, setCardTheme] = useState('obsidian'); // obsidian, sapphire, emerald, copper, ruby
-  const [CardLockedAmount, setCardLockedAmount] = useState('');
-  const [CardErrors, setCardErrors] = useState<Record<string, string>>({});
-  const [Cardsubmitted, setCardsubmitted] = useState(false);
+  const [cardLockedAmount, setCardLockedAmount] = useState('');
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
+  const [cardSubmitted, setCardSubmitted] = useState(false);
 
   // Edit card state fields
-  const [EditingCard, setEditingCard] = useState<BankCard | null>(null);
-  const [editcardName, setEditcardName] = useState('');
-  const [editcardNumber, setEditcardNumber] = useState('');
+  const [editingCard, setEditingCard] = useState<BankCard | null>(null);
+  const [editCardName, setEditCardName] = useState('');
+  const [editCardNumber, setEditCardNumber] = useState('');
   const [editCardLockedAmount, setEditCardLockedAmount] = useState('0');
-  const [editcardTheme, setEditcardTheme] = useState('obsidian');
+  const [editCardTheme, setEditCardTheme] = useState('obsidian');
   const [editCardErrors, setEditCardErrors] = useState<Record<string, string>>({});
-  const [editCardsubmitted, setEditCardSubmitted] = useState(false);
+  const [editCardSubmitted, setEditCardSubmitted] = useState(false);
   const [showCanceled, setShowCanceled] = useState(false);
   const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({});
 
   // Charges Form States
-  const [chargeType, setchargeType] = useState<'Interest' | 'LatePayment' | 'OverLimit' | 'Annual' | 'Custom'>('Interest');
+  const [chargeType, setChargeType] = useState<'Interest' | 'LatePayment' | 'OverLimit' | 'Annual' | 'Custom'>('Interest');
   const [chargeName, setChargeName] = useState('Interest Charge');
   const [chargeAmount, setChargeAmount] = useState('');
-  const [chargedate, setChargedate] = useState(new Date().toISOString().split('T')[0]);
-  const [chargedescription, setChargedescription] = useState('');
+  const [chargeDate, setChargeDate] = useState(new Date().toISOString().split('T')[0]);
+  const [chargeDescription, setChargeDescription] = useState('');
   const [chargeRecurring, setChargeRecurring] = useState<'none' | 'Monthly' | 'Yearly' | 'Custom'>('none');
 
   const CHARGE_DEFAULT_NAMES: Record<string, string> = {
@@ -337,9 +348,9 @@ export default function CashCardManagement({
   // Quick action states
   const [selectedCashId, setSelectedCashId] = useState<string | null>(null);
   const [qtyAction, setQtyAction] = useState('');
-  const [actionType, setActionType] = useState<'Deposit' | 'Withdraw' | null>(null);
+  const [actionType, setActionType] = useState<'deposit' | 'withdraw' | null>(null);
   const [quickErrors, setQuickErrors] = useState<Record<string, string>>({});
-  const [quicksubmitted, setQuicksubmitted] = useState(false);
+  const [quickSubmitted, setQuickSubmitted] = useState(false);
 
   // Refs for focusing first invalid fields
   const cashNameInputRef = React.useRef<HTMLInputElement>(null);
@@ -347,13 +358,13 @@ export default function CashCardManagement({
 
   const cardNameInputRef = React.useRef<HTMLInputElement>(null);
   const bankNameInputRef = React.useRef<HTMLInputElement>(null);
-  const CardBalanceInputRef = React.useRef<HTMLInputElement>(null);
+  const cardBalanceInputRef = React.useRef<HTMLInputElement>(null);
   const cardNumberInputRef = React.useRef<HTMLInputElement>(null);
 
   const qtyActionInputRef = React.useRef<HTMLInputElement>(null);
 
-  // deletion confirmation
-  const [CardTodelete, setCardTodelete] = useState<string | null>(null);
+  // Deletion confirmation
+  const [cardToDelete, setCardToDelete] = useState<string | null>(null);
 
   // Live validator for Cash Account
   const validateCash = (name: string, balance: string, submitted: boolean) => {
@@ -385,7 +396,7 @@ export default function CashCardManagement({
     return Object.keys(errs).length === 0;
   };
 
-  // Live validator for card Account
+  // Live validator for Card Account
   const validateCard = (name: string, bank: string, balance: string, numStr: string, submitted: boolean) => {
     const errs: Record<string, string> = {};
     if (submitted || name) {
@@ -444,7 +455,7 @@ export default function CashCardManagement({
           errs.qty = 'Must be a valid number';
         } else if (num <= 0) {
           errs.qty = 'Amount must be positive';
-        } else if (actionType === 'Withdraw' && selectedCashId) {
+        } else if (actionType === 'withdraw' && selectedCashId) {
           const account = cashAccounts.find(c => c.id === selectedCashId);
           if (account && account.balance < num) {
             errs.qty = `Insufficient balance in hand! Available: ${currency} ${account.balance}`;
@@ -458,7 +469,7 @@ export default function CashCardManagement({
 
   const handleCreateCash = (e: React.FormEvent) => {
     e.preventDefault();
-    setCashsubmitted(true);
+    setCashSubmitted(true);
     const isValid = validateCash(cashName, cashBalance, true);
     if (!isValid) {
       // Focus first invalid element
@@ -467,38 +478,38 @@ export default function CashCardManagement({
       } else {
         cashBalanceInputRef.current?.focus();
       }
-      showToast('error', 'Please resolve the highlightea wallet errors.');
+      showToast('error', 'Please resolve the highlighted wallet errors.');
       return;
     }
     const balanceNum = parseFloat(cashBalance) || 0;
     onAddCashAccount(cashName.trim(), balanceNum);
     setCashName('');
     setCashBalance('');
-    setCashsubmitted(false);
+    setCashSubmitted(false);
     setCashErrors({});
-    showToast('success', 'Cash workspace holdings Recorded securely.');
+    showToast('success', 'Cash workspace holdings recorded securely.');
   };
 
   const handleCreateCard = (e: React.FormEvent) => {
     e.preventDefault();
-    setCardsubmitted(true);
-    const isValid = validateCard(cardName, bankName, CardBalance, cardNumber, true);
+    setCardSubmitted(true);
+    const isValid = validateCard(cardName, bankName, cardBalance, cardNumber, true);
     if (!isValid) {
       // Focus first invalid input item
       if (!cardName.trim() || cardName.trim().length < 3 || cards.some(c => c.cardName.toLowerCase().trim() === cardName.toLowerCase().trim()) || /[<>{}]/.test(cardName)) {
         cardNameInputRef.current?.focus();
       } else if (!bankName.trim() || bankName.trim().length < 2 || /[<>{}]/.test(bankName)) {
         bankNameInputRef.current?.focus();
-      } else if (!CardBalance || parseFloat(CardBalance) < 0 || isNaN(parseFloat(CardBalance))) {
-        CardBalanceInputRef.current?.focus();
+      } else if (!cardBalance || parseFloat(cardBalance) < 0 || isNaN(parseFloat(cardBalance))) {
+        cardBalanceInputRef.current?.focus();
       } else {
         cardNumberInputRef.current?.focus();
       }
       showToast('error', 'Please resolve highlighted credit card validations/');
       return;
     }
-    const balanceNum = parseFloat(CardBalance) || 0;
-    const limitNum = cardType === 'Credit' ? parseFloat(CardLimit) || 0 : undefined;
+    const balanceNum = parseFloat(cardBalance) || 0;
+    const limitNum = cardType === 'Credit' ? parseFloat(cardLimit) || 0 : undefined;
     
     // Mask helper
     let cleanNum = cardNumber.replace(/\s+/g, '');
@@ -520,7 +531,7 @@ export default function CashCardManagement({
       limit: limitNum,
       cardNumber: cleanNum,
       cardTheme: cardTheme,
-      lockedAmount: cardType === 'Debit' ? parseFloat(CardLockedAmount) || 0 : undefined,
+      lockedAmount: cardType === 'Debit' ? parseFloat(cardLockedAmount) || 0 : undefined,
     });
 
     // Reset card form
@@ -528,15 +539,15 @@ export default function CashCardManagement({
     setBankName('');
     setCardBalance('');
     setCardLimit('50000');
-    setcardNumber('');
+    setCardNumber('');
     setCardLockedAmount('');
-    setCardsubmitted(false);
+    setCardSubmitted(false);
     setCardErrors({});
     setIsAddingCard(false);
-    showToast('success', 'Your bank asset card is certifiea.');
+    showToast('success', 'Your bank asset card is certified.');
   };
 
-  const validateeditCard = (name: string, numStr: string) => {
+  const validateEditCard = (name: string, numStr: string) => {
     const errs: Record<string, string> = {};
     if (!name.trim()) {
       errs.name = 'Card name is required';
@@ -555,17 +566,17 @@ export default function CashCardManagement({
     return Object.keys(errs).length === 0;
   };
 
-  const handleSaveeditCard = (e: React.FormEvent) => {
+  const handleSaveEditCard = (e: React.FormEvent) => {
     e.preventDefault();
     setEditCardSubmitted(true);
-    if (!EditingCard) return;
+    if (!editingCard) return;
     
-    const isValid = validateeditCard(editcardName, editcardNumber);
+    const isValid = validateEditCard(editCardName, editCardNumber);
     if (!isValid) {
       return;
     }
     
-    let cleanNum = editcardNumber.replace(/\s+/g, '').replace(/\*/g, '');
+    let cleanNum = editCardNumber.replace(/\s+/g, '').replace(/\*/g, '');
     if (cleanNum.length > 0) {
       if (cleanNum.length > 4) {
         cleanNum = `**** **** **** ${cleanNum.slice(-4)}`;
@@ -573,25 +584,25 @@ export default function CashCardManagement({
         cleanNum = `**** **** **** ${cleanNum}`;
       }
     } else {
-      cleanNum = EditingCard.cardNumber || `**** **** **** ${Math.floor(1000 + Math.random() * 9000)}`;
+      cleanNum = editingCard.cardNumber || `**** **** **** ${Math.floor(1000 + Math.random() * 9000)}`;
     }
     
-    const Updated: BankCard = {
-      ...EditingCard,
-      cardName: editcardName.trim(),
+    const updated: BankCard = {
+      ...editingCard,
+      cardName: editCardName.trim(),
       cardNumber: cleanNum,
-      cardTheme: editcardTheme,
-      lockedAmount: EditingCard.cardType === 'Debit' ? parseFloat(editCardLockedAmount) || 0 : undefined,
+      cardTheme: editCardTheme,
+      lockedAmount: editingCard.cardType === 'Debit' ? parseFloat(editCardLockedAmount) || 0 : undefined,
     };
     
-    onUpdateCard(Updated);
+    onUpdateCard(updated);
     setEditingCard(null);
-    showToast('success', 'Card details Updated successfully.');
+    showToast('success', 'Card details updated successfully.');
   };
 
   const handleQuickAdjustCash = (e: React.FormEvent) => {
     e.preventDefault();
-    setQuicksubmitted(true);
+    setQuickSubmitted(true);
     if (!selectedCashId || !actionType) return;
     const account = cashAccounts.find(c => c.id === selectedCashId);
     if (!account) return;
@@ -599,15 +610,15 @@ export default function CashCardManagement({
     const isValid = validateQuick(qtyAction, true);
     if (!isValid) {
       qtyActionInputRef.current?.focus();
-      showToast('error', 'Check quick aajust inputs');
+      showToast('error', 'Check quick adjust inputs');
       return;
     }
 
     const amountNum = parseFloat(qtyAction) || 0;
     let nextBalance = account.balance;
-    if (actionType === 'Deposit') {
+    if (actionType === 'deposit') {
       nextBalance += amountNum;
-    } else if (actionType === 'Withdraw') {
+    } else if (actionType === 'withdraw') {
       nextBalance -= amountNum;
     }
 
@@ -615,47 +626,47 @@ export default function CashCardManagement({
     setQtyAction('');
     setSelectedCashId(null);
     setActionType(null);
-    setQuicksubmitted(false);
+    setQuickSubmitted(false);
     setQuickErrors({});
-    showToast('success', 'Holdingss recalculated instantly.');
+    showToast('success', 'Holdings recalculated instantly.');
   };
 
   const getCardGradient = (theme: string) => {
     switch (theme) {
-      case 'sapphire': return 'from-blue-900 via-card to-indigo-900 border-blue-500/30';
-      case 'emerald': return 'from-emerald-950 via-card to-emerald-950 border-subtle/30';
-      case 'blue': return 'from-sky-950 via-card to-blue-950 border-sky-500/30';
-      case 'copper': return 'from-amber-950 via-card to-orange-950 border-amber-600/30';
-      case 'ruby': return 'from-rose-950 via-card to-rea-950 border-rose-500/30';
-      case 'amethyst': return 'from-purple-950 via-card to-violet-950 border-purple-500/30';
-      case 'amber': return 'from-yellow-950 via-card to-amber-900 border-yellow-600/30';
-      case 'silver': return 'from-surface via-zinc-900 to-zinc-800 border-zinc-400/30';
-      case 'slate': return 'from-slate-950 via-card to-slate-900 border-slate-500/30';
-      case 'graphite': return 'from-[#0a0a0a] via-card to-[#171717] border-neutral-500/30';
-      default: return 'from-card via-neutral-950 to-zinc-900 border-default';
+      case 'sapphire': return 'from-blue-900 via-zinc-950 to-indigo-900 border-blue-500/30';
+      case 'emerald': return 'from-emerald-950 via-zinc-950 to-green-950 border-emerald-600/30';
+      case 'blue': return 'from-sky-950 via-zinc-950 to-blue-950 border-sky-500/30';
+      case 'copper': return 'from-amber-950 via-zinc-950 to-orange-950 border-amber-600/30';
+      case 'ruby': return 'from-rose-950 via-zinc-950 to-red-950 border-rose-500/30';
+      case 'amethyst': return 'from-purple-950 via-zinc-950 to-violet-950 border-purple-500/30';
+      case 'amber': return 'from-yellow-950 via-zinc-950 to-amber-900 border-yellow-600/30';
+      case 'silver': return 'from-zinc-800 via-zinc-900 to-zinc-800 border-zinc-400/30';
+      case 'slate': return 'from-slate-950 via-zinc-950 to-slate-900 border-slate-500/30';
+      case 'graphite': return 'from-neutral-950 via-zinc-950 to-neutral-900 border-neutral-500/30';
+      default: return 'from-zinc-900 via-neutral-950 to-zinc-900 border-zinc-800';
     }
   };
 
   return (
-    <div id="cash-Card-vault-view" className="space-y-8">
+    <div id="cash-card-vault-view" className="space-y-8">
       
-      {/* 1. Cash Accounts drawer Setup */}
-      <div className="bg-card border border-default rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-6 opacity-[0.06] pointer-events-none select-none">
+      {/* 1. Cash Accounts Drawer Setup */}
+      <div className="bg-white dark:bg-[#0e0e15] border border-zinc-200 dark:border-zinc-800/70 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-6 opacity-[0.06] dark:opacity-[0.03] pointer-events-none select-none">
           <Wallet size={80} className="stroke-[1px]" />
         </div>
 
         {/* Section Header */}
-        <div className="space-y-2 pb-5 border-b border-default/60 mb-6">
+        <div className="space-y-2 pb-5 border-b border-zinc-200 dark:border-zinc-800/60 mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 text-blue-600 rounded-xl">
+            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
               <Wallet size={20} className="stroke-[2px]" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-primary tracking-tight">
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">
                 Cash in Hand Repositories
               </h3>
-              <p className="text-xs text-muted dark:text-secondary mt-0.5">Track and maintain your physical cash holdings, office safes, or piggy banks</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Track and maintain your physical cash holdings, office safes, or piggy banks</p>
             </div>
           </div>
         </div>
@@ -663,16 +674,16 @@ export default function CashCardManagement({
         {/* List Cash Accounts */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {cashAccounts.map(account => (
-            <div key={account.id} id={`cash-row-${account.id}`} className="bg-card/40 border border-default p-5 rounded-2xl hover:border-default hover:bg-card-60 transition-all duration-300 shadow-sm group space-y-4">
-              {/* Top Section: Icon, Name and delete Button */}
+            <div key={account.id} id={`cash-row-${account.id}`} className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl hover:border-zinc-700 hover:bg-zinc-900/60 transition-all duration-300 shadow-sm group space-y-4">
+              {/* Top Section: Icon, Name and Delete Button */}
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-12 h-12 rounded-xl bg-surface dark:bg-card border border-subtle dark:border-default flex items-center justify-center text-secondary dark:text-primary shadow-inner group-hover:border-subtle dark:group-hover:border-default transition-all shrink-0">
-                    <Wallet size={20} className="text-muted dark:text-secondary" />
+                  <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-700 dark:text-zinc-300 shadow-inner group-hover:border-zinc-300 dark:group-hover:border-zinc-700 transition-all shrink-0">
+                    <Wallet size={20} className="text-zinc-500 dark:text-zinc-400" />
                   </div>
                   <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-primary dark:text-primary truncate">{account.name}</h4>
-                    <span className="text-[10px] font-mono text-muted dark:text-muted uppercase tracking-widest font-semibold mt-0.5 block">Asset drawer</span>
+                    <h4 className="text-sm font-bold text-zinc-900 dark:text-white truncate">{account.name}</h4>
+                    <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-500 uppercase tracking-widest font-semibold mt-0.5 block">Asset Drawer</span>
                   </div>
                 </div>
 
@@ -680,25 +691,25 @@ export default function CashCardManagement({
                   type="button"
                   onClick={() => {
                     showConfirm({
-                      message: `delete ${account.name} wallet?`,
+                      message: `Delete ${account.name} wallet?`,
                       onConfirm: () => onDeleteCashAccount(account.id)
                     });
                   }}
-                  className="p-2.5 bg-surface dark:bg-card border border-subtle dark:border-default hover:border-rose-500/30 text-muted hover:text-rose-500 dark:hover:text-danger rounded-xl transition-all cursor-pointer active:scale-90 shadow-sm shrink-0"
+                  className="p-2.5 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850 hover:border-rose-500/30 text-zinc-500 hover:text-rose-500 dark:hover:text-rose-400 rounded-xl transition-all cursor-pointer active:scale-90 shadow-sm shrink-0"
                   title="Remove Account"
                 >
                   <Trash2 size={13} />
                 </button>
               </div>
 
-              {/* Subtle divider */}
-              <div className="border-t border-subtle dark:border-default/60" />
+              {/* Subtle Divider */}
+              <div className="border-t border-zinc-200 dark:border-zinc-850/60" />
 
               {/* Bottom Section: Balance & Action Buttons */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
                 <div>
-                  <span className="text-[10px] font-mono text-muted dark:text-muted uppercase tracking-widest font-semibold block mb-0.5">Balance</span>
-                  <span className="text-lg font-bold font-mono text-primary dark:text-primary tracking-tight block leading-none">
+                  <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-500 uppercase tracking-widest font-semibold block mb-0.5">Balance</span>
+                  <span className="text-lg font-bold font-mono text-zinc-900 dark:text-white tracking-tight block leading-none">
                     {currency}{account.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -708,9 +719,9 @@ export default function CashCardManagement({
                     type="button"
                     onClick={() => {
                       setSelectedCashId(account.id);
-                      setActionType('Deposit');
+                      setActionType('deposit');
                     }}
-                    className="text-[10px] font-bold text-blue-600 dark:text-success hover:text-primary dark:hover:text-black px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500 dark:hover:bg-blue-400 transition-all uppercase tracking-wider cursor-pointer font-mono"
+                    className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-white dark:hover:text-black px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 dark:hover:bg-emerald-400 transition-all uppercase tracking-wider cursor-pointer font-mono"
                   >
                     + Deposit
                   </button>
@@ -718,9 +729,9 @@ export default function CashCardManagement({
                     type="button"
                     onClick={() => {
                       setSelectedCashId(account.id);
-                      setActionType('Withdraw');
+                      setActionType('withdraw');
                     }}
-                    className="text-[10px] font-bold text-rose-600 dark:text-danger hover:text-primary dark:hover:text-black px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 dark:hover:bg-rose-400 transition-all uppercase tracking-wider cursor-pointer font-mono"
+                    className="text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:text-white dark:hover:text-black px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 dark:hover:bg-rose-400 transition-all uppercase tracking-wider cursor-pointer font-mono"
                   >
                     - Withdraw
                   </button>
@@ -732,15 +743,15 @@ export default function CashCardManagement({
 
         {/* Quick Deposit/Withdraw Action Slider */}
         {selectedCashId && actionType && (
-          <form onSubmit={handleQuickAdjustCash} className="bg-surface dark:bg-card border border-subtle dark:border-default p-6 rounded-[24px] mb-6 space-y-4 animate-fade-in text-left">
+          <form onSubmit={handleQuickAdjustCash} className="bg-zinc-50 dark:bg-[#050508] border border-zinc-200 dark:border-zinc-850 p-6 rounded-[24px] mb-6 space-y-4 animation-fade-in text-left">
             <div className="flex justify-between items-center">
-              <span className="text-[11px] font-mono font-bold text-primary dark:text-primary uppercase tracking-wider flex items-center gap-2">
-                <CornerDownRight size={13} className="text-blue-500 dark:text-success animate-pulse" />
+              <span className="text-[11px] font-mono font-bold text-zinc-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <CornerDownRight size={13} className="text-emerald-500 dark:text-emerald-400 animate-pulse" />
                 Quick {actionType}: {cashAccounts.find(c => c.id === selectedCashId)?.name}
               </span>
               <button
                 type="button"
-                className="text-[10px] font-bold text-secondary hover:text-muted dark:text-muted dark:hover:text-primary uppercase tracking-wider transition-colors cursor-pointer"
+                className="text-[10px] font-bold text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-white uppercase tracking-wider transition-colors cursor-pointer"
                 onClick={() => {
                   setSelectedCashId(null);
                   setActionType(null);
@@ -753,7 +764,7 @@ export default function CashCardManagement({
             <div className="flex flex-col gap-2">
               <div className="flex gap-3">
                 <div className="relative flex-1">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-mono text-secondary dark:text-muted">{currency}</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-mono text-zinc-400 dark:text-zinc-500">{currency}</span>
                   <input
                     ref={qtyActionInputRef}
                     type="number"
@@ -761,38 +772,38 @@ export default function CashCardManagement({
                     value={qtyAction}
                     onChange={(e) => {
                       setQtyAction(e.target.value);
-                      validateQuick(e.target.value, quicksubmitted);
+                      validateQuick(e.target.value, quickSubmitted);
                     }}
-                    className={`w-full bg-card text-primary dark:text-primary rounded-2xl border text-xs pl-9 pr-4 py-4 focus:outline-none font-mono focus:ring-1 transition-all placeholder:text-secondary dark:placeholder:text-muted/70 ${
+                    className={`w-full bg-white dark:bg-[#08080c] text-zinc-900 dark:text-white rounded-2xl border text-xs pl-9 pr-4 py-4 focus:outline-none font-mono focus:ring-1 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600/70 ${
                       quickErrors.qty
                         ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                         : qtyAction && !quickErrors.qty
-                        ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
-                        : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                        ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                        : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                     }`}
                     required
                   />
                 </div>
                 <button
                   type="submit"
-                  className="bg-card hover:bg-surface text-primary dark:bg-white dark:hover:bg-surface dark:text-black font-mono font-bold text-xs px-6 rounded-2xl transition-all cursor-pointer h-[50px]"
+                  className="bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-mono font-bold text-xs px-6 rounded-2xl transition-all cursor-pointer h-[50px]"
                 >
                   Confirm
                 </button>
               </div>
               {quickErrors.qty && (
-                <span className="text-rose-500 dark:text-danger text-[10px] font-mono pl-1">{quickErrors.qty}</span>
+                <span className="text-rose-500 dark:text-rose-400 text-[10px] font-mono pl-1">{quickErrors.qty}</span>
               )}
             </div>
           </form>
         )}
 
         {/* Add Cash Account Form inline */}
-        <form onSubmit={handleCreateCash} className="border-t border-subtle dark:border-default/60 pt-6 flex flex-col gap-5 text-left">
-          <span className="text-[10px] font-black text-secondary dark:text-muted uppercase tracking-widest block">Record New Cash Holdingss</span>
+        <form onSubmit={handleCreateCash} className="border-t border-zinc-200 dark:border-zinc-850/60 pt-6 flex flex-col gap-5 text-left">
+          <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Record New Cash Holdings</span>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Wallet/Holdings Name</label>
+              <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Wallet/Holding Name</label>
               <input
                 ref={cashNameInputRef}
                 type="text"
@@ -800,23 +811,23 @@ export default function CashCardManagement({
                 value={cashName}
                 onChange={(e) => {
                   setCashName(e.target.value);
-                  validateCash(e.target.value, cashBalance, cashsubmitted);
+                  validateCash(e.target.value, cashBalance, cashSubmitted);
                 }}
-                className={`bg-card border text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-secondary dark:placeholder:text-muted/70 ${
+                className={`bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-zinc-400 dark:placeholder:text-zinc-600/70 ${
                   cashErrors.name
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : cashName && !cashErrors.name
-                    ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
-                    : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                    : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
               {cashErrors.name && (
-                <span className="text-rose-500 dark:text-danger text-[10px] font-mono pl-1">{cashErrors.name}</span>
+                <span className="text-rose-500 dark:text-rose-400 text-[10px] font-mono pl-1">{cashErrors.name}</span>
               )}
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Starting Sum ({currency})</label>
+              <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Starting Sum ({currency})</label>
               <input
                 ref={cashBalanceInputRef}
                 type="number"
@@ -824,68 +835,68 @@ export default function CashCardManagement({
                 value={cashBalance}
                 onChange={(e) => {
                   setCashBalance(e.target.value);
-                  validateCash(cashName, e.target.value, cashsubmitted);
+                  validateCash(cashName, e.target.value, cashSubmitted);
                 }}
-                className={`bg-card border text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-secondary dark:placeholder:text-muted/70 ${
+                className={`bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-600/70 ${
                   cashErrors.balance
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                     : cashBalance !== '' && !cashErrors.balance
-                    ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
-                    : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                    : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
               {cashErrors.balance && (
-                <span className="text-rose-500 dark:text-danger text-[10px] font-mono pl-1">{cashErrors.balance}</span>
+                <span className="text-rose-500 dark:text-rose-400 text-[10px] font-mono pl-1">{cashErrors.balance}</span>
               )}
             </div>
           </div>
 
           <button
             type="submit"
-            className="w-full h-13 bg-card text-primary hover:bg-surface dark:bg-white dark:text-black rounded-2xl dark:hover:bg-surface text-xs font-mono font-black tracking-widest uppercase flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-xl active:scale-[0.99] transition-all"
+            className="w-full h-13 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black rounded-2xl dark:hover:bg-zinc-200 text-xs font-mono font-black tracking-widest uppercase flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-xl active:scale-[0.99] transition-all"
           >
             <Plus size={15} /> Add holdings account
           </button>
         </form>
       </div>
 
-      {/* 2. cards Setup and displays */}
-      <div className="bg-card border border-default rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-6 opacity-[0.06] pointer-events-none select-none">
+      {/* 2. Cards Setup and Displays */}
+      <div className="bg-white dark:bg-[#0e0e15] border border-zinc-200 dark:border-zinc-800/70 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-6 opacity-[0.06] dark:opacity-[0.03] pointer-events-none select-none">
           <CreditCard size={80} className="stroke-[1px]" />
         </div>
 
         {/* Section Header */}
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-5 border-b border-default/60 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-5 border-b border-zinc-200 dark:border-zinc-800/60 mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 rounded-xl">
+            <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl">
               <CreditCard size={20} className="stroke-[2px]" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-primary tracking-tight">
-                Debit & Credit Bank cards
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">
+                Debit & Credit Bank Cards
               </h3>
-              <p className="text-xs text-muted dark:text-secondary mt-0.5">Manage unlimited physical and electronic cards and lines of credit</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Manage unlimited physical and electronic cards and lines of credit</p>
             </div>
           </div>
           {!isAddingCard && (
             <button
               onClick={() => setIsAddingCard(true)}
-              className="text-[11px] font-bold text-secondary dark:text-primary uppercase bg-surface dark:bg-card border border-subtle dark:border-default px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 hover:border-subtle dark:hover:border-default hover:bg-surface dark:hover:bg-card active:scale-95 cursor-pointer transition-all shadow-sm self-start sm:self-auto"
+              className="text-[11px] font-bold text-zinc-700 dark:text-white uppercase bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-200 dark:hover:bg-zinc-850 active:scale-95 cursor-pointer transition-all shadow-sm self-start sm:self-auto"
             >
-              <Plus size={13} /> New Bank card
+              <Plus size={13} /> New Bank Card
             </button>
           )}
         </div>
 
-        {/* card Creation form toggle sheet */}
+        {/* Card Creation form toggle sheet */}
         {isAddingCard && (
-          <form onSubmit={handleCreateCard} className="bg-surface dark:bg-card border border-subtle dark:border-default p-6 md:p-8 rounded-[24px] mb-6 space-y-6 animate-fade-in text-left">
-            <div className="flex justify-between items-center pb-4 border-b border-subtle dark:border-default/60">
-              <span className="text-xs font-black text-primary dark:text-primary uppercase tracking-widest font-mono">Issue Electronic Card</span>
+          <form onSubmit={handleCreateCard} className="bg-zinc-50 dark:bg-[#050508] border border-zinc-200 dark:border-zinc-850 p-6 md:p-8 rounded-[24px] mb-6 space-y-6 animation-fade-in text-left">
+            <div className="flex justify-between items-center pb-4 border-b border-zinc-200 dark:border-zinc-850/60">
+              <span className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-widest font-mono">Issue Electronic Card</span>
               <button
                 type="button"
-                className="text-xs font-mono font-bold text-secondary hover:text-muted dark:text-muted dark:hover:text-primary uppercase transition-colors cursor-pointer"
+                className="text-xs font-mono font-bold text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-white uppercase transition-colors cursor-pointer"
                 onClick={() => setIsAddingCard(false)}
               >
                 Cancel
@@ -894,7 +905,7 @@ export default function CashCardManagement({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Card Nickname</label>
+                <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Card Nickname</label>
                 <input
                   ref={cardNameInputRef}
                   type="text"
@@ -902,23 +913,23 @@ export default function CashCardManagement({
                   value={cardName}
                   onChange={(e) => {
                     setCardName(e.target.value);
-                    validateCard(e.target.value, bankName, CardBalance, cardNumber, Cardsubmitted);
+                    validateCard(e.target.value, bankName, cardBalance, cardNumber, cardSubmitted);
                   }}
-                  className={`w-full bg-card border text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-secondary dark:placeholder:text-muted/70 ${
-                    CardErrors.name
+                  className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70 ${
+                    cardErrors.name
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                      : cardName && !CardErrors.name
-                      ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
-                      : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : cardName && !cardErrors.name
+                      ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                      : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
-                {CardErrors.name && (
-                  <span className="text-rose-500 dark:text-danger text-[10px] font-mono pl-1">{CardErrors.name}</span>
+                {cardErrors.name && (
+                  <span className="text-rose-500 dark:text-rose-400 text-[10px] font-mono pl-1">{cardErrors.name}</span>
                 )}
               </div>
               
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Bank Issuer Name</label>
+                <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Bank Issuer Name</label>
                 <input
                   ref={bankNameInputRef}
                   type="text"
@@ -926,29 +937,29 @@ export default function CashCardManagement({
                   value={bankName}
                   onChange={(e) => {
                     setBankName(e.target.value);
-                    validateCard(cardName, e.target.value, CardBalance, cardNumber, Cardsubmitted);
+                    validateCard(cardName, e.target.value, cardBalance, cardNumber, cardSubmitted);
                   }}
-                  className={`w-full bg-card border text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-secondary dark:placeholder:text-muted/70 ${
-                    CardErrors.bank
+                  className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70 ${
+                    cardErrors.bank
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                      : bankName && !CardErrors.bank
-                      ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
-                      : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : bankName && !cardErrors.bank
+                      ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                      : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
-                {CardErrors.bank && (
-                  <span className="text-rose-500 dark:text-danger text-[10px] font-mono pl-1">{CardErrors.bank}</span>
+                {cardErrors.bank && (
+                  <span className="text-rose-500 dark:text-rose-400 text-[10px] font-mono pl-1">{cardErrors.bank}</span>
                 )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Card Type</label>
+                <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Card Type</label>
                 <select
                   value={cardType}
                   onChange={(e) => setCardType(e.target.value as 'Debit' | 'Credit')}
-                  className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold hover:border-subtle dark:hover:border-default/80 transition-all cursor-pointer"
+                  className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold hover:border-zinc-350 dark:hover:border-zinc-700/80 transition-all cursor-pointer"
                 >
                   <option value="Debit">Debit Account</option>
                   <option value="Credit">Credit Card</option>
@@ -956,41 +967,41 @@ export default function CashCardManagement({
               </div>
               
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">
-                  {cardType === 'Credit' ? `Starting debt Owed (${currency})` : `Starting Balance (${currency})`}
+                <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">
+                  {cardType === 'Credit' ? `Starting Debt Owed (${currency})` : `Starting Balance (${currency})`}
                 </label>
                 <input
-                  ref={CardBalanceInputRef}
+                  ref={cardBalanceInputRef}
                   type="number"
                   placeholder="0.00"
-                  value={CardBalance}
+                  value={cardBalance}
                   onChange={(e) => {
                     setCardBalance(e.target.value);
-                    validateCard(cardName, bankName, e.target.value, cardNumber, Cardsubmitted);
+                    validateCard(cardName, bankName, e.target.value, cardNumber, cardSubmitted);
                   }}
-                  className={`w-full bg-card border text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-secondary dark:placeholder:text-muted/70 ${
-                    CardErrors.balance
+                  className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70 ${
+                    cardErrors.balance
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                      : CardBalance !== '' && !CardErrors.balance
-                      ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
-                      : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : cardBalance !== '' && !cardErrors.balance
+                      ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                      : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
-                {CardErrors.balance && (
-                  <span className="text-rose-500 dark:text-danger text-[10px] font-mono pl-1">{CardErrors.balance}</span>
+                {cardErrors.balance && (
+                  <span className="text-rose-500 dark:text-rose-400 text-[10px] font-mono pl-1">{cardErrors.balance}</span>
                 )}
               </div>
             </div>
 
             {cardType === 'Credit' && (
               <div className="flex flex-col gap-2 text-left">
-                <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Credit card Limit ({currency})</label>
+                <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Credit Card Limit ({currency})</label>
                 <input
                   type="number"
                   placeholder="e.g. 50000"
-                  value={CardLimit}
+                  value={cardLimit}
                   onChange={(e) => setCardLimit(e.target.value)}
-                  className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-subtle dark:hover:border-default/80 font-mono transition-all placeholder:text-secondary dark:placeholder:text-muted/70"
+                  className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-zinc-350 dark:hover:border-zinc-700/80 font-mono transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70"
                 />
               </div>
             )}
@@ -998,51 +1009,50 @@ export default function CashCardManagement({
             {cardType === 'Debit' && (
               <div className="flex flex-col gap-2 text-left">
                 <div className="flex justify-between items-center pl-0.5">
-                  <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider">Lockea/Hela Amount ({currency})</label>
-                  <span className="text-[9px] text-secondary dark:text-muted font-mono">Locks funds from spendable balance</span>
+                  <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Locked/Held Amount ({currency})</label>
+                  <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-mono">Locks funds from spendable balance</span>
                 </div>
                 <input
                   type="number"
                   placeholder="e.g. 500 (Optional)"
-                  value={CardLockedAmount}
+                  value={cardLockedAmount}
                   onChange={(e) => setCardLockedAmount(e.target.value)}
-                  className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-subtle dark:hover:border-default/80 font-mono transition-all placeholder:text-secondary dark:placeholder:text-muted/70"
+                  className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-zinc-350 dark:hover:border-zinc-700/80 font-mono transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70"
                 />
               </div>
             )}
 
             <div className="flex flex-col gap-2 text-left">
-              <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Card Number (Optional)</label>
+              <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Card Number (Optional)</label>
               <input
                 ref={cardNumberInputRef}
                 type="text"
                 placeholder="e.g. 4201 9283"
                 value={cardNumber}
                 onChange={(e) => {
-                  const digits = e.target.value.replace(/\D/g, '');
-                  setcardNumber(digits);
-                  validateCard(cardName, bankName, CardBalance, digits, Cardsubmitted);
+                  setCardNumber(e.target.value);
+                  validateCard(cardName, bankName, cardBalance, e.target.value, cardSubmitted);
                 }}
                 maxLength={19}
-                className={`w-full bg-card border text-primary dark:text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-secondary dark:placeholder:text-muted/70 ${
-                  CardErrors.number
+                className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70 ${
+                  cardErrors.number
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                    : cardNumber && !CardErrors.number
-                    ? 'border-blue-500 focus:border-blue-500 focus:ring-blue-500'
-                    : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    : cardNumber && !cardErrors.number
+                    ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500'
+                    : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
-              {CardErrors.number && (
-                <span className="text-rose-500 dark:text-danger text-[10px] font-mono pl-1">{CardErrors.number}</span>
+              {cardErrors.number && (
+                <span className="text-rose-500 dark:text-rose-400 text-[10px] font-mono pl-1">{cardErrors.number}</span>
               )}
             </div>
 
             {/* Custom Aesthetic Theme Selectors */}
             <div className="space-y-3 text-left">
-              <span className="text-[10px] text-muted dark:text-secondary font-mono font-black block uppercase tracking-widest pl-0.5">Gloss/Hologram Hue</span>
+              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-black block uppercase tracking-widest pl-0.5">Gloss/Hologram Hue</span>
               <div className="flex gap-2.5 flex-wrap pl-0.5">
                 {[
-                  { name: 'obsidian', color: 'bg-surface dark:bg-card ring-zinc-500 dark:ring-white' },
+                  { name: 'obsidian', color: 'bg-zinc-800 dark:bg-zinc-850 ring-zinc-500 dark:ring-white' },
                   { name: 'sapphire', color: 'bg-blue-600 ring-blue-400' },
                   { name: 'blue', color: 'bg-sky-600 ring-sky-400' },
                   { name: 'emerald', color: 'bg-emerald-600 ring-emerald-400' },
@@ -1068,14 +1078,14 @@ export default function CashCardManagement({
 
             <button
               type="submit"
-              className="w-full h-13 bg-card text-primary hover:bg-surface dark:bg-white dark:text-black rounded-2xl dark:hover:bg-surface font-mono font-black text-xs transition-all cursor-pointer uppercase tracking-widest shadow-lg hover:shadow-xl active:scale-[0.99]"
+              className="w-full h-13 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black rounded-2xl dark:hover:bg-zinc-200 font-mono font-black text-xs transition-all cursor-pointer uppercase tracking-widest shadow-lg hover:shadow-xl active:scale-[0.99]"
             >
-              Verify & Add Electronic card
+              Verify & Add Electronic Card
             </button>
           </form>
         )}
 
-        {/* display Beautiful Physical card Previews */}
+        {/* Display Beautiful Physical Card Previews */}
         <div className="space-y-4">
           {(() => {
             const activeCards = cards.filter(c => !c.isCanceled && !(c as any).is_canceled);
@@ -1084,8 +1094,8 @@ export default function CashCardManagement({
             return (
               <>
                 {activeCards.length === 0 ? (
-                  <div className="p-8 text-center text-muted text-xs border border-dashed border-default rounded-xl">
-                    No active cards. Add a credit/Debit card.
+                  <div className="p-8 text-center text-zinc-500 text-xs border border-dashed border-zinc-800 rounded-xl">
+                    No active cards. Add a credit/debit card.
                   </div>
                 ) : (
                   activeCards.map((card, idx) => {
@@ -1098,21 +1108,21 @@ export default function CashCardManagement({
                     const usedCredit = limit > 0 ? Math.max(0, limit - availableCredit) : 0;
                     const utilizationPct = limit > 0 ? Math.min(100, (usedCredit / limit) * 100) : 0;
                     
-                    let progressColor = 'bg-blue-500 shadow-blue-500/20';
-                    let textProgressColor = 'text-success';
+                    let progressColor = 'bg-emerald-500 shadow-emerald-500/20';
+                    let textProgressColor = 'text-emerald-400';
                     if (utilizationPct >= 70) {
                       progressColor = 'bg-rose-500 shadow-rose-500/20';
-                      textProgressColor = 'text-danger';
+                      textProgressColor = 'text-rose-400';
                     } else if (utilizationPct >= 30) {
                       progressColor = 'bg-amber-500 shadow-amber-500/20';
                       textProgressColor = 'text-amber-400';
                     }
 
-                    const hasdetails = isCredit || (card.lockedAmount !== undefined && card.lockedAmount > 0);
+                    const hasDetails = isCredit || (card.lockedAmount !== undefined && card.lockedAmount > 0);
                     const isExpanded = !!expandedCardIds[card.id];
 
                     return (
-                      <div key={card.id} className={`p-4 rounded-[32px] border ${isCredit ? 'border-subtle dark:border-default bg-surface dark:bg-card/65 shadow-xl' : 'border-transparent bg-transparent'} space-y-3`}>
+                      <div key={card.id} className={`p-4 rounded-[32px] border ${isCredit ? 'border-zinc-200 dark:border-zinc-850 bg-zinc-50 dark:bg-[#09090d]/65 shadow-xl' : 'border-transparent bg-transparent'} space-y-3`}>
                         <InteractiveBankCard
                           card={card}
                           idx={idx}
@@ -1121,22 +1131,22 @@ export default function CashCardManagement({
                           onDeleteCard={onDeleteCard}
                           getCardGradient={getCardGradient}
                           setEditingCard={setEditingCard}
-                          setEditcardName={setEditcardName}
-                          setEditcardNumber={setEditcardNumber}
-                          setEditcardTheme={setEditcardTheme}
+                          setEditCardName={setEditCardName}
+                          setEditCardNumber={setEditCardNumber}
+                          setEditCardTheme={setEditCardTheme}
                           setEditCardErrors={setEditCardErrors}
                           setEditCardSubmitted={setEditCardSubmitted}
                           onApplyCardCharge={onApplyCardCharge}
                           onDeleteCardCharge={onDeleteCardCharge}
                           setEditCardLockedAmount={setEditCardLockedAmount}
                           onClick={() => {
-                            if (hasdetails) {
+                            if (hasDetails) {
                               setExpandedCardIds(prev => ({ ...prev, [card.id]: !prev[card.id] }));
                             }
                           }}
                         />
 
-                        {hasdetails && (
+                        {hasDetails && (
                           <div className="flex justify-center -mt-1 pb-1">
                             <button
                               type="button"
@@ -1144,27 +1154,27 @@ export default function CashCardManagement({
                                 e.stopPropagation();
                                 setExpandedCardIds(prev => ({ ...prev, [card.id]: !prev[card.id] }));
                               }}
-                              className="flex items-center gap-1.5 px-4 py-1.5 bg-surface dark:bg-surface border border-subtle dark:border-subtle hover:border-subtle dark:hover:border-default hover:bg-surface dark:hover:bg-surface text-muted dark:text-secondary hover:text-secondary dark:hover:text-primary rounded-full text-[10px] font-mono uppercase tracking-wider font-bold transition-all shadow-md cursor-pointer active:scale-95"
-                              title={isExpanded ? 'Collapse details' : 'Expand details'}
+                              className="flex items-center gap-1.5 px-4 py-1.5 bg-zinc-100 dark:bg-[#0d0d12] border border-zinc-250 dark:border-zinc-800/80 hover:border-zinc-350 dark:hover:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-[#12121a] text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-full text-[10px] font-mono uppercase tracking-wider font-bold transition-all shadow-md cursor-pointer active:scale-95"
+                              title={isExpanded ? 'Collapse Details' : 'Expand Details'}
                             >
-                              <span>{isExpanded ? 'Hide details' : 'Show details'}</span>
+                              <span>{isExpanded ? 'Hide Details' : 'Show Details'}</span>
                               <ChevronDown 
                                 size={12} 
-                                className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-180 text-success' : 'rotate-0'}`} 
+                                className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-180 text-emerald-400' : 'rotate-0'}`} 
                               />
                             </button>
                           </div>
                         )}
                         
-                        {hasdetails && (
+                        {hasDetails && (
                           <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
                             {!isCredit && card.lockedAmount && card.lockedAmount > 0 ? (
-                              <div id={`Card-details-${card.id}`} className="px-1.5 space-y-3 pt-1">
+                              <div id={`card-details-${card.id}`} className="px-1.5 space-y-3 pt-1">
                                 {/* Locked balance section & Hold Alert Banner */}
-                                <div className="flex flex-wrap justify-between items-center gap-2 border-t border-subtle dark:border-default pt-3">
+                                <div className="flex flex-wrap justify-between items-center gap-2 border-t border-zinc-200 dark:border-zinc-900 pt-3">
                                   <div>
-                                    <span className="text-[10px] text-muted uppercase font-mono block">Spendable Balance</span>
-                                    <span className="text-sm font-black font-mono text-blue-600 dark:text-success block leading-none">
+                                    <span className="text-[10px] text-zinc-500 uppercase font-mono block">Spendable Balance</span>
+                                    <span className="text-sm font-black font-mono text-emerald-600 dark:text-emerald-400 block leading-none">
                                       {currency}{(card.currentBalance - card.lockedAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </span>
                                   </div>
@@ -1174,40 +1184,40 @@ export default function CashCardManagement({
                                   </div>
                                 </div>
 
-                                {/* Hold progression */}
-                                <div className="space-y-2.5 bg-surface/60 dark:bg-black/40 border border-subtle dark:border-default p-3 rounded-2xl">
+                                {/* Held progression */}
+                                <div className="space-y-2.5 bg-zinc-100/60 dark:bg-black/40 border border-zinc-200 dark:border-zinc-900 p-3 rounded-2xl">
                                   <div className="flex justify-between items-center">
-                                    <span className="text-[9px] text-muted font-bold uppercase tracking-wider font-mono">Available Portion</span>
-                                    <span className="text-[11px] font-black font-mono text-blue-600 dark:text-success">
+                                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider font-mono">Available Portion</span>
+                                    <span className="text-[11px] font-black font-mono text-emerald-600 dark:text-emerald-400">
                                       {card.currentBalance > 0 ? ((card.currentBalance - card.lockedAmount) / card.currentBalance * 100).toFixed(0) : 0}% Clear
                                     </span>
                                   </div>
 
                                   {/* Progress track */}
-                                  <div className="w-full h-2 bg-surface dark:bg-card rounded-full overflow-hidden relative shadow-inner">
+                                  <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-900 rounded-full overflow-hidden relative shadow-inner">
                                     <div 
-                                      className="h-full rounded-full transition-all duration-500 bg-blue-500 shadow-blue-500/20"
+                                      className="h-full rounded-full transition-all duration-500 bg-emerald-500 shadow-emerald-500/20"
                                       style={{ width: `${card.currentBalance > 0 ? Math.max(0, Math.min(100, ((card.currentBalance - card.lockedAmount) / card.currentBalance * 100))) : 0}%` }}
                                     />
                                   </div>
 
-                                  {/* details Grid */}
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-1 text-center pt-1 border-t border-subtle dark:border-default/50">
+                                  {/* Details grid */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-1 text-center pt-1 border-t border-zinc-200 dark:border-zinc-900/50">
                                     <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0">
-                                      <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Total Balance</span>
-                                      <span className="text-xs font-bold font-mono text-secondary dark:text-primary">
+                                      <span className="text-[9px] sm:text-[8px] text-zinc-500 uppercase font-mono">Total Balance</span>
+                                      <span className="text-xs font-bold font-mono text-zinc-700 dark:text-zinc-300">
                                         {currency}{card.currentBalance.toLocaleString()}
                                       </span>
                                     </div>
-                                    <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-subtle dark:border-default/40 sm:border-x sm:border-subtle sm:dark:border-default/40">
-                                      <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Locked Funds</span>
+                                    <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-200 dark:border-zinc-900/40 sm:border-x sm:border-zinc-200 sm:dark:border-zinc-900/40">
+                                      <span className="text-[9px] sm:text-[8px] text-zinc-500 uppercase font-mono">Locked Funds</span>
                                       <span className="text-xs font-bold font-mono text-amber-500">
                                         {currency}{card.lockedAmount.toLocaleString()}
                                       </span>
                                     </div>
-                                    <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-subtle dark:border-default/40">
-                                      <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Spendable</span>
-                                      <span className="text-xs font-bold font-mono text-blue-600 dark:text-success">
+                                    <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-200 dark:border-zinc-900/40">
+                                      <span className="text-[9px] sm:text-[8px] text-zinc-500 uppercase font-mono">Spendable</span>
+                                      <span className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400">
                                         {currency}{Math.max(0, card.currentBalance - card.lockedAmount).toLocaleString()}
                                       </span>
                                     </div>
@@ -1217,29 +1227,29 @@ export default function CashCardManagement({
                             ) : null}
                             
                             {isCredit && (
-                              <div id={`Card-details-${card.id}`} className="px-1.5 space-y-3 pt-1">
-                                {/* Outstanding balance section & debt badge */}
-                                <div className="flex flex-wrap justify-between items-center gap-2 border-t border-subtle dark:border-default pt-3">
+                              <div id={`card-details-${card.id}`} className="px-1.5 space-y-3 pt-1">
+                                {/* Outstanding balance section & Debt Badge */}
+                                <div className="flex flex-wrap justify-between items-center gap-2 border-t border-zinc-200 dark:border-zinc-900 pt-3">
                                   <div>
-                                    <span className="text-[10px] text-muted uppercase font-mono block">Current Balance</span>
+                                    <span className="text-[10px] text-zinc-500 uppercase font-mono block">Current Balance</span>
                                     {hasNegativeBalance ? (
                                       <div className="space-y-0.5">
-                                        <span id="credit-Card-negative-balance" className="text-sm font-black font-mono text-rose-500 block leading-none">
+                                        <span id="credit-card-negative-balance" className="text-sm font-black font-mono text-rose-500 block leading-none">
                                           -{currency}{outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </span>
-                                        <span className="text-[9px] text-rose-500 dark:text-danger/80 font-mono font-semibold block">
-                                          Outstanding debt {currency}{outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        <span className="text-[9px] text-rose-500 dark:text-rose-400/80 font-mono font-semibold block">
+                                          Outstanding Debt {currency}{outstandingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </span>
                                       </div>
                                     ) : (
-                                      <span className="text-sm font-black font-mono text-blue-600 dark:text-success block leading-none">
+                                      <span className="text-sm font-black font-mono text-emerald-600 dark:text-emerald-400 block leading-none">
                                         {currency}{card.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                       </span>
                                     )}
                                   </div>
                                   
                                   {hasNegativeBalance && (
-                                    <div className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-danger text-[10px] font-mono leading-none flex items-center gap-1.5 shadow-[inset_0_1px_5px_rgba(239,68,68,0.1)]">
+                                    <div className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 text-[10px] font-mono leading-none flex items-center gap-1.5 shadow-[inset_0_1px_5px_rgba(239,68,68,0.1)]">
                                       <span>⚠️</span>
                                       <span className="font-extrabold tracking-wide">OUTSTANDING CREDIT CARD DEBT</span>
                                     </div>
@@ -1248,39 +1258,39 @@ export default function CashCardManagement({
 
                                 {/* Credit limit and utilization progress */}
                                 {limit > 0 && (
-                                  <div className="space-y-2.5 bg-surface/60 dark:bg-black/40 border border-subtle dark:border-default p-3 rounded-2xl">
+                                  <div className="space-y-2.5 bg-zinc-100/60 dark:bg-black/40 border border-zinc-200 dark:border-zinc-900 p-3 rounded-2xl">
                                     <div className="flex justify-between items-center">
-                                      <span className="text-[9px] text-muted font-bold uppercase tracking-wider font-mono">Credit Utilization</span>
+                                      <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider font-mono">Credit Utilization</span>
                                       <span className={`text-[11px] font-black font-mono ${textProgressColor}`}>
-                                        {utilizationPct.toFixed(0)}% Usea
+                                        {utilizationPct.toFixed(0)}% Used
                                       </span>
                                     </div>
 
                                     {/* Progress track */}
-                                    <div className="w-full h-2 bg-surface dark:bg-card rounded-full overflow-hidden relative shadow-inner">
+                                    <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-900 rounded-full overflow-hidden relative shadow-inner">
                                       <div 
                                         className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
                                         style={{ width: `${utilizationPct}%` }}
                                       />
                                     </div>
 
-                                    {/* details Grid */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-1 text-center pt-1 border-t border-subtle dark:border-default/50">
+                                    {/* Details grid */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-1 text-center pt-1 border-t border-zinc-200 dark:border-zinc-900/50">
                                       <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0">
-                                        <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Credit Limit</span>
-                                        <span className="text-xs font-bold font-mono text-secondary dark:text-primary">
+                                        <span className="text-[9px] sm:text-[8px] text-zinc-500 uppercase font-mono">Credit Limit</span>
+                                        <span className="text-xs font-bold font-mono text-zinc-700 dark:text-zinc-300">
                                           {currency}{limit.toLocaleString()}
                                         </span>
                                       </div>
-                                      <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-subtle dark:border-default/40 sm:border-x sm:border-subtle sm:dark:border-default/40">
-                                        <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Used Credit</span>
-                                        <span className={`text-xs font-bold font-mono ${usedCredit > 0 ? 'text-rose-500 dark:text-danger' : 'text-secondary dark:text-primary'}`}>
+                                      <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-200 dark:border-zinc-900/40 sm:border-x sm:border-zinc-200 sm:dark:border-zinc-900/40">
+                                        <span className="text-[9px] sm:text-[8px] text-zinc-500 uppercase font-mono">Used Credit</span>
+                                        <span className={`text-xs font-bold font-mono ${usedCredit > 0 ? 'text-rose-500 dark:text-rose-400' : 'text-zinc-700 dark:text-zinc-300'}`}>
                                           {currency}{usedCredit.toLocaleString()}
                                         </span>
                                       </div>
-                                      <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-subtle dark:border-default/40">
-                                        <span className="text-[9px] sm:text-[8px] text-muted uppercase font-mono">Available</span>
-                                        <span className="text-xs font-bold font-mono text-blue-600 dark:text-success">
+                                      <div className="flex sm:flex-col justify-between sm:justify-center items-center px-1 sm:px-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-200 dark:border-zinc-900/40">
+                                        <span className="text-[9px] sm:text-[8px] text-zinc-500 uppercase font-mono">Available</span>
+                                        <span className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400">
                                           {currency}{Math.max(0, availableCredit).toLocaleString()}
                                         </span>
                                       </div>
@@ -1297,15 +1307,15 @@ export default function CashCardManagement({
                 )}
 
                 {canceledCards.length > 0 && (
-                  <div className="mt-8 pt-5 border-t border-subtle dark:border-default/80">
+                  <div className="mt-8 pt-5 border-t border-zinc-200 dark:border-zinc-900/80">
                     <button
                       type="button"
                       onClick={() => setShowCanceled(!showCanceled)}
-                      className="w-full py-2.5 bg-surface hover:bg-surface dark:bg-card dark:hover:bg-[#0c0c0c] text-[10px] text-muted dark:text-muted hover:text-primary dark:hover:text-primary font-mono font-bold tracking-wider rounded-xl uppercase flex items-center justify-between px-4 border border-subtle dark:border-default transition-all duration-300 shadow-inner cursor-pointer"
+                      className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-[#080808] dark:hover:bg-[#0c0c0c] text-[10px] text-zinc-600 dark:text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 font-mono font-bold tracking-wider rounded-xl uppercase flex items-center justify-between px-4 border border-zinc-200 dark:border-zinc-900 transition-all duration-300 shadow-inner cursor-pointer"
                     >
                       <span className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-surface0 animate-pulse" />
-                        Archived / Canceled cards ({canceledCards.length})
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 animate-pulse" />
+                        Archived / Canceled Cards ({canceledCards.length})
                       </span>
                       <span>{showCanceled ? 'Hide Archive' : 'Show Archive'}</span>
                     </button>
@@ -1322,9 +1332,9 @@ export default function CashCardManagement({
                               onDeleteCard={onDeleteCard}
                               getCardGradient={getCardGradient}
                               setEditingCard={setEditingCard}
-                              setEditcardName={setEditcardName}
-                              setEditcardNumber={setEditcardNumber}
-                              setEditcardTheme={setEditcardTheme}
+                              setEditCardName={setEditCardName}
+                              setEditCardNumber={setEditCardNumber}
+                              setEditCardTheme={setEditCardTheme}
                               setEditCardErrors={setEditCardErrors}
                               setEditCardSubmitted={setEditCardSubmitted}
                               setEditCardLockedAmount={setEditCardLockedAmount}
@@ -1338,7 +1348,7 @@ export default function CashCardManagement({
                                   onUpdateCard({ ...card, isCanceled: false });
                                   showToast('success', `${card.cardName} has been fully reactivated.`);
                                 }}
-                                className="px-3 py-1.5 text-[10px] bg-blue-500/10 border border-blue-500/30 text-success hover:bg-blue-500/20 active:scale-95 transition-all rounded-lg font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer"
+                                className="px-3 py-1.5 text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition-all rounded-lg font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer"
                               >
                                 <RefreshCw size={10} className="stroke-[2.5px] animate-spin-reverse" />
                                 <span>Reactivate</span>
@@ -1355,104 +1365,103 @@ export default function CashCardManagement({
           })()}
         </div>
       </div>
-      {/* Edit card AJAX/Popup Moaal */}
-      {EditingCard && (() => {
-        const isCredit = EditingCard.cardType === 'Credit';
-        const currentCharges = EditingCard.charges || [];
+      {/* Edit Card AJAX/Popup Modal */}
+      {editingCard && (() => {
+        const isCredit = editingCard.cardType === 'Credit';
+        const currentCharges = editingCard.charges || [];
         
         return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in" onClick={() => setEditingCard(null)}>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animation-fade-in" onClick={() => setEditingCard(null)}>
             <div 
-              className={`bg-card/98 border border-subtle dark:border-subtle p-6 md:p-8 rounded-[32px] shadow-2xl w-full scrollbar-none max-h-[90vh] overflow-y-auto transition-all duration-300 ${
+              className={`bg-white dark:bg-[#0c0c12]/98 border border-zinc-200 dark:border-zinc-800/80 p-6 md:p-8 rounded-[32px] shadow-2xl w-full scrollbar-none max-h-[90vh] overflow-y-auto transition-all duration-300 ${
                 isCredit ? 'max-w-3xl' : 'max-w-md'
               }`} 
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center pb-4 border-b border-subtle dark:border-default mb-6">
+              <div className="flex justify-between items-center pb-4 border-b border-zinc-200 dark:border-zinc-900 mb-6">
                 <div className="space-y-1">
-                  <h3 className="text-primary dark:text-primary font-black text-lg flex items-center gap-2.5 tracking-tight">
-                    <Edit size={16} className="text-blue-500" />
-                    Edit card Settings
+                  <h3 className="text-zinc-900 dark:text-white font-black text-lg flex items-center gap-2.5 tracking-tight">
+                    <Edit size={16} className="text-emerald-500" />
+                    Edit Card Settings
                   </h3>
-                  <p className="text-xs text-muted dark:text-secondary font-medium">Configure active holdings for <strong className="text-secondary dark:text-primary">{EditingCard.cardName}</strong></p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-450 font-medium">Configure active holdings for <strong className="text-zinc-700 dark:text-zinc-300">{editingCard.cardName}</strong></p>
                 </div>
                 <button 
                   onClick={() => setEditingCard(null)} 
-                  className="text-xs font-mono font-bold text-secondary hover:text-muted dark:text-muted dark:hover:text-primary uppercase transition-colors px-3 py-1.5 rounded-lg hover:bg-surface dark:hover:bg-card cursor-pointer"
+                  className="text-xs font-mono font-bold text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-white uppercase transition-colors px-3 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer"
                 >
                   Close
                 </button>
               </div>
 
               <div className={`grid grid-cols-1 ${isCredit ? 'md:grid-cols-2 gap-8' : 'gap-6'}`}>
-                {/* Left side: card Fields */}
-                <form onSubmit={handleSaveeditCard} className="space-y-5 text-left">
+                {/* Left side: Card Fields */}
+                <form onSubmit={handleSaveEditCard} className="space-y-5 text-left">
                   <div className="space-y-4">
-                    <span className="text-[10px] text-secondary dark:text-muted font-mono tracking-widest font-bold uppercase block pl-0.5">General Settings</span>
-                    <div className="border border-subtle dark:border-subtle p-5 rounded-[24px] bg-surface dark:bg-card space-y-5">
+                    <span className="text-[10px] text-zinc-450 dark:text-zinc-500 font-mono tracking-widest font-bold uppercase block pl-0.5">General Settings</span>
+                    <div className="border border-zinc-200 dark:border-zinc-850/80 p-5 rounded-[24px] bg-zinc-50 dark:bg-[#050508] space-y-5">
                       <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Card Nickname</label>
+                        <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Card Nickname</label>
                         <input
                           type="text"
                           placeholder="e.g. Travel Silver Black"
-                          value={editcardName}
+                          value={editCardName}
                           onChange={(e) => {
-                            setEditcardName(e.target.value);
-                            validateeditCard(e.target.value, editcardNumber);
+                            setEditCardName(e.target.value);
+                            validateEditCard(e.target.value, editCardNumber);
                           }}
-                          className={`w-full bg-card border text-primary dark:text-primary rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-secondary dark:placeholder:text-muted/70 ${
+                          className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all font-semibold placeholder:text-zinc-400 dark:placeholder:text-zinc-600/70 ${
                             editCardErrors.name
                               ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                              : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                              : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                           }`}
                         />
                         {editCardErrors.name && (
-                          <span className="text-rose-500 dark:text-danger text-[10px] font-mono pl-1 block">{editCardErrors.name}</span>
+                          <span className="text-rose-500 dark:text-rose-400 text-[10px] font-mono pl-1 block">{editCardErrors.name}</span>
                         )}
                       </div>
 
                       <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Card Number (digits only)</label>
+                        <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Card Number (digits only)</label>
                         <input
                           type="text"
                           placeholder="e.g. 4201 9283 (optional)"
-                          value={editcardNumber}
+                          value={editCardNumber}
                           onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '');
-                            setEditcardNumber(digits);
-                            validateeditCard(editcardName, digits);
+                            setEditCardNumber(e.target.value);
+                            validateEditCard(editCardName, e.target.value);
                           }}
                           maxLength={19}
-                          className={`w-full bg-card border text-primary dark:text-primary rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-secondary dark:placeholder:text-muted/70 ${
+                          className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70 ${
                             editCardErrors.number
                               ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                              : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                              : 'border-zinc-200 dark:border-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                           }`}
                         />
                         {editCardErrors.number && (
-                          <span className="text-rose-500 dark:text-danger text-[10px] font-mono pl-1 block">{editCardErrors.number}</span>
+                          <span className="text-rose-500 dark:text-rose-400 text-[10px] font-mono pl-1 block">{editCardErrors.number}</span>
                         )}
                       </div>
 
                       {!isCredit && (
                         <div className="flex flex-col gap-2">
-                          <label className="text-[10px] font-mono font-black text-muted dark:text-secondary uppercase tracking-wider pl-0.5">Lockea/Hela Amount ({currency})</label>
+                          <label className="text-[10px] font-mono font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pl-0.5">Locked/Held Amount ({currency})</label>
                           <input
                             type="number"
                             placeholder="e.g. 500"
                             value={editCardLockedAmount}
                             onChange={(e) => setEditCardLockedAmount(e.target.value)}
-                            className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-subtle dark:hover:border-default/80 font-mono transition-all placeholder:text-secondary dark:placeholder:text-muted/70"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 hover:border-zinc-350 dark:hover:border-zinc-700/80 font-mono transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-650/70"
                           />
                         </div>
                       )}
 
                       {/* Custom Aesthetic Theme Selectors */}
                       <div className="space-y-3">
-                        <span className="text-[10px] text-muted dark:text-secondary font-mono font-black block uppercase tracking-widest pl-0.5">Gloss/Hologram Hue</span>
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-black block uppercase tracking-widest pl-0.5">Gloss/Hologram Hue</span>
                         <div className="flex gap-2.5 flex-wrap pl-0.5">
                           {[
-                            { name: 'obsidian', color: 'bg-surface dark:bg-card ring-zinc-400 dark:ring-white' },
+                            { name: 'obsidian', color: 'bg-zinc-800 dark:bg-zinc-850 ring-zinc-400 dark:ring-white' },
                             { name: 'sapphire', color: 'bg-blue-600 ring-blue-400' },
                             { name: 'emerald', color: 'bg-emerald-600 ring-emerald-400' },
                             { name: 'copper', color: 'bg-amber-600 ring-amber-400' },
@@ -1461,9 +1470,9 @@ export default function CashCardManagement({
                             <button
                               key={th.name}
                               type="button"
-                              onClick={() => setEditcardTheme(th.name)}
+                              onClick={() => setEditCardTheme(th.name)}
                               className={`w-7 h-7 rounded-lg ${th.color} border border-black transition-all cursor-pointer ${
-                                editcardTheme === th.name ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#050505] scale-110' : 'opacity-70 hover:opacity-100'
+                                editCardTheme === th.name ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#050505] scale-110' : 'opacity-70 hover:opacity-100'
                               }`}
                             />
                           ))}
@@ -1472,46 +1481,46 @@ export default function CashCardManagement({
                     </div>
                   </div>
 
-                  <div className="flex gap-3 pt-3 justify-ena">
+                  <div className="flex gap-3 pt-3 justify-end">
                     <button
                       type="button"
                       onClick={() => setEditingCard(null)}
-                      className="px-4 h-12 text-xs font-mono font-bold text-secondary hover:text-muted dark:text-secondary dark:hover:text-primary transition-colors cursor-pointer"
+                      className="px-4 h-12 text-xs font-mono font-bold text-zinc-400 hover:text-zinc-650 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-6 h-12 text-xs font-mono font-black text-primary bg-card hover:bg-surface dark:text-black dark:bg-white dark:hover:bg-surface rounded-2xl transition-all shadow-lg tracking-widest uppercase cursor-pointer active:scale-95"
+                      className="px-6 h-12 text-xs font-mono font-black text-white bg-zinc-900 hover:bg-zinc-800 dark:text-black dark:bg-white dark:hover:bg-zinc-200 rounded-2xl transition-all shadow-lg tracking-widest uppercase cursor-pointer active:scale-95"
                     >
                       Save Settings
                     </button>
                   </div>
                 </form>
 
-                {/* Right side: Charges & Fees Manager (Only if Credit card) */}
+                {/* Right side: Charges & Fees Manager (Only if Credit Card) */}
                 {isCredit && (
-                  <div className="space-y-4 border-t md:border-t-0 md:border-l border-subtle dark:border-default pt-4 md:pt-0 md:pl-6">
-                    <span className="text-[10px] text-muted dark:text-primary font-mono tracking-wider font-bold uppercase block mb-1">Charges & Fees</span>
+                  <div className="space-y-4 border-t md:border-t-0 md:border-l border-zinc-200 dark:border-zinc-900 pt-4 md:pt-0 md:pl-6">
+                    <span className="text-[10px] text-zinc-600 dark:text-zinc-300 font-mono tracking-wider font-bold uppercase block mb-1">Charges & Fees</span>
                     
                     {/* List of Applied Charges */}
-                    <div className="space-y-2 max-h-44 overflow-y-auto scrollbar-none border-b border-subtle dark:border-default pb-3">
-                      <span className="text-[9px] text-muted font-bold uppercase font-mono block">Active Charges ({currentCharges.length})</span>
+                    <div className="space-y-2 max-h-44 overflow-y-auto scrollbar-none border-b border-zinc-200 dark:border-zinc-900 pb-3">
+                      <span className="text-[9px] text-zinc-500 font-bold uppercase font-mono block">Active Charges ({currentCharges.length})</span>
                       {currentCharges.length === 0 ? (
-                        <div className="p-4 text-center text-[10px] text-muted dark:text-muted border border-dashed border-subtle dark:border-default rounded-xl">
+                        <div className="p-4 text-center text-[10px] text-zinc-500 dark:text-zinc-600 border border-dashed border-zinc-200 dark:border-zinc-905 rounded-xl">
                           No charges or penalties applied yet.
                         </div>
                       ) : (
                         currentCharges.map((ch) => (
-                          <div key={ch.id} className="p-2.5 rounded-xl bg-surface/50 dark:bg-card border border-subtle dark:border-default flex justify-between items-center gap-2">
+                          <div key={ch.id} className="p-2.5 rounded-xl bg-zinc-100/50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 flex justify-between items-center gap-2">
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-bold text-primary dark:text-primary truncate">{ch.name}</span>
-                                <span className="text-[8px] px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/25 text-rose-500 dark:text-danger font-mono uppercase font-black">
+                                <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">{ch.name}</span>
+                                <span className="text-[8px] px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/25 text-rose-500 dark:text-rose-400 font-mono uppercase font-black">
                                   {ch.type.replace('Charge', '').replace('Fee', '').trim()}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-muted font-mono">
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-zinc-500 font-mono">
                                 <span>{ch.appliedDate}</span>
                                 {ch.isRecurring && <span className="text-amber-500">({ch.recurringInterval})</span>}
                                 {ch.description && <span className="truncate max-w-[125px] italic"> - {ch.description}</span>}
@@ -1525,15 +1534,15 @@ export default function CashCardManagement({
                                 type="button"
                                 onClick={() => {
                                   if (onDeleteCardCharge) {
-                                    onDeleteCardCharge(EditingCard.id, ch.id);
+                                    onDeleteCardCharge(editingCard.id, ch.id);
                                     setEditingCard({
-                                      ...EditingCard,
-                                      currentBalance: EditingCard.currentBalance + ch.amount,
+                                      ...editingCard,
+                                      currentBalance: editingCard.currentBalance + ch.amount,
                                       charges: currentCharges.filter(c => c.id !== ch.id)
                                     });
                                   }
                                 }}
-                                className="p-1 hover:bg-rose-500/10 text-secondary hover:text-rose-500 rounded-md transition-colors cursor-pointer"
+                                className="p-1 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 rounded-md transition-colors cursor-pointer"
                                 title="Remove Charge"
                               >
                                 <Trash2 size={11} />
@@ -1545,20 +1554,20 @@ export default function CashCardManagement({
                     </div>
 
                     {/* Add Charge Form Section */}
-                    <div className="border border-subtle dark:border-default p-4 rounded-2xl bg-surface dark:bg-card space-y-3">
-                      <span className="text-[10px] text-muted dark:text-secondary font-bold uppercase tracking-wider font-mono block">Apply Charging / Penalty</span>
+                    <div className="border border-zinc-200 dark:border-zinc-850 p-4 rounded-2xl bg-zinc-50 dark:bg-[#050508] space-y-3">
+                      <span className="text-[10px] text-zinc-600 dark:text-zinc-400 font-bold uppercase tracking-wider font-mono block">Apply Charging / Penalty</span>
                       
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[9px] font-mono text-muted block mb-1">Charge Type</label>
+                          <label className="text-[9px] font-mono text-zinc-500 block mb-1">Charge Type</label>
                           <select
                             value={chargeType}
                             onChange={(e) => {
                               const val = e.target.value as any;
-                              setchargeType(val);
+                              setChargeType(val);
                               setChargeName(CHARGE_DEFAULT_NAMES[val] || 'Custom Charge');
                             }}
-                            className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-xl text-xs px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
                           >
                             <option value="Interest">Interest Charge</option>
                             <option value="LatePayment">Late Payment Fee</option>
@@ -1569,20 +1578,20 @@ export default function CashCardManagement({
                         </div>
 
                         <div>
-                          <label className="text-[9px] font-mono text-muted block mb-1">Charge Name</label>
+                          <label className="text-[9px] font-mono text-zinc-500 block mb-1">Charge Name</label>
                           <input
                             type="text"
                             value={chargeName}
                             onChange={(e) => setChargeName(e.target.value)}
                             placeholder="Interest Charge"
-                            className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-xl text-xs px-3 py-2.5 focus:outline-none placeholder:text-secondary dark:placeholder:text-muted"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-650"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[9px] font-mono text-muted block mb-1">Amount ({currency})</label>
+                          <label className="text-[9px] font-mono text-zinc-500 block mb-1">Amount ({currency})</label>
                           <input
                             type="number"
                             step="0.01"
@@ -1590,15 +1599,15 @@ export default function CashCardManagement({
                             value={chargeAmount}
                             onChange={(e) => setChargeAmount(e.target.value)}
                             placeholder="50.00"
-                            className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-xl text-xs px-3 py-2.5 focus:outline-none font-mono placeholder:text-secondary dark:placeholder:text-muted"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none font-mono placeholder:text-zinc-400 dark:placeholder:text-zinc-650"
                           />
                         </div>
 
                         <div>
-                          <label className="text-[9px] font-mono text-muted block mb-1">date Applied</label>
+                          <label className="text-[9px] font-mono text-zinc-500 block mb-1">Date Applied</label>
                           <DatePicker
-                            value={chargedate}
-                            onChange={setChargedate}
+                            value={chargeDate}
+                            onChange={setChargeDate}
                             className="!py-2.5 !pl-9 text-xs"
                           />
                         </div>
@@ -1606,11 +1615,11 @@ export default function CashCardManagement({
 
                       <div className="grid grid-cols-2 gap-2 items-center">
                         <div>
-                          <label className="text-[9px] font-mono text-muted block mb-1">Recurring</label>
+                          <label className="text-[9px] font-mono text-zinc-500 block mb-1">Recurring</label>
                           <select
                             value={chargeRecurring}
                             onChange={(e) => setChargeRecurring(e.target.value as any)}
-                            className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-xl text-xs px-3 py-2.5 focus:outline-none cursor-pointer"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none cursor-pointer"
                           >
                             <option value="none">One-off Charge</option>
                             <option value="Monthly">Monthly Recurring</option>
@@ -1620,13 +1629,13 @@ export default function CashCardManagement({
                         </div>
 
                         <div>
-                          <label className="text-[9px] font-mono text-muted block mb-1">Notes / description</label>
+                          <label className="text-[9px] font-mono text-zinc-500 block mb-1">Notes / Description</label>
                           <input
                             type="text"
-                            value={chargedescription}
-                            onChange={(e) => setChargedescription(e.target.value)}
+                            value={chargeDescription}
+                            onChange={(e) => setChargeDescription(e.target.value)}
                             placeholder="Optional notes..."
-                            className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-xl text-xs px-3 py-2.5 focus:outline-none placeholder:text-secondary dark:placeholder:text-muted"
+                            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-850 text-zinc-900 dark:text-white rounded-xl text-xs px-3 py-2.5 focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-650"
                           />
                         </div>
                       </div>
@@ -1647,24 +1656,24 @@ export default function CashCardManagement({
                                   chargeType === 'LatePayment' ? 'Late Payment Fee' :
                                   chargeType === 'OverLimit' ? 'Over-Limit Fee' :
                                   chargeType === 'Annual' ? 'Annual Fee' : 'Custom Charge') as any,
-                            appliedDate: chargedate,
-                            description: chargedescription || undefined,
+                            appliedDate: chargeDate,
+                            description: chargeDescription || undefined,
                             isRecurring: chargeRecurring !== 'none',
                             recurringInterval: (chargeRecurring !== 'none' ? chargeRecurring : undefined) as any
                           };
 
                           if (onApplyCardCharge) {
-                            onApplyCardCharge(EditingCard.id, newCharge);
+                            onApplyCardCharge(editingCard.id, newCharge);
                             setEditingCard({
-                              ...EditingCard,
-                              currentBalance: EditingCard.currentBalance - amt,
+                              ...editingCard,
+                              currentBalance: editingCard.currentBalance - amt,
                               charges: [...currentCharges, newCharge]
                             });
                             setChargeAmount('');
-                            setChargedescription('');
+                            setChargeDescription('');
                           }
                         }}
-                        className="w-full py-3 text-[10px] text-primary bg-blue-400 hover:bg-blue-300 font-mono font-bold uppercase rounded-xl transition-colors cursor-pointer"
+                        className="w-full py-3 text-[10px] text-zinc-900 bg-emerald-400 hover:bg-emerald-300 font-mono font-bold uppercase rounded-xl transition-colors cursor-pointer"
                       >
                         Add Charge & Record Transaction
                       </button>
@@ -1677,32 +1686,32 @@ export default function CashCardManagement({
         );
       })()}
 
-      {/* Confirmation aialog */}
-      {CardTodelete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-card border border-default p-6 rounded-2xl shadow-2xl max-w-xs w-full">
-            <h3 className="text-primary font-bold text-sm mb-2 flex items-center gap-2">
-              <Trash2 size={16} className="text-rose-500" />
-              delete Card?
+      {/* Confirmation Dialog */}
+      {cardToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animation-fade-in">
+          <div className="bg-white dark:bg-[#0a0a0a] border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl max-w-xs w-full">
+            <h3 className="text-zinc-900 dark:text-white font-bold text-sm mb-2 flex items-center gap-2">
+              <Trash2 size={16} className="text-red-500" />
+              Delete Card?
             </h3>
-            <p className="text-xs text-muted mb-6 text-left">
-              Are you sure you want to delete <strong className="text-primary dark:text-primary">{cards.find(c => c.id === CardTodelete)?.cardName}</strong>? This action will mark it as inactive.
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-6 text-left">
+              Are you sure you want to delete <strong className="text-zinc-900 dark:text-white">{cards.find(c => c.id === cardToDelete)?.cardName}</strong>? This action will mark it as inactive.
             </p>
-            <div className="flex gap-2 justify-ena">
+            <div className="flex gap-2 justify-end">
               <button
-                onClick={() => setCardTodelete(null)}
-                className="px-4 py-2 text-xs font-semibold text-muted dark:text-secondary hover:text-primary dark:hover:text-primary transition-colors cursor-pointer"
+                onClick={() => setCardToDelete(null)}
+                className="px-4 py-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-white transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={() => {
-                  onDeleteCard(CardTodelete);
-                  setCardTodelete(null);
+                  onDeleteCard(cardToDelete);
+                  setCardToDelete(null);
                 }}
-                className="px-4 py-2 text-xs font-bold text-primary bg-rea-500 hover:bg-rea-600 rounded-lg transition-colors shadow-lg shadow-rea-500/20 cursor-pointer"
+                className="px-4 py-2 text-xs font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-lg shadow-red-500/20 cursor-pointer"
               >
-                delete
+                Delete
               </button>
             </div>
           </div>

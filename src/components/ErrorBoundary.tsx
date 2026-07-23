@@ -46,32 +46,32 @@ export default class ErrorBoundary extends React.Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-primary flex items-center justify-center p-6 text-primary font-sans selection:bg-blue-500/30 selection:text-success">
-          <div className="max-w-md w-full bg-card border border-subtle rounded-2xl p-6 shadow-2xl relative overflow-hidden text-left">
+        <div className="min-h-screen bg-[#070708] flex items-center justify-center p-6 text-white font-sans selection:bg-blue-500/30 selection:text-emerald-400">
+          <div className="max-w-md w-full bg-[#0c0c0e] border border-red-500/20 rounded-2xl p-6 shadow-2xl relative overflow-hidden text-left">
             {/* Glow backing layout ornamentations */}
             <div className="absolute -top-12 -right-12 w-24 h-24 bg-red-500/10 rounded-full blur-2xl pointer-events-none" />
             
-            <div className="flex items-center gap-3.5 mb-5 border-b border-default/80 pb-4">
-              <div className="h-10 w-10 rounded-xl bg-danger border border-red-800/40 flex items-center justify-center text-danger animate-pulse">
+            <div className="flex items-center gap-3.5 mb-5 border-b border-zinc-900/80 pb-4">
+              <div className="h-10 w-10 rounded-xl bg-red-950/40 border border-red-800/40 flex items-center justify-center text-red-400 animate-pulse">
                 <ShieldAlert size={20} />
               </div>
               <div>
-                <h2 className="text-sm uppercase font-mono font-bold text-danger tracking-widest leading-none">Security System Fault</h2>
-                <p className="text-[10px] text-muted font-mono mt-1">Error Code: ERR_UI_STATE_CRASH</p>
+                <h2 className="text-sm uppercase font-mono font-bold text-red-400 tracking-widest leading-none">Security System Fault</h2>
+                <p className="text-[10px] text-zinc-500 font-mono mt-1">Error Code: ERR_UI_STATE_CRASH</p>
               </div>
             </div>
 
-            <p className="text-xs text-secondary leading-relaxed font-mono">
+            <p className="text-xs text-zinc-400 leading-relaxed font-mono">
               The interface state engine encountered an unexpected runtime crash when rendering. Your financial ledger data is fully intact and saved to persistent cloud engines safely.
             </p>
 
             {this.state.error && (
-              <div className="mt-4 p-3 bg-red-950/20 border border-red-900/30 rounded-lg text-[10px] text-danger font-mono overflow-auto max-h-24 whitespace-pre-wrap">
+              <div className="mt-4 p-3 bg-red-950/20 border border-red-900/30 rounded-lg text-[10px] text-red-300 font-mono overflow-auto max-h-24 whitespace-pre-wrap">
                 Exception: {this.state.error.toString()}
               </div>
             )}
 
-            <div className="mt-6 flex flex-col sm:flex-row gap-3.5 pt-4 border-t border-default/80">
+            <div className="mt-6 flex flex-col sm:flex-row gap-3.5 pt-4 border-t border-zinc-900/80">
               <button
                 type="button"
                 onClick={this.handleReset}

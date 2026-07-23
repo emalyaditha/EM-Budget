@@ -1,741 +1,1066 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
-@custom-variant dark (&:is(.dark *));
 
-@layer base {
-  .light {
-    color-scheme: light;
-    --bg-primary: oklch(0.98 0.003 240);
-    --bg-card: oklch(1.0 0.0 0);
-    --bg-sidebar: oklch(1.0 0.0 0);
-    --bg-surface: oklch(0.95 0.005 240);
-    --text-primary: oklch(0.20 0.01 240);
-    --text-secondary: oklch(0.45 0.015 240);
-    --text-muted: oklch(0.65 0.01 240);
-    --border-primary: oklch(0.92 0.005 240);
-    --border-secondary: oklch(0.86 0.008 240);
-    --accent-primary: oklch(0.62 0.16 250);
-    --success: oklch(0.60 0.15 145);
-    --negative: oklch(0.55 0.16 25);
-    --warning: oklch(0.68 0.14 75);
-    --danger: oklch(0.52 0.18 25);
-    --locked: oklch(0.55 0.01 240);
-    --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01);
-    --input-bg: oklch(1.0 0.0 0);
-    --border-color: var(--border-primary);
-    --radius-card: 18px;
-    --radius-inner: 12px;
-  }
+.light {
+  /* Core Base Palette (Light Theme) using oklch */
+  --bg-primary: oklch(0.98 0.003 240);
+  --bg-card: oklch(1.0 0.0 0);
+  --bg-sidebar: oklch(1.0 0.0 0);
+  --bg-surface: oklch(0.95 0.005 240);
+  --text-primary: oklch(0.20 0.01 240);
+  --text-secondary: oklch(0.45 0.015 240);
+  --text-muted: oklch(0.65 0.01 240);
+  --border-primary: oklch(0.92 0.005 240);
+  --border-secondary: oklch(0.86 0.008 240);
 
-  .dark {
-    color-scheme: dark;
-    --bg-primary: oklch(0.14 0.006 250);
-    --bg-card: oklch(0.17 0.008 250);
-    --bg-sidebar: oklch(0.12 0.006 250);
-    --bg-surface: oklch(0.20 0.010 250);
-    --text-primary: oklch(0.96 0.003 250);
-    --text-secondary: oklch(0.72 0.008 250);
-    --text-muted: oklch(0.52 0.008 250);
-    --border-primary: oklch(0.22 0.008 250);
-    --border-secondary: oklch(0.28 0.008 250);
-    --accent-primary: oklch(0.72 0.18 250);
-    --success: oklch(0.80 0.15 150);
-    --negative: oklch(0.68 0.16 25);
-    --warning: oklch(0.78 0.13 75);
-    --danger: oklch(0.62 0.18 25);
-    --locked: oklch(0.48 0.01 250);
-    --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
-    --input-bg: oklch(0.17 0.008 250);
-    --border-color: var(--border-primary);
-    --radius-card: 18px;
-    --radius-inner: 12px;
-  }
+  /* Semantic Colors */
+  --accent-primary: oklch(0.68 0.16 165); /* Vibrant Mint with good contrast in light mode */
+  --success: oklch(0.60 0.15 145);
+  --negative: oklch(0.55 0.16 25);
+  --warning: oklch(0.68 0.14 75);
+  --danger: oklch(0.52 0.18 25);
+  --locked: oklch(0.55 0.01 240);
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01);
 
-  html, body, #root {
-    height: 100%;
-  }
+  /* Texture intensity overlays */
+  --carbon-opacity: 0.005;
+  --carbon-opacity-light: 0.002;
 
-  body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    transition: background-color 0.2s ease, color 0.2s ease;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+  /* Semantic Aliases */
+  --card-bg: var(--bg-card);
+  --surface: var(--bg-surface);
+  --input-bg: oklch(1.0 0.0 0);
+  --border-color: var(--border-primary);
+  
+  /* Radii & Layout specs */
+  --radius-card: 18px;
+  --radius-inner: 12px;
 }
 
-@layer theme {
-  :root {
-    --color-background: var(--bg-primary);
-    --color-card: var(--bg-card);
-    --color-card-foreground: var(--text-primary);
-    --color-muted: var(--bg-surface);
-    --color-muted-foreground: var(--text-secondary);
-    --color-border: var(--border-primary);
-    --color-accent-primary: var(--accent-primary);
-    --font-sans: "Manrope", "Inter", system-ui, sans-serif;
-    --font-display: "Sora", "Space Grotesk", system-ui, sans-serif;
-    --font-mono: "JetBrains Mono", monospace;
-  }
+.dark {
+  /* Core Base Palette (Dark Theme) using oklch - premium soft near black background */
+  --bg-primary: oklch(0.14 0.006 250); /* soft near-black */
+  --bg-card: oklch(0.17 0.008 250); /* elevated surface 1 */
+  --bg-sidebar: oklch(0.12 0.006 250);
+  --bg-surface: oklch(0.20 0.010 250); /* elevated surface 2 */
+  --text-primary: oklch(0.96 0.003 250); /* crisp white */
+  --text-secondary: oklch(0.72 0.008 250); /* elegant silver-grey */
+  --text-muted: oklch(0.52 0.008 250); /* soft muted grey */
+  --border-primary: oklch(0.22 0.008 250); /* 1px hairline border */
+  --border-secondary: oklch(0.28 0.008 250);
+
+  /* Semantic Colors */
+  --accent-primary: oklch(0.82 0.18 165); /* Electric Mint accent */
+  --success: oklch(0.80 0.15 150);
+  --negative: oklch(0.68 0.16 25); /* Coral/Crimson */
+  --warning: oklch(0.78 0.13 75);
+  --danger: oklch(0.62 0.18 25);
+  --locked: oklch(0.48 0.01 250);
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
+
+  /* Texture intensity overlays */
+  --carbon-opacity: 0.015;
+  --carbon-opacity-light: 0.004;
+
+  /* Semantic Aliases */
+  --card-bg: var(--bg-card);
+  --surface: var(--bg-surface);
+  --input-bg: oklch(0.17 0.008 250);
+  --border-color: var(--border-primary);
+  
+  /* Radii & Layout specs */
+  --radius-card: 18px;
+  --radius-inner: 12px;
 }
 
-@layer components {
-  /* =============== CARDS =============== */
-  .card-base {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-soft);
-    color: var(--text-primary);
-    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .card-surface {
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-inner);
-    color: var(--text-primary);
-  }
-
-  /* =============== BUTTONS =============== */
-  .btn-primary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    background-color: var(--accent-primary);
-    border: 1px solid var(--accent-primary);
-    border-radius: 10px;
-    color: #000;
-    font-weight: 600;
-    font-size: 0.8125rem;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .btn-primary:hover {
-    filter: brightness(1.08);
-  }
-  .btn-primary:active {
-    filter: brightness(0.92);
-  }
-
-  .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border-secondary);
-    border-radius: 10px;
-    color: var(--text-primary);
-    font-weight: 500;
-    font-size: 0.8125rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  .btn-secondary:hover {
-    background-color: var(--bg-card);
-    border-color: var(--border-secondary);
-  }
-
-  .btn-danger {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    background-color: var(--danger);
-    border: 1px solid var(--danger);
-    border-radius: 10px;
-    color: #fff;
-    font-weight: 600;
-    font-size: 0.8125rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  .btn-danger:hover {
-    filter: brightness(1.1);
-  }
-
-  /* =============== FORM ELEMENTS =============== */
-  .form-input {
-    background-color: var(--input-bg);
-    border: 1px solid var(--border-primary);
-    border-radius: 10px;
-    color: var(--text-primary);
-    padding: 0.625rem 0.875rem;
-    font-size: 0.875rem;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    width: 100%;
-  }
-  .form-input::placeholder {
-    color: var(--text-muted);
-  }
-  .form-input:focus {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent);
-    outline: none;
-  }
-  .form-input:user-invalid {
-    border-color: var(--danger);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
-  }
-
-  .form-select {
-    background-color: var(--input-bg);
-    border: 1px solid var(--border-primary);
-    border-radius: 10px;
-    color: var(--text-primary);
-    padding: 0.625rem 0.875rem;
-    font-size: 0.875rem;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    width: 100%;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    padding-right: 2.25rem;
-  }
-  .form-select:focus {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent);
-    outline: none;
-  }
-  .form-select option {
-    background-color: var(--bg-card);
-    color: var(--text-primary);
-  }
-
-  .form-label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
-    margin-bottom: 0.375rem;
-  }
-
-  /* =============== SEGMENTED TABS =============== */
-  .segmented-tabs {
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border-primary);
-    border-radius: 12px;
-    padding: 4px;
-    display: inline-flex;
-    gap: 2px;
-  }
-  .segmented-tab {
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-  }
-  .segmented-tab:hover {
-    color: var(--text-primary);
-    background-color: color-mix(in srgb, var(--text-primary) 4%, transparent);
-  }
-  .segmented-tab.active {
-    background-color: var(--bg-card);
-    color: var(--accent-primary);
-    border: 1px solid color-mix(in srgb, var(--accent-primary) 18%, transparent);
-    box-shadow: var(--shadow-soft);
-    font-weight: 600;
-  }
-
-  /* =============== DATA TABLE =============== */
-  .data-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    background-color: var(--bg-primary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-inner);
-    overflow: hidden;
-  }
-  .data-table th {
-    background-color: var(--bg-surface);
-    color: var(--text-primary);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-size: 0.6875rem;
-    padding: 0.75rem 1rem;
-    text-align: left;
-    border-bottom: 2px solid var(--border-secondary);
-  }
-  .data-table td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border-primary);
-    color: var(--text-secondary);
-    font-size: 0.8125rem;
-  }
-  .data-table tbody tr {
-    transition: background-color 0.15s ease;
-  }
-  .data-table tbody tr:nth-child(odd) {
-    background-color: var(--bg-surface);
-  }
-  .data-table tbody tr:nth-child(even) {
-    background-color: var(--bg-card);
-  }
-  .data-table tbody tr:hover {
-    background-color: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-surface));
-  }
-
-  /* =============== NOTIFICATION / DEBT / LOAN STATUS BADGES =============== */
-  .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.25rem 0.625rem;
-    border-radius: 999px;
-    font-size: 0.6875rem;
-    font-weight: 600;
-  }
-  .status-badge.success {
-    background-color: color-mix(in srgb, var(--success) 15%, transparent);
-    color: var(--success);
-  }
-  .status-badge.warning {
-    background-color: color-mix(in srgb, var(--warning) 15%, transparent);
-    color: var(--warning);
-  }
-  .status-badge.danger {
-    background-color: color-mix(in srgb, var(--danger) 15%, transparent);
-    color: var(--danger);
-  }
-
-  /* =============== DEBT/LOAN STATUS CARDS =============== */
-  [data-debt-status="paid"],
-  [data-loan-status="completed"] {
-    border-left: 4px solid var(--success);
-  }
-  [data-debt-status="overdue"] {
-    border-left: 4px solid var(--danger);
-  }
-  [data-debt-status="outstanding"],
-  [data-loan-status="partial"] {
-    border-left: 4px solid var(--warning);
-  }
-
-  /* =============== MODAL BACKDROP =============== */
-  .modal-backdrop {
-    background-color: rgba(0, 0, 0, 0.65);
-    backdrop-filter: blur(8px);
-  }
-  .light .modal-backdrop {
-    background-color: rgba(247, 248, 250, 0.75);
-  }
-
-  /* =============== CARD VIEW (PHYSICAL CARD REPRESENTATION) =============== */
-  [id*="card-view-"] {
-    border: 1px solid var(--border-secondary);
-    box-shadow: var(--shadow-soft);
-  }
-  [id*="card-view-"] h1,
-  [id*="card-view-"] h2,
-  [id*="card-view-"] h3,
-  [id*="card-view-"] h4,
-  [id*="card-view-"] h5,
-  [id*="card-view-"] h6,
-  [id*="card-view-"] div,
-  [id*="card-view-"] span,
-  [id*="card-view-"] p,
-  [id*="card-view-"] strong {
-    color: #ffffff;
-  }
-
-  /* =============== CHARTS =============== */
-  svg:not(#em-logo) text {
-    fill: var(--text-secondary);
-    font-family: "JetBrains Mono", monospace;
-    font-size: 10px;
-  }
-
-  .recharts-cartesian-grid-horizontal line,
-  .recharts-cartesian-grid-vertical line {
-    stroke: var(--border-primary);
-  }
-  .recharts-legend-item-text {
-    color: var(--text-primary);
-  }
-
-  /* =============== SCROLLBARS =============== */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: var(--bg-primary);
-  }
-  ::-webkit-scrollbar-thumb {
-    background: var(--border-secondary);
-    border-radius: 99px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-primary);
-  }
-
-  /* =============== MOBILE BOTTOM NAV =============== */
-  .mobile-bottom-nav {
-    background-color: var(--bg-sidebar);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--border-primary);
-    border-radius: 20px;
-    box-shadow: var(--shadow-soft);
-  }
+@theme {
+  --color-background: var(--bg-primary);
+  --color-card: var(--bg-card);
+  --color-card-foreground: var(--text-primary);
+  --color-muted: var(--bg-surface);
+  --color-muted-foreground: var(--text-secondary);
+  --color-border: var(--border-primary);
+  --color-accent-primary: var(--accent-primary);
+  
+  --font-sans: "Manrope", "Inter", system-ui, sans-serif;
+  --font-display: "Sora", "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
-@layer utilities {
+/* ==========================================================================
+   GLOBAL BACKDROP AND TEXTURED OVERLAYS
+   ========================================================================== */
 
-  /* =============== OPACITY VARIANT UTILITIES =============== */
-  .bg-card-10 { background-color: color-mix(in srgb, var(--bg-card) 10%, transparent); }
-  .bg-card-20 { background-color: color-mix(in srgb, var(--bg-card) 20%, transparent); }
-  .bg-card-40 { background-color: color-mix(in srgb, var(--bg-card) 40%, transparent); }
-  .bg-card-50 { background-color: color-mix(in srgb, var(--bg-card) 50%, transparent); }
-  .bg-card-60 { background-color: color-mix(in srgb, var(--bg-card) 60%, transparent); }
-  .bg-card-65 { background-color: color-mix(in srgb, var(--bg-card) 65%, transparent); }
-  .bg-card-80 { background-color: color-mix(in srgb, var(--bg-card) 80%, transparent); }
-  .bg-surface-40 { background-color: color-mix(in srgb, var(--bg-surface) 40%, transparent); }
-  .bg-surface-60 { background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent); }
-  .bg-surface-80 { background-color: color-mix(in srgb, var(--bg-surface) 80%, transparent); }
-  .bg-sidebar-50 { background-color: color-mix(in srgb, var(--bg-sidebar) 50%, transparent); }
-  .bg-overlay { background-color: color-mix(in srgb, #000 60%, transparent); }
-  .bg-subtle { background-color: var(--bg-subtle); }
-  .bg-danger-solid { background-color: #F87171; }
-  .bg-warning-solid { background-color: #F59E0B; }
-  .bg-success-solid { background-color: #3B82F6; }
-
-  /* =============== DESIGN TOKEN UTILITIES =============== */
-  .bg-primary { background-color: var(--bg-primary); }
-  .bg-card { background-color: var(--bg-card); }
-  .bg-sidebar { background-color: var(--bg-sidebar); }
-  .bg-surface { background-color: var(--bg-surface); }
-  .text-primary { color: var(--text-primary); }
-  .text-secondary { color: var(--text-secondary); }
-  .text-muted { color: var(--text-muted); }
-  .border-default { border-color: var(--border-primary); }
-  .border-subtle { border-color: var(--border-secondary); }
-  .text-success { color: var(--success); }
-  .text-danger { color: var(--danger); }
-  .text-warning { color: var(--warning); }
-  .bg-success { background-color: color-mix(in srgb, var(--success) 15%, transparent); }
-  .bg-danger { background-color: color-mix(in srgb, var(--danger) 15%, transparent); }
-  .bg-warning { background-color: color-mix(in srgb, var(--warning) 15%, transparent); }
-
-  /* =============== FOCUS VISIBLE (ACCESSIBILITY) =============== */
-  *:focus-visible {
-    outline: 2px solid var(--accent-primary);
-    outline-offset: 2px;
-    border-radius: 4px;
-  }
-
-  button:focus-visible,
-  a:focus-visible,
-  [tabindex]:focus-visible {
-    outline: 2px solid var(--accent-primary);
-    outline-offset: 2px;
-    border-radius: 6px;
-  }
-
-  input:focus-visible,
-  select:focus-visible,
-  textarea:focus-visible {
-    outline: none;
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent);
-  }
-
-  /* =============== TEXT UTILITIES =============== */
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  /* =============== ACCELERATE ANIMATIONS =============== */
-  @keyframes brandFadeUp {
-    0% { transform: translateY(8px); opacity: 0; }
-    100% { transform: translateY(0); opacity: 1; }
-  }
-  .animate-brand-fade-up {
-    opacity: 0;
-    animation: brandFadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  @keyframes brandFadeIn {
-    0% { opacity: 0; }
-    100% { opacity: 1; }
-  }
-  .animate-brand-fade-in {
-    opacity: 0;
-    animation: brandFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  /* =============== VISUALLY HIDDEN (for screen readers) =============== */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
+body, html, #full-workspace-view, #auth-loading-screen {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  
+  /* Seamless high-fidelity diagonal weave carbon pattern with ultra-subtle opacity lines */
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(255, 255, 255, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, var(--carbon-opacity)) 75%),
+    linear-gradient(0deg, rgba(255, 255, 255, var(--carbon-opacity-light)) 1px, transparent 1px) !important;
+  background-size: 10px 10px, 10px 10px, 10px 10px, 10px 10px, 8px 8px !important;
 }
 
-/* =============== LIGHT MODE OVERRIDE FOR CARDS =============== */
-/* Tailwind classes that map to card-like surfaces in dark mode need light mode mapping */
-.light .card-base,
-.light [class*="bg-zinc-900"]:not(button):not(.btn-primary):not(.btn-secondary):not(.btn-danger):not([class*="w-px"]),
-.light [class*="bg-zinc-950"]:not(button):not(.btn-primary):not(.btn-secondary):not(.btn-danger):not([class*="w-px"]),
-.light [class*="bg-black"]:not(button):not(.modal-backdrop):not([class*="inset-0"]),
-.light [class*="bg-slate-900"]:not(button),
-.light [class*="bg-slate-950"]:not(button) {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-primary);
-  color: var(--text-primary);
+/* In light mode, texture line overlays use dark contrast instead of white */
+.light,
+body.light,
+.light #full-workspace-view,
+.light #auth-loading-screen {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  background-image: 
+    linear-gradient(45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%),
+    linear-gradient(0deg, rgba(0, 0, 0, var(--carbon-opacity-light)) 1px, transparent 1px) !important;
+  background-size: 10px 10px, 10px 10px, 10px 10px, 10px 10px, 8px 8px !important;
 }
 
-/* Undo hardcoded dark backgrounds in light mode */
-.light [class*="bg-[#"]:not([class*="bg-[var("]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#3B82F6]"]):not([class*="bg-[#EF4444]"]):not([class*="bg-[#EC4899]"]):not([class*="bg-[#A855F7]"]):not([class*="bg-[#14B8A6]"]):not([class*="bg-[#6366F1]"]):not([class*="bg-[#E11D48]"]):not([class*="bg-[#84CC16]"]):not([class*="bg-[#06B6D4]"]):not([class*="bg-[#F59E0B]"]):not([class*="bg-[#6B7280]"]):not([class*="text-"]) {
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
-  border-color: var(--border-primary);
+/* ==========================================================================
+   CARDS & CONTAINERS (PREMIUM MATTE PANELS)
+   ========================================================================== */
+
+[id*="card"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]):not([class*="fixed bottom-4"]),
+.glow-card:not([id*="card-view-"]),
+[class*="bg-[#09090b]"]:not([id*="card-view-"]),
+[class*="bg-[#070709]"]:not([id*="card-view-"]),
+[class*="bg-zinc-900"]:not([id*="card-view-"]),
+[class*="bg-zinc-950"]:not([id*="card-view-"]),
+[class*="bg-slate-900"]:not([id*="card-view-"]),
+[class*="bg-slate-950"]:not([id*="card-view-"]),
+[class*="bg-black"]:not([id*="card-view-"]),
+[class*="bg-zinc-"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]):not([class*="fixed bottom-4"]):not([class*="bg-zinc-800"]):not([class*="bg-zinc-900"]):not([tag="button"]),
+[class*="bg-[#0505]"]:not([id*="card-view-"]),
+[class*="bg-[#0606]"]:not([id*="card-view-"]),
+[class*="bg-[#0707]"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+[class*="bg-[#0808]"]:not([id*="card-view-"]),
+[class*="bg-[#0a0a]"]:not([id*="card-view-"]):not([class*="fixed bottom-4"]),
+[class*="bg-[#0c0c]"]:not([id*="card-view-"]),
+[class*="bg-[#0f0f]"]:not([id*="card-view-"]),
+[class*="bg-[#1212]"]:not([id*="card-view-"]),
+[class*="bg-[#1c1c]"]:not([id*="card-view-"]),
+[class*="bg-[#1717]"]:not([id*="card-view-"]),
+[class*="bg-[#1818]"]:not([id*="card-view-"]),
+[class*="bg-[#050510]"]:not([id*="card-view-"]),
+[class*="bg-[#050505]"]:not([id*="card-view-"]),
+[class*="bg-[#070707]"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]),
+[class*="bg-[#08080c]"]:not([id*="card-view-"]),
+[class*="bg-[#0a0a0d]"]:not([id*="card-view-"]),
+[class*="bg-slate-900/35"]:not([id*="card-view-"]) {
+  background-color: var(--bg-card) !important;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(255, 255, 255, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, var(--carbon-opacity)) 75%) !important;
+  background-size: 8px 8px !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--shadow-soft) !important;
+  color: var(--text-primary) !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Neutral tone overrides in light mode */
+/* For light mode cards, blend carbon texture with dark overlays */
+.light [id*="card"]:not([id*="card-view-"]):not([id*="vault-portfolio-hero"]):not([class*="fixed bottom-4"]),
+.light .glow-card:not([id*="card-view-"]),
+.light [class*="bg-zinc-900"]:not([id*="card-view-"]),
+.light [class*="bg-zinc-950"]:not([id*="card-view-"]),
+.light [class*="bg-slate-900"]:not([id*="card-view-"]),
+.light [class*="bg-slate-950"]:not([id*="card-view-"]),
+.light [class*="bg-black"]:not([id*="card-view-"]),
+.light [class*="bg-[#09090b]"]:not([id*="card-view-"]),
+.light [class*="bg-[#070709]"]:not([id*="card-view-"]) {
+  background-image: 
+    linear-gradient(45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%) !important;
+}
+
+/* Row elements and active logs lists hover feedback - soft illumination */
+[id*="reports-audit-card-"],
+[id*="cash-row-"],
+div[class*="group p-4 bg-slate-900/30"] {
+  background-color: var(--bg-surface) !important;
+  border: 1px solid var(--border-primary) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+[id*="reports-audit-card-"]:hover,
+[id*="cash-row-"]:hover,
+div[class*="group p-4 bg-slate-900/30"]:hover {
+  background-color: var(--bg-surface) !important;
+  border-color: rgba(0, 200, 83, 0.3) !important;
+}
+
+/* Keep physical asset card representations looking exceptional */
+[id*="card-view-"] {
+  border: 1px solid var(--border-secondary) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+[id*="card-view-"] h1,
+[id*="card-view-"] h2,
+[id*="card-view-"] h3,
+[id*="card-view-"] h4,
+[id*="card-view-"] h5,
+[id*="card-view-"] h6,
+[id*="card-view-"] div,
+[id*="card-view-"] span,
+[id*="card-view-"] p,
+[id*="card-view-"] strong {
+  color: #ffffff !important;
+}
+
+/* ==========================================================================
+   NAVIGATION RAILS (PURE BLACK/WHITE & EMERALD ACTIVE SHADES)
+   ========================================================================== */
+
+header#header-brand-rail,
+.light header#header-brand-rail,
+footer,
+.light footer {
+  background-color: var(--bg-sidebar) !important;
+  background-image: none !important;
+  border-color: var(--border-primary) !important;
+}
+
+#desktop-control-column,
+#desktop-control-column > div:first-child,
+.light #desktop-control-column > div:first-child {
+  background-color: var(--bg-sidebar) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+/* Left sidebar menu item formatting */
+#web-sidebar-navigation button,
+.light #web-sidebar-navigation button {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: var(--text-secondary) !important;
+  font-weight: 500 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+}
+
+#web-sidebar-navigation button:hover,
+.light #web-sidebar-navigation button:hover {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Sidebar active indicators - Clean Blue highlights */
+#web-sidebar-navigation button.shadow-lg,
+#web-sidebar-navigation button[class*="bg-white"],
+.light #web-sidebar-navigation button.shadow-lg,
+.light #web-sidebar-navigation button[class*="bg-white"] {
+  background-color: var(--accent-primary) !important;
+  border-color: rgba(0, 163, 255, 0.2) !important;
+  border-left: 3px solid var(--accent-primary) !important;
+  color: #000000 !important;
+  box-shadow: 0 4px 12px rgba(0, 163, 255, 0.08) !important;
+}
+
+#web-sidebar-navigation button.shadow-lg span,
+#web-sidebar-navigation button[class*="bg-white"] span,
+.light #web-sidebar-navigation button.shadow-lg span,
+.light #web-sidebar-navigation button[class*="bg-white"] span {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+#web-sidebar-navigation button.shadow-lg svg,
+#web-sidebar-navigation button[class*="bg-white"] svg,
+.light #web-sidebar-navigation button.shadow-lg svg,
+.light #web-sidebar-navigation button[class*="bg-white"] svg {
+  color: #000000 !important;
+}
+
+/* Mobile responsive navigation overrides */
+nav[class*="fixed bottom-4"],
+.light nav[class*="fixed bottom-4"] {
+  background-color: var(--bg-sidebar) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+nav[class*="fixed bottom-4"] button .rounded-2xl {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+nav[class*="fixed bottom-4"] button:hover .rounded-2xl {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+nav[class*="fixed bottom-4"] button .rounded-2xl.bg-indigo-600,
+nav[class*="fixed bottom-4"] button .rounded-2xl[class*="bg-indigo-650"] {
+  background-color: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  color: var(--accent-primary) !important;
+}
+
+nav[class*="fixed bottom-4"] button span.text-indigo-600 {
+  color: var(--accent-primary) !important;
+}
+
+nav[class*="fixed bottom-4"] button span.bg-indigo-600 {
+  background-color: var(--accent-primary) !important;
+}
+
+/* ==========================================================================
+   BUTTONS (PRIMARY EMERALD, SECONDARY MATTE CHARCOAL, DANGER DEEP RED)
+   ========================================================================= */
+
+/* Primary Button Action styles */
+.bg-indigo-600,
+.bg-indigo-500,
+button[class*="bg-[var(--accent-primary)]"],
+button[class*="bg-blue-"],
+[class*="bg-[var(--accent-primary)]"],
+.bg-[var(--accent-primary)],
+a[class*="bg-indigo-"] {
+  background-color: var(--accent-primary) !important;
+  border: 1px solid var(--accent-primary) !important;
+  color: #000000 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.bg-indigo-600:hover,
+.bg-indigo-500:hover,
+button[class*="bg-[var(--accent-primary)]"]:hover,
+button[class*="bg-[var(--accent-primary)]"]:hover,
+[class*="bg-[var(--accent-primary)]"]:hover,
+.bg-[var(--accent-primary)]:hover,
+a[class*="bg-indigo-"]:hover {
+  background-color: var(--blue-600) !important;
+  border-color: var(--blue-600) !important;
+}
+
+.bg-indigo-600:active,
+.bg-indigo-500:active,
+[class*="bg-[var(--accent-primary)]"]:active {
+  background-color: var(--blue-700) !important;
+  border-color: var(--blue-700) !important;
+}
+
+/* Secondary Button Action styles */
+button[class*="bg-zinc-800"],
+button[class*="bg-zinc-900"],
+button[class*="bg-slate-800"],
+button[class*="bg-slate-900"],
+button[class*="bg-zinc-700"],
+button[class*="bg-neutral-800"],
+button[class*="bg-neutral-900"],
+.light button[class*="bg-zinc-800"],
+.light button[class*="bg-zinc-900"] {
+  background-color: var(--bg-surface) !important;
+  border: 1px solid var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+  transition: all 0.2s ease !important;
+  border-radius: 10px !important;
+}
+
+button[class*="bg-zinc-800"]:hover,
+button[class*="bg-zinc-900"]:hover,
+button[class*="bg-slate-800"]:hover,
+button[class*="bg-slate-900"]:hover {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dynamic orange savings indicators */
+button[class*="bg-[#F59E0B]"],
+[class*="bg-[#F59E0B]"] {
+  background-color: #FFB300 !important;
+  border-color: #FFB300 !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+button[class*="bg-[#F59E0B]"]:hover {
+  background-color: #FFC400 !important;
+  border-color: #FFC400 !important;
+}
+
+/* Danger Action style */
+button[class*="bg-rose-600"],
+button[class*="bg-red-600"],
+[class*="bg-rose-600"],
+[class*="bg-red-600"] {
+  background-color: #FF5252 !important;
+  border-color: #FF5252 !important;
+  color: #FFFFFF !important;
+}
+
+button[class*="bg-rose-600"]:hover,
+button[class*="bg-red-600"]:hover {
+  background-color: #FF1744 !important;
+  border-color: #FF1744 !important;
+}
+
+/* ==========================================================================
+   FORMS, DROPDOWNS & MATTE INPUTS
+   ========================================================================== */
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea,
+.light input:not([type="checkbox"]):not([type="radio"]),
+.light select,
+.light textarea {
+  background-color: var(--bg-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  border-radius: 10px !important;
+  padding: 10px 14px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Ensure Custom DatePicker input has correct padding-left that won't be overridden by the general inputs above */
+input.date-picker-input,
+.light input.date-picker-input {
+  padding-left: 2.5rem !important;
+  padding-right: 0.75rem !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 3px rgba(0, 163, 255, 0.2) !important;
+  outline: none !important;
+}
+
+select option, select optgroup {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+
+::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 1 !important;
+}
+
+/* ==========================================================================
+   TABLES & TRANSACTION DATA GRIDS
+   ========================================================================== */
+
+table, .light table {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background-color: var(--bg-primary) !important;
+}
+
+thead th, .light thead th {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-size: 11px !important;
+  border-bottom: 2px solid var(--border-secondary) !important;
+  padding: 12px 16px !important;
+  text-align: left !important;
+}
+
+tbody tr, .light tbody tr {
+  transition: background-color 0.15s ease !important;
+}
+
+tbody tr:nth-child(odd), .light tbody tr:nth-child(odd) {
+  background-color: var(--bg-surface) !important;
+}
+
+tbody tr:nth-child(even), .light tbody tr:nth-child(even) {
+  background-color: var(--bg-card) !important;
+}
+
+tbody tr:hover, .light tbody tr:hover {
+  background-color: var(--bg-surface) !important;
+}
+
+td, .light td {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+}
+
+/* ==========================================================================
+   DIALOGS & MODAL BACKDROPS (PURE BLACK & FROSTED DARK OVERLAY)
+   ========================================================================== */
+
+.fixed.inset-0.bg-black/80,
+.fixed.inset-0.bg-black/60,
+.fixed.inset-0.backdrop-blur-sm,
+.fixed.inset-0,
+.light .fixed.inset-0.bg-black/80,
+.light .fixed.inset-0.bg-black/60,
+.light .fixed.inset-0.backdrop-blur-sm {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.light .fixed.inset-0.bg-black/80,
+.light .fixed.inset-0.bg-black/60,
+.light .fixed.inset-0.backdrop-blur-sm,
+.light .fixed.inset-0 {
+  background-color: rgba(247, 248, 250, 0.75) !important;
+}
+
+div[class*="rounded-3xl"].w-full.max-w-sm,
+div[class*="rounded-3xl"].w-full.max-w-md,
+div[class*="rounded-3xl"].w-full.max-w-lg,
+div[class*="rounded-2xl"].p-6.relative {
+  background-color: var(--bg-card) !important;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(255, 255, 255, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, var(--carbon-opacity)) 75%) !important;
+  background-size: 8px 8px !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.light div[class*="rounded-3xl"].w-full.max-w-sm,
+.light div[class*="rounded-3xl"].w-full.max-w-md,
+.light div[class*="rounded-3xl"].w-full.max-w-lg,
+.light div[class*="rounded-2xl"].p-6.relative {
+  background-image: 
+    linear-gradient(45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%) !important;
+}
+
+/* ==========================================================================
+   SEGMENTED SELECTORS & TABS
+   ========================================================================== */
+
+#tab-selectors,
+#reports-type-selectors,
+[id*="-selectors"],
+.light #tab-selectors,
+.light #reports-type-selectors {
+  background-color: var(--bg-surface) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 12px !important;
+  padding: 4.5px !important;
+}
+
+#tab-selectors button,
+#reports-type-selectors button,
+[id*="-selectors"] button,
+.light #tab-selectors button {
+  color: var(--text-secondary) !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  border-radius: 8px !important;
+}
+
+#tab-selectors button:hover,
+#reports-type-selectors button:hover,
+[id*="-selectors"] button:hover {
+  color: var(--text-primary) !important;
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Active selector overrides - Emerald outline border */
+#tab-selectors button.bg-zinc-900,
+#tab-selectors button[class*="bg-zinc-"],
+#reports-type-selectors button.bg-zinc-900,
+#reports-type-selectors button[class*="bg-zinc-"],
+[id*="-selectors"] button.bg-zinc-900,
+[id*="-selectors"] button[class*="bg-zinc-"] {
+  background-color: var(--bg-card) !important;
+  color: var(--accent-primary) !important;
+  border: 1px solid rgba(0, 163, 255, 0.18) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+#tab-selectors button.bg-zinc-900 *,
+#tab-selectors button[class*="bg-zinc-"] *,
+#reports-type-selectors button.bg-zinc-900 *,
+#reports-type-selectors button[class*="bg-zinc-"] * {
+  color: var(--accent-primary) !important;
+}
+
+/* ==========================================================================
+   DASHBOARD WIDGETS & FINANCIAL TEXTUAL CONTRASTS
+   ========================================================================== */
+
+h1, h2, h3, h4, h5, h6,
+.text-white,
+.text-zinc-50,
+.text-zinc-100,
+.text-zinc-200,
+.text-zinc-300,
+.text-zinc-350,
+[class*="text-zinc-50"],
+[class*="text-zinc-100"],
+[class*="text-zinc-200"],
+[class*="text-zinc-300"],
+[class*="text-[#cbd5e1]"] {
+  color: var(--text-primary) !important;
+}
+
+.text-zinc-400,
+.text-zinc-500,
+.text-zinc-650,
+[class*="text-zinc-400"],
+[class*="text-zinc-500"],
+[class*="text-zinc-650"] {
+  color: var(--text-secondary) !important;
+}
+
+#premium-suite-badge {
+  background-color: var(--accent-primary)/0.1 !important;
+  border: 1px solid var(--accent-primary)/0.2 !important;
+  color: var(--accent-primary) !important;
+}
+#premium-suite-badge *,
+#premium-suite-badge svg {
+  color: var(--accent-primary) !important;
+}
+
+/* Dynamic loan outstanding states styling */
+[data-debt-status="paid"], 
+[data-loan-status="completed"] {
+  background-color: rgba(0, 200, 83, 0.08) !important;
+  border-left: 4px solid #00C853 !important;
+  border-top-color: var(--border-primary) !important;
+  border-right-color: var(--border-primary) !important;
+  border-bottom-color: var(--border-primary) !important;
+}
+
+[data-debt-status="overdue"] {
+  background-color: rgba(255, 82, 82, 0.08) !important;
+  border-left: 4px solid #FF5252 !important;
+  border-top-color: var(--border-primary) !important;
+  border-right-color: var(--border-primary) !important;
+  border-bottom-color: var(--border-primary) !important;
+}
+
+[data-debt-status="outstanding"], 
+[data-loan-status="partial"] {
+  background-color: rgba(255, 179, 0, 0.08) !important;
+  border-left: 4px solid #FFB300 !important;
+  border-top-color: var(--border-primary) !important;
+  border-right-color: var(--border-primary) !important;
+  border-bottom-color: var(--border-primary) !important;
+}
+
+/* ==========================================================================
+   SECURED PASSIVE LIABILITY (OUTSTANDING DEBT VAULT CARD) OVERRIDES
+   ========================================================================== */
+
+/* Dark Carbon/Light Outstanding Debt summary */
+[id="debt-tracker-vault-view"] > div:first-child > div:first-child,
+.light [id="debt-tracker-vault-view"] > div:first-child > div:first-child,
+[class*="bg-gradient-to-tr"][class*="to-amber-955/20"] {
+  background-color: var(--bg-card) !important;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(255, 255, 255, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, var(--carbon-opacity)) 75%) !important;
+  background-size: 8px 8px !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.light [id="debt-tracker-vault-view"] > div:first-child > div:first-child,
+.light [class*="bg-gradient-to-tr"][class*="to-amber-955/20"] {
+  background-image: 
+    linear-gradient(45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%) !important;
+}
+
+/* Outstanding Debt list items styling */
+[id="debt-tracker-vault-view"] [data-debt-status] {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-primary) !important;
+}
+
+/* Outstanding Debt Gauge child panel */
+[id="debt-tracker-vault-view"] > div:first-child > div:nth-child(2),
+.light [id="debt-tracker-vault-view"] > div:first-child > div:nth-child(2) {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+/* Ensure text elements inside the Summary Cards are visible in light mode */
+.light [id="debt-tracker-vault-view"] > div:first-child > div:first-child h2,
+.light [id="debt-tracker-vault-view"] > div:first-child > div:first-child p,
+.light [id="debt-tracker-vault-view"] > div:first-child > div:first-child span,
+.light [id="debt-tracker-vault-view"] > div:first-child > div:nth-child(2) h4,
+.light [id="debt-tracker-vault-view"] > div:first-child > div:nth-child(2) span,
+.light [id="debt-tracker-vault-view"] > div:first-child > div:nth-child(2) p {
+  color: var(--text-primary) !important;
+}
+
+/* Except subtag labels */
+.light [id="debt-tracker-vault-view"] > div:first-child > div:first-child p,
+.light [id="debt-tracker-vault-view"] > div:first-child > div:nth-child(2) p {
+  color: var(--text-secondary) !important;
+}
+.light [id="debt-tracker-vault-view"] > div:first-child > div:first-child .text-amber-400 {
+  color: #D97706 !important; /* Standout orange / amber in light */
+}
+
+/* ==========================================================================
+   LENT ASSET REGISTER BOOK OVERRIDES
+   ========================================================================== */
+
+[data-loan-status] {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-soft) !important;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(255, 255, 255, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, var(--carbon-opacity)) 75%) !important;
+  background-size: 8px 8px !important;
+}
+
+.light [data-loan-status] {
+  background-image: 
+    linear-gradient(45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%) !important;
+}
+
+/* Text and Labels readability in Light mode */
+.light [data-loan-status] h3,
+.light [data-loan-status] h3 span,
+.light [data-loan-status] div,
+.light [data-loan-status] span:not([class*="text-rose"]):not([class*="text-indigo"]):not([class*="text-emerald"]):not([class*="text-amber"]) {
+  color: var(--text-primary) !important;
+}
+
+.light [data-loan-status] p,
+.light [data-loan-status] .text-zinc-500,
+.light [data-loan-status] .text-zinc-650 {
+  color: var(--text-secondary) !important;
+}
+
+.light [data-loan-status] .text-zinc-300 {
+  color: var(--text-primary) !important;
+}
+
+.light [data-loan-status] .text-amber-400 {
+  color: #D97706 !important;
+}
+
+/* Active repayment / notes card overrides inside Loan cards */
+.light [data-loan-status] .bg-zinc-950\/50,
+.light [data-loan-status] [class*="bg-zinc-950/"],
+.light [data-loan-status] .bg-zinc-950\/60 {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Additional specificity for loan inputs in inline form */
+.light [data-loan-status] form input,
+.light [data-loan-status] form select,
+.light [data-loan-status] form textarea {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ==========================================================================
+   GENERAL FORM CONTRAST & STYLING HARMONIZATION (LIGHT MODE)
+   ========================================================================== */
+
+/* Universal light mode forms and dialog containers adaptation */
+.light form,
+.light [id*="-form"],
+.light [id*="form-panel"],
+.light [id="inflows-outflows-view"] > div,
+.light [class*="from-[#0c0c]"],
+.light [class*="from-[#0c0c0e]"],
+.light [class*="from-[#0c0c0f]"],
+.light [class*="from-[#0c0c10]"],
+.light [class*="bg-gradient-to-b"][class*="from-"],
+.light [class*="bg-gradient-to-br"][class*="from-"],
+.light [class*="bg-[#0a0a0]"],
+.light [class*="bg-[#08080]"],
+.light [class*="bg-zinc-950"][onSubmit],
+.light [class*="bg-slate-900"][onSubmit] {
+  background-color: var(--bg-card) !important;
+  background-image: 
+    linear-gradient(45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(0, 0, 0, var(--carbon-opacity)) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, var(--carbon-opacity)) 75%) !important;
+  background-size: 8px 8px !important;
+  border: 1px solid var(--border-primary) !important;
+  box-shadow: var(--shadow-soft) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Direct specific light element tags & inline texts inside */
+.light label,
+.light form label,
+.light [class*="from-[#0c0c]"] label {
+  color: var(--text-secondary) !important;
+}
+
+/* Force global text alignment inside light forms */
+.light [class*="from-[#0c0c]"] h1,
+.light [class*="from-[#0c0c]"] h2,
+.light [class*="from-[#0c0c]"] h3,
+.light [class*="from-[#0c0c]"] h4,
+.light [class*="from-[#0c0c]"] h5,
+.light [class*="from-[#0c0c]"] h6,
+.light [class*="from-[#0c0c]"] span,
+.light [class*="from-[#0c0c]"] div,
+.light [class*="from-[#0c0c]"] p {
+  border-color: var(--border-primary) !important;
+}
+
+/* Universal Input override within light theme - handles both form and non-form containers */
+.light input:not([type="checkbox"]):not([type="radio"]),
+.light select,
+.light textarea,
+.light option,
+.light optgroup {
+  background-color: var(--bg-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* For inputs matching high-contrast dark placeholder names */
+.light input::placeholder,
+.light textarea::placeholder,
+.light [class*="placeholder:text-zinc"]::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 1 !important;
+}
+
+/* Erase and soften any hardcoded black/dark focus-mesh borders in light mode */
+.light [class*="border-zinc-"],
+.light [class*="border-slate-"],
+.light [class*="border-indigo-"],
+.light [class*="border-rose-"],
+.light [class*="border-black"],
+.light [class*="border-neutral-"] {
+  border-color: var(--border-primary) !important;
+}
+
+/* Empty states and translucent overlay representation under light context */
+.light [class*="bg-zinc-900/15"],
+.light [class*="bg-zinc-950/20"],
+.light [class*="bg-zinc-950/15"],
+.light [class*="bg-zinc-950/10"],
+.light [class*="bg-zinc-950/50"],
+.light [class*="bg-[#050510]"],
+.light [class*="bg-[#0c0c]" i],
+.light [class*="bg-[#0a0a]" i],
+.light [class*="bg-[#0808]" i],
+.light [class*="bg-[#0e0e]" i],
+.light [class*="bg-[#0505]" i],
+.light [class*="bg-[#0909]" i],
+.light [class*="bg-[#0d0d]" i],
+.light [class*="bg-[#0707]" i],
+.light [class*="bg-[#0202]" i],
+.light [class*="bg-[#1212]" i],
+.light [class*="bg-black/"],
+.light [class*="bg-zinc-950/"],
+.light [class*="bg-zinc-900/"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+  background-image: none !important;
+  color: var(--text-primary) !important;
+}
+
+.light [class*="bg-zinc-900/"] .text-white,
+.light [class*="bg-zinc-950/"] .text-white,
+.light [class*="bg-[#" i] .text-white,
+.light [class*="bg-[#" i] h1,
+.light [class*="bg-[#" i] h2,
+.light [class*="bg-[#" i] h3,
+.light [class*="bg-[#" i] h4,
+.light [class*="bg-[#" i] h5,
+.light [class*="bg-[#" i] h6,
+.light [class*="bg-[#" i] p,
+.light [class*="bg-[#" i] span,
+.light [class*="bg-[#" i] div,
+.light [class*="bg-zinc-900/15"] .text-white,
+.light [class*="bg-zinc-950/20"] .text-white,
+.light [class*="bg-zinc-950/20"] *,
+.light [class*="bg-zinc-950/15"] p,
+.light [class*="bg-zinc-950/10"] p {
+  color: var(--text-primary) !important;
+}
+
+.light [class*="bg-zinc-900/15"] p {
+  color: var(--text-secondary) !important;
+}
+
+/* Text color helper adjustments for specific light labels */
 .light .text-zinc-300,
 .light .text-zinc-350,
-.light .text-white,
-.light [class*="text-zinc-30"],
-.light [class*="text-zinc-20"],
-.light [class*="text-zinc-10"],
-.light [class*="text-zinc-50"] {
-  color: var(--text-primary);
+.light [class*="text-zinc-300"],
+.light [class*="text-zinc-350"] {
+  color: var(--text-primary) !important;
 }
 
 .light .text-zinc-400,
 .light .text-zinc-500,
-.light [class*="text-zinc-40"],
-.light [class*="text-zinc-50"]:not([class*="text-zinc-50"]) {
-  color: var(--text-secondary);
+.light [class*="text-zinc-400"],
+.light [class*="text-zinc-500"] {
+  color: var(--text-secondary) !important;
 }
 
-/* Light mode border overrides */
-.light [class*="border-zinc-"],
-.light [class*="border-slate-"] {
-  border-color: var(--border-primary);
+
+/* ==========================================================================
+   CHARTS & GRID HARMONIZATION
+   ========================================================================== */
+
+svg:not(#em-logo) text {
+  fill: var(--text-secondary) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 10px !important;
 }
 
-/* Light mode semantic color adjustments for readability */
-.light .text-rose-400,
-.light .text-rose-500,
-.light .text-blue-400,
-.light .text-blue-500,
-.light .text-red-400,
-.light .text-red-500,
-.light .text-blue-400,
-.light .text-blue-500,
-.light .text-amber-400,
-.light .text-amber-500,
-.light .text-indigo-400,
-.light .text-teal-400,
-.light .text-purple-500,
-.light .text-orange-500 {
-  /* Deepen for light mode contrast */
-  filter: brightness(0.6) saturate(1.3);
+/* ==========================================================================
+   BRAND LOGO ICON SPECIFIC STYLES
+   ========================================================================== */
+#em-logo text {
+  fill: #ffffff !important;
+  font-family: "Inter", "Plus Jakarta Sans", ui-sans-serif, sans-serif !important;
+  font-size: 22px !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.02em !important;
 }
 
-/* Light mode hover overrides for sidebar buttons */
-.light button.hover\:bg-zinc-900:hover,
-.light button.hover\:bg-zinc-900\/40:hover,
-.light aside button:hover {
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
+#em-logo rect {
+  fill: #000000 !important;
+  stroke: #27272a !important;
 }
 
-.light button.hover\:text-white:hover {
-  color: var(--text-primary);
+svg line,
+svg path[stroke="#1e1b4b"],
+svg path[stroke="#27272a"] {
+  stroke: var(--border-primary) !important;
 }
 
-.light button.hover\:border-zinc-700:hover,
-.light button.hover\:border-zinc-600:hover,
-.light button.hover\:border-zinc-500:hover {
-  border-color: var(--border-secondary);
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--border-primary) !important;
 }
 
-/* Light mode sidebar specifics */
-.light #docked-desktop-sidebar,
-.light [id*="docked-desktop-sidebar"],
-.light aside[class*="bg-"]:not([class*="bg-[#08080c]"]) {
-  background-color: var(--bg-sidebar);
-  border-color: var(--border-primary);
+.recharts-legend-item-text {
+  color: var(--text-primary) !important;
 }
 
-/* Light mode header/footer */
-.light header#header-brand-rail,
-.light footer {
-  background-color: var(--bg-sidebar);
-  border-color: var(--border-primary);
+/* ==========================================================================
+   HIGH FIDELITY THIN SCROLLBARS
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
 }
 
-/* Light mode mobile nav */
-.light .mobile-bottom-nav,
-.light nav[class*="fixed bottom-4"] {
-  background-color: var(--bg-sidebar);
-  border: 1px solid var(--border-primary);
+::-webkit-scrollbar-track {
+  background: var(--bg-primary) !important;
 }
 
-/* Light mode form containers */
-.light form.card-base,
-.light [id*="-form"],
-.light [class*="from-[#"] {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-primary);
-  color: var(--text-primary);
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary) !important;
+  border-radius: 99px !important;
 }
 
-/* Light mode label colors */
-.light label,
-.light .form-label {
-  color: var(--text-secondary);
+::-webkit-scrollbar-thumb:hover {
+  background: #00C853 !important;
 }
 
-/* Light mode portfolio hero */
+/* ==========================================================================
+   PORTFOLIO HERO MAIN AMOUNT LIGHT MODE HIGHER CONTRAST
+   ========================================================================== */
+
 .light #vault-portfolio-hero [class*="bg-clip-text"] {
-  background-image: none;
-  -webkit-background-clip: unset;
-  background-clip: unset;
-  color: #000;
+  background-image: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  color: #000000 !important; /* Clear Black text color */
 }
+
 .light #vault-portfolio-hero [class*="bg-clip-text"] span.text-slate-400 {
-  color: #4b5563;
-}
-.light #vault-portfolio-hero [class*="bg-clip-text"] span[class*="text-[#3B82F6]"] {
-  color: #2563EB;
+  color: #4b5563 !important; /* Visible dark gray forcurrency sign */
 }
 
-/* Light mode sidebar navigation active states */
-.light #web-sidebar-navigation button.shadow-lg,
-.light #web-sidebar-navigation button[class*="bg-white"] {
-  background-color: var(--accent-primary);
-  color: #000;
+.light #vault-portfolio-hero [class*="bg-clip-text"] span[class*="text-[#10B981]"] {
+  color: #059669 !important; /* Keep crisp blue for decimals in light mode */
 }
 
-/* Light mode debt tracker vault view */
-.light #debt-tracker-vault-view > div:first-child > div:first-child h2,
-.light #debt-tracker-vault-view > div:first-child > div:first-child p,
-.light #debt-tracker-vault-view > div:first-child > div:first-child span,
-.light #debt-tracker-vault-view > div:first-child > div:nth-child(2) h4,
-.light #debt-tracker-vault-view > div:first-child > div:nth-child(2) span,
-.light #debt-tracker-vault-view > div:first-child > div:nth-child(2) p {
-  color: var(--text-primary);
-}
-.light #debt-tracker-vault-view > div:first-child > div:first-child p,
-.light #debt-tracker-vault-view > div:first-child > div:nth-child(2) p {
-  color: var(--text-secondary);
-}
-.light #debt-tracker-vault-view > div:first-child > div:first-child .text-amber-400 {
-  color: #D97706;
+/* ==========================================================================
+   FINTECH BRAND PREMIUM REDESIGN TRANSITIONS
+   ========================================================================== */
+
+@keyframes brandFadeUp {
+  0% {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
-/* Light mode data-loan-status elements */
-.light [data-loan-status] h3,
-.light [data-loan-status] h3 span,
-.light [data-loan-status] div,
-.light [data-loan-status] span:not([class*="text-rose"]):not([class*="text-indigo"]):not([class*="text-blue"]):not([class*="text-amber"]) {
-  color: var(--text-primary);
-}
-.light [data-loan-status] p,
-.light [data-loan-status] .text-zinc-500 {
-  color: var(--text-secondary);
-}
-.light [data-loan-status] .text-zinc-300 {
-  color: var(--text-primary);
-}
-.light [data-loan-status] .text-amber-400 {
-  color: #D97706;
-}
-.light [data-loan-status] .bg-zinc-950\/50,
-.light [data-loan-status] [class*="bg-zinc-950/"] {
-  background-color: var(--bg-surface);
-  border-color: var(--border-primary);
-  color: var(--text-secondary);
-}
-.light [data-loan-status] form input,
-.light [data-loan-status] form select,
-.light [data-loan-status] form textarea {
-  background-color: var(--bg-card);
-  border-color: var(--border-primary);
-  color: var(--text-primary);
+.animate-brand-fade-up {
+  opacity: 0;
+  animation: brandFadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Light mode segmented tabs */
-.light #tab-selectors,
-.light #reports-type-selectors,
-.light [id*="-selectors"] {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-primary);
-}
-.light #tab-selectors button,
-.light #reports-type-selectors button,
-.light [id*="-selectors"] button {
-  color: var(--text-secondary);
-}
-.light #tab-selectors button:hover,
-.light #reports-type-selectors button:hover,
-.light [id*="-selectors"] button:hover {
-  background-color: color-mix(in srgb, var(--text-primary) 4%, transparent);
-  color: var(--text-primary);
-}
-.light #tab-selectors button.bg-zinc-900,
-.light #tab-selectors button[class*="bg-zinc-"],
-.light #reports-type-selectors button.bg-zinc-900,
-.light [id*="-selectors"] button.bg-zinc-900 {
-  background-color: var(--bg-card);
-  color: var(--accent-primary);
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 18%, transparent);
-}
-.light #tab-selectors button.bg-zinc-900 *,
-.light #tab-selectors button[class*="bg-zinc-"] * {
-  color: var(--accent-primary);
+@keyframes brandFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
-/* Light mode premium badge */
-.light #premium-suite-badge {
-  background-color: color-mix(in srgb, var(--accent-primary) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
-  color: var(--accent-primary);
+.animate-brand-fade-in {
+  opacity: 0;
+  animation: brandFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Light mode error/sync banners */
-.light .border-red-900\/60,
-.light .border-red-950\/70 {
-  border-color: var(--danger);
-  opacity: 0.6;
-}
 
-/* Light mode muted overlays */
-.light [class*="bg-zinc-950/65"],
-.light [class*="bg-zinc-950/50"],
-.light [class*="bg-zinc-900/15"],
-.light [class*="bg-black/"]:not(.modal-backdrop):not([class*="inset-0"]) {
-  background-color: var(--bg-surface);
-  border-color: var(--border-primary);
-  color: var(--text-primary);
-}
 
-/* Light mode divider */
-.light [class*="w-px"].bg-zinc-900 {
-  background-color: var(--border-primary);
-}

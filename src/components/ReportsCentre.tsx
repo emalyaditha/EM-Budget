@@ -4,8 +4,7 @@ import { exportTransactionsToCSV, EXPENSE_COLORS, INCOME_COLORS } from '../utils
 import { 
   FileDown, Printer, BarChart3, TrendingUp, Award, Calendar, 
   DollarSign, PieChart, Landmark, Search, ChevronDown, ChevronUp, 
-  Filter, CheckSquare, Sparkles, BookOpen, ArrowUpRight, ArrowDownLeft,
-  Wallet, PiggyBank, Percent, AlertCircle, Download, ExternalLink, X
+  Filter, CheckSquare, Sparkles, BookOpen
 } from 'lucide-react';
 import { IncomeVsExpenseBar, CategorySpreadAnalysis, TrendAnalysisChart } from './Charts';
 import { DatePicker } from './DatePicker';
@@ -46,7 +45,7 @@ export default function ReportsCentre({
     if (reportType === 'yearly') {
       return year === selectedYear;
     }
-    return true;
+    return true; // Category and Debt are lifetime/aggregate by default
   });
 
   // Calculate Aggregations
@@ -154,231 +153,157 @@ export default function ReportsCentre({
     window.print();
   };
 
-  const reportTabs = [
-    { key: 'monthly', label: 'Monthly', icon: <Calendar size={13} /> },
-    { key: 'yearly', label: 'Annual', icon: <BarChart3 size={13} /> },
-    { key: 'category', label: 'Categories', icon: <PieChart size={13} /> },
-    { key: 'debt', label: 'Debt Ratios', icon: <Landmark size={13} /> },
-  ] as const;
-
-  const isDebtView = reportType === 'debt';
-  const showPeriodFilters = reportType === 'monthly' || reportType === 'yearly';
-
   return (
-    <div id="reports-centre-view" className="space-y-5 animate-brand-fade-up">
+    <div id="reports-centre-view" className="space-y-6 animate-fade-in">
+      
+      {/* 1. Category Switch Header (Glassmorphic Selection Bar) */}
+      <div className="grid grid-cols-4 p-1.5 bg-[#0a0a0f] border border-zinc-850 rounded-[20px] text-center" id="reports-type-selectors">
+        {[
+          { key: 'monthly', label: 'Monthly Report' },
+          { key: 'yearly', label: 'Annual Analytics' },
+          { key: 'category', label: 'Category Split' },
+          { key: 'debt', label: 'Debt Ratios' },
+        ].map(item => (
+          <button
+            key={item.key}
+            onClick={() => setReportType(item.key as any)}
+            className={`py-3 px-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              reportType === item.key
+                ? 'bg-zinc-900 border border-zinc-800 text-white shadow-xl font-extrabold'
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
 
-      {/* ===== HEADER ===== */}
-      <div className="flex flex-col sm:flex-row sm:items-start lg:items-center justify-between gap-3">
-        <div className="shrink-0">
-          <h1 className="text-xl font-display font-extrabold text-[var(--text-primary)] tracking-tight">
-            Reports Centre
-          </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Financial analytics and transaction audit trail
-          </p>
-        </div>
-
-        <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 w-full sm:w-auto">
-          {showPeriodFilters && (
-            <div className="flex items-center gap-2">
-              {reportType === 'monthly' && (
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="form-select !w-auto !text-xs !py-2 !px-3"
-                  aria-label="Select month"
-                >
-                  <option value="01">January</option>
-                  <option value="02">February</option>
-                  <option value="03">March</option>
-                  <option value="04">April</option>
-                  <option value="05">May</option>
-                  <option value="06">June</option>
-                  <option value="07">July</option>
-                  <option value="08">August</option>
-                  <option value="09">September</option>
-                  <option value="10">October</option>
-                  <option value="11">November</option>
-                  <option value="12">December</option>
-                </select>
-              )}
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="form-select !w-auto !text-xs !py-2 !px-3"
-                aria-label="Select year"
-              >
-                <option value="2025">2025</option>
-                <option value="2026">2026</option>
-                <option value="2027">2027</option>
-                <option value="2028">2028</option>
-              </select>
-            </div>
+      {/* Period Dropdowns Filter Row */}
+      {(reportType === 'monthly' || reportType === 'yearly') && (
+        <div className="flex gap-3 p-2 bg-[#050510]/30 border border-zinc-900 rounded-2xl" id="period-dropdowns">
+          {reportType === 'monthly' && (
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="flex-1 bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 rounded-xl text-xs px-4 py-3 focus:outline-none transition-colors font-bold cursor-pointer"
+            >
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
           )}
 
-          <div className="segmented-tabs overflow-x-auto" id="reports-type-selectors" style={{ scrollbarWidth: 'none' }}>
-            {reportTabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setReportType(tab.key as any)}
-                className={`segmented-tab whitespace-nowrap ${reportType === tab.key ? 'active' : ''}`}
-                aria-current={reportType === tab.key ? 'page' : undefined}
-              >
-                <span className="flex items-center gap-1.5">
-                  {tab.icon}
-                  {tab.label}
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className="flex-1 bg-black border border-zinc-850 hover:border-zinc-700 text-zinc-300 rounded-xl text-xs px-4 py-3 focus:outline-none transition-colors font-bold cursor-pointer"
+          >
+            <option value="2025">Year 2025</option>
+            <option value="2026">Year 2026</option>
+            <option value="2027">Year 2027</option>
+            <option value="2028">Year 2028</option>
+          </select>
+        </div>
+      )}
+
+      {/* DUAL COLUMN REPORT VIEW */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* LEFT COLUMN: METRICS & CHARTS */}
+         <div className="lg:col-span-7 space-y-6">
+          
+          {/* Executive Net Savings card */}
+          <div className="bg-card text-card-foreground border border-zinc-200 dark:border-zinc-850 rounded-[32px] p-6 shadow-2xl relative overflow-hidden">
+            {/* Ambient lighting ring */}
+            <div className="absolute top-0 right-0 p-4 text-[var(--accent-primary)]/10 pointer-events-none">
+              <Award size={80} className="stroke-[1.5px] opacity-15" />
+            </div>
+
+            <span className="text-[9px] font-mono uppercase tracking-widest text-[var(--accent-primary)] dark:text-[var(--accent-primary)] font-bold block mb-1">Executive Summary</span>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground block">Period Net Surplus</span>
+            <h2 className="text-3xl font-extrabold text-card-foreground tracking-tight font-mono mt-1 select-all">
+              {currency}{netSavings.toLocaleString()}
+            </h2>
+            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+              Aggregated balance calculation of recorded inflows deducting logged settling charges and liabilities paydowns for selected dates bounds.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-900 items-stretch">
+              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-4 rounded-2xl flex flex-col items-center justify-center text-center h-24 w-full transition-all hover:bg-muted/80">
+                <span className="text-[10px] text-muted-foreground uppercase font-mono font-bold tracking-wider block mb-1.5 leading-none">Collected</span>
+                <span className="text-base xs:text-lg sm:text-[11px] md:text-sm lg:text-[11px] xl:text-sm font-mono font-extrabold text-blue-600 dark:text-emerald-400 truncate max-w-full leading-none select-all">
+                  +{currency}{totalIncome.toLocaleString()}
                 </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+              </div>
 
-      {/* ===== KPI ROW ===== */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div className="card-base p-4">
-          <div className="flex items-start justify-between mb-2">
-            <span className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-              Net Savings
-            </span>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, var(--success) 12%, transparent)' }}>
-              <PiggyBank size={14} style={{ color: 'var(--success)' }} />
+              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-4 rounded-2xl flex flex-col items-center justify-center text-center h-24 w-full transition-all hover:bg-muted/80">
+                <span className="text-[10px] text-muted-foreground uppercase font-mono font-bold tracking-wider block mb-1.5 leading-none">Settled</span>
+                <span className="text-base xs:text-lg sm:text-[11px] md:text-sm lg:text-[11px] xl:text-sm font-mono font-extrabold text-rose-600 dark:text-rose-400 truncate max-w-full leading-none select-all">
+                  -{currency}{totalExpense.toLocaleString()}
+                </span>
+              </div>
+
+              <div className="bg-muted border border-zinc-200 dark:border-zinc-900 p-4 rounded-2xl flex flex-col items-center justify-center text-center h-24 w-full transition-all hover:bg-muted/80">
+                <span className="text-[10px] text-muted-foreground uppercase font-mono font-bold tracking-wider block mb-1.5 leading-none">Surplus Match</span>
+                <span className="text-base xs:text-lg sm:text-[11px] md:text-sm lg:text-[11px] xl:text-sm font-mono font-extrabold text-card-foreground truncate max-w-full leading-none select-all">
+                  {savingsRate > 0 ? `+${savingsRate}%` : `${savingsRate}%`}
+                </span>
+              </div>
             </div>
           </div>
-          <p className="text-sm sm:text-base lg:text-lg font-mono font-extrabold text-[var(--text-primary)] leading-none truncate">
-            {currency}{netSavings.toLocaleString()}
-          </p>
-          <p className="text-[10px] text-[var(--text-muted)] mt-1">
-            Income − Expenses − Debt
-          </p>
-        </div>
 
-        <div className="card-base p-4">
-          <div className="flex items-start justify-between mb-2">
-            <span className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-              Income
-            </span>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, var(--success) 12%, transparent)' }}>
-              <ArrowUpRight size={14} style={{ color: 'var(--success)' }} />
-            </div>
-          </div>
-          <p className="text-sm sm:text-base lg:text-lg font-mono font-extrabold truncate" style={{ color: 'var(--success)' }}>
-            +{currency}{totalIncome.toLocaleString()}
-          </p>
-          <p className="text-[10px] text-[var(--text-muted)] mt-1">
-            Total inflows
-          </p>
-        </div>
-
-        <div className="card-base p-4">
-          <div className="flex items-start justify-between mb-2">
-            <span className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-              Expenses
-            </span>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 12%, transparent)' }}>
-              <ArrowDownLeft size={14} style={{ color: 'var(--danger)' }} />
-            </div>
-          </div>
-          <p className="text-sm sm:text-base lg:text-lg font-mono font-extrabold truncate" style={{ color: 'var(--danger)' }}>
-            -{currency}{totalExpense.toLocaleString()}
-          </p>
-          <p className="text-[10px] text-[var(--text-muted)] mt-1">
-            Total outflows
-          </p>
-        </div>
-
-        <div className="card-base p-4">
-          <div className="flex items-start justify-between mb-2">
-            <span className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-              Savings Rate
-            </span>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, color-mix(in srgb, var(--success) 50%, var(--warning) 50%) 12%, transparent)' }}>
-              <Percent size={14} style={{ color: netSavings >= 0 ? 'var(--success)' : 'var(--danger)' }} />
-            </div>
-          </div>
-          <p className={`text-sm sm:text-base lg:text-lg font-mono font-extrabold leading-none truncate ${netSavings >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-            {savingsRate > 0 ? `+${savingsRate}%` : `${savingsRate}%`}
-          </p>
-          <p className="text-[10px] text-[var(--text-muted)] mt-1">
-            Net / Total Income
-          </p>
-        </div>
-
-        <div className="card-base p-4">
-          <div className="flex items-start justify-between mb-2">
-            <span className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-              Debt Paid
-            </span>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 12%, transparent)' }}>
-              <AlertCircle size={14} style={{ color: 'var(--warning)' }} />
-            </div>
-          </div>
-          <p className="text-sm sm:text-base lg:text-lg font-mono font-extrabold truncate" style={{ color: 'var(--warning)' }}>
-            {currency}{totalDebtPaid.toLocaleString()}
-          </p>
-          <p className="text-[10px] text-[var(--text-muted)] mt-1">
-            Liability payments
-          </p>
-        </div>
-      </div>
-
-      {/* ===== MAIN CONTENT ===== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-
-        {/* ===== LEFT: Charts / Debt ===== */}
-        <div className="lg:col-span-7 space-y-5">
-
-          {!isDebtView ? (
-            <>
-              <div className="card-base p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <BarChart3 size={14} style={{ color: 'var(--success)' }} />
-                  <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-                    Income vs Expenses
-                  </h3>
-                </div>
+          {/* Render Graphs in Premium Glass Panels */}
+          {reportType !== 'debt' ? (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono pl-3.5 flex items-center gap-1.5">
+                  <BarChart3 size={13} className="text-[var(--accent-primary)] dark:text-[var(--accent-primary)]" />
+                  Inflows Relative to Outflows
+                </h4>
                 <IncomeVsExpenseBar income={totalIncome} expense={totalExpense} currency={currency} />
               </div>
 
-              <div className="card-base p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <PieChart size={14} style={{ color: 'var(--accent-primary)' }} />
-                  <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-                    Expense Category Breakdown
-                  </h3>
-                </div>
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono pl-3.5 flex items-center gap-1.5">
+                  <PieChart size={13} className="text-[var(--accent-primary)] dark:text-[var(--accent-primary)]" />
+                  Disbursed Categories Breakdown Range
+                </h4>
                 <CategorySpreadAnalysis categories={categoryChartList} />
               </div>
 
-              <div className="card-base p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp size={14} style={{ color: 'var(--accent-primary)' }} />
-                  <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-                    Transaction Activity Trend
-                  </h3>
-                </div>
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono pl-3.5 flex items-center gap-1.5">
+                  <TrendingUp size={13} className="text-[var(--accent-primary)] dark:text-[var(--accent-primary)]" />
+                  Repayments Velocity Tracker
+                </h4>
                 <TrendAnalysisChart data={sparklineData} currency={currency} />
               </div>
-            </>
+            </div>
           ) : (
-            <div className="card-base p-5">
-              <div className="flex items-center gap-2 mb-5 pb-3 border-b" style={{ borderColor: 'var(--border-primary)' }}>
-                <Landmark size={14} style={{ color: 'var(--accent-primary)' }} />
+            /* Debt Liabilities Ratio trackers */
+            <div className="bg-zinc-905 bg-zinc-900/40 border border-zinc-850 rounded-[32px] p-6 space-y-4 shadow-xl">
+              <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
                 <div>
-                  <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-                    Liability Settlement Progress
-                  </h3>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
-                    Remaining vs original principal amounts
-                  </p>
+                  <h4 className="text-sm font-bold text-white font-sans flex items-center gap-2">
+                    <Landmark size={15} className="text-[var(--accent-primary)]" />
+                    Passive Liabilities Ratio Track
+                  </h4>
+                  <span className="text-[10px] text-zinc-550 block mt-0.5 text-zinc-500 font-mono">Comparing remaining values to original principles</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 pt-2">
                 {debts.length === 0 ? (
-                  <div className="py-12 text-center text-[var(--text-muted)] text-xs italic card-surface p-6">
-                    No active debts registered.
-                  </div>
+                  <p className="text-zinc-500 text-xs text-center py-8 italic">No active ledger debt registered.</p>
                 ) : (
                   [...debts]
                     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
@@ -387,42 +312,19 @@ export default function ReportsCentre({
                     const ratio = Math.round((paid / d.totalAmount) * 100);
 
                     return (
-                      <div
-                        key={d.id}
-                        className="card-surface p-4 space-y-3"
-                        data-debt-status={d.remainingAmount <= 0 ? 'paid' : 'outstanding'}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold text-[var(--text-primary)] truncate block">
-                              {d.debtSource}
-                            </span>
-                            <span className="text-[10px] text-[var(--text-secondary)] font-mono">
-                              Due {d.dueDate}
-                            </span>
-                          </div>
-                          <span className="text-sm font-mono font-extrabold shrink-0 ml-3" style={{ color: 'var(--warning)' }}>
-                            {currency}{d.remainingAmount.toLocaleString()}
-                          </span>
+                      <div key={d.id} className="bg-black/40 border border-zinc-900 p-4 rounded-2xl space-y-3">
+                        <div className="flex justify-between text-xs font-bold text-white">
+                          <span className="truncate max-w-[200px]">{d.debtSource}</span>
+                          <span className="font-mono text-amber-400">{currency}{d.remainingAmount.toLocaleString()}</span>
                         </div>
-
-                        <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{
-                              width: `${ratio}%`,
-                              background: ratio >= 100
-                                ? 'var(--success)'
-                                : ratio >= 50
-                                  ? 'linear-gradient(90deg, var(--warning), var(--success))'
-                                  : 'linear-gradient(90deg, var(--danger), var(--warning))'
-                            }}
-                          />
+                        
+                        <div className="w-full bg-zinc-950 h-2 border border-zinc-900 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-amber-600 to-amber-500" style={{ width: `${ratio}%` }} />
                         </div>
-
-                        <div className="flex justify-between text-[10px] font-mono text-[var(--text-muted)]">
-                          <span>{ratio}% settled</span>
-                          <span>Total: {currency}{d.totalAmount.toLocaleString()}</span>
+                        
+                        <div className="flex justify-between text-[10px] font-mono text-zinc-500 font-bold">
+                          <span>Settled ratio: {ratio}%</span>
+                          <span>Initial value: {currency}{d.totalAmount.toLocaleString()}</span>
                         </div>
                       </div>
                     );
@@ -432,96 +334,80 @@ export default function ReportsCentre({
             </div>
           )}
 
-          {/* Export actions */}
-          <div className="flex gap-3">
+          {/* EXPORT CONTROL MODULES */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
             <button
               onClick={handleExcelExport}
-              className="btn-secondary flex-1"
+              className="py-4 bg-zinc-950 border border-zinc-850 hover:border-zinc-700 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-center hover:scale-[1.01]"
             >
-              <FileDown size={14} />
-              Export CSV
+              <FileDown size={14} className="text-[var(--accent-primary)]" />
+              Export CSV Ledger
             </button>
+
             <button
               onClick={handlePrintPDF}
-              className="btn-primary flex-1"
+              className="py-4 bg-white text-black font-extrabold text-xs rounded-2xl flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all cursor-pointer shadow-md text-center hover:scale-[1.01]"
             >
-              <Printer size={14} />
-              Print Report
+              <Printer size={14} className="text-black" />
+              Generate Printout Report
             </button>
           </div>
         </div>
 
-        {/* ===== RIGHT: Ledger History ===== */}
-        <div className="lg:col-span-5 card-base flex flex-col" style={{ maxHeight: 'clamp(400px, calc(100vh - 260px), 800px)' }}>
-          <div className="p-5 border-b shrink-0" style={{ borderColor: 'var(--border-primary)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <span className="text-[9px] font-mono font-bold tracking-widest uppercase" style={{ color: 'var(--accent-primary)' }}>
-                  Audit Trail
-                </span>
-                <h3 className="text-sm font-bold text-[var(--text-primary)] mt-0.5">
-                  Unified Ledger
-                </h3>
-              </div>
-              <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg" style={{
-                backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
-                color: 'var(--accent-primary)',
-              }}>
-                {filteredHistory.length} entries
-              </span>
+        {/* RIGHT COLUMN: SEARCHABLE HISTORY - UNIFIED LEDGER JOURNALS */}
+         <div className="lg:col-span-5 bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-zinc-850 p-6 rounded-[32px] space-y-5 shadow-2xl w-full" id="unified-audits-column">
+          
+          <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
+            <div>
+              <span className="text-[9px] font-mono tracking-wider text-[var(--accent-primary)] font-bold block uppercase">LEDGER AUDIT TRACK</span>
+              <p className="text-base font-extrabold text-white">Unified Journals</p>
             </div>
+            <span className="text-[9.5px] font-mono bg-black px-2.5 py-1 border border-zinc-850 rounded-xl text-zinc-400 font-bold uppercase shrink-0">
+              {filteredHistory.length} EVENTS
+            </span>
+          </div>
 
-            {/* Search */}
-            <div className="relative mb-3">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+          {/* Search Inputs with sleek designs */}
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="text-zinc-500 absolute left-3.5 top-[13.5px] w-4.5 h-4.5 stroke-[2px]" />
               <input
                 type="text"
-                placeholder="Search transactions..."
+                placeholder="Lookup journals, categories, descriptions..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="form-input !pl-9 !text-xs"
-                aria-label="Search transactions"
+                className="w-full bg-black text-xs !pl-11 !pr-4 py-3.5 rounded-xl border border-zinc-850 focus:border-zinc-700 focus:outline-none text-white font-medium transition-all"
               />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-                  aria-label="Clear search"
-                >
-                  <X size={12} />
-                </button>
-              )}
             </div>
 
-            {/* Filters */}
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div>
-                <span className="form-label !text-[9px] !mb-1">Type</span>
+            {/* Account & Type selectors filter layout */}
+            <div className="grid grid-cols-2 gap-2 text-zinc-400 text-xs">
+              <div className="space-y-1">
+                <span className="text-[9px] font-mono uppercase text-zinc-500 font-extrabold pl-1">Type</span>
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="form-select !text-xs !py-2"
-                  aria-label="Filter by type"
+                  className="w-full bg-[#050510]/50 border border-zinc-850 hover:border-zinc-700 rounded-xl text-xs px-3 py-2.5 font-bold cursor-pointer transition-colors focus:outline-none"
                 >
-                  <option value="all">All Types</option>
-                  <option value="income">Income</option>
-                  <option value="financing">Financing</option>
-                  <option value="expense">Expense</option>
-                  <option value="transfer">Transfer</option>
-                  <option value="debt_payment">Debt Payment</option>
-                  <option value="deposit">Deposit</option>
-                  <option value="withdrawal">Withdrawal</option>
+                  <option value="all">All Inflow/Outflow</option>
+                  <option value="income">Only Incomes</option>
+                  <option value="financing">Financing / Borrowing</option>
+                  <option value="expense">Only Expenses</option>
+                  <option value="transfer">Only Transfers</option>
+                  <option value="debt_payment">Debt Repayments</option>
+                  <option value="deposit">Deposits</option>
+                  <option value="withdrawal">Withdrawals</option>
                 </select>
               </div>
-              <div>
-                <span className="form-label !text-[9px] !mb-1">Account</span>
+
+              <div className="space-y-1">
+                <span className="text-[9px] font-mono uppercase text-zinc-500 font-extrabold pl-1">Source Account</span>
                 <select
                   value={filterAccount}
                   onChange={(e) => setFilterAccount(e.target.value)}
-                  className="form-select !text-xs !py-2"
-                  aria-label="Filter by account"
+                  className="w-full bg-[#050510]/50 border border-zinc-850 hover:border-zinc-700 rounded-xl text-xs px-3 py-2.5 font-bold cursor-pointer transition-colors focus:outline-none"
                 >
-                  <option value="all">All Accounts</option>
+                  <option value="all">All Wallets/Cards</option>
                   {cashAccounts.map(c => (
                     <option key={c.id} value={c.id}>Cash: {c.name}</option>
                   ))}
@@ -532,119 +418,103 @@ export default function ReportsCentre({
               </div>
             </div>
 
-            {/* Date range */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <span className="form-label !text-[9px] !mb-1">From</span>
-                <DatePicker value={startDate} onChange={setStartDate} />
+            {/* Calendar bound parameters */}
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[9px] text-[#888888] font-bold uppercase block pl-1 font-mono tracking-wider">Start Bound</span>
+                <DatePicker 
+                  value={startDate} 
+                  onChange={setStartDate} 
+                />
               </div>
-              <div>
-                <span className="form-label !text-[9px] !mb-1">To</span>
-                <DatePicker value={endDate} onChange={setEndDate} />
+
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[9px] text-[#888888] font-bold uppercase block pl-1 font-mono tracking-wider">End Bound</span>
+                <DatePicker 
+                  value={endDate} 
+                  onChange={setEndDate} 
+                />
               </div>
             </div>
 
-            {(startDate || endDate) && (
-              <button
-                onClick={() => { setStartDate(''); setEndDate(''); }}
-                className="text-[10px] font-medium mt-2 hover:underline cursor-pointer"
-                style={{ color: 'var(--accent-primary)' }}
-              >
-                Clear date range
-              </button>
-            )}
+            <div className="flex justify-end items-center pt-1">
+              {(startDate || endDate) && (
+                <button
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                  }}
+                  className="text-[10px] font-mono text-rose-450 text-rose-400 hover:underline cursor-pointer font-bold"
+                >
+                  Reset Bound Ranges
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Transaction list */}
-          <div className="flex-1 overflow-y-auto p-2" style={{ scrollbarWidth: 'thin' }}>
+          {/* List display */}
+          <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }} id="filtered-list">
             {filteredHistory.length === 0 ? (
-              <div className="py-12 text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'color-mix(in srgb, var(--text-muted) 8%, transparent)' }}>
-                  <Search size={18} style={{ color: 'var(--text-muted)' }} />
-                </div>
-                <p className="text-xs text-[var(--text-muted)]">No entries match your filters</p>
-                <button
-                  onClick={() => { setSearchQuery(''); setFilterType('all'); setFilterAccount('all'); setStartDate(''); setEndDate(''); }}
-                  className="text-[10px] font-medium mt-2 hover:underline cursor-pointer"
-                  style={{ color: 'var(--accent-primary)' }}
-                >
-                  Reset all filters
-                </button>
+              <div className="py-12 text-center text-zinc-500 text-xs italic border border-dashed border-zinc-850 rounded-2xl bg-zinc-955 bg-[#050505]/40 animate-pulse">
+                No archived journal entries matched this query.
               </div>
             ) : (
-              <div className="space-y-1">
-                {filteredHistory.map((t) => {
-                  const isInc = t.type === 'income' || t.type === 'deposit' || t.type === 'financing' || (t.type === 'transfer' && (t.category === 'Transfer In' || t.amount > 0));
-                  const absAmount = Math.abs(t.amount);
+              filteredHistory.map((t) => {
+                const isInc = t.type === 'income' || t.type === 'deposit' || t.type === 'financing' || (t.type === 'transfer' && (t.category === 'Transfer In' || t.amount > 0));
+                const absAmount = Math.abs(t.amount);
 
-                  const getAccountLabel = (accId?: string, accType?: string) => {
-                    if (!accId || !accType) return '';
-                    if (accType === 'cash') {
-                      return cashAccounts.find(c => c.id === accId)?.name || 'Cash';
-                    }
-                    return cards.find(c => c.id === accId)?.cardName || 'Card';
-                  };
+                // Fetch the name of this specific account for context
+                const getAccountLabel = (accId?: string, accType?: string) => {
+                  if (!accId || !accType) return '';
+                  if (accType === 'cash') {
+                    return cashAccounts.find(c => c.id === accId)?.name || 'Cash';
+                  }
+                  return cards.find(c => c.id === accId)?.cardName || 'Card';
+                };
 
-                  const accountLabel = getAccountLabel(t.accountId, t.accountType);
+                const accountLabel = getAccountLabel(t.accountId, t.accountType);
 
-                  return (
-                    <div
-                      key={t.id}
-                      id={`reports-audit-card-${t.id}`}
-                      className="p-3 rounded-xl transition-all duration-150 cursor-pointer group hover:scale-[1.002]"
-                      style={{
-                        backgroundColor: 'var(--bg-card)',
-                        border: '1px solid var(--border-primary)',
-                      }}
-                      onClick={() => onSelectTransaction(t.id)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border-secondary)';
-                        e.currentTarget.style.backgroundColor = 'var(--bg-surface)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border-primary)';
-                        e.currentTarget.style.backgroundColor = 'var(--bg-card)';
-                      }}
-                    >
-                      <div className="flex justify-between items-center mb-1.5">
-                        <span
-                          className="text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-md"
-                          style={{
-                            backgroundColor: 'color-mix(in srgb, var(--text-muted) 10%, transparent)',
-                            color: 'var(--text-muted)',
-                          }}
-                        >
-                          {t.type.replace(/_/g, ' ')}
-                        </span>
-                        <span className="text-[9px] font-mono text-[var(--text-muted)]">
-                          {t.date}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center gap-2">
-                        <div className="min-w-0 flex-1">
-                          <span className="text-xs font-semibold text-[var(--text-primary)] truncate block">
-                            {t.title}
-                          </span>
-                          <span className="text-[9px] text-[var(--text-muted)] font-mono">
-                            {t.category}{accountLabel ? ` · ${accountLabel}` : ''}
-                          </span>
-                        </div>
-                        <span
-                          className={`text-xs font-mono font-extrabold shrink-0 ${isInc ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
-                        >
-                          {isInc ? '+' : '-'}{currency}{absAmount.toLocaleString()}
-                        </span>
-                      </div>
+                return (
+                  <div 
+                    key={t.id} 
+                    id={`reports-audit-card-${t.id}`} 
+                    className="p-3.5 bg-black/55 hover:bg-zinc-950/90 border border-zinc-900 hover:border-zinc-800 rounded-2xl space-y-2 hover:scale-[1.002] transition-all duration-200 cursor-pointer group"
+                    onClick={() => onSelectTransaction(t.id)}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-[8px] font-mono tracking-widest text-[#a1a1a9] font-black uppercase bg-zinc-950 px-2.5 py-0.5 rounded-full border border-zinc-900">
+                        {t.type}
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-550 text-zinc-500 font-semibold">
+                        {t.date}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+
+                    <div className="flex justify-between items-center gap-2.5">
+                       <div className="flex items-center gap-2 min-w-0 max-w-[190px]">
+                         <h4 className="text-xs font-bold text-white truncate font-sans">{t.title}</h4>
+                         <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)] text-[var(--accent-primary)] text-[8px] px-1.5 py-0.5 rounded-md font-bold shrink-0">VIEW</span>
+                       </div>
+                      <span className={`text-xs font-mono font-black shrink-0 ${isInc ? 'text-emerald-450 text-emerald-400' : 'text-rose-455 text-rose-400'}`}>
+                        {isInc ? '+' : '-'}{currency}{absAmount.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[10px] text-zinc-500 pt-2 border-t border-zinc-900">
+                      <span className="font-semibold truncate max-w-[130px] font-mono text-zinc-400">{t.category}</span>
+                      <span className="font-mono text-[9px] text-zinc-500 shrink-0 select-none uppercase font-bold">
+                        {accountLabel ? `${accountLabel}` : 'Vault Ledger'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
 
       </div>
+
     </div>
   );
 }

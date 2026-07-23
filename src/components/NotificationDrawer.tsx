@@ -30,7 +30,7 @@ export default function NotificationDrawer({
       <div className="bg-card border-t border-border rounded-t-[32px] h-[85%] flex flex-col overflow-hidden shadow-2xl relative z-10 max-w-lg mx-auto w-full">
         
         {/* Pull Drag Line bar */}
-        <div className="w-12 h-1 bg-surface dark:bg-surface rounded-full mx-auto my-3 shrink-0 cursor-pointer" onClick={onClose} />
+        <div className="w-12 h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full mx-auto my-3 shrink-0 cursor-pointer" onClick={onClose} />
 
         {/* Header toolbar */}
         <div className="px-4 sm:px-6 pb-4 border-b border-border flex justify-between items-center">
@@ -39,7 +39,7 @@ export default function NotificationDrawer({
               <Bell size={16} className="text-muted-foreground shrink-0" />
               Intelligence Center
               {unreadCount > 0 && (
-                <span className="bg-indigo-600 text-primary font-black font-mono text-[9px] px-2 py-0.5 rounded-full border border-indigo-500 shadow-md shrink-0">
+                <span className="bg-indigo-600 text-white font-black font-mono text-[9px] px-2 py-0.5 rounded-full border border-indigo-500 shadow-md shrink-0">
                   {unreadCount} NEW
                 </span>
               )}
@@ -106,7 +106,7 @@ export default function NotificationDrawer({
                       {!notif.read && (
                         <button
                           onClick={() => onMarkRead(notif.id)}
-                          className="text-[10.5px] text-blue-600 dark:text-success font-bold font-mono uppercase flex items-center gap-1 hover:text-blue-500 cursor-pointer"
+                          className="text-[10.5px] text-blue-600 dark:text-emerald-400 font-bold font-mono uppercase flex items-center gap-1 hover:text-emerald-500 cursor-pointer"
                         >
                           <Check size={11} className="stroke-[2.5px]" /> Read
                         </button>

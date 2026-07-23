@@ -83,15 +83,15 @@ export default function BudgetsSection({
 
   const getProgressBarColor = (spent: number, limit: number) => {
     const ratio = spent / limit;
-    if (ratio >= 0.95) return 'bg-danger-solid'; // soft coral / red
-    if (ratio >= 0.70) return 'bg-warning-solid'; // amber / gold
+    if (ratio >= 0.95) return 'bg-[#F87171]'; // soft coral / red
+    if (ratio >= 0.70) return 'bg-[#F59E0B]'; // amber / gold
     return 'bg-[var(--accent-primary)]'; // blue blue
   };
 
   const getProgressBgColor = (spent: number, limit: number) => {
     const ratio = spent / limit;
-    if (ratio >= 0.95) return 'bg-red-500/10 text-danger border-subtle';
-    if (ratio >= 0.70) return 'bg-amber-500/10 text-warning border-amber-500/20';
+    if (ratio >= 0.95) return 'bg-red-500/10 text-[#F87171] border-red-500/20';
+    if (ratio >= 0.70) return 'bg-amber-500/10 text-[#F59E0B] border-amber-500/20';
     return 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-[var(--accent-primary)]/20';
   };
 
@@ -126,8 +126,8 @@ export default function BudgetsSection({
               }}
               className={`flex items-center gap-1.5 border font-bold py-2.5 px-4 rounded-[12px] text-xs transition-all cursor-pointer ${
                 showClearConfirm 
-                  ? 'border-red-500 bg-red-600 text-primary animate-pulse'
-                  : 'border-subtle hover:bg-red-500/5 hover:border-subtle text-red-500 hover:scale-[1.03]'
+                  ? 'border-red-500 bg-red-600 text-white animate-pulse'
+                  : 'border-red-500/20 hover:bg-red-500/5 hover:border-red-500/40 text-red-500 hover:scale-[1.03]'
               }`}
             >
               <Trash2 size={13} />
@@ -137,7 +137,7 @@ export default function BudgetsSection({
 
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-primary font-bold py-2.5 px-5 rounded-[12px] text-xs transition-all cursor-pointer shadow-[0_4px_12px_rgba(0,163,255,0.2)] hover:scale-[1.03]"
+            className="flex items-center gap-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-slate-950 font-bold py-2.5 px-5 rounded-[12px] text-xs transition-all cursor-pointer shadow-[0_4px_12px_rgba(0,163,255,0.2)] hover:scale-[1.03]"
           >
             <Plus size={15} />
             <span>Create Budget</span>
@@ -197,15 +197,15 @@ export default function BudgetsSection({
             </div>
 
             <div className="flex gap-4 justify-center md:justify-start">
-              <div className="px-3.5 py-2 bg-card-40 border border-default rounded-xl">
+              <div className="px-3.5 py-2 bg-slate-900/40 border border-slate-800 rounded-xl">
                 <span className="text-[9px] text-[var(--text-secondary)] uppercase block font-medium">Days Left</span>
                 <span className="text-sm font-extrabold text-[var(--text-primary)] font-mono flex items-center gap-1 mt-0.5">
-                  <Calendar size={13} className="text-warning" />
+                  <Calendar size={13} className="text-[#F59E0B]" />
                   {daysRemaining} days
                 </span>
               </div>
 
-              <div className="px-3.5 py-2 bg-card-40 border border-default rounded-xl">
+              <div className="px-3.5 py-2 bg-slate-900/40 border border-slate-800 rounded-xl">
                 <span className="text-[9px] text-[var(--text-secondary)] uppercase block font-medium">Safe To Spend</span>
                 <span className="text-sm font-extrabold text-[var(--accent-primary)] font-mono mt-0.5">
                   {currency}{Math.max(0, Math.round((totalBudgeted - totalSpent) / (daysRemaining || 1))).toLocaleString()}/d
@@ -219,7 +219,7 @@ export default function BudgetsSection({
         <div className="lg:col-span-7 bg-[var(--bg-card)] border border-[var(--border-primary)] p-6 rounded-[24px] flex flex-col justify-between shadow-[var(--shadow-soft)]">
           <div className="space-y-3">
             <h4 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-              <Sparkles size={16} className="text-warning animate-pulse" />
+              <Sparkles size={16} className="text-[#F59E0B] animate-pulse" />
               <span>Smart Budget Diagnostics AI</span>
             </h4>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
@@ -228,7 +228,7 @@ export default function BudgetsSection({
 
             <div className="space-y-3 pt-2">
               {percentSpent > 85 ? (
-                <div className="flex gap-3 bg-danger border border-subtle p-3.5 rounded-xl text-xs text-danger leading-relaxed">
+                <div className="flex gap-3 bg-[#F87171]/10 border border-[#F87171]/20 p-3.5 rounded-xl text-xs text-[#F87171] leading-relaxed">
                   <AlertTriangle size={18} className="shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold block">Aggressive Outflow Warning!</span>
@@ -246,7 +246,7 @@ export default function BudgetsSection({
               )}
 
               {budgets.some(b => b.spent > b.limit) && (
-                <div className="flex gap-3 bg-amber-500/10 border border-amber-500/20 p-3.5 rounded-xl text-xs text-warning leading-relaxed">
+                <div className="flex gap-3 bg-amber-500/10 border border-amber-500/20 p-3.5 rounded-xl text-xs text-[#F59E0B] leading-relaxed">
                   <Info size={17} className="shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold block">Deficit Category Identified!</span>
@@ -257,7 +257,7 @@ export default function BudgetsSection({
             </div>
           </div>
 
-          <div className="text-[10px] text-[var(--text-secondary)] pt-4 border-t border-[var(--border-primary)] flex justify-between items-center bg-card-20 px-3 py-1.5 rounded-lg">
+          <div className="text-[10px] text-[var(--text-secondary)] pt-4 border-t border-[var(--border-primary)] flex justify-between items-center bg-slate-900/20 px-3 py-1.5 rounded-lg">
             <span>Last audit computation</span>
             <span className="font-mono">Just Now • Synced</span>
           </div>
@@ -298,7 +298,7 @@ export default function BudgetsSection({
                   >
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-surface-80 rounded-xl flex items-center justify-center text-xl shadow-inner">
+                        <div className="w-10 h-10 bg-slate-800/80 rounded-xl flex items-center justify-center text-xl shadow-inner">
                           {budget.icon}
                         </div>
                         <div>
@@ -313,7 +313,7 @@ export default function BudgetsSection({
                             e.stopPropagation();
                             handleOpenEdit(budget);
                           }}
-                          className="p-1.5 hover:bg-slate-705 bg-surface-80 border border-slate-750 rounded-lg text-[var(--text-secondary)] hover:text-primary transition-colors cursor-pointer"
+                          className="p-1.5 hover:bg-slate-705 bg-slate-800/80 border border-slate-750 rounded-lg text-[var(--text-secondary)] hover:text-white transition-colors cursor-pointer"
                           title="Adjust limit"
                         >
                           <Edit2 size={12} />
@@ -336,8 +336,8 @@ export default function BudgetsSection({
                             }}
                             className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
                               deleteConfirmId === budget.id
-                                ? 'bg-red-600 border border-red-500 text-primary font-bold animate-pulse px-2'
-                                : 'hover:bg-danger hover:border-subtle hover:text-danger bg-surface-80 border border-slate-750 text-[var(--text-secondary)]'
+                                ? 'bg-red-600 border border-red-500 text-white font-bold animate-pulse px-2'
+                                : 'hover:bg-red-950/40 hover:border-red-500/40 hover:text-red-400 bg-slate-800/80 border border-slate-750 text-[var(--text-secondary)]'
                             }`}
                             title={deleteConfirmId === budget.id ? 'Click again to confirm delete' : 'Delete envelope'}
                           >
@@ -351,13 +351,13 @@ export default function BudgetsSection({
                     <div className="space-y-2 mt-4">
                       <div className="flex justify-between text-xs font-mono">
                         <span className="text-[var(--text-secondary)]">Spent</span>
-                        <span className={`font-bold ${isOver ? 'text-danger' : 'text-[var(--text-primary)]'}`}>
+                        <span className={`font-bold ${isOver ? 'text-[#F87171]' : 'text-[var(--text-primary)]'}`}>
                           {currency}{budget.spent} <span className="text-[10px] text-[var(--text-secondary)] font-normal">/ {currency}{budget.limit}</span>
                         </span>
                       </div>
 
                       {/* Progress Bar Container */}
-                      <div className="w-full h-2 bg-surface-60 rounded-full overflow-hidden border border-default/20">
+                      <div className="w-full h-2 bg-slate-800/60 rounded-full overflow-hidden border border-slate-800/20">
                         <motion.div
                           className={`h-full ${barColor}`}
                           initial={{ width: 0 }}
@@ -382,10 +382,10 @@ export default function BudgetsSection({
                 );
               })
             ) : (
-              <div className="col-span-1 md:col-span-2 p-8 text-center border border-dashed border-default/60 text-muted rounded-3xl bg-card-10">
+              <div className="col-span-1 md:col-span-2 p-8 text-center border border-dashed border-slate-800/60 text-slate-500 rounded-3xl bg-slate-900/10">
                 <HelpCircle className="mx-auto text-slate-600 mb-2" size={32} />
                 <p className="text-sm font-bold text-slate-300">No Spending Envelopes Active</p>
-                <p className="text-xs text-muted mt-1">Click "Create Budget" above to start tracking monthly allocations!</p>
+                <p className="text-xs text-slate-500 mt-1">Click "Create Budget" above to start tracking monthly allocations!</p>
               </div>
             )}
           </div>
@@ -407,13 +407,13 @@ export default function BudgetsSection({
 
               {/* Total Sub-stats */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-card-40 p-3.5 rounded-xl border border-subtle">
+                <div className="bg-slate-900/40 p-3.5 rounded-xl border border-slate-800/40">
                   <span className="text-[9px] text-[var(--text-secondary)] uppercase block">Total allocation</span>
                   <span className="text-base font-bold font-mono text-[var(--text-primary)] mt-1 block">
                     {currency}{selectedBudget.limit.toLocaleString()}
                   </span>
                 </div>
-                <div className="bg-card-40 p-3.5 rounded-xl border border-subtle">
+                <div className="bg-slate-900/40 p-3.5 rounded-xl border border-slate-800/40">
                   <span className="text-[9px] text-[var(--text-secondary)] uppercase block">Total spent</span>
                   <span className="text-base font-bold font-mono text-[var(--text-primary)] mt-1 block">
                     {currency}{selectedBudget.spent.toLocaleString()}
@@ -433,7 +433,7 @@ export default function BudgetsSection({
                       return (
                         <div 
                           key={index} 
-                          className="p-3.5 bg-card-20 border border-subtle hover:bg-card-50 rounded-xl flex justify-between items-center transition-colors"
+                          className="p-3.5 bg-slate-900/20 border border-slate-800/40 hover:bg-slate-900/45 rounded-xl flex justify-between items-center transition-colors"
                         >
                           <div className="space-y-1">
                             <span className="text-xs font-semibold text-[var(--text-primary)] block">{item.name}</span>
@@ -446,7 +446,7 @@ export default function BudgetsSection({
                       );
                     })
                   ) : (
-                    <div className="p-8 text-center border border-dashed border-default text-muted rounded-xl text-xs italic">
+                    <div className="p-8 text-center border border-dashed border-slate-800 text-slate-500 rounded-xl text-xs italic">
                       No descriptive sub-items logs configured yet. Add transactions in ledger registry to map sub-spend logs.
                     </div>
                   )}
@@ -476,26 +476,26 @@ export default function BudgetsSection({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card border border-default rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative"
+              className="bg-[#050508] border border-zinc-850 rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative"
             >
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="absolute top-5 right-5 p-1.5 hover:bg-card rounded-lg text-secondary hover:text-primary cursor-pointer transition-colors"
+                className="absolute top-5 right-5 p-1.5 hover:bg-zinc-900 rounded-lg text-zinc-400 hover:text-white cursor-pointer transition-colors"
               >
                 <X size={16} />
               </button>
 
-              <h3 className="text-base font-black text-primary mb-1 font-sans">Adjust Category Cap</h3>
-              <p className="text-xs text-secondary mb-6 font-mono uppercase tracking-wider">Modify Monthly Target limit allocation.</p>
+              <h3 className="text-base font-black text-white mb-1 font-sans">Adjust Category Cap</h3>
+              <p className="text-xs text-zinc-400 mb-6 font-mono uppercase tracking-wider">Modify Monthly Target limit allocation.</p>
 
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <label className="text-[10px] text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">New Limit Cap ({currency})</label>
+                  <label className="text-[10px] text-zinc-400 font-mono font-black uppercase tracking-wider block pl-0.5">New Limit Cap ({currency})</label>
                   <input
                     type="number"
                     value={editLimitVal}
                     onChange={(e) => setEditLimitVal(e.target.value)}
-                    className="w-full p-4 bg-surface border border-default hover:border-default/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs font-mono font-bold text-primary focus:outline-none placeholder:text-muted/75 transition-all"
+                    className="w-full p-4 bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs font-mono font-bold text-white focus:outline-none placeholder:text-zinc-650/75 transition-all"
                     placeholder="Enter limit"
                     autoFocus
                   />
@@ -504,13 +504,13 @@ export default function BudgetsSection({
                 <div className="flex gap-3 justify-end pt-2">
                   <button
                     onClick={() => setIsEditModalOpen(false)}
-                    className="h-11 bg-card border border-default hover:border-default text-primary font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer flex items-center justify-center px-5"
+                    className="h-11 bg-zinc-900 border border-zinc-800 hover:border-zinc-650 text-white font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer flex items-center justify-center px-5"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveEdit}
-                    className="h-11 bg-white text-black font-mono font-black text-[9.5px] uppercase rounded-2xl hover:bg-surface transition-all flex items-center justify-center px-6 cursor-pointer shadow-lg"
+                    className="h-11 bg-white text-black font-mono font-black text-[9.5px] uppercase rounded-2xl hover:bg-zinc-200 transition-all flex items-center justify-center px-6 cursor-pointer shadow-lg"
                   >
                     Save Limit
                   </button>
@@ -529,25 +529,25 @@ export default function BudgetsSection({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card border border-default rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative"
+              className="bg-[#050508] border border-zinc-850 rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative"
             >
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="absolute top-5 right-5 p-1.5 hover:bg-card rounded-lg text-secondary hover:text-primary cursor-pointer transition-colors"
+                className="absolute top-5 right-5 p-1.5 hover:bg-zinc-900 rounded-lg text-zinc-400 hover:text-white cursor-pointer transition-colors"
               >
                 <X size={16} />
               </button>
 
-              <h3 className="text-base font-black text-primary mb-1 font-sans">Create Budget Wrapper</h3>
-              <p className="text-xs text-secondary mb-6 font-mono uppercase tracking-wider">Allocate a new monthly spend target budget.</p>
+              <h3 className="text-base font-black text-white mb-1 font-sans">Create Budget Wrapper</h3>
+              <p className="text-xs text-zinc-400 mb-6 font-mono uppercase tracking-wider">Allocate a new monthly spend target budget.</p>
 
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <label className="text-[10px] text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Spend Category</label>
+                  <label className="text-[10px] text-zinc-400 font-mono font-black uppercase tracking-wider block pl-0.5">Spend Category</label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value as CategoryExpense)}
-                    className="w-full p-4 bg-surface border border-default hover:border-default/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-primary focus:outline-none cursor-pointer font-semibold transition-all"
+                    className="w-full p-4 bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs text-white focus:outline-none cursor-pointer font-semibold transition-all"
                   >
                     <option value="Food">🍔 Food / Dining</option>
                     <option value="Transport">🚗 Transport & Vehicle</option>
@@ -564,7 +564,7 @@ export default function BudgetsSection({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Category Icon</label>
+                  <label className="text-[10px] text-zinc-400 font-mono font-black uppercase tracking-wider block pl-0.5">Category Icon</label>
                   <div className="grid grid-cols-5 gap-1.5">
                     {availableIcons.map((ico) => (
                       <button
@@ -572,8 +572,8 @@ export default function BudgetsSection({
                         onClick={() => setNewIcon(ico)}
                         className={`p-2.5 rounded-2xl text-lg flex items-center justify-center transition-all cursor-pointer ${
                           newIcon === ico 
-                            ? 'bg-indigo-600/20 border border-indigo-500 text-primary scale-105' 
-                            : 'bg-surface hover:bg-card border border-default hover:border-default'
+                            ? 'bg-indigo-600/20 border border-indigo-500 text-white scale-105' 
+                            : 'bg-[#08080c] hover:bg-zinc-900 border border-zinc-855 hover:border-zinc-700'
                         }`}
                       >
                         {ico}
@@ -583,12 +583,12 @@ export default function BudgetsSection({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Monthly Limit Target ({currency})</label>
+                  <label className="text-[10px] text-zinc-400 font-mono font-black uppercase tracking-wider block pl-0.5">Monthly Limit Target ({currency})</label>
                   <input
                     type="number"
                     value={newLimit}
                     onChange={(e) => setNewLimit(e.target.value)}
-                    className="w-full p-4 bg-surface border border-default hover:border-default/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs font-mono font-bold text-primary focus:outline-none placeholder:text-muted/75 transition-all"
+                    className="w-full p-4 bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-2xl text-xs font-mono font-bold text-white focus:outline-none placeholder:text-zinc-650/75 transition-all"
                     placeholder="e.g. 500"
                   />
                 </div>
@@ -596,13 +596,13 @@ export default function BudgetsSection({
                 <div className="flex gap-3 justify-end pt-2">
                   <button
                     onClick={() => setIsAddModalOpen(false)}
-                    className="h-11 bg-card border border-default hover:border-default text-primary font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer flex items-center justify-center px-5"
+                    className="h-11 bg-zinc-900 border border-zinc-800 hover:border-zinc-650 text-white font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer flex items-center justify-center px-5"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleCreateBudget}
-                    className="h-11 bg-white text-black font-mono font-black text-[9.5px] uppercase rounded-2xl hover:bg-surface transition-all flex items-center justify-center px-6 cursor-pointer shadow-lg"
+                    className="h-11 bg-white text-black font-mono font-black text-[9.5px] uppercase rounded-2xl hover:bg-zinc-200 transition-all flex items-center justify-center px-6 cursor-pointer shadow-lg"
                   >
                     Start Monitoring
                   </button>

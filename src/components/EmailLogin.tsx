@@ -225,27 +225,27 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
   };
 
   return (
-    <div id="email-2fa-container" className="fixed inset-0 z-50 bg-primary text-primary flex flex-col justify-center items-center p-6 select-none overflow-y-auto">
+    <div id="email-2fa-container" className="fixed inset-0 z-50 bg-[#0A0A0C] text-white flex flex-col justify-center items-center p-6 select-none overflow-y-auto">
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-950/15 rounded-full blur-3xl pointer-events-none animate-pulse duration-[8000ms]" />
-      <div className="absolute bottom-10 left-10 w-64 h-64 bg-card rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 left-10 w-64 h-64 bg-zinc-955 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md bg-card/40 border border-default backdrop-blur-xl rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden">
+      <div className="w-full max-w-md bg-zinc-900/40 border border-zinc-850 backdrop-blur-xl rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden">
         {/* Sleek top edge highlight */}
         <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--accent-primary)]/40 to-transparent" />
         
         <div className="flex flex-col items-center text-center">
-          <div className="p-4 bg-card rounded-2xl border border-default shadow-inner mb-6 relative text-[var(--accent-primary)]">
+          <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-805 shadow-inner mb-6 relative text-[var(--accent-primary)]">
             <div className="absolute inset-0 bg-[var(--accent-primary)]/5 rounded-2xl blur-sm" />
             {renderIcon()}
           </div>
 
-          <h1 className="text-xl font-extrabold tracking-tight text-primary flex items-center gap-2">
+          <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
             Vault Suite Secure
             <span className="text-[9px] py-0.5 px-2 rounded-full font-mono text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/30 font-bold uppercase tracking-wider flex items-center gap-1">
               <Sparkles size={9} /> PORTAL
             </span>
           </h1>
-          <p className="text-secondary text-xs mt-2.5 px-4 leading-relaxed font-medium">
+          <p className="text-zinc-400 text-xs mt-2.5 px-4 leading-relaxed font-medium">
             {step === 'enter-email' && "Enter your credentials to connect with your corporate vault session."}
             {step === 'login-password' && `Authenticate vault access for ${email}`}
             {(step === 'verify-otp' || step === 'reset-otp') && `A secure OTP token was dispatched to ${email}. Provide code to establish identity.`}
@@ -261,19 +261,19 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                 onSubmit={handleCheckEmail} className="space-y-5"
               >
                 <div>
-                  <label className="text-[10px] text-muted font-bold uppercase tracking-wider block mb-2 font-mono">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
                     Identity Account (Email)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted"><Mail size={16} /></span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"><Mail size={16} /></span>
                     <input
                       type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter verified email..."
-                      className="w-full bg-card/90 border border-default text-primary rounded-xl py-3.5 !pl-12 !pr-6 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors placeholder-zinc-700 font-sans"
+                      className="w-full bg-[#060608]/90 border border-zinc-855 text-white rounded-xl py-3.5 !pl-12 !pr-6 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors placeholder-zinc-700 font-sans"
                     />
                   </div>
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-white hover:bg-surface text-black font-extrabold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50">
+                <button type="submit" disabled={loading} className="w-full bg-white hover:bg-zinc-200 text-black font-extrabold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50">
                   {loading ? <RefreshCw className="animate-spin text-black" size={16} /> : <><span>Next Step</span><ArrowRight size={15} /></>}
                 </button>
               </motion.form>
@@ -285,20 +285,20 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                 onSubmit={handlePasswordSubmit} className="space-y-5"
               >
                 <div>
-                  <label className="text-[10px] text-muted font-bold uppercase tracking-wider block mb-2 font-mono">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
                     Master Password Entry
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted"><Lock size={16} /></span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"><Lock size={16} /></span>
                     <input
                       type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-card/90 border border-default text-primary tracking-[3px] rounded-xl py-3.5 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full bg-[#060608]/90 border border-zinc-855 text-white tracking-[3px] rounded-xl py-3.5 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors cursor-pointer"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -309,16 +309,16 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                       id="rememberMe"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="accent-indigo-500 w-4 h-4 cursor-pointer rounded border-default focus:ring-0"
+                      className="accent-indigo-500 w-4 h-4 cursor-pointer rounded border-zinc-800 focus:ring-0"
                     />
-                    <label htmlFor="rememberMe" className="text-xs text-secondary cursor-pointer select-none font-medium hover:text-primary">Remember me</label>
+                    <label htmlFor="rememberMe" className="text-xs text-zinc-400 cursor-pointer select-none font-medium hover:text-zinc-300">Remember me</label>
                   </div>
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-primary font-extrabold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer shadow-lg shadow-indigo-950/20 active:scale-[0.99] disabled:opacity-50">
-                  {loading ? <RefreshCw className="animate-spin text-primary" size={16} /> : <><ShieldCheck size={16} /><span>Authenticate Vault</span></>}
+                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer shadow-lg shadow-indigo-950/20 active:scale-[0.99] disabled:opacity-50">
+                  {loading ? <RefreshCw className="animate-spin text-white" size={16} /> : <><ShieldCheck size={16} /><span>Authenticate Vault</span></>}
                 </button>
                 <div className="flex justify-between mt-5 text-sm font-mono font-bold">
-                  <button type="button" onClick={() => setStep('enter-email')} className="text-muted hover:text-primary transition-colors cursor-pointer">Change Email</button>
+                  <button type="button" onClick={() => setStep('enter-email')} className="text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer">Change Email</button>
                   <button type="button" onClick={handleSendForgotPassword} className="text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer">Forgot Password?</button>
                 </div>
               </motion.form>
@@ -330,7 +330,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                 onSubmit={(e) => handleVerifyOtp(e, step === 'reset-otp')} className="space-y-5"
               >
                 <div>
-                  <label className="text-[10px] text-muted font-bold uppercase tracking-wider block mb-2 font-mono">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
                     Security Passcode Verification
                   </label>
                   <div className="relative">
@@ -338,24 +338,24 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                     <input
                       type="password" required value={otpValue} onChange={(e) => setOtpValue(e.target.value)}
                       placeholder="Input 6-digit OTP"
-                      className="w-full bg-card/90 border border-indigo-950 text-indigo-405 tracking-[8px] font-mono text-center text-lg font-bold rounded-xl py-3.5 !pl-12 !pr-12 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full bg-[#060608]/90 border border-indigo-950 text-indigo-405 tracking-[8px] font-mono text-center text-lg font-bold rounded-xl py-3.5 !pl-12 !pr-12 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                     />
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-xs font-mono">
-                  <span className="text-muted">Passcode valid 5m</span>
+                  <span className="text-zinc-500">Passcode valid 5m</span>
                   {resendTimer > 0 ? (
-                    <span className="text-muted text-muted flex items-center gap-1 font-semibold">Resend in {resendTimer}s</span>
+                    <span className="text-zinc-650 text-zinc-600 flex items-center gap-1 font-semibold">Resend in {resendTimer}s</span>
                   ) : (
                     <button type="button" onClick={() => initOtpSend()} disabled={loading} className="text-indigo-400 hover:text-indigo-300 cursor-pointer font-bold flex items-center gap-1.5 active:scale-95 transition-all">
                       <RefreshCw size={11} /> Request New Pin
                     </button>
                   )}
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-primary font-extrabold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50">
-                  {loading ? <RefreshCw className="animate-spin text-primary" size={16} /> : <><ShieldCheck size={16} /><span>Verify Entry PIN</span></>}
+                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer shadow-lg active:scale-[0.99] disabled:opacity-50">
+                  {loading ? <RefreshCw className="animate-spin text-white" size={16} /> : <><ShieldCheck size={16} /><span>Verify Entry PIN</span></>}
                 </button>
-                <button type="button" onClick={() => setStep('enter-email')} className="w-full bg-transparent border border-default hover:bg-card/40 text-secondary hover:text-primary text-xs py-3 rounded-xl font-bold transition-all cursor-pointer">
+                <button type="button" onClick={() => setStep('enter-email')} className="w-full bg-transparent border border-zinc-850 hover:bg-zinc-900/40 text-zinc-400 hover:text-zinc-300 text-xs py-3 rounded-xl font-bold transition-all cursor-pointer">
                   Cancel Choice
                 </button>
               </motion.form>
@@ -367,47 +367,47 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                 onSubmit={(e) => handleCreateOrResetPassword(e, step === 'reset-password')} className="space-y-4"
               >
                 <div>
-                  <label className="text-[10px] text-muted font-bold uppercase tracking-wider block mb-2 font-mono">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
                     New Secure Password
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted"><Lock size={16} /></span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"><Lock size={16} /></span>
                     <input
                       type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-card/90 border border-default text-primary tracking-[3px] rounded-xl py-3.5 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full bg-[#060608]/90 border border-zinc-850 text-white tracking-[3px] rounded-xl py-3.5 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors cursor-pointer"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted font-bold uppercase tracking-wider block mb-2 font-mono">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-2 font-mono">
                     Confirm Secure Password
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted"><Lock size={16} /></span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"><Lock size={16} /></span>
                     <input
                       type={showConfirmPassword ? "text" : "password"} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-card/90 border border-default text-primary tracking-[3px] rounded-xl py-3 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full bg-[#060608]/90 border border-zinc-850 text-white tracking-[3px] rounded-xl py-3 !pl-12 !pr-12 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors cursor-pointer"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
                     >
                       {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-primary font-extrabold text-sm py-4 rounded-xl shadow-lg transition-all duration-300 active:scale-[0.99] disabled:opacity-50 mt-2">
-                  {loading ? <RefreshCw className="animate-spin text-primary mx-auto" size={16} /> : <span>{step === 'reset-password' ? 'Reset and Terminate Lock' : 'Seal Account and Authenticate'}</span>}
+                <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-extrabold text-sm py-4 rounded-xl shadow-lg transition-all duration-300 active:scale-[0.99] disabled:opacity-50 mt-2">
+                  {loading ? <RefreshCw className="animate-spin text-white mx-auto" size={16} /> : <span>{step === 'reset-password' ? 'Reset and Terminate Lock' : 'Seal Account and Authenticate'}</span>}
                 </button>
               </motion.form>
             )}
@@ -419,7 +419,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
           {errorMsg && (
             <motion.div
               initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-              className="mt-5 bg-rose-950/20 border border-rose-900/30 p-4 rounded-xl flex items-start gap-2.5 text-xs text-danger"
+              className="mt-5 bg-rose-950/20 border border-rose-900/30 p-4 rounded-xl flex items-start gap-2.5 text-xs text-rose-400"
             >
               <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-500" />
               <span>{errorMsg}</span>
@@ -443,7 +443,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
         </AnimatePresence>
       </div>
 
-      <span className="text-secondary text-[9px] tracking-[4px] font-mono font-bold uppercase mt-8 pointer-events-none select-none">
+      <span className="text-zinc-700 text-[9px] tracking-[4px] font-mono font-bold uppercase mt-8 pointer-events-none select-none">
         Active Vault Link / Secure Suite Session
       </span>
     </div>

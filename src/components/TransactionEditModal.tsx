@@ -136,24 +136,24 @@ export default function TransactionEditModal({
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="bg-card border border-default p-6 md:p-8 rounded-[24px] shadow-2xl max-w-sm w-full relative overflow-hidden" id="edit-transaction-modal-container">
+      <div className="bg-white dark:bg-[#050508] border border-zinc-200 dark:border-zinc-850 p-6 md:p-8 rounded-[24px] shadow-2xl max-w-sm w-full relative overflow-hidden" id="edit-transaction-modal-container">
         
         <div className="flex justify-between items-center mb-6">
           <div>
-            <span className="text-[9px] font-mono tracking-widest text-muted dark:text-[#a1a1a9] font-black uppercase bg-surface dark:bg-card px-2 py-0.5 rounded-full border border-subtle dark:border-default">AUDIT EDITOR</span>
-            <h3 className="text-xs font-black text-primary dark:text-primary mt-1.5 flex items-center gap-1.5 leading-none font-mono uppercase tracking-wider">
+            <span className="text-[9px] font-mono tracking-widest text-zinc-650 dark:text-[#a1a1a9] font-black uppercase bg-zinc-100 dark:bg-zinc-950 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-900">AUDIT EDITOR</span>
+            <h3 className="text-xs font-black text-zinc-900 dark:text-white mt-1.5 flex items-center gap-1.5 leading-none font-mono uppercase tracking-wider">
               <Edit3 size={14} className="text-indigo-600 dark:text-[var(--accent-primary)]" />
               Adjust Transaction Ledger
             </h3>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-surface dark:hover:bg-card text-secondary hover:text-secondary dark:text-muted dark:hover:text-primary rounded-full transition-colors cursor-pointer">
+          <button onClick={onClose} className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-white rounded-full transition-colors cursor-pointer">
             <X size={16} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-muted dark:text-secondary">Title / description</label>
+            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-zinc-550 dark:text-zinc-400">Title / description</label>
             <input 
               ref={titleInputRef}
               type="text" 
@@ -162,21 +162,21 @@ export default function TransactionEditModal({
                 setTitle(e.target.value);
                 validateTxForm(e.target.value, amount, date, submitted);
               }}
-              className={`w-full bg-card border text-primary dark:text-primary rounded-2xl px-4 py-3.5 text-xs focus:outline-none focus:ring-1 transition-all placeholder:text-secondary dark:placeholder:text-muted/75 ${
+              className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl px-4 py-3.5 text-xs focus:outline-none focus:ring-1 transition-all placeholder:text-zinc-450 dark:placeholder:text-zinc-600/75 ${
                 errors.title
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : title && !errors.title
-                  ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                  : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                  ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                  : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`} 
             />
             {errors.title && (
-              <span className="text-rose-500 dark:text-danger font-mono text-[10px] pl-1 mt-1.5 block">{errors.title}</span>
+              <span className="text-rose-500 dark:text-rose-400 font-mono text-[10px] pl-1 mt-1.5 block">{errors.title}</span>
             )}
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-muted dark:text-secondary">Amount ({currency})</label>
+            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-zinc-550 dark:text-zinc-400">Amount ({currency})</label>
             <input 
               ref={amountInputRef}
               type="number" 
@@ -187,21 +187,21 @@ export default function TransactionEditModal({
                 setAmount(val);
                 validateTxForm(title, val, date, submitted);
               }}
-              className={`w-full bg-card border text-primary dark:text-primary rounded-2xl px-4 py-3.5 text-xs focus:outline-none focus:ring-1 font-mono font-bold transition-all ${
+              className={`w-full bg-white dark:bg-[#08080c] border text-zinc-900 dark:text-white rounded-2xl px-4 py-3.5 text-xs focus:outline-none focus:ring-1 font-mono font-bold transition-all ${
                 errors.amount
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : amount !== '' && !errors.amount
-                  ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                  : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                  ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                  : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`} 
             />
             {errors.amount && (
-              <span className="text-rose-500 dark:text-danger font-mono text-[10px] pl-1 mt-1.5 block">{errors.amount}</span>
+              <span className="text-rose-500 dark:text-rose-400 font-mono text-[10px] pl-1 mt-1.5 block">{errors.amount}</span>
             )}
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-muted dark:text-secondary">Calendar Date</label>
+            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-zinc-550 dark:text-zinc-400">Calendar Date</label>
             <DatePicker 
               value={date} 
               onChange={val => {
@@ -211,23 +211,23 @@ export default function TransactionEditModal({
               error={!!errors.date}
             />
             {errors.date && (
-              <span className="text-rose-500 dark:text-danger font-mono text-[10px] pl-1 mt-1.5 block">{errors.date}</span>
+              <span className="text-rose-500 dark:text-rose-400 font-mono text-[10px] pl-1 mt-1.5 block">{errors.date}</span>
             )}
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-muted dark:text-secondary">Categorization Tag</label>
+            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-zinc-550 dark:text-zinc-400">Categorization Tag</label>
             <input 
               type="text" 
               required
               value={category} 
               onChange={e => setCategory(e.target.value)}
-              className="w-full bg-card border border-subtle dark:border-default text-primary dark:text-primary rounded-2xl px-4 py-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all font-bold" 
+              className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-855 text-zinc-900 dark:text-white rounded-2xl px-4 py-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all font-bold" 
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-muted dark:text-secondary">Account Source</label>
+            <label className="block text-[10px] font-mono font-black uppercase tracking-wider mb-1.5 pl-0.5 text-zinc-550 dark:text-zinc-400">Account Source</label>
             <select
               value={`${accountId}:${accountType}`}
               onChange={e => {
@@ -236,15 +236,15 @@ export default function TransactionEditModal({
                 setAccountType(type as 'cash'|'card');
               }}
               required
-              className="w-full bg-card border border-subtle dark:border-default text-secondary dark:text-primary rounded-2xl px-3.5 py-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer transition-all font-semibold"
+              className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-855 text-zinc-700 dark:text-zinc-300 rounded-2xl px-3.5 py-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer transition-all font-semibold"
             >
               <option value="" disabled>Select Account</option>
-              <optgroup label="Wallets / Cash" className="bg-card text-primary dark:text-secondary font-bold">
+              <optgroup label="Wallets / Cash" className="bg-white dark:bg-[#0c0c12] text-zinc-900 dark:text-zinc-450 font-bold">
                 {cashAccounts.map(c => (
                   <option key={c.id} value={`${c.id}:cash`}>Cash: {c.name}</option>
                 ))}
               </optgroup>
-              <optgroup label="Bank Cards" className="bg-card text-primary dark:text-secondary font-bold">
+              <optgroup label="Bank Cards" className="bg-white dark:bg-[#0c0c12] text-zinc-900 dark:text-zinc-455 font-bold">
                 {cards.filter(c => !c.isCanceled).map(card => (
                   <option key={card.id} value={`${card.id}:card`}>Card: {card.bankName} - {card.cardName}</option>
                 ))}
@@ -252,14 +252,14 @@ export default function TransactionEditModal({
             </select>
           </div>
           
-          <div className="flex gap-3 pt-5 border-t border-subtle dark:border-default mt-5">
+          <div className="flex gap-3 pt-5 border-t border-zinc-200 dark:border-zinc-900 mt-5">
             {showDeleteConfirm ? (
               <div className="flex-1 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(false)}
                   disabled={isProcessing}
-                  className="flex-1 h-12 bg-surface hover:bg-surface border border-subtle dark:bg-card dark:border-default dark:hover:border-default text-primary dark:text-primary font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer disabled:opacity-50"
+                  className="flex-1 h-12 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 dark:hover:border-zinc-650 text-zinc-800 dark:text-white font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -267,7 +267,7 @@ export default function TransactionEditModal({
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); }}
                   disabled={isProcessing}
-                  className="flex-1 h-12 bg-rose-600 hover:bg-rose-500 text-primary font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all shadow-lg shadow-red-500/10 cursor-pointer disabled:opacity-50"
+                  className="flex-1 h-12 bg-rose-600 hover:bg-rose-500 text-white font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all shadow-lg shadow-red-500/10 cursor-pointer disabled:opacity-50"
                 >
                   {isProcessing ? 'Removing...' : 'Confirm Delete'}
                 </button>
@@ -277,14 +277,14 @@ export default function TransactionEditModal({
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowDeleteConfirm(true); }}
-                  className="flex-1 h-12 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-danger font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all border border-rose-200 dark:border-rose-950/20 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                  className="flex-1 h-12 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 font-mono font-black text-[9.5px] uppercase rounded-2xl transition-all border border-rose-200 dark:border-rose-950/20 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                 >
                   <Trash2 size={12} /> Dismiss
                 </button>
                 <button
                   type="submit"
                   disabled={isProcessing}
-                  className="flex-[1.5] h-12 bg-card text-primary hover:bg-surface dark:bg-white dark:text-black font-mono font-black text-[9.5px] uppercase rounded-2xl dark:hover:bg-surface transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg disabled:opacity-55"
+                  className="flex-[1.5] h-12 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black font-mono font-black text-[9.5px] uppercase rounded-2xl dark:hover:bg-zinc-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg disabled:opacity-55"
                 >
                   {isProcessing ? 'Saving...' : <><Save size={12} /> Save Entries</>}
                 </button>

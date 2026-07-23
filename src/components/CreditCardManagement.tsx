@@ -173,13 +173,13 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
   };
 
   return (
-    <div className="bg-card border border-default p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6 animate-fade-in" id="credit-cards-vault">
+    <div className="bg-white dark:bg-gradient-to-br dark:from-zinc-900/40 dark:to-zinc-950 p-6 md:p-8 rounded-[32px] border border-zinc-200 dark:border-zinc-850 shadow-xl dark:shadow-none space-y-6 animate-fade-in" id="credit-cards-vault">
       
       {/* Header Info */}
-      <div className="flex justify-between items-center pb-3 border-b border-subtle dark:border-default">
+      <div className="flex justify-between items-center pb-3 border-b border-zinc-200 dark:border-zinc-900">
         <div>
-          <span className="text-[9px] font-mono tracking-widest text-muted dark:text-[#a1a1a9] font-black uppercase bg-surface dark:bg-card px-2.5 py-0.5 rounded-full border border-subtle dark:border-default">CREDIT LEDGER</span>
-          <h3 className="text-base font-extrabold text-primary dark:text-primary mt-1.5 flex items-center gap-1.5 font-sans leading-none">
+          <span className="text-[9px] font-mono tracking-widest text-zinc-650 dark:text-[#a1a1a9] font-black uppercase bg-zinc-100 dark:bg-zinc-950 px-2.5 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-900">CREDIT LEDGER</span>
+          <h3 className="text-base font-extrabold text-zinc-900 dark:text-white mt-1.5 flex items-center gap-1.5 font-sans leading-none">
             <CcIcon size={16} className="text-indigo-500 dark:text-indigo-400" />
             Credit Card Facilities
           </h3>
@@ -189,7 +189,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
       {/* Credit Cards list */}
       <div className="space-y-4">
         {creditCards.length === 0 ? (
-          <div className="p-8 text-center text-muted text-xs italic border border-dashed border-subtle dark:border-default rounded-[20px]">
+          <div className="p-8 text-center text-zinc-500 text-xs italic border border-dashed border-zinc-200 dark:border-zinc-850 rounded-[20px]">
             No credit cards currently on record. Build one in Cash & Card Management.
           </div>
         ) : (
@@ -197,26 +197,26 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
             const outstandingDebt = c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0;
             const utilization = c.limit && c.limit > 0 ? Math.round((outstandingDebt / c.limit) * 100) : 0;
             return (
-              <div key={c.id} className="bg-surface dark:bg-card-60 p-5 rounded-2xl border border-subtle dark:border-default hover:border-subtle dark:hover:border-default transition-colors space-y-4 shadow-md">
+              <div key={c.id} className="bg-zinc-50 dark:bg-zinc-900/60 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-800 transition-colors space-y-4 shadow-md">
                 
                 {/* Visual Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-subtle dark:border-default/45">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-200 dark:border-zinc-900/45">
                   <div>
-                    <h4 className="text-primary dark:text-primary font-extrabold text-sm flex items-center gap-2">
+                    <h4 className="text-zinc-900 dark:text-white font-extrabold text-sm flex items-center gap-2">
                       {c.cardName}
-                      <span className="text-[9px] font-mono font-bold uppercase text-muted dark:text-secondary bg-surface dark:bg-card border border-subtle dark:border-default px-2 py-0.5 rounded-full">{c.bankName}</span>
+                      <span className="text-[9px] font-mono font-bold uppercase text-zinc-500 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-900 px-2 py-0.5 rounded-full">{c.bankName}</span>
                     </h4>
                     
                     {/* Utilization Indicator */}
                     <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-[9px] text-muted uppercase font-mono font-bold">utilization rate:</span>
-                      <span className={`text-[9.5px] font-mono font-black ${utilization > 80 ? 'text-rose-650 dark:text-danger' : 'text-muted dark:text-primary'}`}>{utilization}% used</span>
+                      <span className="text-[9px] text-zinc-500 uppercase font-mono font-bold">utilization rate:</span>
+                      <span className={`text-[9.5px] font-mono font-black ${utilization > 80 ? 'text-rose-650 dark:text-rose-400' : 'text-zinc-600 dark:text-zinc-300'}`}>{utilization}% used</span>
                     </div>
                   </div>
 
                   <div className="text-left sm:text-right">
-                    <span className="text-[9px] uppercase tracking-wider block font-mono text-muted dark:text-muted">outstanding debt</span>
-                    <span className="font-mono text-sm font-black text-rose-500 dark:text-danger">
+                    <span className="text-[9px] uppercase tracking-wider block font-mono text-zinc-550 dark:text-zinc-500">outstanding debt</span>
+                    <span className="font-mono text-sm font-black text-rose-500 dark:text-rose-400">
                       {currency} {outstandingDebt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -225,16 +225,16 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                 {/* Sub metrics & limits control widget */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                   <div className="space-y-2">
-                    <p className="text-[11px] font-semibold text-muted dark:text-secondary flex justify-between">
+                    <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 flex justify-between">
                       <span>Available Card Limit:</span>
-                      <span className="font-mono font-black text-blue-600 dark:text-success">
+                      <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
                         {currency} {((c.limit ?? 0) + c.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </p>
 
                     {/* Limit edit inline element */}
                     <div className="flex items-center gap-2 pt-1">
-                      <span className="text-[9px] text-muted font-mono font-bold uppercase">CREDIT MAX:</span>
+                      <span className="text-[9px] text-zinc-500 font-mono font-bold uppercase">CREDIT MAX:</span>
                       
                       <input
                         type="number"
@@ -252,7 +252,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             showToast('success', `Limit of ${currency}${c.limit || 0} locked & synchronized!`);
                           }
                         }}
-                        className={`w-24 bg-card border border-subtle dark:border-default hover:border-subtle dark:hover:border-default rounded-xl px-2.5 py-1 text-[11px] text-primary dark:text-primary font-mono font-bold transition-all ${c.isLimitLocked ?? true ? 'opacity-55' : 'border-indigo-500 ring-1 ring-indigo-500/10'}`}
+                        className={`w-24 bg-white dark:bg-black border border-zinc-200 dark:border-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl px-2.5 py-1 text-[11px] text-zinc-900 dark:text-white font-mono font-bold transition-all ${c.isLimitLocked ?? true ? 'opacity-55' : 'border-indigo-500 ring-1 ring-indigo-500/10'}`}
                       />
                       
                       <button 
@@ -266,10 +266,10 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             showToast('success', `Limit of ${currency}${c.limit || 0} locked & synchronized!`);
                           }
                         }}
-                        className="p-1.5 hover:bg-surface dark:hover:bg-card text-muted hover:text-primary dark:hover:text-primary rounded-lg border border-subtle dark:border-default transition cursor-pointer"
+                        className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-955 text-zinc-500 hover:text-zinc-800 dark:hover:text-white rounded-lg border border-zinc-200 dark:border-zinc-900 transition cursor-pointer"
                         title={c.isLimitLocked ?? true ? "Unlock limit editing" : "Lock limit"}
                       >
-                        {c.isLimitLocked ?? true ? <Lock size={12} className="text-muted" /> : <Unlock size={12} className="text-indigo-500 animate-pulse" />}
+                        {c.isLimitLocked ?? true ? <Lock size={12} className="text-zinc-500" /> : <Unlock size={12} className="text-indigo-500 animate-pulse" />}
                       </button>
                     </div>
                   </div>
@@ -286,12 +286,12 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                           setPayAmounts(prev => ({ ...prev, [c.id]: val }));
                           validatePay(c.id, val, paySources[c.id] || '');
                         }}
-                        className={`flex-grow sm:flex-none sm:w-28 bg-card border text-xs text-primary dark:text-primary rounded-2xl px-4 py-3 focus:outline-none focus:ring-1 transition-all font-mono font-black ${
+                        className={`flex-grow sm:flex-none sm:w-28 bg-white dark:bg-[#08080c] border text-xs text-zinc-900 dark:text-white rounded-2xl px-4 py-3 focus:outline-none focus:ring-1 transition-all font-mono font-black ${
                           payErrors[c.id] && payAmounts[c.id] !== undefined
                             ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                             : payAmounts[c.id] && !payErrors[c.id]
-                            ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                            : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                            ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                            : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                         }`} 
                       />
 
@@ -302,17 +302,17 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                           setPaySources(prev => ({ ...prev, [c.id]: val }));
                           validatePay(c.id, payAmounts[c.id] || '', val);
                         }}
-                        className={`flex-grow sm:flex-none sm:w-36 bg-card border text-secondary dark:text-primary text-xs rounded-2xl px-3.5 py-3 focus:outline-none focus:ring-1 transition-all font-semibold cursor-pointer ${
+                        className={`flex-grow sm:flex-none sm:w-36 bg-white dark:bg-[#08080c] border text-zinc-700 dark:text-zinc-300 text-xs rounded-2xl px-3.5 py-3 focus:outline-none focus:ring-1 transition-all font-semibold cursor-pointer ${
                           payErrors[c.id] && paySources[c.id] !== undefined
                             ? 'border-rose-500 focus:border-rose-500'
                             : paySources[c.id] && !payErrors[c.id]
-                            ? 'border-blue-500/50 focus:border-indigo-500'
-                            : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500'
+                            ? 'border-emerald-500/50 focus:border-indigo-500'
+                            : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500'
                         }`}
                       >
                         <option value="">Source Account</option>
                         {fundingAccounts.map(a => (
-                          <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`} disabled={(a as any).isFrozen} className="bg-card text-primary dark:text-primary">
+                          <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`} disabled={(a as any).isFrozen} className="bg-white dark:bg-[#0c0c12] text-zinc-900 dark:text-white">
                             {a.name}{(a as any).isFrozen ? ' [FROZEN]' : ''}
                           </option>
                         ))}
@@ -335,7 +335,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             setPaySources(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                             setPayErrors(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                           }}
-                          className="bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-400 py-3 px-4 rounded-2xl text-primary font-black font-mono text-[9.5px] uppercase tracking-wider flex-1 transition shadow-lg cursor-pointer h-11"
+                          className="bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-400 py-3 px-4 rounded-2xl text-white font-black font-mono text-[9.5px] uppercase tracking-wider flex-1 transition shadow-lg cursor-pointer h-11"
                         >
                           Settle Full
                         </button>
@@ -357,7 +357,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                             setPaySources(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                             setPayErrors(prev => { const cp = {...prev}; delete cp[c.id]; return cp; });
                           }} 
-                          className="bg-surface hover:bg-surface dark:bg-white dark:hover:bg-surface rounded-2xl text-primary dark:text-black flex items-center justify-center transition shadow-lg cursor-pointer w-11 h-11 shrink-0" 
+                          className="bg-zinc-100 hover:bg-zinc-200 dark:bg-white dark:hover:bg-zinc-200 rounded-2xl text-zinc-900 dark:text-black flex items-center justify-center transition shadow-lg cursor-pointer w-11 h-11 shrink-0" 
                           title="Pay custom amount"
                         >
                           <CheckSquare size={14} className="stroke-[2.5px]"/>
@@ -366,7 +366,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                     </div>
 
                     {payErrors[c.id] && (
-                      <span className="text-rose-500 dark:text-danger font-mono text-[10px] block text-right mt-1.5 leading-tight pr-1">{payErrors[c.id]}</span>
+                      <span className="text-rose-500 dark:text-rose-400 font-mono text-[10px] block text-right mt-1.5 leading-tight pr-1">{payErrors[c.id]}</span>
                     )}
                   </div>
                 </div>
@@ -378,16 +378,16 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
       </div>
 
       {/* Record purchase form */}
-      <form onSubmit={handleAddPurchase} className="grid grid-cols-1 sm:grid-cols-2 gap-5 bg-surface dark:bg-card border border-subtle dark:border-default p-6 md:p-8 rounded-[24px] shadow-xl dark:shadow-none relative overflow-hidden text-left">
+      <form onSubmit={handleAddPurchase} className="grid grid-cols-1 sm:grid-cols-2 gap-5 bg-zinc-50 dark:bg-[#050508] border border-zinc-200 dark:border-zinc-850 p-6 md:p-8 rounded-[24px] shadow-xl dark:shadow-none relative overflow-hidden text-left">
         <div className="absolute -top-12 -right-12 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
         
-        <h4 className='sm:col-span-2 text-primary dark:text-primary font-black text-xs uppercase tracking-wider font-mono flex items-center gap-1.5 pb-2 border-b border-subtle dark:border-default'>
+        <h4 className='sm:col-span-2 text-zinc-900 dark:text-white font-black text-xs uppercase tracking-wider font-mono flex items-center gap-1.5 pb-2 border-b border-zinc-200 dark:border-zinc-900'>
           <Plus size={13} className="text-indigo-500 dark:text-indigo-400 animate-pulse" />
           Record Card Swipe / Purchase
         </h4>
         
         <div className="sm:col-span-2 flex flex-col gap-1.5">
-          <label className="text-[10px] text-muted dark:text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Credit Account used</label>
+          <label className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-black uppercase tracking-wider block pl-0.5">Credit Account used</label>
           <select 
             ref={purchaseCardRef}
             value={purCardId}
@@ -395,24 +395,24 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               setPurCardId(e.target.value);
               validatePurchase(e.target.value, purAmount, purMerchant, purDesc, purchaseSubmitted);
             }}
-            className={`w-full bg-card border text-xs text-secondary dark:text-secondary rounded-2xl p-3.5 focus:outline-none focus:ring-1 transition-all font-semibold cursor-pointer ${
+            className={`w-full bg-white dark:bg-[#08080c] border text-xs text-zinc-700 dark:text-zinc-350 rounded-2xl p-3.5 focus:outline-none focus:ring-1 transition-all font-semibold cursor-pointer ${
               purchaseErrors.cardId
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : purCardId && !purchaseErrors.cardId
-                ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`}
           >
             <option value="">Select Target Card</option>
-            {creditCards.map(c => <option key={c.id} value={c.id} className="bg-card text-primary dark:text-primary">{c.cardName} (Avail Limit: {currency} {((c.limit ?? 0) + c.currentBalance).toFixed(2)})</option>)}
+            {creditCards.map(c => <option key={c.id} value={c.id} className="bg-white dark:bg-[#0c0c12] text-zinc-900 dark:text-white">{c.cardName} (Avail Limit: {currency} {((c.limit ?? 0) + c.currentBalance).toFixed(2)})</option>)}
           </select>
           {purchaseErrors.cardId && (
-            <span className="text-rose-500 dark:text-danger font-mono text-[10px] pl-1 mt-1 block">{purchaseErrors.cardId}</span>
+            <span className="text-rose-500 dark:text-rose-400 font-mono text-[10px] pl-1 mt-1 block">{purchaseErrors.cardId}</span>
           )}
         </div>
 
         <div className="sm:col-span-2 flex flex-col gap-1.5">
-          <label className="text-[10px] text-muted dark:text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Purchase billing Amount ({currency})</label>
+          <label className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-black uppercase tracking-wider block pl-0.5">Purchase billing Amount ({currency})</label>
           <input 
             ref={purchaseAmountRef}
             type="number" 
@@ -422,21 +422,21 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               setPurAmount(e.target.value);
               validatePurchase(purCardId, e.target.value, purMerchant, purDesc, purchaseSubmitted);
             }} 
-            className={`w-full bg-card border text-xs text-primary dark:text-primary rounded-2xl p-3.5 focus:outline-none focus:ring-1 font-mono font-black transition-all placeholder:text-secondary dark:placeholder:text-muted ${
+            className={`w-full bg-white dark:bg-[#08080c] border text-xs text-zinc-900 dark:text-white rounded-2xl p-3.5 focus:outline-none focus:ring-1 font-mono font-black transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-650 ${
               purchaseErrors.amount
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : purAmount && !purchaseErrors.amount
-                ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`} 
           />
           {purchaseErrors.amount && (
-            <span className="text-rose-500 dark:text-danger font-mono text-[10px] pl-1 mt-1 block">{purchaseErrors.amount}</span>
+            <span className="text-rose-500 dark:text-rose-400 font-mono text-[10px] pl-1 mt-1 block">{purchaseErrors.amount}</span>
           )}
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] text-muted dark:text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Merchant Location</label>
+          <label className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-black uppercase tracking-wider block pl-0.5">Merchant Location</label>
           <input 
             ref={purchaseMerchantRef}
             placeholder="e.g. Uber, Amazon Premium, Local Cafe" 
@@ -445,21 +445,21 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               setPurMerchant(e.target.value);
               validatePurchase(purCardId, purAmount, e.target.value, purDesc, purchaseSubmitted);
             }} 
-            className={`w-full bg-card border text-xs text-primary dark:text-primary rounded-2xl p-3.5 focus:outline-none focus:ring-1 font-semibold placeholder:text-secondary dark:placeholder:text-muted ${
+            className={`w-full bg-white dark:bg-[#08080c] border text-xs text-zinc-900 dark:text-white rounded-2xl p-3.5 focus:outline-none focus:ring-1 font-semibold placeholder:text-zinc-400 dark:placeholder:text-zinc-600 ${
               purchaseErrors.merchant
                 ? 'border-rose-500 focus:border-rose-500'
                 : purMerchant && !purchaseErrors.merchant
-                ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                : 'border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                : 'border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`} 
           />
           {purchaseErrors.merchant && (
-            <span className="text-rose-500 dark:text-danger font-mono text-[10px] pl-1 mt-1 block">{purchaseErrors.merchant}</span>
+            <span className="text-rose-500 dark:text-rose-400 font-mono text-[10px] pl-1 mt-1 block">{purchaseErrors.merchant}</span>
           )}
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] text-muted dark:text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Reference descriptor</label>
+          <label className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-black uppercase tracking-wider block pl-0.5">Reference descriptor</label>
           <input 
             placeholder="e.g. Business dinner, office supplies..." 
             value={purDesc} 
@@ -467,19 +467,19 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
               setPurDesc(e.target.value);
               validatePurchase(purCardId, purAmount, purMerchant, e.target.value, purchaseSubmitted);
             }} 
-            className="w-full bg-card border border-subtle dark:border-default hover:border-subtle dark:hover:border-default/80 text-primary dark:text-primary rounded-2xl p-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all font-medium placeholder:text-secondary dark:placeholder:text-muted" 
+            className="w-full bg-white dark:bg-[#08080c] border border-zinc-200 dark:border-zinc-855 hover:border-zinc-350 dark:hover:border-zinc-700/80 text-zinc-900 dark:text-white rounded-2xl p-3.5 text-xs focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-600" 
           />
         </div>
 
         <div className="flex flex-col gap-1.5 text-left">
-          <label className="text-[10px] text-muted dark:text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Purchase Date</label>
+          <label className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-black uppercase tracking-wider block pl-0.5">Purchase Date</label>
           <DatePicker 
             value={purDate} 
             onChange={setPurDate} 
           />
         </div>
 
-        <button type="submit" className="sm:col-span-2 bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-400 text-primary font-mono font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2">
+        <button type="submit" className="sm:col-span-2 bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-400 text-white font-mono font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2">
           <Plus size={14} className="stroke-[2.5px]" /> 
           Record verified Purchase
         </button>

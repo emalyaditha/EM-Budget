@@ -51,7 +51,6 @@ export interface CreditCardPurchase {
   description: string;
   merchant: string;
   date: string;
-  category?: CategoryExpense;
 }
 
 export interface Income {

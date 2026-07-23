@@ -6,9 +6,8 @@ import {
   Plus, Search, Bell, CreditCard, Wallet, LayoutDashboard, ChevronRight, 
   TrendingUp, User, Lock, Unlock, Settings, HelpCircle, RefreshCw, 
   FileDown, Share2, Landmark, ShieldAlert, ArrowUpRight, ArrowDownLeft,
-  DollarSign, CircleDot, Database, CheckSquare, BadgeCheck, AlertCircle,
-  Cloud, CloudOff, ArrowRightLeft, Sun, Moon, Menu, LogOut,
-  ChevronLeft, ChevronDown
+  DollarSign, CircleDot, Database, CheckSquare, Zap, BadgeCheck, AlertCircle,
+  Cloud, CloudOff, ArrowRightLeft, Sun, Moon, Menu, LogOut
 } from 'lucide-react';
 
 import EmailLogin from './components/EmailLogin';
@@ -268,9 +267,8 @@ export default function App() {
     updateState(prev => {
       const existing = (prev.budgets || []).find(b => b.category === category);
       if (existing) {
-        const updatedBudgets = (prev.budgets || []).map(b => b.id === existing.id ? { ...b, limit } : b);
-        showToast(`Budget allocation for ${category} limit adjusted to ${limit}.`, 'success');
-        return { ...prev, budgets: updatedBudgets };
+        showToast(`Budget allocation for ${category} already exists. Adjusting limit.`, 'warning');
+        return prev;
       }
       const newBudget = {
         id: 'b' + Date.now(),
@@ -958,7 +956,7 @@ export default function App() {
       const loanToDelete = (prev.loansGiven || []).find(l => l.id === loanId);
       if (!loanToDelete) return prev;
 
-      // 1. Refund the deducted principal
+      // 1. Refund the deducted funds
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
 
@@ -972,22 +970,7 @@ export default function App() {
         );
       }
 
-      // 2. Reverse all settlements received (subtract settlement amounts from destination accounts)
-      if (loanToDelete.settlements && loanToDelete.settlements.length > 0) {
-        loanToDelete.settlements.forEach(s => {
-          if (s.receivedInType === 'cash') {
-            updatedCash = updatedCash.map(c =>
-              c.id === s.receivedInId ? { ...c, balance: c.balance - s.amount } : c
-            );
-          } else {
-            updatedCards = updatedCards.map(c =>
-              c.id === s.receivedInId ? { ...c, currentBalance: c.currentBalance - s.amount } : c
-            );
-          }
-        });
-      }
-
-      // 3. Add an audit transaction record
+      // 2. Add an audit transaction record
       const refundTransaction: Transaction = {
         id: `trans-refund-${Date.now()}`,
         type: 'deposit',
@@ -1000,18 +983,14 @@ export default function App() {
         referenceId: loanId,
       };
 
-      // 4. Remove associated transactions referencing this loan or its settlements
-      const settlementIds = (loanToDelete.settlements || []).map(s => s.id);
-      const updatedTransactions = prev.transactions.filter(tx =>
-        tx.referenceId !== loanId && !settlementIds.includes(tx.referenceId || '')
-      );
-
+      // 3. Optional: Remove associated transaction/expense if needed (for now just refund)
       return {
         ...prev,
         cashAccounts: updatedCash,
         cards: updatedCards,
         loansGiven: (prev.loansGiven || []).filter(l => l.id !== loanId),
-        transactions: [refundTransaction, ...updatedTransactions],
+        transactions: [refundTransaction, ...prev.transactions],
+        // Note: We might want to remove the transaction here too, but the user didn't explicitly ask for that. Simple refund first.
       };
     });
   };
@@ -1054,11 +1033,12 @@ export default function App() {
             : `Added Lent Amount: ${notes}`;
           const newTotal = loan.totalAmount + amount;
           const newRemaining = loan.remainingAmount + amount;
+          const newStatus = newRemaining <= 0 ? 'Settled' : 'Partially Settled';
           return {
             ...loan,
             remainingAmount: newRemaining,
             totalAmount: newTotal,
-            status: 'Active',
+            status: newStatus,
             notes: freshNotes,
           };
         }
@@ -1194,7 +1174,7 @@ export default function App() {
         transactions: [newTransaction, ...prev.transactions]
       };
     });
-      showToast('Credit card charge applied and transaction recorded!', 'success');
+    showToast('success', 'Credit card charge applied and transaction recorded!');
   };
 
   const handleDeleteCardCharge = (cardId: string, chargeId: string) => {
@@ -1226,7 +1206,7 @@ export default function App() {
         transactions: updatedTransactions
       };
     });
-      showToast('Charge removed and transaction reversed.', 'success');
+    showToast('success', 'Charge removed and transaction reversed.');
   };
 
   // Subscriptions Actions Setup
@@ -1335,17 +1315,13 @@ export default function App() {
       }
 
       // Update next due date and lastPaidDate for the paid subscription
-      const [yr, mo, dy] = sub.dueDate.split('-').map(Number);
-      let nextYr = yr, nextMo = mo, nextDy = dy;
+      const currentDueDate = new Date(sub.dueDate);
       if (sub.billingCycle === 'Monthly') {
-        nextMo += 1;
-        if (nextMo > 12) { nextMo = 1; nextYr += 1; }
+        currentDueDate.setMonth(currentDueDate.getMonth() + 1);
       } else {
-        nextYr += 1;
+        currentDueDate.setFullYear(currentDueDate.getFullYear() + 1);
       }
-      const lastDayOfMonth = new Date(nextYr, nextMo, 0).getDate();
-      if (nextDy > lastDayOfMonth) nextDy = lastDayOfMonth;
-      const nextDueDateStr = `${nextYr}-${String(nextMo).padStart(2, '0')}-${String(nextDy).padStart(2, '0')}`;
+      const nextDueDateStr = currentDueDate.toISOString().split('T')[0];
 
       const updatedSubscriptions = (prev.subscriptions || []).map(s => {
         if (s.id === subId) {
@@ -1453,7 +1429,7 @@ export default function App() {
           title: `Credit Card Purchase: ${purchase.description}`,
           amount: purchase.amount,
           date: purchase.date,
-          category: purchase.category || 'Shopping',
+          category: 'Shopping', // Default category
           accountId: purchase.cardId,
           accountType: 'card',
         };
@@ -1465,7 +1441,7 @@ export default function App() {
             transactions: [newTransaction, ...prev.transactions]
         };
     });
-    showToast('Purchase recorded successfully!', 'success');
+    showToast('success', 'Purchase recorded successfully!');
   };
 
   const handlePayCreditCard = (cardId: string, amount: number, fromId: string, fromType: 'cash' | 'card') => {
@@ -1509,7 +1485,7 @@ export default function App() {
               transactions: [newTransaction, ...prev.transactions]
           };
       });
-      showToast(overpaymentMsg ? `Payment recorded! ${overpaymentMsg}` : 'Payment recorded successfully!', 'success');
+      showToast('success', overpaymentMsg ? `Payment recorded! ${overpaymentMsg}` : 'Payment recorded successfully!');
   };
 
   const handleIncreaseDebt = (debtId: string, amount: number, newAccountId?: string, newAccountType?: 'cash' | 'card') => {
@@ -1864,16 +1840,6 @@ export default function App() {
             return d;
           });
         }
-      } else if (tx.type === 'financing') {
-        if (tx.accountId && tx.accountType) reverseAmount(tx.amount, tx.accountId, tx.accountType, true);
-      } else if (tx.type === 'transfer') {
-        if (tx.accountId && tx.accountType) {
-          if (tx.amount < 0) {
-            reverseAmount(Math.abs(tx.amount), tx.accountId, tx.accountType, false);
-          } else {
-            reverseAmount(tx.amount, tx.accountId, tx.accountType, true);
-          }
-        }
       } else if (tx.type === 'deposit') {
         if (tx.accountId) reverseAmount(tx.amount, tx.accountId, 'cash', true);
       } else if (tx.type === 'withdrawal') {
@@ -2039,23 +2005,15 @@ export default function App() {
       // 1. Reverse the old transaction
       if (tx.type === 'income' || tx.type === 'deposit' || tx.type === 'financing') {
         if (tx.accountId && tx.accountType) changeBalance(-tx.amount, tx.accountId, tx.accountType);
-      } else if (tx.type === 'expense' || tx.type === 'debt_payment' || tx.type === 'withdrawal' || tx.type === 'credit_card_charge') {
+      } else if (tx.type === 'expense' || tx.type === 'debt_payment' || tx.type === 'withdrawal') {
         if (tx.accountId && tx.accountType) changeBalance(tx.amount, tx.accountId, tx.accountType);
-      } else if (tx.type === 'transfer') {
-        if (tx.accountId && tx.accountType) {
-          changeBalance(tx.amount < 0 ? Math.abs(tx.amount) : -tx.amount, tx.accountId, tx.accountType);
-        }
       }
 
       // 2. Apply the new transaction
       if (tx.type === 'income' || tx.type === 'deposit' || tx.type === 'financing') {
         changeBalance(newData.amount, newData.accountId, newData.accountType);
-      } else if (tx.type === 'expense' || tx.type === 'debt_payment' || tx.type === 'withdrawal' || tx.type === 'credit_card_charge') {
+      } else if (tx.type === 'expense' || tx.type === 'debt_payment' || tx.type === 'withdrawal') {
         changeBalance(-newData.amount, newData.accountId, newData.accountType);
-      } else if (tx.type === 'transfer') {
-        if (newData.accountId && newData.accountType) {
-          changeBalance(newData.amount < 0 ? -Math.abs(newData.amount) : newData.amount, newData.accountId, newData.accountType);
-        }
       }
 
       let updatedIncomes = [...prev.incomes];
@@ -2063,10 +2021,6 @@ export default function App() {
       let updatedDebts = [...prev.debts];
 
       if (tx.type === 'income') {
-        updatedIncomes = updatedIncomes.map(inc => inc.id === tx.referenceId ? {
-          ...inc, amount: newData.amount, source: newData.title, date: newData.date, category: newData.category,
-          targetAccountId: newData.accountId, targetType: newData.accountType
-        } : inc);
       } else if (tx.type === 'expense') {
         updatedExpenses = updatedExpenses.map(e => e.id === tx.referenceId ? {
           ...e, amount: newData.amount, title: newData.title, date: newData.date, category: newData.category,
@@ -2235,19 +2189,31 @@ export default function App() {
 
     const txSpentSum = matchingTx.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-    const totalSpent = txSpentSum;
+    // Sum active subscriptions under this category
+    const matchingSubs = (state.subscriptions || []).filter(s => {
+      if (!s.category || s.status !== 'Active') return false;
+      return s.category.toLowerCase().trim() === budgetCategoryLower;
+    });
+
+    const subsSpentSum = matchingSubs.reduce((sum, s) => sum + s.amount, 0);
+
+    const totalSpent = txSpentSum + subsSpentSum;
 
     // Map itemized records
     const subBreakdown = [
       ...matchingTx.map(t => ({
         name: t.title || 'Transaction spend',
         spent: Math.abs(t.amount)
+      })),
+      ...matchingSubs.map(s => ({
+        name: `${s.name} (Subscription)`,
+        spent: s.amount
       }))
     ];
 
     return {
       ...budget,
-      spent: matchingTx.length > 0 ? totalSpent : budget.spent,
+      spent: (matchingTx.length > 0 || matchingSubs.length > 0) ? totalSpent : budget.spent,
       subBreakdown: subBreakdown.length > 0 ? subBreakdown : (budget.subBreakdown || [])
     };
   });
@@ -2275,14 +2241,14 @@ export default function App() {
   // Render loading state while validating device identity
   if (isCheckingAuth) {
     return (
-      <div id="auth-loading-screen" className="min-h-screen bg-primary text-primary flex flex-col justify-center items-center p-6 font-mono select-none">
+      <div id="auth-loading-screen" className="min-h-screen bg-[#050505] text-white flex flex-col justify-center items-center p-6 font-mono select-none">
         <div className="flex flex-col items-center gap-4 text-center animate-pulse">
-          <div className="w-12 h-12 bg-card/80 border border-default rounded-2xl flex items-center justify-center">
-            <div className="w-6 h-6 border-2 border-default rounded-full border-t-blue-400 animate-spin" />
+          <div className="w-12 h-12 bg-zinc-950/80 border border-zinc-800 rounded-2xl flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-zinc-700 rounded-full border-t-blue-400 animate-spin" />
           </div>
           <div>
-            <span className="text-[10px] text-secondary uppercase tracking-widest font-bold">Secure Connection</span>
-            <p className="text-muted text-[10px] mt-1.5">Checking trusted owner device...</p>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Secure Connection</span>
+            <p className="text-zinc-500 text-[10px] mt-1.5">Checking trusted owner device...</p>
           </div>
         </div>
       </div>
@@ -2309,13 +2275,13 @@ export default function App() {
   }).sort((a, b) => b.value - a.value).slice(0, 4);
 
   return (
-    <div id="full-workspace-view" className="min-h-screen text-[var(--text-primary)] flex flex-col lg:flex-row font-sans selection:bg-white selection:text-black antialiased relative" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div id="full-workspace-view" className="min-h-screen bg-[#050505] text-white flex flex-col lg:flex-row font-sans selection:bg-white selection:text-black antialiased relative">
       
       {/* ======================= DOCKED LEFT SIDEBAR NAVIGATION (Desktop Only) ======================= */}
       {isUnlocked && (
-        <aside className={`hidden lg:flex flex-col h-screen fixed top-0 left-0 backdrop-blur-md transition-all duration-300 z-30 p-5 ${
+        <aside className={`hidden lg:flex flex-col h-screen fixed top-0 left-0 bg-[#08080c]/90 border-r border-zinc-850/65 backdrop-blur-md transition-all duration-300 z-30 p-5 ${
           isNavCollapsed ? 'w-20' : 'w-64'
-        } justify-between overflow-y-auto select-none`} id="docked-desktop-sidebar" style={{ backgroundColor: 'var(--bg-sidebar)', borderRight: '1px solid var(--border-primary)' }}>
+        } justify-between overflow-y-auto select-none`} id="docked-desktop-sidebar">
           <div className="space-y-6">
             {/* Logo/Brand block */}
             <div className={`flex items-center gap-3 ${isNavCollapsed ? 'justify-center' : ''}`}>
@@ -2347,15 +2313,15 @@ export default function App() {
               )}
               <button 
                 onClick={() => setIsNavCollapsed(!isNavCollapsed)}
-                className={`p-1.5 rounded-lg bg-surface hover:bg-card border border-default hover:border-default text-secondary hover:text-primary transition-all duration-200 cursor-pointer flex items-center justify-center ${isNavCollapsed ? 'mx-auto' : 'ml-auto'}`}
+                className={`p-1.5 rounded-lg bg-[#0c0c12] hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all duration-200 cursor-pointer flex items-center justify-center ${isNavCollapsed ? 'mx-auto' : 'ml-auto'}`}
                 title={isNavCollapsed ? "Expand Sidebar Layout" : "Collapse Sidebar Layout"}
               >
-                {isNavCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+                <Zap size={11} className="text-indigo-400" />
               </button>
             </div>
 
             {/* Nav Menu */}
-            <nav className="flex flex-col gap-1.5" aria-label="Sidebar navigation">
+            <nav className="flex flex-col gap-1.5">
               {[
                 { tab: 'dashboard', icon: <LayoutDashboard size={14} />, label: 'Overview Hub' },
                 { tab: 'accounts', icon: <Wallet size={14} />, label: 'Wallets Portfolio' },
@@ -2369,16 +2335,14 @@ export default function App() {
                 <button
                   key={item.tab}
                   onClick={() => setActiveTab(item.tab as any)}
-                  aria-current={activeTab === item.tab ? 'page' : undefined}
-                  aria-label={item.label}
                   className={`w-full py-3 px-3.5 rounded-xl font-sans font-bold text-xs flex items-center gap-3.5 transition-all duration-200 cursor-pointer border ${
                     activeTab === item.tab
-                      ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-primary shadow-md font-extrabold'
-                      : 'text-secondary bg-transparent border-transparent hover:text-primary hover:border-default hover:bg-card/40'
+                      ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-slate-950 shadow-md font-extrabold'
+                      : 'text-zinc-400 bg-transparent border-transparent hover:text-white hover:border-zinc-850 hover:bg-zinc-900/40'
                   } ${isNavCollapsed ? 'justify-center px-1' : ''}`}
                   title={isNavCollapsed ? item.label : undefined}
                 >
-                  <span className={`shrink-0 ${activeTab === item.tab ? 'text-primary scale-105' : 'text-muted'}`}>
+                  <span className={`shrink-0 ${activeTab === item.tab ? 'text-slate-950 scale-105' : 'text-zinc-500'}`}>
                     {item.icon}
                   </span>
                   {!isNavCollapsed && <span className="truncate text-left">{item.label}</span>}
@@ -2390,51 +2354,51 @@ export default function App() {
           <div className="space-y-4">
             {/* Security Vault Indicator */}
             {!isNavCollapsed ? (
-              <div className="bg-card/40 text-left border border-default/60 p-4 rounded-2xl space-y-3 shadow-md animate-fade-in">
-                <h3 className="text-[9px] tracking-wider text-primary font-mono font-bold uppercase flex items-center gap-1.5">
+              <div className="bg-zinc-900/40 text-left border border-zinc-850/60 p-4 rounded-2xl space-y-3 shadow-md animate-fade-in">
+                <h3 className="text-[9px] tracking-wider text-blue-400 font-mono font-bold uppercase flex items-center gap-1.5">
                   <span className="w-1 h-1 bg-blue-500 rounded-full animate-pulse" />
                   SECURITY VAULT ACTIVE
                 </h3>
                 <div className="space-y-2">
-                  <div className="p-2.5 bg-black/40 border border-default rounded-xl space-y-0.5">
-                    <span className="text-[8px] text-muted block uppercase font-mono font-bold">DEVICE HOLDER</span>
-                    <span className="text-[10px] font-mono font-bold text-primary break-all truncate block">{userEmail || 'Client Local Only'}</span>
+                  <div className="p-2.5 bg-black/40 border border-zinc-900 rounded-xl space-y-0.5">
+                    <span className="text-[8px] text-zinc-500 block uppercase font-mono font-bold">DEVICE HOLDER</span>
+                    <span className="text-[10px] font-mono font-bold text-zinc-300 break-all truncate block">{userEmail || 'Client Local Only'}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[9px] text-secondary font-mono">
+                  <div className="flex justify-between items-center text-[9px] text-zinc-400 font-mono">
                     <span>State Syncing</span>
                     <span className="text-blue-450 font-bold uppercase">Active</span>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="bg-card/40 border border-default/60 p-2.5 rounded-xl flex items-center justify-center text-primary animate-fade-in cursor-pointer" title={`Secured Connection for ${userEmail}`}>
+              <div className="bg-zinc-900/40 border border-zinc-850/60 p-2.5 rounded-xl flex items-center justify-center text-blue-400 animate-fade-in cursor-pointer" title={`Secured Connection for ${userEmail}`}>
                 <Lock size={13} className="animate-pulse" />
               </div>
             )}
 
             {/* Sidebar bottom control buttons */}
             {!isNavCollapsed ? (
-              <div className="flex items-center justify-between border-t border-default/60 pt-3">
+              <div className="flex items-center justify-between border-t border-zinc-850/60 pt-3">
                 <button 
                   onClick={() => setIsSettingsOpen(true)}
-                  className="p-2 rounded-lg bg-card-50 hover:bg-card border border-default/60 hover:border-default text-secondary hover:text-primary transition-all cursor-pointer"
+                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer"
                   title="Application Settings"
                 >
                   <Settings size={13} />
                 </button>
                 <button 
                   onClick={() => setIsNotifOpen(true)}
-                  className="p-2 rounded-lg bg-card-50 hover:bg-card border border-default/60 hover:border-default text-secondary hover:text-primary transition-all cursor-pointer relative"
+                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer relative"
                   title="Notification Alerts Center"
                 >
                   <Bell size={13} />
                   {state.notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                    <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
                   )}
                 </button>
                 <button 
                   onClick={() => setIsProfileOpen(true)}
-                  className="w-7 h-7 rounded-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-primary font-bold transition-all cursor-pointer overflow-hidden border border-default flex items-center justify-center shrink-0"
+                  className="w-7 h-7 rounded-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-slate-950 font-bold transition-all cursor-pointer overflow-hidden border border-zinc-700 flex items-center justify-center shrink-0"
                   title="Profile Suite"
                 >
                   {state.userProfile?.avatarUrl ? (
@@ -2457,27 +2421,27 @@ export default function App() {
                     setState(DEFAULT_APP_STATE);
                     setIsUnlocked(false);
                   }}
-                  className="p-2 rounded-lg bg-card-50 hover:bg-card border border-default/60 hover:border-default text-danger hover:text-danger transition-all cursor-pointer"
+                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850/60 hover:border-zinc-750 text-rose-450 hover:text-rose-400 transition-all cursor-pointer"
                   title="Disconnect Identity"
                 >
                   <LogOut size={13} />
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-3 border-t border-default/60 pt-3">
+              <div className="flex flex-col items-center gap-3 border-t border-zinc-850/60 pt-3">
                 <button 
                   onClick={() => setIsNotifOpen(true)}
-                  className="p-2.5 rounded-xl bg-card-50 hover:bg-card border border-default/60 hover:border-default text-secondary hover:text-primary transition-all cursor-pointer relative"
+                  className="p-2.5 rounded-xl bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer relative"
                   title="Notification Alerts Center"
                 >
                   <Bell size={13} />
                   {state.notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
                   )}
                 </button>
                 <button 
                   onClick={() => setIsProfileOpen(true)}
-                  className="w-7 h-7 rounded-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-primary font-bold transition-all cursor-pointer overflow-hidden border border-default flex items-center justify-center"
+                  className="w-7 h-7 rounded-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-slate-950 font-bold transition-all cursor-pointer overflow-hidden border border-zinc-700 flex items-center justify-center"
                   title="Profile Suite"
                 >
                   {state.userProfile?.avatarUrl ? (
@@ -2493,7 +2457,7 @@ export default function App() {
                 </button>
                 <button 
                   onClick={() => setIsSettingsOpen(true)}
-                  className="p-2 rounded-lg bg-card-50 hover:bg-card border border-default/60 hover:border-default text-secondary hover:text-primary transition-all cursor-pointer flex items-center justify-center"
+                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center"
                   title="Application Settings"
                 >
                   <Settings size={13} />
@@ -2532,16 +2496,16 @@ export default function App() {
             {/* Supabase Sync Badge Indicator */}
             {realtimeSyncStatus === 'syncing' && (
               <div 
-                className="p-2 bg-card border border-default rounded-lg text-primary hover:text-primary transition-all flex items-center justify-center shrink-0"
+                className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-blue-400 hover:text-white transition-all flex items-center justify-center shrink-0"
                 title="Syncing with cloud..."
               >
-                <RefreshCw size={15} className="animate-spin text-primary" />
+                <RefreshCw size={15} className="animate-spin text-blue-400" />
               </div>
             )}
 
             {realtimeSyncStatus === 'synced' && (
               <div 
-                className="p-2 bg-card border border-default rounded-lg text-blue-500 hover:text-primary transition-all flex items-center justify-center shrink-0"
+                className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-blue-500 hover:text-blue-400 transition-all flex items-center justify-center shrink-0"
                 title="Cloud Synced"
               >
                 <Cloud size={15} className="text-blue-500" />
@@ -2551,7 +2515,7 @@ export default function App() {
             {realtimeSyncStatus === 'error' && (
               <button
                 onClick={() => setIsSettingsOpen(true)}
-                className="p-2 bg-card border border-red-900/60 rounded-lg text-red-500 hover:text-danger hover:border-red-500/50 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                className="p-2 bg-zinc-900 border border-red-900/60 rounded-lg text-red-500 hover:text-red-400 hover:border-red-500/50 transition-all cursor-pointer flex items-center justify-center shrink-0"
                 title={`Sync Error: ${realtimeSyncError || 'Details in Settings.'}`}
               >
                 <CloudOff size={15} className="animate-pulse text-red-500" />
@@ -2561,7 +2525,7 @@ export default function App() {
             {realtimeSyncStatus === 'disabled' && (
               <button
                 onClick={() => setIsSettingsOpen(true)}
-                className="p-2 bg-card border border-default rounded-lg text-muted hover:text-secondary hover:border-default transition-all cursor-pointer flex items-center justify-center shrink-0"
+                className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-400 hover:border-zinc-600 transition-all cursor-pointer flex items-center justify-center shrink-0"
                 title="Cloud Sync Disabled. Click to configure."
               >
                 <CloudOff size={15} />
@@ -2571,21 +2535,21 @@ export default function App() {
             {/* Notification Button */}
             <button
               onClick={() => setIsNotifOpen(true)}
-              className="p-2 bg-card border border-default rounded-lg text-secondary hover:text-primary hover:border-default transition-all cursor-pointer flex items-center justify-center shrink-0 relative"
+              className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-500 transition-all cursor-pointer flex items-center justify-center shrink-0 relative"
               title="Notification Alerts Center"
               aria-label="View notifications"
               id="header-notification-trigger"
             >
               <Bell size={15} className="text-[var(--accent-primary)]" />
               {state.notifications.filter(n => !n.read).length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-blue-400 border border-default rounded-full animate-pulse" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-400 border border-zinc-900 rounded-full animate-pulse" />
               )}
             </button>
 
             {/* Profile Mark */}
             <button
               onClick={() => setIsProfileOpen(true)}
-              className="w-8 h-8 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-primary font-bold hover:bg-[var(--accent-primary)]/90 transition-all cursor-pointer overflow-hidden border border-default"
+              className="w-8 h-8 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-slate-950 font-bold hover:bg-[var(--accent-primary)]/90 transition-all cursor-pointer overflow-hidden border border-zinc-700"
               title="Profile"
               id="header-profile-trigger"
             >
@@ -2658,7 +2622,7 @@ export default function App() {
           
           {/* Header block for current active tab */}
           {activeTab !== 'dashboard' && (
-            <div className="flex justify-between items-center bg-card-50 border border-default p-6 rounded-[28px] shadow-xl">
+            <div className="flex justify-between items-center bg-zinc-900/50 border border-zinc-850 p-6 rounded-[28px] shadow-xl">
               <div className="min-w-0 pr-3 space-y-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] font-sans">
                   {activeTab === 'accounts' ? 'Wallets Core' :
@@ -2683,6 +2647,16 @@ export default function App() {
                 )}
               </div>
 
+              {/* Notifications trigger bell */}
+              <button
+                onClick={() => setIsNotifOpen(true)}
+                className="p-2 sm:p-3 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-300 hover:text-white hover:border-zinc-500 relative cursor-pointer shadow-md transition-all flex items-center justify-center shrink-0"
+              >
+                <Bell size={15} />
+                {state.notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-400 border-2 border-zinc-900 rounded-full animate-pulse" />
+                )}
+              </button>
             </div>
           )}
 
@@ -2693,16 +2667,16 @@ export default function App() {
                 <CloudOff size={15} className="shrink-0" />
                 <span>REAL-TIME CLOUD SYNC ERROR DETECTED</span>
               </div>
-              <p className="text-[11px] text-secondary leading-relaxed">
+              <p className="text-[11px] text-zinc-350 leading-relaxed">
                 Your local ledger tracks couldn't synchronize instantly to Supabase. This is why some newly created Cash Wallets or cards/transactions might not appear in your database table.
               </p>
               <div className="bg-black/50 p-3 rounded-xl border border-red-950/50 space-y-1 font-mono text-[10px]">
-                <span className="text-muted font-bold block uppercase">REJECTED CODE:</span>
-                <span className="text-danger font-semibold block break-words">{realtimeSyncError || 'Supabase Connection Rejected.'}</span>
+                <span className="text-zinc-500 font-bold block uppercase">REJECTED CODE:</span>
+                <span className="text-red-400 font-semibold block break-words">{realtimeSyncError || 'Supabase Connection Rejected.'}</span>
               </div>
               <div className="pt-1.5 space-y-2">
-                <span className="text-[10px] uppercase font-bold text-secondary block font-mono">3-STEP DIAGNOSTICS & RESOLUTION GUIDE:</span>
-                <ol className="list-decimal list-inside text-[10px] text-secondary space-y-1 leading-normal">
+                <span className="text-[10px] uppercase font-bold text-zinc-400 block font-mono">3-STEP DIAGNOSTICS & RESOLUTION GUIDE:</span>
+                <ol className="list-decimal list-inside text-[10px] text-zinc-400 space-y-1 leading-normal">
                   <li>Press <strong>Settings</strong> and confirm that your saved <strong>Supabase Secret Anon Key</strong> corresponds to your project credentials securely.</li>
                   <li>Make sure the <code className="text-teal-400 font-mono">ledger_states</code> core table exists in your database table schemas.</li>
                   <li>Copy and run the 1-click database generation SQL script directly inside your <strong>Supabase SQL Editor</strong> (under Settings).</li>
@@ -2872,14 +2846,14 @@ export default function App() {
             </div>
 
             {/* =================== MOBILE BOTTOM BAR NAVIGATOR =================== */}
-            <nav className="mobile-bottom-nav fixed bottom-4 inset-x-4 flex justify-around items-center pb-3 pt-2.5 z-30 lg:hidden" role="navigation" aria-label="Main navigation">
+            <nav className="fixed bottom-4 inset-x-4 bg-card/85 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-3xl pb-3 pt-2.5 flex justify-around items-center z-30 shadow-[0_4px_22px_rgba(20,20,30,0.08)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.4)] lg:hidden">
               {[
                 { tab: 'dashboard', icon: <LayoutDashboard size={15} />, label: 'Dashboard' },
                 { tab: 'accounts', icon: <Wallet size={15} />, label: 'Wallets' },
                 { tab: 'inflow_outflow', icon: <Plus size={15} />, label: 'Transact' },
                 { tab: 'reports', icon: <TrendingUp size={15} />, label: 'Reports' },
               ].map((item) => {
-                const isActive = activeTab === item.tab && !isMobileNavOpen;
+                const isActive = activeTab === item.tab;
                 return (
                   <button
                     key={item.tab}
@@ -2887,48 +2861,45 @@ export default function App() {
                       setActiveTab(item.tab as any);
                       setIsMobileNavOpen(false);
                     }}
-                    aria-current={isActive ? 'page' : undefined}
-                    aria-label={item.label}
                     className="flex flex-col items-center gap-1.5 relative cursor-pointer group"
                   >
                     <div className={`p-2.5 rounded-2xl transition-all duration-300 flex items-center justify-center ${
-                      isActive
-                        ? 'bg-[var(--accent-primary)] text-primary shadow-md scale-105 border border-[var(--accent-primary)]' 
-                        : 'bg-surface dark:bg-card border border-subtle dark:border-default text-muted dark:text-secondary group-hover:bg-surface dark:group-hover:bg-surface group-hover:text-primary dark:group-hover:text-primary'
+                      isActive && !isMobileNavOpen
+                        ? 'bg-[var(--accent-primary)] text-slate-950 shadow-md scale-105 border border-[var(--accent-primary)]' 
+                        : 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-805 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800 group-hover:text-zinc-800 dark:group-hover:text-zinc-200'
                     }`}>
                       {item.icon}
                     </div>
                     <span className={`text-[8.5px] uppercase tracking-wider transition-colors duration-300 ${
-                      isActive
+                      isActive && !isMobileNavOpen
                         ? 'text-[var(--accent-primary)] font-extrabold font-sans' 
-                        : 'text-muted dark:text-secondary font-medium font-sans group-hover:text-secondary dark:group-hover:text-primary'
+                        : 'text-zinc-500 dark:text-zinc-400 font-medium font-sans group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
                     }`}>
                       {item.label}
                     </span>
-                    {isActive && (
+                    {isActive && !isMobileNavOpen && (
                       <span className="absolute -bottom-1.5 w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-pulse" />
                     )}
                   </button>
                 );
               })}
               
+              {/* Added native Menu button node for extra capabilities */}
               <button
                 onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
-                aria-expanded={isMobileNavOpen}
-                aria-label={isMobileNavOpen ? 'Close menu' : 'Open menu'}
                 className="flex flex-col items-center gap-1.5 relative cursor-pointer group"
               >
                 <div className={`p-2.5 rounded-2xl transition-all duration-300 flex items-center justify-center ${
                   isMobileNavOpen
-                    ? 'bg-indigo-600 text-primary shadow-md scale-105 border border-indigo-500' 
-                    : 'bg-surface dark:bg-card border border-subtle dark:border-default text-muted dark:text-secondary group-hover:bg-surface dark:group-hover:bg-surface group-hover:text-primary dark:group-hover:text-primary'
+                    ? 'bg-indigo-600 text-white shadow-md scale-105 border border-indigo-500' 
+                    : 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-805 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800 group-hover:text-zinc-800 dark:group-hover:text-zinc-200'
                 }`}>
                   <Menu size={15} />
                 </div>
                 <span className={`text-[8.5px] uppercase tracking-wider transition-colors duration-300 ${
                   isMobileNavOpen
                     ? 'text-indigo-500 font-extrabold' 
-                    : 'text-muted dark:text-secondary font-medium group-hover:text-secondary dark:group-hover:text-primary'
+                    : 'text-zinc-500 dark:text-zinc-400 font-medium group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
                 }`}>
                   More
                 </span>
@@ -2940,14 +2911,14 @@ export default function App() {
 
             {/* =================== MOBILE CORE SLIDE-UP HUB DRAWER =================== */}
             {isMobileNavOpen && (
-              <div id="mobile-core-nav-drawer" className="fixed inset-0 bg-black/60 dark:bg-primary/90 backdrop-blur-sm z-50 flex flex-col justify-end transition-all duration-350 lg:hidden">
+              <div id="mobile-core-nav-drawer" className="fixed inset-0 bg-black/60 dark:bg-[#020205]/90 backdrop-blur-sm z-50 flex flex-col justify-end transition-all duration-350 lg:hidden">
                 {/* Backdrop Dismiss Trigger */}
                 <div className="absolute inset-0 cursor-pointer" onClick={() => setIsMobileNavOpen(false)} />
                 
                 <div className="bg-card border-t border-[var(--border-primary)] rounded-t-[32px] max-h-[85%] flex flex-col overflow-hidden shadow-2xl relative z-10 w-full animate-fade-in-up">
                   
                   {/* Slide Indicator Accent */}
-                  <div className="w-12 h-1 bg-zinc-300 dark:bg-surface rounded-full mx-auto my-3.5 shrink-0 cursor-pointer" onClick={() => setIsMobileNavOpen(false)} />
+                  <div className="w-12 h-1 bg-zinc-300 dark:bg-zinc-800 rounded-full mx-auto my-3.5 shrink-0 cursor-pointer" onClick={() => setIsMobileNavOpen(false)} />
                   
                   {/* Header Title Information */}
                   <div className="px-6 pb-4 border-b border-[var(--border-primary)] flex justify-between items-center shrink-0">
@@ -2957,7 +2928,7 @@ export default function App() {
                     </div>
                     <button
                       onClick={() => setIsMobileNavOpen(false)}
-                      className="px-3 py-1.5 rounded-lg bg-surface dark:bg-card border border-subtle dark:border-default text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-205 dark:border-zinc-800 text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                     >
                       Dismiss
                     </button>
@@ -2967,21 +2938,21 @@ export default function App() {
                   <div className="flex-1 overflow-y-auto p-5 space-y-5 select-none" style={{ scrollbarWidth: 'thin' }}>
                     
                     {/* Compact Interactive Quick Statistics */}
-                    <div className="p-4 bg-card-65 dark:bg-card/80 border border-subtle rounded-2xl flex justify-around items-center gap-3">
+                    <div className="p-4 bg-zinc-950/65 dark:bg-[#050508]/80 border border-zinc-900/60 rounded-2xl flex justify-around items-center gap-3">
                       <div className="text-center">
                         <span className="text-[8px] text-[var(--text-secondary)] font-mono uppercase block mb-0.5">NET WORTH</span>
-                        <span className="text-xs font-mono font-bold text-primary leading-none">
+                        <span className="text-xs font-mono font-bold text-white leading-none">
                           {state.currency}{aggregateActiveWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </span>
                       </div>
-                      <div className="w-px h-6 bg-card" />
+                      <div className="w-px h-6 bg-zinc-900" />
                       <div className="text-center">
                         <span className="text-[8px] text-[var(--text-secondary)] font-mono uppercase block mb-0.5">CASHFLOW</span>
-                        <span className={`text-xs font-mono font-bold leading-none ${(currentMonthInflow - currentMonthOutflow) >= 0 ? 'text-success' : 'text-danger'}`}>
+                        <span className={`text-xs font-mono font-bold leading-none ${(currentMonthInflow - currentMonthOutflow) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {(currentMonthInflow - currentMonthOutflow) >= 0 ? '+' : ''}{state.currency}{(currentMonthInflow - currentMonthOutflow).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </span>
                       </div>
-                      <div className="w-px h-6 bg-card" />
+                      <div className="w-px h-6 bg-zinc-900" />
                       <div className="text-center">
                         <span className="text-[8px] text-[var(--text-secondary)] font-mono uppercase block mb-0.5">SAVINGS RATE</span>
                         <span className="text-xs font-semibold font-mono text-[var(--accent-primary)] leading-none">
@@ -2998,7 +2969,7 @@ export default function App() {
                         {[
                           { tab: 'dashboard', icon: <LayoutDashboard size={15} className="text-amber-500" />, title: 'Dashboard', desc: 'Main indicators' },
                           { tab: 'accounts', icon: <Wallet size={15} className="text-blue-500" />, title: 'Wallets Port', desc: 'Manage assets' },
-                          { tab: 'inflow_outflow', icon: <Plus size={15} className="text-blue-500" />, title: 'Ledger Registry', desc: 'New entries' },
+                          { tab: 'inflow_outflow', icon: <Plus size={15} className="text-emerald-500" />, title: 'Ledger Registry', desc: 'New entries' },
                           { tab: 'budgets', icon: <CheckSquare size={15} className="text-purple-500" />, title: 'Smart Budgets', desc: 'Expenses envelope' },
                           { tab: 'goals', icon: <CheckSquare size={15} className="text-rose-500" />, title: 'Savings Jars', desc: 'Track progress' },
                           { tab: 'debts', icon: <CircleDot size={15} className="text-orange-500" />, title: 'Track Liabilities', desc: 'Debts timeline' },
@@ -3016,7 +2987,7 @@ export default function App() {
                               className={`p-3.5 rounded-2xl flex flex-col items-start gap-1.5 text-left border cursor-pointer transition-all ${
                                 isActive
                                   ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-black'
-                                  : 'bg-surface dark:bg-card-60 border-subtle dark:border-default text-[var(--text-primary)] hover:border-default'
+                                  : 'bg-zinc-100 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-850 text-[var(--text-primary)] hover:border-zinc-700'
                               }`}
                             >
                               <div className="flex justify-between items-center w-full">
@@ -3044,7 +3015,7 @@ export default function App() {
                             setIsProfileOpen(true);
                             setIsMobileNavOpen(false);
                           }}
-                          className="py-3 px-1.5 bg-surface dark:bg-card-60 border border-subtle dark:border-default text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-default transition-all cursor-pointer text-center"
+                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center"
                         >
                           <User size={14} className="text-indigo-400" />
                           <span className="text-[9px] font-bold block">My Profile</span>
@@ -3056,9 +3027,9 @@ export default function App() {
                             setIsSettingsOpen(true);
                             setIsMobileNavOpen(false);
                           }}
-                          className="py-3 px-1.5 bg-surface dark:bg-card-60 border border-subtle dark:border-default text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-default transition-all cursor-pointer text-center"
+                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center"
                         >
-                          <Settings size={14} className="text-secondary" />
+                          <Settings size={14} className="text-zinc-400" />
                           <span className="text-[9px] font-bold block">Settings</span>
                         </button>
                         
@@ -3068,12 +3039,12 @@ export default function App() {
                             setIsNotifOpen(true);
                             setIsMobileNavOpen(false);
                           }}
-                          className="py-3 px-1.5 bg-surface dark:bg-card-60 border border-subtle dark:border-default text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-default transition-all cursor-pointer text-center relative"
+                          className="py-3 px-1.5 bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-205 dark:border-zinc-850 text-[var(--text-primary)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-zinc-700 transition-all cursor-pointer text-center relative"
                         >
                           <Bell size={14} className="text-amber-400" />
                           <span className="text-[9px] font-bold block">Alerts</span>
                           {state.notifications.filter(n => !n.read).length > 0 && (
-                            <span className="absolute top-2 right-4 w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                            <span className="absolute top-2 right-4 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
                           )}
                         </button>
                       </div>
@@ -3136,7 +3107,7 @@ export default function App() {
       {/* 3. WORKSPACE FOOTER CORE STATUS */}
       <footer className="bg-[var(--bg-sidebar)] border-t border-[var(--border-primary)] px-6 py-3.5 z-10 flex flex-col md:flex-row justify-between items-center text-[11px] text-[var(--text-secondary)] font-mono gap-3">
         <div className="flex items-center gap-2">
-          <CircleDot size={12} className="text-success animate-pulse" />
+          <CircleDot size={12} className="text-emerald-400 animate-pulse" />
           <span>Local database mirror synchronized fully.</span>
         </div>
         <div className="flex gap-4">

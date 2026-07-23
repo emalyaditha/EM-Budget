@@ -35,10 +35,8 @@ export function getSupabaseConfig() {
   const meta = import.meta as any;
   const isProd = !!(meta.env && meta.env.PROD);
   
-  let envUrl = (meta.env && meta.env.VITE_SUPABASE_URL || '').trim();
-  let envKey = (meta.env && meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
-  let url = envUrl || localStorage.getItem(URL_STORAGE_KEY) || '';
-  let key = envKey || localStorage.getItem(KEY_STORAGE_KEY) || '';
+  let url = (localStorage.getItem(URL_STORAGE_KEY) || (meta.env && meta.env.VITE_SUPABASE_URL) || '').trim();
+  let key = (localStorage.getItem(KEY_STORAGE_KEY) || (meta.env && meta.env.VITE_SUPABASE_ANON_KEY) || '').trim();
   
   // Swapped detection
   if (url.startsWith('eyJ') && (key.startsWith('http://') || key.startsWith('https://'))) {
@@ -91,8 +89,6 @@ export function getSupabaseConfig() {
 
 export function saveSupabaseConfig(url: string, key: string, autoSync: boolean) {
   localStorage.setItem(AUTO_SYNC_KEY, String(autoSync));
-  if (url) localStorage.setItem(URL_STORAGE_KEY, url);
-  if (key) localStorage.setItem(KEY_STORAGE_KEY, key);
 }
 
 let supabaseClientInstance: SupabaseClient | null = null;
@@ -367,9 +363,15 @@ export async function truncateAllDataInSupabase(email: string): Promise<{ succes
     const tables = ['ledger_states', 'bank_cards', 'cash_accounts', 'transactions', 'debts', 'incomes', 'expenses', 'notifications', 'subscriptions', 'spending_envelopes'];
     
     for (const table of tables) {
-      let { error } = await client.from(table).delete().eq('user_email', email);
-      if (error && error.message.includes('column "user_email" does not exist')) {
-        const { error: err2 } = await client.from(table).delete().eq('userEmail', email);
+      let emailCol = 'user_email';
+      if (['incomes', 'expenses', 'debts', 'notifications', 'transactions'].includes(table)) {
+        emailCol = 'userEmail';
+      }
+      
+      let { error } = await client.from(table).delete().eq(emailCol, email);
+      if (error && error.message.includes(`column "${emailCol}" does not exist`)) {
+        const fallbackCol = emailCol === 'userEmail' ? 'user_email' : 'userEmail';
+        const { error: err2 } = await client.from(table).delete().eq(fallbackCol, email);
       }
     }
     return { success: true };

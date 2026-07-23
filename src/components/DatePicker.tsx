@@ -283,7 +283,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <CalendarIcon 
           size={iconSize} 
           style={{ left: iconLeft }}
-          className="text-success absolute top-1/2 -translate-y-1/2 pointer-events-none z-10" 
+          className="text-emerald-400 absolute top-1/2 -translate-y-1/2 pointer-events-none z-10" 
         />
         <input
           type="text"
@@ -292,12 +292,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           placeholder={placeholder}
           required={required}
           disabled={disabled}
-          className={`date-picker-input w-full bg-surface border text-primary rounded-2xl text-xs focus:outline-none font-semibold cursor-pointer transition-all select-none ${paddingClasses} ${
+          className={`date-picker-input w-full bg-[#08080c] border text-white rounded-2xl text-xs focus:outline-none font-semibold cursor-pointer transition-all select-none ${paddingClasses} ${
             error 
               ? 'border-rose-500 focus:border-rose-500' 
               : isOpen 
-              ? 'border-blue-500 shadow-[0_0_0_3px_rgba(52,211,153,0.15)]' 
-              : 'border-default hover:border-default/80'
+              ? 'border-emerald-500 shadow-[0_0_0_3px_rgba(52,211,153,0.15)]' 
+              : 'border-zinc-855 hover:border-zinc-700/80'
           } ${className}`}
         />
       </div>
@@ -311,7 +311,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           >
             <div 
               ref={calendarRef}
-              className="relative w-full max-w-sm bg-card border border-default rounded-2xl p-5 shadow-2xl flex flex-col justify-center select-none"
+              className="relative w-full max-w-sm bg-[#0C0C0F] border border-zinc-800 rounded-2xl p-5 shadow-2xl flex flex-col justify-center select-none"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -321,7 +321,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     type="button"
                     onClick={handlePrevYear}
                     title="Previous Year"
-                    className="p-1.5 hover:bg-surface rounded-lg text-muted hover:text-primary transition-colors cursor-pointer"
+                    className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-colors cursor-pointer"
                   >
                     <ChevronsLeft size={18} />
                   </button>
@@ -329,13 +329,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     type="button"
                     onClick={handlePrevMonth}
                     title="Previous Month"
-                    className="p-1.5 hover:bg-surface rounded-lg text-secondary hover:text-primary transition-colors cursor-pointer"
+                    className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer"
                   >
                     <ChevronLeft size={18} />
                   </button>
                 </div>
                 
-                <div className="text-sm font-bold font-mono text-primary tracking-wide">
+                <div className="text-sm font-bold font-mono text-white tracking-wide">
                   {MONTH_NAMES[viewMonth]} {viewYear}
                 </div>
 
@@ -344,7 +344,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     type="button"
                     onClick={handleNextMonth}
                     title="Next Month"
-                    className="p-1.5 hover:bg-surface rounded-lg text-secondary hover:text-primary transition-colors cursor-pointer"
+                    className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer"
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -352,7 +352,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     type="button"
                     onClick={handleNextYear}
                     title="Next Year"
-                    className="p-1.5 hover:bg-surface rounded-lg text-muted hover:text-primary transition-colors cursor-pointer"
+                    className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-colors cursor-pointer"
                   >
                     <ChevronsRight size={18} />
                   </button>
@@ -362,7 +362,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               {/* Weekday labels */}
               <div className="grid grid-cols-7 gap-1.5 mb-2">
                 {WEEK_DAYS.map((day) => (
-                  <div key={day} className="text-center text-[11px] font-bold font-mono text-muted uppercase py-1">
+                  <div key={day} className="text-center text-[11px] font-bold font-mono text-zinc-500 uppercase py-1">
                     {day}
                   </div>
                 ))}
@@ -381,10 +381,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                       onClick={(e) => handleSelectDay(cell.dateString, e)}
                       className={`aspect-square text-xs font-mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-blue-500 text-black font-bold shadow-md shadow-blue-500/20'
+                          ? 'bg-emerald-500 text-black font-bold shadow-md shadow-emerald-500/20'
                           : isCurrentMonth
-                          ? 'text-primary hover:bg-surface hover:text-primary'
-                          : 'text-muted hover:bg-surface-40'
+                          ? 'text-zinc-200 hover:bg-zinc-800 hover:text-white'
+                          : 'text-zinc-650 hover:bg-zinc-800/40'
                       }`}
                     >
                       {cell.day}
@@ -394,14 +394,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               </div>
 
               {/* Quick Select Buttons */}
-              <div className="mt-4 pt-3.5 border-t border-default grid grid-cols-2 gap-3">
+              <div className="mt-4 pt-3.5 border-t border-zinc-900 grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={(e) => {
                     const todayStr = new Date().toISOString().split('T')[0];
                     handleSelectDay(todayStr, e);
                   }}
-                  className="py-2 px-3 text-xs font-mono bg-card hover:bg-card text-primary hover:text-primary rounded-xl transition-colors cursor-pointer text-center font-medium"
+                  className="py-2 px-3 text-xs font-mono bg-zinc-900 hover:bg-zinc-855 text-zinc-300 hover:text-white rounded-xl transition-colors cursor-pointer text-center font-medium"
                 >
                   Today
                 </button>
@@ -413,7 +413,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     const yesterdayStr = yesterday.toISOString().split('T')[0];
                     handleSelectDay(yesterdayStr, e);
                   }}
-                  className="py-2 px-3 text-xs font-mono bg-card hover:bg-card text-primary hover:text-primary rounded-xl transition-colors cursor-pointer text-center font-medium"
+                  className="py-2 px-3 text-xs font-mono bg-zinc-900 hover:bg-zinc-855 text-zinc-300 hover:text-white rounded-xl transition-colors cursor-pointer text-center font-medium"
                 >
                   Yesterday
                 </button>
@@ -423,7 +423,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="mt-4 w-full py-2.5 bg-surface hover:bg-surface text-primary hover:text-primary text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                className="mt-4 w-full py-2.5 bg-zinc-800 hover:bg-zinc-750 text-zinc-200 hover:text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
                 Close Picker
               </button>
@@ -438,7 +438,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               top: `${coords.top}px`,
               left: `${coords.left}px`,
             }}
-            className="z-[9999] w-72 bg-card/95 backdrop-blur-md border border-subtle rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-4 select-none animate-brand-fade-up before:absolute before:top-0 before:left-6 before:right-6 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-blue-500/60 before:to-transparent"
+            className="z-[9999] w-72 bg-[#0C0C0F]/95 backdrop-blur-md border border-zinc-800/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-4 select-none animate-brand-fade-up before:absolute before:top-0 before:left-6 before:right-6 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-emerald-500/60 before:to-transparent"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -448,7 +448,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   type="button"
                   onClick={handlePrevYear}
                   title="Previous Year"
-                  className="p-1 hover:bg-surface-80 rounded-md text-muted hover:text-primary transition-colors cursor-pointer"
+                  className="p-1 hover:bg-zinc-800/80 rounded-md text-zinc-500 hover:text-white transition-colors cursor-pointer"
                 >
                   <ChevronsLeft size={15} />
                 </button>
@@ -456,13 +456,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   type="button"
                   onClick={handlePrevMonth}
                   title="Previous Month"
-                  className="p-1 hover:bg-surface-80 rounded-md text-secondary hover:text-primary transition-colors cursor-pointer"
+                  className="p-1 hover:bg-zinc-800/80 rounded-md text-zinc-400 hover:text-white transition-colors cursor-pointer"
                 >
                   <ChevronLeft size={15} />
                 </button>
               </div>
 
-              <div className="text-xs font-bold font-mono text-primary tracking-wide">
+              <div className="text-xs font-bold font-mono text-white tracking-wide">
                 {MONTH_NAMES[viewMonth]} {viewYear}
               </div>
 
@@ -471,7 +471,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   type="button"
                   onClick={handleNextMonth}
                   title="Next Month"
-                  className="p-1 hover:bg-surface-80 rounded-md text-secondary hover:text-primary transition-colors cursor-pointer"
+                  className="p-1 hover:bg-zinc-800/80 rounded-md text-zinc-400 hover:text-white transition-colors cursor-pointer"
                 >
                   <ChevronRight size={15} />
                 </button>
@@ -479,7 +479,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   type="button"
                   onClick={handleNextYear}
                   title="Next Year"
-                  className="p-1 hover:bg-surface-80 rounded-md text-muted hover:text-primary transition-colors cursor-pointer"
+                  className="p-1 hover:bg-zinc-800/80 rounded-md text-zinc-500 hover:text-white transition-colors cursor-pointer"
                 >
                   <ChevronsRight size={15} />
                 </button>
@@ -489,7 +489,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             {/* Weekday labels */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {WEEK_DAYS.map((day) => (
-                <div key={day} className="text-center text-[10px] font-bold font-mono text-muted uppercase py-1">
+                <div key={day} className="text-center text-[10px] font-bold font-mono text-zinc-500 uppercase py-1">
                   {day}
                 </div>
               ))}
@@ -508,10 +508,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     onClick={(e) => handleSelectDay(cell.dateString, e)}
                     className={`aspect-square text-[11px] font-mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-blue-500 text-black font-bold shadow-md shadow-blue-500/10'
+                        ? 'bg-emerald-500 text-black font-bold shadow-md shadow-emerald-500/10'
                         : isCurrentMonth
-                        ? 'text-primary hover:bg-surface hover:text-primary'
-                        : 'text-muted hover:bg-surface-50'
+                        ? 'text-zinc-200 hover:bg-zinc-800 hover:text-white'
+                        : 'text-zinc-600 hover:bg-zinc-800/50'
                     }`}
                   >
                     {cell.day}
@@ -521,14 +521,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             </div>
 
             {/* Quick Select Buttons */}
-            <div className="mt-3 pt-2.5 border-t border-default grid grid-cols-2 gap-2">
+            <div className="mt-3 pt-2.5 border-t border-zinc-900 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={(e) => {
                   const todayStr = new Date().toISOString().split('T')[0];
                   handleSelectDay(todayStr, e);
                 }}
-                className="py-1 px-2 text-[10px] font-mono bg-card hover:bg-surface text-primary hover:text-primary rounded-lg transition-colors cursor-pointer"
+                className="py-1 px-2 text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg transition-colors cursor-pointer"
               >
                 Today
               </button>
@@ -540,7 +540,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   const yesterdayStr = yesterday.toISOString().split('T')[0];
                   handleSelectDay(yesterdayStr, e);
                 }}
-                className="py-1 px-2 text-[10px] font-mono bg-card hover:bg-surface text-primary hover:text-primary rounded-lg transition-colors cursor-pointer"
+                className="py-1 px-2 text-[10px] font-mono bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg transition-colors cursor-pointer"
               >
                 Yesterday
               </button>

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Debt, DebtPayment, CashAccount, BankCard } from '../types';
-import {
-  Plus, CheckCircle2, AlertCircle, Sparkles, Calendar, Receipt,
-  ArrowUpRight, ArrowDownLeft, Trash2, HelpCircle, TrendingUp, DollarSign, Wallet, History, CreditCard, ChevronDown, ChevronUp
+import { Debt, CashAccount, BankCard } from '../types';
+import { 
+  Plus, CheckCircle2, AlertCircle, Sparkles, Calendar, Receipt, 
+  Landmark, ShieldCheck, ArrowRight, CornerDownRight, Percent, 
+  HelpCircle, TrendingUp, DollarSign, Wallet
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
@@ -12,679 +13,768 @@ interface DebtTrackerProps {
   cashAccounts: CashAccount[];
   cards: BankCard[];
   onAddDebt: (debt: Omit<Debt, 'id' | 'payments' | 'remainingAmount'>) => void;
-  onIncreaseDebt: (debtId: string, amount: number, newAccountId?: string, newAccountType?: 'cash' | 'card') => void;
+  onIncreaseDebt: (
+    debtId: string, 
+    amount: number, 
+    accountId?: string, 
+    accountType?: 'cash' | 'card'
+  ) => void;
   onMakeDebtPayment: (debtId: string, amount: number, paidFromId: string, paidFromType: 'cash' | 'card', bankCharge?: number) => void;
   onDeleteDebt: (debtId: string) => void;
   currency: string;
 }
 
 export default function DebtTracker({
-  debts = [],
-  cashAccounts = [],
-  cards = [],
+  debts,
+  cashAccounts,
+  cards,
   onAddDebt,
   onIncreaseDebt,
   onMakeDebtPayment,
   onDeleteDebt,
   currency,
 }: DebtTrackerProps) {
-  const { showConfirm, showToast } = useNotifications();
-
-  // Add Debt form states
+  const { showToast } = useNotifications();
+  // Add Debt States
   const [isAddingDebt, setIsAddingDebt] = useState(false);
-  const [debtSource, setDebtSource] = useState('');
-  const [totalAmount, setTotalAmount] = useState('');
+  const [source, setSource] = useState('');
+  const [totalDebt, setTotalDebt] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
-  const [accountId, setAccountId] = useState('');
-  const [accountType, setAccountType] = useState<'cash' | 'card'>('cash');
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [targetAccountId, setTargetAccountId] = useState('');
+  const [targetAccountType, setTargetAccountType] = useState<'cash' | 'card' | ''>('');
 
-  // Increase Debt states
-  const [increasingDebtId, setIncreasingDebtId] = useState<string | null>(null);
-  const [increaseAmount, setIncreaseAmount] = useState('');
-  const [increaseAccountId, setIncreaseAccountId] = useState('');
-  const [increaseAccountType, setIncreaseAccountType] = useState<'cash' | 'card'>('cash');
-  const [increaseError, setIncreaseError] = useState<string | null>(null);
-
-  // Make Payment states
+  // Make Payment States
   const [payingDebtId, setPayingDebtId] = useState<string | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [paidFromId, setPaidFromId] = useState('');
-  const [paidFromType, setPaidFromType] = useState<'cash' | 'card'>('cash');
-  const [paymentBankCharge, setPaymentBankCharge] = useState('');
+  const [increasingDebtId, setIncreasingDebtId] = useState<string | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [increaseAmount, setIncreaseAmount] = useState('');
+  const [incTargetAccountId, setIncTargetAccountId] = useState('');
+  const [incTargetAccountType, setIncTargetAccountType] = useState<'cash' | 'card' | ''>('');
+  const [paySourceId, setPaySourceId] = useState('');
+  const [paySourceType, setPaySourceType] = useState<'cash' | 'card'>('cash');
+  const [payBankCharge, setPayBankCharge] = useState('');
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  // Expanded payment history
-  const [expandedDebtId, setExpandedDebtId] = useState<string | null>(null);
+  // Validation States
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // Combined accounts for select options
-  const availableAccounts = [
-    ...cashAccounts.map(acc => ({ id: acc.id, name: `${acc.name} (Wallet)`, balance: acc.balance, type: 'cash' as const })),
-    ...cards.map(c => ({ id: c.id, name: `${c.bankName} - ${c.cardName} (${c.cardType})`, balance: c.currentBalance, type: 'card' as const })),
-  ];
-
-  // Set default account once loaded
-  React.useEffect(() => {
-    if (availableAccounts.length > 0 && !accountId) {
-      setAccountId(availableAccounts[0].id);
-      setAccountType(availableAccounts[0].type);
-    }
-  }, [cashAccounts, cards]);
+  // Focus Refs
+  const sourceInputRef = React.useRef<HTMLInputElement>(null);
+  const amountInputRef = React.useRef<HTMLInputElement>(null);
+  const dateInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    if (availableAccounts.length > 0 && !paidFromId) {
-      setPaidFromId(availableAccounts[0].id);
-      setPaidFromType(availableAccounts[0].type);
+    if (cashAccounts.length > 0 && !paySourceId) {
+      setPaySourceId(cashAccounts[0].id);
+      setPaySourceType('cash');
     }
-  }, [cashAccounts, cards, payingDebtId]);
+  }, [cashAccounts, paySourceId]);
 
-  React.useEffect(() => {
-    if (availableAccounts.length > 0 && !increaseAccountId) {
-      setIncreaseAccountId(availableAccounts[0].id);
-      setIncreaseAccountType(availableAccounts[0].type);
-    }
-  }, [cashAccounts, cards, increasingDebtId]);
-
-  // Calculations
-  const activeDebts = debts.filter(d => d.status !== 'Fully Repaid' && d.remainingAmount > 0);
-  const totalDebtAmount = debts.reduce((acc, d) => acc + d.totalAmount, 0);
-  const totalRemainingAmount = debts.reduce((acc, d) => acc + d.remainingAmount, 0);
-  const totalPaidAmount = totalDebtAmount - totalRemainingAmount;
-
-  const validateDebtForm = () => {
+  const validateDebtForm = (src: string, amtStr: string, date: string, sub: boolean) => {
     const errs: Record<string, string> = {};
-    if (!debtSource.trim()) {
-      errs.debtSource = 'Debt source is required.';
-    } else if (debtSource.trim().length < 2) {
-      errs.debtSource = 'Debt source must be at least 2 characters.';
+    if (sub || src) {
+      if (!src.trim()) {
+        errs.source = 'Creditor / Debt source is required';
+      } else if (src.trim().length < 3) {
+        errs.source = 'Source must be at least 3 characters';
+      } else if (/[<>{}]/.test(src)) {
+        errs.source = 'Special characters are not allowed';
+      }
     }
-
-    if (!totalAmount || isNaN(parseFloat(totalAmount)) || parseFloat(totalAmount) <= 0) {
-      errs.totalAmount = 'Please enter a valid amount larger than zero.';
+    if (sub || amtStr) {
+      if (!amtStr) {
+        errs.amount = 'Principal amount is required';
+      } else {
+        const num = parseFloat(amtStr);
+        if (isNaN(num)) {
+          errs.amount = 'Must be a valid number';
+        } else if (num <= 0) {
+          errs.amount = 'Principal amount must be positive';
+        }
+      }
     }
-
-    if (!dueDate) {
-      errs.dueDate = 'Due date is required.';
+    if (sub || date) {
+      if (!date) {
+        errs.dueDate = 'Due date is required';
+      }
     }
-
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleAddDebtSubmit = (e: React.FormEvent) => {
+  const handleCreateDebt = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateDebtForm()) {
-      showToast('error', 'Please resolve highlighted errors before proceeding.');
+    setSubmitted(true);
+    const isValid = validateDebtForm(source, totalDebt, dueDate, true);
+    if (!isValid) {
+      if (!source.trim()) {
+        sourceInputRef.current?.focus();
+      } else if (!totalDebt || parseFloat(totalDebt) <= 0) {
+        amountInputRef.current?.focus();
+      } else {
+        dateInputRef.current?.focus();
+      }
+      showToast('error', 'Please resolve highlighted liability errors.');
       return;
     }
 
-    const selectedAcc = availableAccounts.find(a => a.id === accountId && a.type === accountType);
+    let accountName = undefined;
+    if (targetAccountId && targetAccountType) {
+      if (targetAccountType === 'cash') {
+        accountName = cashAccounts.find(c => c.id === targetAccountId)?.name;
+      } else {
+        accountName = cards.find(c => c.id === targetAccountId)?.bankName;
+      }
+    }
 
     onAddDebt({
-      debtSource: debtSource.trim(),
-      totalAmount: parseFloat(totalAmount),
+      debtSource: source.trim(),
+      totalAmount: parseFloat(totalDebt),
       dueDate,
-      notes: notes.trim() || 'No extra notes provided.',
-      accountId: accountId || undefined,
-      accountType: accountType || undefined,
-      accountName: selectedAcc ? selectedAcc.name : undefined,
-      status: 'Active',
+      notes: notes || 'No extra notes provided.',
+      accountId: targetAccountId || undefined,
+      accountType: (targetAccountId && targetAccountType) ? (targetAccountType as 'cash' | 'card') : undefined,
+      accountName,
     });
 
-    setDebtSource('');
-    setTotalAmount('');
+    // Reset Form
+    setSource('');
+    setTotalDebt('');
     setDueDate('');
     setNotes('');
-    setAccountId('');
-    setAccountType('cash');
+    setTargetAccountId('');
+    setTargetAccountType('');
     setIsAddingDebt(false);
+    setSubmitted(false);
     setErrors({});
-    showToast('success', 'Debt recorded successfully!');
+    showToast('success', 'Outstanding Debt registered successfully! Tracks updated.');
   };
 
-  const handlePaymentSubmit = (e: React.FormEvent) => {
+  const handlePayDebtSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPaymentError(null);
     if (!payingDebtId) return;
 
-    const currentDebt = debts.find(d => d.id === payingDebtId);
-    if (!currentDebt) return;
+    const amountNum = parseFloat(payAmount) || 0;
+    const debtItem = debts.find(d => d.id === payingDebtId);
+    if (!debtItem) return;
 
-    const amt = parseFloat(paymentAmount);
-    if (isNaN(amt) || amt <= 0) {
-      setPaymentError('Payment amount must be larger than zero.');
+    if (amountNum <= 0) {
+      setPaymentError('Repayment value must be larger than zero.');
       return;
     }
 
-    if (amt > currentDebt.remainingAmount) {
-      setPaymentError(`Payment exceeds outstanding balance (${currency} ${currentDebt.remainingAmount.toLocaleString()}).`);
+    if (amountNum > debtItem.remainingAmount) {
+      setPaymentError(`Cannot repay more than outstanding due! Remaining debt is ${currency} ${debtItem.remainingAmount.toLocaleString()}`);
       return;
     }
 
-    const chargeVal = paidFromType === 'card' ? (parseFloat(paymentBankCharge) || 0) : 0;
+    // Verify balance triggers
+    let availableBalance = 0;
+    if (paySourceType === 'cash') {
+      const match = cashAccounts.find(c => c.id === paySourceId);
+      availableBalance = match ? match.balance : 0;
+    } else {
+      const match = cards.find(c => c.id === paySourceId);
+      availableBalance = match ? match.currentBalance : 0;
+    }
 
-    onMakeDebtPayment(
-      payingDebtId,
-      amt,
-      paidFromId,
-      paidFromType,
-      chargeVal
-    );
+    const chargeNum = paySourceType === 'card' ? (parseFloat(payBankCharge) || 0) : 0;
 
-    setPaymentAmount('');
-    setPaymentBankCharge('');
+    if (availableBalance < amountNum + chargeNum) {
+      setPaymentError(`Insufficient balance in chosen account to make this payment including bank charges! Required: ${currency} ${(amountNum + chargeNum).toLocaleString()}, Available: ${currency} ${availableBalance.toLocaleString()}`);
+      return;
+    }
+
+    const isClearingFinal = amountNum === debtItem.remainingAmount;
+
+    onMakeDebtPayment(payingDebtId, amountNum, paySourceId, paySourceType, chargeNum);
+    setPayAmount('');
+    setPayBankCharge('');
     setPayingDebtId(null);
-    showToast('success', `Payment of ${currency} ${amt.toLocaleString()} recorded successfully.`);
+    setPaymentError(null);
+    
+    if (isClearingFinal) {
+      showToast('success', 'Debt Fully Repaid Successfully');
+    } else {
+      showToast('success', 'Repayment logged! Debt ledger balances correctly.');
+    }
   };
 
-  const handleIncreaseSubmit = (e: React.FormEvent, debt: Debt) => {
+  const handleIncreaseDebtSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIncreaseError(null);
+    if (!increasingDebtId) return;
 
-    const amt = parseFloat(increaseAmount);
-    if (isNaN(amt) || amt <= 0) {
-      setIncreaseError('Additional amount must be larger than zero.');
+    const amountNum = parseFloat(increaseAmount) || 0;
+    if (amountNum <= 0) {
+      showToast('error', 'Amount must be positive.');
       return;
     }
 
-    const selectedAcc = availableAccounts.find(a => a.id === increaseAccountId && a.type === increaseAccountType);
-    if (selectedAcc && selectedAcc.balance < amt) {
-      setIncreaseError(`Insufficient balance! Available: ${currency} ${selectedAcc.balance.toLocaleString()}`);
-      return;
-    }
-
-    onIncreaseDebt(
-      debt.id,
-      amt,
-      increaseAccountId,
-      increaseAccountType,
-    );
-
+    onIncreaseDebt(increasingDebtId, amountNum, incTargetAccountId || undefined, incTargetAccountType as 'cash' | 'card' || undefined);
     setIncreaseAmount('');
+    setIncTargetAccountId('');
+    setIncTargetAccountType('');
     setIncreasingDebtId(null);
+    showToast('success', 'Additional debt added successfully.');
   };
 
-  const handleDeleteDebtClick = (debtId: string, source: string) => {
-    showConfirm({
-      message: `Are you sure you want to remove the debt record for "${source}"? This action will skip financial rollbacks and simply purge records.`,
-      onConfirm: () => {
-        onDeleteDebt(debtId);
-        showToast('info', 'Debt record purged.');
-      }
-    });
+  const handleSelectPaymentSource = (value: string) => {
+    const [id, type] = value.split(':');
+    setPaySourceId(id);
+    setPaySourceType(type as 'cash' | 'card');
+    setPaymentError(null);
   };
+
+  // Calculations - Filter active (unpaid) debts for active screen/registry
+  const activeDebts = debts.filter(d => d.remainingAmount > 0);
+  const totalRemainingDebt = activeDebts.reduce((sum, d) => sum + d.remainingAmount, 0);
+  const totalOriginalDebt = activeDebts.reduce((sum, d) => sum + d.totalAmount, 0);
+  const overallClearedPercent = totalOriginalDebt > 0 
+    ? Math.round(((totalOriginalDebt - totalRemainingDebt) / totalOriginalDebt) * 100) 
+    : 100;
 
   return (
-    <div className="space-y-6" id="debt-section-wrapper">
-
-      {/* STATISTICS PANEL */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="debt-stats-panel">
-        <div className="bg-card/40 p-5 rounded-2xl border border-default flex items-center gap-4">
-          <div className="p-3 bg-rose-500/10 rounded-xl text-rose-400 border border-rose-950/40">
-            <TrendingUp size={20} />
+    <div id="debt-tracker-vault-view" className="space-y-6 animate-fade-in">
+      
+      {/* 1. TOP HEADER SUMMARY & TOTAL REPAYMENT RATE */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
+        
+        {/* Metric A: Total Outstanding Liability Glassmorphic Banner */}
+        <div className="md:col-span-8 bg-gradient-to-tr from-zinc-950 via-neutral-900/90 to-amber-955/20 to-zinc-950 p-6 rounded-[28px] border border-zinc-800 shadow-xl flex flex-col justify-between relative overflow-hidden">
+          <div className="absolute -top-12 -right-12 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+          
+          <div className="space-y-1">
+            <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider block">Secured Liability</span>
+            <h2 className="text-2xl font-semibold tracking-tight text-white leading-none">Outstanding Debt Vault</h2>
+            <p className="text-xs text-zinc-400 leading-relaxed max-w-md mt-1">
+              Complete index tracking of physical loans, peer debts, and outstanding non-card financial records requiring due payoff.
+            </p>
           </div>
-          <div>
-            <span className="text-[10px] text-muted font-bold uppercase block font-mono">Outstanding Balance</span>
-            <span className="text-xl font-extrabold text-primary">
-              {currency} {totalRemainingAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+
+          <div className="mt-6 flex flex-wrap items-baseline gap-2">
+            <span className="text-sm font-semibold text-zinc-550 font-mono">{currency}</span>
+            <span className="text-3xl font-bold text-white font-mono tracking-tight select-all">
+              {totalRemainingDebt.toLocaleString()}
             </span>
+            <span className="text-xs font-mono font-semibold text-zinc-400">.00 total remaining due</span>
           </div>
         </div>
 
-        <div className="bg-card/40 p-5 rounded-2xl border border-default flex items-center gap-4">
-          <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400 border border-amber-950/40">
-            <ArrowUpRight size={20} />
-          </div>
+             {/* Metric B: Clear progress gauge */}
+        <div className="md:col-span-4 bg-zinc-900/40 p-6 rounded-[28px] border border-zinc-850 flex flex-col justify-between shadow-lg">
           <div>
-            <span className="text-[10px] text-muted font-bold uppercase block font-mono">Total Debt Incurred</span>
-            <span className="text-xl font-extrabold text-primary">
-              {currency} {totalDebtAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </span>
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-[10px] text-zinc-500 uppercase font-mono font-bold block">Overall Repaid Index</span>
+              <span className="text-xs text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded-lg font-mono font-black">{overallClearedPercent}%</span>
+            </div>
+            <h4 className="text-xs font-bold text-zinc-400 leading-snug">Clearance Velocity</h4>
+          </div>
+
+          <div className="space-y-2 mt-4">
+            <div className="w-full h-2 bg-neutral-950 border border-zinc-900 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-blue-400 rounded-full transition-all duration-1000"
+                style={{ width: `${overallClearedPercent}%` }}
+              />
+            </div>
+            <p className="text-[9px] font-mono text-zinc-500 leading-relaxed uppercase">
+              Paid: {currency}{(totalOriginalDebt - totalRemainingDebt).toLocaleString()} of {currency}{totalOriginalDebt.toLocaleString()}
+            </p>
           </div>
         </div>
 
-        <div className="bg-card/40 p-5 rounded-2xl border border-default flex items-center gap-4">
-          <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-950/40">
-            <ArrowDownLeft size={20} />
-          </div>
-          <div>
-            <span className="text-[10px] text-muted font-bold uppercase block font-mono">Total Repaid</span>
-            <span className="text-xl font-extrabold text-blue-500">
-              {currency} {totalPaidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
       </div>
 
-      {/* NEW DEBT ENTRY FORM */}
+      {/* Toolbar controls */}
+      <div className="flex justify-between items-center bg-[#070707]/30 p-2 border-b border-zinc-900 pb-3">
+        <div>
+          <h3 className="text-xs text-zinc-400 font-extrabold flex items-center gap-1.5 font-sans leading-none">
+            <Landmark size={14} className="text-[var(--accent-primary)]" />
+            Creditor Accounts Registry
+          </h3>
+          <span className="text-[9.5px] text-zinc-500 font-mono mt-1 block">Live balance records: {activeDebts.length} outstanding accounts</span>
+        </div>
+        
+        {!isAddingDebt && (
+          <button
+            onClick={() => setIsAddingDebt(true)}
+            className="text-[10px] font-bold text-slate-950 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 border border-[var(--accent-primary)]/50 px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-lg hover:scale-[1.01]"
+          >
+            <Plus size={13} /> Add Debt Record
+          </button>
+        )}
+      </div>
+
+      {/* 2. Add Debt Form */}
       {isAddingDebt && (
-        <form onSubmit={handleAddDebtSubmit} className="bg-card border border-default p-6 md:p-8 rounded-[24px] space-y-5 animate-fade-in relative overflow-hidden text-left" id="add-debt-form-panel">
-          <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-rose-500/30 to-transparent" />
-          <div className="flex items-center gap-2 mb-2 text-rose-400">
-            <Sparkles size={14} className="text-rose-400 animate-spin" />
-            <h3 className="text-xs font-black uppercase tracking-wider text-rose-400 font-mono">New Debt Record</h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-            {/* Debt Source */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Debt Source / Creditor</label>
-              <input
-                type="text"
-                placeholder="e.g. Bank Loan, Credit Card"
-                value={debtSource}
-                onChange={(e) => setDebtSource(e.target.value)}
-                className="w-full bg-surface border border-default rounded-2xl py-3.5 px-4 text-xs font-medium text-primary focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors placeholder:text-muted"
-                required
-              />
-              {errors.debtSource && <p className="text-[10px] text-rose-500 font-mono font-semibold mt-1.5 block pl-1">{errors.debtSource}</p>}
-            </div>
-
-            {/* Total Amount */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Total Amount ({currency})</label>
-              <input
-                type="number"
-                step="any"
-                placeholder="0.00"
-                value={totalAmount}
-                onChange={(e) => setTotalAmount(e.target.value)}
-                className="w-full bg-surface border border-default rounded-2xl py-3.5 px-4 text-xs font-mono text-primary focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors placeholder:text-muted"
-                required
-              />
-              {errors.totalAmount && <p className="text-[10px] text-amber-500 font-mono font-semibold mt-1.5 block pl-1 leading-normal">{errors.totalAmount}</p>}
-            </div>
-
-            {/* Due Date */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Due Date</label>
-              <DatePicker
-                value={dueDate}
-                onChange={setDueDate}
-                required
-              />
-              {errors.dueDate && <p className="text-[10px] text-rose-500 font-mono font-semibold mt-1.5 block pl-1">{errors.dueDate}</p>}
-            </div>
-
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Notes */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] text-secondary font-mono font-black uppercase tracking-wider block pl-0.5">Notes / Memorandum</label>
-              <input
-                type="text"
-                placeholder="e.g. Personal loan from bank"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-surface border border-default rounded-2xl py-3.5 px-4 text-xs font-medium text-primary focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-colors placeholder:text-muted"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
+        <form onSubmit={handleCreateDebt} className="bg-[#050508] border border-zinc-850 p-6 md:p-8 rounded-[24px] space-y-5 animate-fade-in shadow-2xl relative overflow-hidden text-left">
+          <div className="absolute -top-12 -right-12 w-28 h-28 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
+          
+          <div className="flex justify-between items-center border-b border-zinc-855 pb-3">
+            <span className="text-xs font-black text-white uppercase flex items-center gap-2 tracking-wider font-mono">
+              <Plus size={13} className="text-[var(--accent-primary)]" />
+              Register New Liability
+            </span>
             <button
               type="button"
-              onClick={() => { setIsAddingDebt(false); setErrors({}); }}
-              className="bg-transparent hover:bg-card border border-default text-secondary hover:text-primary py-3 px-6 rounded-2xl text-xs font-bold transition-all cursor-pointer font-mono font-black uppercase tracking-widest"
+              className="text-[10px] font-mono font-black text-zinc-400 hover:text-white uppercase transition-colors cursor-pointer"
+              onClick={() => {
+                setIsAddingDebt(false);
+                setErrors({});
+                setSubmitted(false);
+              }}
             >
-              Cancel
+              Cancel Form
             </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block mb-1.5 pl-0.5">Creditor / Debt Source</label>
+              <input
+                ref={sourceInputRef}
+                type="text"
+                placeholder="e.g. Student Loan, Samantha Friendly Loan"
+                value={source}
+                onChange={(e) => {
+                  setSource(e.target.value);
+                  validateDebtForm(e.target.value, totalDebt, dueDate, submitted);
+                }}
+                className={`w-full bg-[#08080c] border text-xs text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-1 transition-all placeholder:text-zinc-600/75 ${
+                  errors.source
+                    ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
+                    : source && !errors.source
+                    ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                    : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                }`}
+              />
+              {errors.source && (
+                <span className="text-rose-400 font-mono text-[10px] mt-1.5 block pl-1">{errors.source}</span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block mb-1.5 pl-0.5">Principal Amount ({currency})</label>
+                <input
+                  ref={amountInputRef}
+                  type="number"
+                  placeholder="0.00"
+                  value={totalDebt}
+                  onChange={(e) => {
+                    setTotalDebt(e.target.value);
+                    validateDebtForm(source, e.target.value, dueDate, submitted);
+                  }}
+                  className={`w-full bg-[#08080c] border text-xs text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-zinc-650/75 ${
+                    errors.amount
+                      ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
+                      : totalDebt && !errors.amount
+                      ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
+                  }`}
+                />
+                {errors.amount && (
+                  <span className="text-rose-400 font-mono text-[10px] mt-1.5 block pl-1">{errors.amount}</span>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block mb-1.5 pl-0.5">Account Target (Funds added here)</label>
+                <select
+                  value={targetAccountId && targetAccountType ? `${targetAccountId}:${targetAccountType}` : 'other'}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'other') {
+                      setTargetAccountId('');
+                      setTargetAccountType('');
+                    } else {
+                      const [id, type] = val.split(':');
+                      setTargetAccountId(id);
+                      setTargetAccountType(type as 'cash' | 'card');
+                    }
+                  }}
+                  className="w-full bg-[#08080c] border border-zinc-855 text-zinc-300 text-xs rounded-2xl px-3.5 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold cursor-pointer"
+                >
+                  <option value="other">Other (No money received / Indirect debt)</option>
+                  <optgroup label="Cash Vaults" className="bg-[#0c0c12] text-zinc-450">
+                    {cashAccounts.map(c => (
+                      <option key={c.id} value={`${c.id}:cash`}>{c.name}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Cards Ledger" className="bg-[#0c0c12] text-zinc-450">
+                    {cards.filter(c => !c.isCanceled).map(card => (
+                      <option key={card.id} value={`${card.id}:card`}>{card.bankName}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block mb-1.5 pl-0.5">Pay-off Due Date</label>
+              <DatePicker 
+                value={dueDate} 
+                onChange={(val) => {
+                  setDueDate(val);
+                  validateDebtForm(source, totalDebt, val, submitted);
+                }}
+                error={!!errors.dueDate}
+              />
+              {errors.dueDate && (
+                <span className="text-rose-400 font-mono text-[10px] mt-1.5 block pl-1">{errors.dueDate}</span>
+              )}
+            </div>
+
+            <div>
+              <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block mb-1.5 pl-0.5">Special Notes / Accord terms (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. Zero-interest repayment plan..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full bg-[#08080c] border border-zinc-855 text-xs text-white rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 transition-all placeholder:text-zinc-600/75"
+              />
+            </div>
+
             <button
               type="submit"
-              className="bg-rose-500 hover:bg-rose-600 text-primary py-3 px-6 rounded-2xl text-xs font-black transition-all duration-300 cursor-pointer shadow-lg active:scale-95 flex items-center gap-1.5 font-mono uppercase tracking-widest h-11"
+              className="w-full h-13 bg-white text-black font-semibold text-xs rounded-2xl hover:bg-zinc-200 transition-all cursor-pointer font-mono font-black uppercase tracking-widest shadow-md mt-2 flex items-center justify-center gap-2"
             >
-              <Receipt size={13} />
-              <span>Record Debt</span>
+              Verify and Record Liability
             </button>
           </div>
         </form>
       )}
 
-      {/* DEBT REGISTER */}
-      <div className="space-y-4" id="debt-register">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-default/80">
-          <h2 className="text-sm font-extrabold text-primary uppercase tracking-wider font-mono">Debt Register</h2>
-          <button
-            onClick={() => setIsAddingDebt(!isAddingDebt)}
-            className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-primary font-extrabold text-xs py-2 px-4 rounded-xl transition-all cursor-pointer shadow-md active:scale-95 shrink-0"
-          >
-            {isAddingDebt ? 'Minimize Form' : (
-              <>
-                <Plus size={14} />
-                <span>Add Debt</span>
-              </>
-            )}
-          </button>
-        </div>
-
+      {/* 3. Debt Items List */}
+      <div className="space-y-4">
         {activeDebts.length === 0 ? (
-          <div className="bg-card/15 border border-default rounded-[32px] p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-inner">
-            <div className={`p-4 bg-card/60 rounded-2xl border ${debts.length > 0 ? 'border-blue-500/30 text-blue-400' : 'border-default text-muted'}`}>
-              {debts.length > 0 ? <CheckCircle2 size={24} /> : <DollarSign size={24} className="text-muted" />}
-            </div>
-            <div>
-              <p className="text-primary text-sm font-semibold">{debts.length > 0 ? 'All Debts Repaid' : 'No Debts Registered'}</p>
-              <p className="text-muted text-xs mt-1 max-w-sm mx-auto leading-relaxed">
-                {debts.length > 0
-                  ? 'You have successfully repaid all your debts.'
-                  : 'You have not registered any debts. Use the <strong>"Add Debt"</strong> button above to start tracking your liabilities.'}
-              </p>
-            </div>
+          <div className="p-12 text-center text-zinc-550 border border-dashed border-zinc-850 bg-zinc-950/20 rounded-[28px] italic text-xs">
+            No active liabilities registered. Rest easy, you are debt-free!
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {activeDebts.map((debt) => {
-              const progress = debt.totalAmount > 0
-                ? Math.round(((debt.totalAmount - debt.remainingAmount) / debt.totalAmount) * 100)
-                : 0;
+          [...activeDebts]
+            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+            .map((debt) => {
+            const repaid = debt.totalAmount - debt.remainingAmount;
+            const payoffPct = Math.round((repaid / debt.totalAmount) * 100);
+            const isFullyPaid = debt.remainingAmount === 0;
+            const isOverdue = !isFullyPaid && new Date(debt.dueDate).getTime() < new Date().setHours(0, 0, 0, 0);
 
-              return (
-                <div
-                  key={debt.id}
-                  className="bg-gradient-to-br from-[#0c0c0f] to-[#040405] border border-default rounded-3xl p-6 shadow-xl transition-all relative overflow-hidden"
-                >
-                  <div className={`absolute top-0 right-0 bottom-0 w-1 ${
-                    debt.status === 'Closed' ? 'bg-yellow-500' : 'bg-rose-500'
-                  }`} />
-
-                  {/* Header Row */}
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4 border-b border-default/70">
-                    <div>
-                      <h3 className="text-base font-extrabold text-primary flex items-center gap-2">
-                        {debt.debtSource}
-                        <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-full uppercase border ${
-                          debt.status === 'Closed'
-                            ? 'bg-yellow-950/30 text-yellow-400 border-yellow-900/50'
-                            : 'bg-rose-950/30 text-rose-400 border-rose-900/50'
-                        }`}>
-                          {debt.status || 'Active'}
+            return (
+              <div
+                key={debt.id}
+                id={`debt-block-${debt.id}`}
+                data-debt-status={isFullyPaid ? "paid" : (isOverdue ? "overdue" : "outstanding")}
+                className="bg-zinc-900/40 border border-zinc-850 rounded-[28px] p-5 md:p-6 space-y-5 shadow-xl transition-all duration-300 hover:border-zinc-800"
+              >
+                
+                 {/* Header info */}
+                <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                  <div className="space-y-1">
+                    <h4 className="text-sm sm:text-base font-extrabold text-white flex flex-wrap items-center gap-2 leading-none font-sans">
+                      {debt.debtSource}
+                      {isFullyPaid && (
+                        <span className="bg-blue-950/50 text-blue-400 border border-blue-900/40 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold flex items-center gap-0.5 leading-none">
+                          <CheckCircle2 size={10} /> REPAID
                         </span>
-                      </h3>
-                      <p className="text-[10px] text-muted font-medium mt-0.5 flex items-center gap-1">
-                        <Calendar size={11} /> Due on {debt.dueDate}
-                        {debt.accountName && <> &middot; via <strong className="text-secondary font-semibold">{debt.accountName}</strong></>}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2.5 sm:self-center self-end animate-fade-in">
-                      <button
-                        onClick={() => {
-                          setIncreasingDebtId(increasingDebtId === debt.id ? null : debt.id);
-                          setIncreaseAmount('');
-                          setIncreaseError(null);
-                          setPayingDebtId(null);
-                        }}
-                        className="bg-card hover:bg-card text-amber-400 border border-default py-1.5 px-3 rounded-xl text-[10px] font-extrabold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
-                      >
-                        <Plus size={12} />
-                        <span>Incur More</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setPayingDebtId(payingDebtId === debt.id ? null : debt.id);
-                          setPaymentAmount(debt.remainingAmount.toString());
-                          setPaymentError(null);
-                          setIncreasingDebtId(null);
-                        }}
-                        className="bg-blue-500 hover:bg-blue-600 text-primary border border-blue-500 py-1.5 px-3.5 rounded-xl text-[10px] font-bold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
-                      >
-                        <CheckCircle2 size={12} />
-                        <span>Make Payment</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDebtClick(debt.id, debt.debtSource)}
-                        className="text-muted hover:text-danger p-2 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
-                        title="Delete record"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Body Progress and Financial details */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 py-4 items-center">
-
-                    {/* Remaining Balance */}
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-muted uppercase font-mono font-bold block">Remaining Balance</span>
-                      <span className="text-xl font-black text-rose-400">
-                        {currency} {debt.remainingAmount.toLocaleString()}
-                      </span>
-                    </div>
-
-                    {/* Total Amount */}
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-muted uppercase font-mono font-bold block">Total Incurred</span>
-                      <span className="text-sm font-extrabold text-primary">
-                        {currency} {debt.totalAmount.toLocaleString()}
-                      </span>
-                    </div>
-
-                    {/* Progress Meter */}
-                    <div className="md:col-span-2 space-y-1.5">
-                      <div className="flex justify-between items-center text-[10px] font-mono">
-                        <span className="text-muted font-bold uppercase">Repayment Progress</span>
-                        <span className="text-blue-400 font-bold">{progress}% Repaid</span>
-                      </div>
-                      <div className="w-full bg-card/80 border border-default rounded-full h-2 overflow-hidden shadow-inner flex">
-                        <div
-                          className="bg-gradient-to-r from-rose-500 to-blue-500 h-full rounded-full transition-all duration-700"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* Notes Panel */}
-                  {debt.notes && (
-                    <div className="bg-card/50 border border-subtle p-3 rounded-xl text-xs text-secondary mt-1 mb-3 font-medium italic select-text">
-                      <span className="font-bold text-muted text-[10px] uppercase font-mono not-italic block mb-0.5">Notes memo</span>
-                      "{debt.notes}"
-                    </div>
-                  )}
-
-                  {/* PAYMENT ACTION PANEL inline drawer */}
-                  {payingDebtId === debt.id && (
-                    <form onSubmit={handlePaymentSubmit} className="mt-4 bg-card border border-default p-5 rounded-[20px] space-y-4 shadow-inner scale-98 transition-all animate-fade-in text-xs text-left">
-                      <div className="flex items-center gap-1.5 text-blue-400 font-bold mb-1">
-                        <CheckCircle2 size={13} className="text-blue-400" />
-                        <span className="uppercase font-mono text-[10px] tracking-wider font-black">Make Payment</span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-
-                        {/* Payment Amount */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">Payment Amount ({currency})</label>
-                          <input
-                            type="number"
-                            step="any"
-                            value={paymentAmount}
-                            onChange={(e) => setPaymentAmount(e.target.value)}
-                            max={debt.remainingAmount}
-                            className="w-full bg-surface border border-default rounded-2xl py-3.5 px-4 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono font-bold"
-                            required
-                          />
-                        </div>
-
-                        {/* Payment Date */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">Payment Date</label>
-                          <DatePicker
-                            value={paymentDate}
-                            onChange={setPaymentDate}
-                            required
-                          />
-                        </div>
-
-                        {/* Paid From Account */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">Paid From Account</label>
-                          <select
-                            value={`${paidFromId}:${paidFromType}`}
-                            onChange={(e) => {
-                              const [id, type] = e.target.value.split(':');
-                              setPaidFromId(id);
-                              setPaidFromType(type as 'cash' | 'card');
-                            }}
-                            className="w-full bg-surface border border-default rounded-2xl py-3.5 px-3.5 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer font-semibold"
-                          >
-                            {availableAccounts.map(acc => (
-                              <option key={`pay:${acc.id}:${acc.type}`} value={`${acc.id}:${acc.type}`}>
-                                {acc.name} - ({currency} {acc.balance.toLocaleString()})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Submit */}
-                        <div className="flex items-end">
-                          <button
-                            type="submit"
-                            className="w-full h-12 bg-white text-black font-semibold text-xs rounded-2xl hover:bg-surface transition-all cursor-pointer font-mono font-black uppercase tracking-widest flex items-center justify-center gap-2"
-                          >
-                            Pay & Post
-                          </button>
-                        </div>
-
-                      </div>
-
-                      {paidFromType === 'card' && paidFromId && (
-                        <div className="p-4 bg-surface/60 border border-default rounded-2xl space-y-2 animate-fade-in">
-                          <label className="text-[10px] text-secondary font-mono font-black block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
-                          <input
-                            type="number"
-                            step="any"
-                            placeholder="e.g. 150 (Leave blank or 0 if none)"
-                            value={paymentBankCharge}
-                            onChange={(e) => setPaymentBankCharge(e.target.value)}
-                            className="w-full bg-surface border border-default rounded-2xl py-3 px-4 text-xs text-primary focus:outline-none focus:ring-1 focus:border-blue-500 focus:ring-blue-500 font-mono"
-                          />
-                          <p className="text-[9.5px] text-muted font-mono pl-0.5 leading-normal">Making payment from a card might incur transaction fees. Entering a charge will deduct from your card balance.</p>
-                        </div>
                       )}
-
-                      {paymentError && (
-                        <p className="text-[10px] text-rose-500 font-mono font-semibold mt-1 block pl-1">{paymentError}</p>
-                      )}
-                    </form>
-                  )}
-
-                  {/* INCREASE DEBT ACTION PANEL inline drawer */}
-                  {increasingDebtId === debt.id && (
-                    <form onSubmit={(e) => handleIncreaseSubmit(e, debt)} className="mt-4 bg-card border border-default p-5 rounded-[20px] space-y-4 shadow-inner scale-98 transition-all animate-fade-in text-xs text-left relative overflow-hidden" id={`increase-debt-form-${debt.id}`}>
-                      <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
-                      <div className="flex items-center gap-1 text-amber-400 font-bold mb-1">
-                        <ArrowUpRight size={13} className="text-amber-400" />
-                        <span className="uppercase font-mono text-[10px] tracking-wider font-black">Incur Additional Debt</span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                        {/* Amount */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">Additional Amount ({currency})</label>
-                          <input
-                            type="number"
-                            step="any"
-                            value={increaseAmount}
-                            onChange={(e) => setIncreaseAmount(e.target.value)}
-                            placeholder="0.00"
-                            className="w-full bg-surface border border-default rounded-2xl py-3.5 px-4 text-xs text-primary focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500 transition-all font-mono font-bold"
-                            required
-                          />
-                        </div>
-
-                        {/* Account */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">Credit To Account (Optional)</label>
-                          <select
-                            value={`${increaseAccountId}:${increaseAccountType}`}
-                            onChange={(e) => {
-                              const [id, type] = e.target.value.split(':');
-                              setIncreaseAccountId(id);
-                              setIncreaseAccountType(type as 'cash' | 'card');
-                            }}
-                            className="w-full bg-surface border border-default rounded-2xl py-3.5 px-3.5 text-xs text-primary focus:outline-none focus:ring-1 focus:border-amber-500 focus:ring-amber-500 transition-all cursor-pointer font-semibold"
-                          >
-                            <option value=":">No account (record only)</option>
-                            {availableAccounts.map(acc => (
-                              <option key={`inc:${acc.id}:${acc.type}`} value={`${acc.id}:${acc.type}`}>
-                                {acc.name} - ({currency} {acc.balance.toLocaleString()})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Submit */}
-                        <div className="flex items-end">
-                          <button
-                            type="submit"
-                            className="w-full h-12 bg-white text-black font-semibold text-xs rounded-2xl hover:bg-surface transition-all cursor-pointer font-mono font-black uppercase tracking-widest flex items-center justify-center gap-2"
-                          >
-                            Post Additional Debt
-                          </button>
-                        </div>
-
-                      </div>
-
-                      {increaseError && (
-                        <p className="text-[10px] text-rose-500 font-mono font-semibold mt-1 block pl-1">{increaseError}</p>
-                      )}
-                    </form>
-                  )}
-
-                  {/* PAYMENT HISTORY ACCORDION */}
-                  <div className="mt-2.5">
-                    <button
-                      onClick={() => setExpandedDebtId(expandedDebtId === debt.id ? null : debt.id)}
-                      className="text-[10px] tracking-wider text-muted hover:text-primary font-mono font-bold uppercase py-1 flex items-center gap-1 transition-all cursor-pointer outline-none border-b border-transparent hover:border-default"
-                    >
-                      <History size={11} />
-                      <span>Payment History ({debt.payments?.length || 0})</span>
-                      {expandedDebtId === debt.id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                    </button>
-
-                    {expandedDebtId === debt.id && (
-                      <div className="mt-2.5 space-y-2 border-t border-subtle pt-2.5 animate-fade-in select-text">
-                        {(!debt.payments || debt.payments.length === 0) ? (
-                          <p className="text-[10px] text-muted font-medium italic py-1">No payments recorded yet.</p>
-                        ) : (
-                          <div className="grid grid-cols-1 gap-2">
-                            {debt.payments.map((payment) => (
-                              <div key={payment.id} className="bg-card/60 border border-default rounded-xl p-3 flex justify-between items-center">
-                                <div className="space-y-0.5">
-                                  <div className="flex items-center gap-1.5 text-[10px] text-blue-400 font-mono font-bold uppercase">
-                                    <ArrowDownLeft size={10} />
-                                    <span>Payment Made</span>
-                                  </div>
-                                  <p className="text-[10px] text-secondary font-semibold mt-0.5 leading-normal">
-                                    From: <strong className="text-primary font-bold">{payment.paidFromType === 'cash' ? 'Wallet' : 'Card'}</strong>
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <span className="text-xs font-black text-primary block">
-                                    - {currency} {payment.amount.toLocaleString()}
-                                  </span>
-                                  <span className="text-[9px] text-muted font-mono">{payment.date}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                    </h4>
+                    <span className="text-[10px] text-zinc-500 font-mono font-bold flex items-center gap-1.5">
+                      <Calendar size={12} className="text-zinc-600" /> Payoff Due Date: <span className="font-mono text-zinc-300">{debt.dueDate}</span>
+                    </span>
+                    {debt.accountName && (
+                      <div className="text-[10px] text-[var(--accent-primary)] font-mono font-bold flex items-center gap-1.5 mt-0.5">
+                        <Wallet size={11} className="text-[var(--accent-primary)] shrink-0" />
+                        Target Account: <span className="text-zinc-300 font-sans font-bold">{debt.accountName}</span>
                       </div>
                     )}
                   </div>
 
+                  <div className="text-left sm:text-right border-t border-zinc-900/60 pt-3 sm:pt-0 sm:border-0 shrink-0 flex flex-col items-start sm:items-end gap-2">
+                    <div className="text-left sm:text-right">
+                      <span className="text-[9px] text-zinc-550 block uppercase tracking-widest font-mono font-bold text-zinc-500">Remaining Balance</span>
+                      <span className="font-mono text-base font-black text-white">
+                        {currency} {debt.remainingAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    {deleteConfirmId === debt.id ? (
+                      <div className="flex gap-2 items-center mt-2">
+                        <span className="text-[10px] text-rose-400 font-mono uppercase bg-rose-950/40 px-2 py-1 rounded border border-rose-900/60 animate-pulse">
+                          Reverses balances. Confirm?
+                        </span>
+                        <button
+                          onClick={() => {
+                            onDeleteDebt(debt.id);
+                            setDeleteConfirmId(null);
+                          }}
+                          className="text-[9.5px] bg-rose-600 hover:bg-rose-700 text-white font-mono font-bold uppercase tracking-wider px-2 py-1 rounded cursor-pointer"
+                        >
+                          Yes, Delete
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          className="text-[9.5px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-mono font-bold uppercase tracking-wider px-2 py-1 rounded cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setDeleteConfirmId(debt.id);
+                          setTimeout(() => {
+                            setDeleteConfirmId(current => current === debt.id ? null : current);
+                          }, 6000);
+                        }}
+                        className="text-[9px] text-rose-500 hover:text-rose-400 font-mono font-bold uppercase tracking-wider underline cursor-pointer"
+                      >
+                        Delete Liability
+                      </button>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Progress bar repayment percentage */}
+                <div className="p-4 bg-muted border border-zinc-200 dark:border-zinc-905 rounded-2xl space-y-3.5">
+                  <div className="flex justify-between text-[10px] font-mono text-muted-foreground leading-none">
+                    <span>Payoff Progress</span>
+                    <span className="font-bold text-blue-500 dark:text-blue-400">{payoffPct}% settled</span>
+                  </div>
+                  
+                  <div className="w-full h-2.5 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 rounded-full overflow-hidden relative">
+                    <div
+                      className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-blue-400 rounded-full transition-all duration-1000"
+                      style={{ width: `${payoffPct || 0}%` }}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-between text-[10px] font-mono font-bold text-muted-foreground leading-none">
+                    <span>Cleared: <span className="text-card-foreground">{currency} {repaid.toLocaleString()}</span></span>
+                    <span>Principal: <span className="text-card-foreground">{currency} {debt.totalAmount.toLocaleString()}</span></span>
+                  </div>
+                </div>
+
+                {/* Notes and references */}
+                <p className="text-xs bg-muted px-4 py-3 rounded-xl text-card-foreground leading-relaxed italic border border-zinc-200 dark:border-zinc-900/60 font-medium">
+                  "{debt.notes}"
+                </p>
+
+                {/* Repayment Action Controls */}
+                {!isFullyPaid && payingDebtId !== debt.id && increasingDebtId !== debt.id && (
+                  <div className="flex flex-col sm:flex-row gap-2.5">
+                    <button
+                      onClick={() => {
+                        setPayingDebtId(debt.id);
+                        setPaymentError(null);
+                      }}
+                      className="flex-1 py-3 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-slate-950 font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                    >
+                      Settle Partial Payment
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setIncreasingDebtId(debt.id);
+                      }}
+                      className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      Add More Debt
+                    </button>
+                  </div>
+                )}
+
+                {/* Adding more debt form */}
+                {increasingDebtId === debt.id && (
+                  <form onSubmit={handleIncreaseDebtSubmit} className="bg-[#050508] border border-zinc-850 p-5 rounded-[20px] space-y-4 animation-fade-in shadow-xl text-left">
+                     <div className="flex justify-between items-center pb-2 border-b border-zinc-855">
+                      <span className="text-[10px] font-black text-white uppercase tracking-wider flex items-center gap-1 text-amber-400 font-mono">
+                        <Plus size={12} className="animate-pulse" />
+                        Increase Outstanding Debt
+                      </span>
+                      <button
+                        type="button"
+                        className="text-[10px] font-mono font-black uppercase text-zinc-500 hover:text-white cursor-pointer"
+                        onClick={() => {
+                          setIncreasingDebtId(null);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block pl-0.5">Receiving Account</label>
+                        <select
+                          value={incTargetAccountId && incTargetAccountType ? `${incTargetAccountId}:${incTargetAccountType}` : 'other'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === 'other') {
+                              setIncTargetAccountId('');
+                              setIncTargetAccountType('');
+                            } else {
+                              const [id, type] = val.split(':');
+                              setIncTargetAccountId(id);
+                              setIncTargetAccountType(type as 'cash' | 'card');
+                            }
+                          }}
+                          className="w-full bg-[#08080c] border border-zinc-855 text-zinc-300 text-xs rounded-2xl px-3.5 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold cursor-pointer"
+                        >
+                          <option value="other">Other (No money received / Indirect debt)</option>
+                          <optgroup label="Cash Vaults" className="bg-[#0c0c12] text-zinc-455">
+                            {cashAccounts.map(c => (
+                              <option key={c.id} value={`${c.id}:cash`}>{c.name}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Cards Ledger" className="bg-[#0c0c12] text-zinc-455">
+                            {cards.filter(c => !c.isCanceled).map(card => (
+                              <option key={card.id} value={`${card.id}:card`}>{card.bankName}</option>
+                            ))}
+                          </optgroup>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block pl-0.5">Additional Principal amount ({currency})</label>
+                        <input
+                          type="number"
+                          placeholder="e.g. 500"
+                          value={increaseAmount}
+                          required
+                          onChange={(e) => setIncreaseAmount(e.target.value)}
+                          className="w-full bg-[#08080c] border border-zinc-855 text-white rounded-2xl text-xs px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono"
+                        />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full h-11 bg-white text-black font-semibold text-xs rounded-2xl hover:bg-zinc-200 transition-colors shadow cursor-pointer font-mono font-black uppercase tracking-wider flex items-center justify-center gap-2"
+                    >
+                      Update Total Debt
+                    </button>
+                  </form>
+                )}
+
+                {/* Paying Down partial form */}
+                {payingDebtId === debt.id && (
+                  <form onSubmit={handlePayDebtSubmit} className="bg-[#050508] border border-zinc-850 p-5 rounded-[20px] space-y-4 animation-fade-in shadow-xl text-left">
+                    <div className="flex justify-between items-center pb-2 border-b border-zinc-855">
+                      <span className="text-[10px] font-black text-white uppercase tracking-wider flex items-center gap-1.5 text-indigo-400 font-mono">
+                        <CornerDownRight size={12} className="animate-pulse" />
+                        Disburse Repayment Funds
+                      </span>
+                      <button
+                        type="button"
+                        className="text-[10px] font-mono font-black uppercase text-zinc-500 hover:text-white cursor-pointer"
+                        onClick={() => {
+                          setPayingDebtId(null);
+                          setPaymentError(null);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider block pl-0.5">Pay Amount ({currency})</label>
+                        <input
+                          type="number"
+                          placeholder="e.g. 10000"
+                          value={payAmount}
+                          required
+                          onChange={(e) => {
+                            setPayAmount(e.target.value);
+                            setPaymentError(null);
+                          }}
+                          className="w-full bg-[#08080c] border border-zinc-855 text-white rounded-2xl text-xs px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono placeholder:text-zinc-600/75"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider block pl-0.5">Deduct From Account</label>
+                        <select
+                          value={`${paySourceId}:${paySourceType}`}
+                          onChange={(e) => handleSelectPaymentSource(e.target.value)}
+                          className="w-full bg-[#08080c] border border-zinc-855 text-zinc-300 text-xs rounded-2xl px-3.5 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold cursor-pointer"
+                          required
+                        >
+                          <optgroup label="Cash Vaults" className="bg-[#0c0c12] text-zinc-450">
+                            {cashAccounts.map(c => (
+                              <option key={c.id} value={`${c.id}:cash`}>{c.name} ({currency}{c.balance})</option>
+                            ))}
+                          </optgroup>
+                          
+                          <optgroup label="Cards Ledger" className="bg-[#0c0c12] text-zinc-455">
+                            {cards.filter(c => !c.isCanceled).map(card => (
+                              <option key={card.id} value={`${card.id}:card`}>{card.bankName} (Bal: {currency}{card.currentBalance})</option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+                    </div>
+
+                    {paySourceType === 'card' && paySourceId && (
+                      <div className="p-4 bg-[#08080c]/60 border border-zinc-855 rounded-2xl space-y-2 animate-fade-in text-xs">
+                        <label className="text-[10px] text-zinc-455 font-mono font-black block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          placeholder="e.g. 150 (Leave blank or 0 if none)"
+                          value={payBankCharge}
+                          onChange={(e) => {
+                            setPayBankCharge(e.target.value);
+                            setPaymentError(null);
+                          }}
+                          className="w-full bg-[#08080c] border border-zinc-855 rounded-2xl text-xs px-4 py-3 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono text-white"
+                        />
+                        <p className="text-[9.5px] text-zinc-500 font-mono pl-0.5 leading-normal">Repaying from a bank card might trigger processing charges. This charge is recorded as a bank fee expense and deducted from the card balance.</p>
+                      </div>
+                    )}
+
+                    {paymentError && (
+                      <p className="text-red-400 text-[10px] font-mono mt-1.5 font-bold bg-[#1a0c0a] py-2 px-3 border border-red-900/40 rounded-xl flex items-center gap-1.5 leading-tight">
+                        <AlertCircle size={13} className="text-red-400 shrink-0" /> 
+                        <span>{paymentError}</span>
+                      </p>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="w-full h-12 bg-white text-black font-semibold text-xs rounded-2xl hover:bg-zinc-200 transition-colors shadow cursor-pointer font-mono font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                    >
+                      Process Repayment Deduction
+                    </button>
+                  </form>
+                )}
+
+                {/* Sub audit payment track log */}
+                {debt.payments && debt.payments.length > 0 && (
+                  <div className="border-t border-zinc-200 dark:border-zinc-850/60 pt-4">
+                    <span className="text-[9px] text-muted-foreground font-black uppercase tracking-wider block mb-2.5 font-mono">
+                      Repayment Log History ({debt.payments.length})
+                    </span>
+                    <div className="space-y-2">
+                      {debt.payments.map((p) => (
+                        <div key={p.id} className="flex justify-between items-center bg-muted px-3.5 py-2.5 border border-zinc-200 dark:border-zinc-905 rounded-xl text-xs font-mono text-card-foreground">
+                          <span className="flex items-center gap-1.5 text-[9.5px] font-bold text-muted-foreground">
+                            <ShieldCheck size={12} className="text-blue-500 dark:text-blue-400 animate-pulse" />
+                            DEDUCTED SUCCESSFULLY ({p.paidFromType.toUpperCase()})
+                          </span>
+                          <div className="flex gap-4 font-semibold shrink-0">
+                            <span className="text-muted-foreground">{p.date}</span>
+                            <span className="text-blue-500 dark:text-blue-400 font-bold">-{currency} {p.amount.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            );
+          })
         )}
       </div>
 

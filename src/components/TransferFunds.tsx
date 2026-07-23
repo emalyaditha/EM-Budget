@@ -164,29 +164,29 @@ export default function TransferFunds({
   };
 
   return (
-    <form onSubmit={handleTransfer} className="bg-card border border-default rounded-[24px] p-6 md:p-8 shadow-2xl space-y-6 animate-fade-in relative overflow-hidden" id="transfer-funds-card">
-      <div className="absolute top-0 right-0 p-4 text-primary pointer-events-none select-none">
+    <form onSubmit={handleTransfer} className="bg-[#050508] border border-zinc-850 rounded-[24px] p-6 md:p-8 shadow-2xl space-y-6 animate-fade-in relative overflow-hidden" id="transfer-funds-card">
+      <div className="absolute top-0 right-0 p-4 text-zinc-900 pointer-events-none select-none">
         <Sparkles size={45} className="opacity-[0.02]" />
       </div>
 
-      <div className="pb-4 border-b border-default flex justify-between items-center text-left">
+      <div className="pb-4 border-b border-zinc-855 flex justify-between items-center text-left">
         <div className="space-y-1">
-          <h3 className="text-sm font-black text-primary flex items-center gap-2.5 font-sans tracking-tight">
-            <ArrowRightLeft size={16} className="text-success" />
+          <h3 className="text-sm font-black text-white flex items-center gap-2.5 font-sans tracking-tight">
+            <ArrowRightLeft size={16} className="text-emerald-400" />
             Transfer Capital
           </h3>
-          <p className="text-[11px] text-muted">Move funds instantly between accounts with zero friction</p>
+          <p className="text-[11px] text-zinc-500">Move funds instantly between accounts with zero friction</p>
         </div>
-        <span className="text-[9px] font-mono uppercase bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-full text-success font-extrabold tracking-widest leading-none">
+        <span className="text-[9px] font-mono uppercase bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full text-emerald-400 font-extrabold tracking-widest leading-none">
           INSTANT SETTLEMENT
         </span>
       </div>
 
       {/* Visual Flow Connection Row */}
-      <div className="grid grid-cols-1 md:grid-cols-7 items-center gap-4 bg-surface/50 border border-default p-5 rounded-[20px] relative text-left">
+      <div className="grid grid-cols-1 md:grid-cols-7 items-center gap-4 bg-[#08080c]/50 border border-zinc-855 p-5 rounded-[20px] relative text-left">
         {/* Source Account Card */}
         <div className="md:col-span-3 flex flex-col gap-2">
-          <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Debit Source</label>
+          <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Debit Source</label>
           <div className="relative">
             <select 
               ref={fromSelectRef}
@@ -195,40 +195,40 @@ export default function TransferFunds({
                 setFromAccount(e.target.value);
                 validateTransfer(e.target.value, toAccount, amount, charge, submitted);
               }} 
-              className={`w-full bg-surface border text-primary rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all cursor-pointer font-semibold appearance-none ${
+              className={`w-full bg-[#08080c] border text-white rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all cursor-pointer font-semibold appearance-none ${
                 errors.from
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : fromAccount && !errors.from
-                  ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                  : 'border-default hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                  ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                  : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`}
             >
-              <option value="" className="bg-surface">Select Origin Account</option>
+              <option value="" className="bg-[#0c0c12]">Select Origin Account</option>
               {accounts.map(a => (
-                <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`} disabled={a.isFrozen} className="bg-surface">
+                <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`} disabled={a.isFrozen} className="bg-[#0c0c12]">
                   {a.name} ({a.type === 'cash' ? 'Wallet' : 'Card'}) - {currency}{a.balance.toLocaleString()}
                 </option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-muted">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-500">
               <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
             </div>
           </div>
           {errors.from && (
-            <span className="text-danger font-mono text-[10px] pl-1 block">{errors.from}</span>
+            <span className="text-rose-400 font-mono text-[10px] pl-1 block">{errors.from}</span>
           )}
         </div>
 
         {/* Dynamic connection indicator */}
         <div className="md:col-span-1 flex justify-center items-center py-2 md:py-0">
-          <div className="w-10 h-10 rounded-full bg-surface border border-default flex items-center justify-center text-secondary shadow-md transform rotate-90 md:rotate-0 transition-transform duration-300">
-            <ArrowRightLeft size={16} className={fromAccount && toAccount ? "text-success animate-pulse" : ""} />
+          <div className="w-10 h-10 rounded-full bg-[#08080c] border border-zinc-855 flex items-center justify-center text-zinc-400 shadow-md transform rotate-90 md:rotate-0 transition-transform duration-300">
+            <ArrowRightLeft size={16} className={fromAccount && toAccount ? "text-emerald-400 animate-pulse" : ""} />
           </div>
         </div>
 
         {/* Destination Account Card */}
         <div className="md:col-span-3 flex flex-col gap-2">
-          <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Credit Destination</label>
+          <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Credit Destination</label>
           <div className="relative">
             <select 
               ref={toSelectRef}
@@ -237,27 +237,27 @@ export default function TransferFunds({
                 setToAccount(e.target.value);
                 validateTransfer(fromAccount, e.target.value, amount, charge, submitted);
               }} 
-              className={`w-full bg-surface border text-primary rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all cursor-pointer font-semibold appearance-none ${
+              className={`w-full bg-[#08080c] border text-white rounded-2xl text-xs px-4 py-4 focus:outline-none focus:ring-1 transition-all cursor-pointer font-semibold appearance-none ${
                 errors.to
                   ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                   : toAccount && !errors.to
-                  ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                  : 'border-default hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                  ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                  : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
               }`}
             >
-              <option value="" className="bg-surface">Select Destination Account</option>
+              <option value="" className="bg-[#0c0c12]">Select Destination Account</option>
               {accounts.map(a => (
-                <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`} disabled={a.isFrozen} className="bg-surface">
+                <option key={`${a.type}-${a.id}`} value={`${a.type}-${a.id}`} disabled={a.isFrozen} className="bg-[#0c0c12]">
                   {a.name} ({a.type === 'cash' ? 'Wallet' : 'Card'}) - {currency}{a.balance.toLocaleString()}
                 </option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-muted">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-500">
               <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
             </div>
           </div>
           {errors.to && (
-            <span className="text-danger font-mono text-[10px] pl-1 block">{errors.to}</span>
+            <span className="text-rose-400 font-mono text-[10px] pl-1 block">{errors.to}</span>
           )}
         </div>
       </div>
@@ -265,7 +265,7 @@ export default function TransferFunds({
       {/* Numerical and Fee Fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left">
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Principal Sum ({currency})</label>
+          <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Principal Sum ({currency})</label>
           <input
             ref={amountInputRef}
             type="number"
@@ -276,22 +276,22 @@ export default function TransferFunds({
               setAmount(e.target.value);
               validateTransfer(fromAccount, toAccount, e.target.value, charge, submitted);
             }}
-            className={`w-full bg-surface border text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-muted/70 ${
+            className={`w-full bg-[#08080c] border text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-zinc-600/70 ${
               errors.amount
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : amount && !errors.amount
-                ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                : 'border-default hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`}
             required
           />
           {errors.amount && (
-            <span className="text-danger font-mono text-[10px] pl-1 block">{errors.amount}</span>
+            <span className="text-rose-400 font-mono text-[10px] pl-1 block">{errors.amount}</span>
           )}
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Surcharge Fee (Optional) ({currency})</label>
+          <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Surcharge Fee (Optional) ({currency})</label>
           <input
             type="number"
             step="any"
@@ -301,23 +301,23 @@ export default function TransferFunds({
               setCharge(e.target.value);
               validateTransfer(fromAccount, toAccount, amount, e.target.value, submitted);
             }}
-            className={`w-full bg-surface border text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-muted/70 ${
+            className={`w-full bg-[#08080c] border text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-zinc-650/70 ${
               errors.charge
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
                 : charge && !errors.charge
-                ? 'border-blue-500/50 focus:border-indigo-500 focus:ring-indigo-500'
-                : 'border-default hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                ? 'border-emerald-500/50 focus:border-indigo-500 focus:ring-indigo-500'
+                : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
             }`}
           />
           {errors.charge && (
-            <span className="text-danger font-mono text-[10px] pl-1 block">{errors.charge}</span>
+            <span className="text-rose-400 font-mono text-[10px] pl-1 block">{errors.charge}</span>
           )}
         </div>
       </div>
 
       {/* Date Picker Section */}
       <div className="flex flex-col gap-2 text-left">
-        <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Transfer Date</label>
+        <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Transfer Date</label>
         <DatePicker 
           value={transferDate} 
           onChange={setTransferDate} 
@@ -327,19 +327,19 @@ export default function TransferFunds({
 
       {/* Narrative Description Remarks */}
       <div className="flex flex-col gap-2 text-left">
-        <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Narrative Memo / Description</label>
+        <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Narrative Memo / Description</label>
         <input
           type="text"
           placeholder="e.g. Settle balances, moving reserves to card, allowance..."
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full bg-surface border border-default hover:border-default/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-primary rounded-2xl px-5 py-4 text-xs focus:outline-none transition-all font-semibold placeholder:text-muted/70"
+          className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-2xl px-5 py-4 text-xs focus:outline-none transition-all font-semibold placeholder:text-zinc-600/70"
         />
       </div>
       
       <button 
         type="submit" 
-        className="w-full h-13 bg-blue-400 hover:bg-blue-300 active:scale-[0.98] text-black font-mono font-black uppercase tracking-widest text-xs rounded-2xl transition-all cursor-pointer shadow-lg shadow-blue-500/10 mt-2 flex items-center justify-center gap-2"
+        className="w-full h-13 bg-emerald-400 hover:bg-emerald-300 active:scale-[0.98] text-black font-mono font-black uppercase tracking-widest text-xs rounded-2xl transition-all cursor-pointer shadow-lg shadow-emerald-500/10 mt-2 flex items-center justify-center gap-2"
       >
         <ArrowRightLeft size={14} className="stroke-[2.5px]" />
         Execute Capital Transfer

@@ -79,17 +79,17 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
   const isAllowedEmail = state.userProfile?.email === 'emalyaditha@gmail.com';
 
   return (
-    <div className="bg-gradient-to-br from-card/90 via-[#0a0a0d] to-zinc-950 border border-default p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6" id="secure-profile-card">
+    <div className="bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-zinc-850 p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6" id="secure-profile-card">
       
       {/* HEADER SECTION */}
-      <div className="flex justify-between items-start pb-4 border-b border-default">
+      <div className="flex justify-between items-start pb-4 border-b border-zinc-900">
         <div>
           <span className="text-[10px] tracking-wider text-indigo-400 font-mono font-bold uppercase block mb-0.5">VAULT SUITE SECURE</span>
-          <h2 className="text-lg font-extrabold text-primary">Vault Account</h2>
+          <h2 className="text-lg font-extrabold text-white">Vault Account</h2>
         </div>
         
         <div className="flex flex-col gap-2 items-end">
-          <button onClick={onClose} className="text-muted hover:text-primary transition-colors">
+          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
             <X size={20} />
           </button>
           <button 
@@ -100,10 +100,10 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
               }
               setIsEditing(!isEditing);
             }} 
-            className="p-2 px-3.5 bg-card hover:bg-card border border-default hover:border-default rounded-xl text-xs font-bold text-secondary hover:text-primary transition-all cursor-pointer flex items-center gap-1.5"
+            className="p-2 px-3.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl text-xs font-bold text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
           >
             {isEditing ? (
-              <span className="text-danger">Cancel</span>
+              <span className="text-rose-400">Cancel</span>
             ) : (
               <>
                 <Edit2 size={13} />
@@ -115,14 +115,14 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
       </div>
 
       {/* AVATAR & NAME DISPLAY */}
-      <div className="flex flex-col items-center py-4 bg-primary/40 border border-subtle rounded-2xl p-6 relative overflow-hidden">
+      <div className="flex flex-col items-center py-4 bg-[#050505]/40 border border-zinc-900/60 rounded-2xl p-6 relative overflow-hidden">
         {/* Glow effect */}
         <div className="absolute -top-12 -left-12 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute -bottom-10 -right-10 w-28 h-28 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative group mb-4">
           <div className="absolute -inset-1.5 bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-500 rounded-full blur opacity-60 group-hover:opacity-100 transition duration-500 animate-pulse" />
-          <div className="relative w-20 h-20 bg-card border-2 border-default rounded-full overflow-hidden flex items-center justify-center text-primary text-3xl font-extrabold shadow-xl">
+          <div className="relative w-20 h-20 bg-zinc-950 border-2 border-zinc-800 rounded-full overflow-hidden flex items-center justify-center text-white text-3xl font-extrabold shadow-xl">
             {tempAvatar ? (
               <img 
                 src={tempAvatar} 
@@ -135,7 +135,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
             )}
             
             {isEditing && isAllowedEmail && (
-              <label className="absolute inset-0 bg-black/70 hover:bg-black/80 flex flex-col items-center justify-center text-primary hover:text-primary transition-all cursor-pointer">
+              <label className="absolute inset-0 bg-black/70 hover:bg-black/80 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer">
                 <Camera size={18} className="text-indigo-400 mb-0.5 animate-bounce" />
                 <span className="text-[8px] font-bold uppercase tracking-wider">Change</span>
                 <input 
@@ -157,7 +157,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
             {tempAvatar && isAllowedEmail && (
               <button
                 onClick={handleRemovePhoto}
-                className="w-full py-1.5 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/45 hover:border-rose-500 text-danger text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer"
+                className="w-full py-1.5 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/45 hover:border-rose-500 text-rose-400 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer"
               >
                 <Trash2 size={11} />
                 <span>Remove Profile Image</span>
@@ -167,14 +167,14 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-card border border-default hover:border-default focus:border-indigo-500 text-primary rounded-xl px-4 py-2.5 text-center text-sm font-bold transition-all focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-[#070707] border border-zinc-800 hover:border-zinc-700 focus:border-indigo-500 text-white rounded-xl px-4 py-2.5 text-center text-sm font-bold transition-all focus:outline-none focus:ring-1 focus:ring-indigo-500"
               placeholder="Display Name"
               maxLength={25}
             />
             
             <button
               onClick={handleSave}
-              className="w-full bg-white hover:bg-surface text-black py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
+              className="w-full bg-white hover:bg-zinc-200 text-black py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
             >
               <Save size={13} />
               <span>Save Record</span>
@@ -182,8 +182,8 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
           </div>
         ) : (
           <div className="text-center">
-            <h3 className="text-xl font-extrabold text-primary tracking-tight">{state.userProfile?.name || 'User'}</h3>
-            <span className="px-2.5 py-0.5 bg-blue-950/40 border border-blue-900/40 text-success text-[9px] uppercase font-bold tracking-widest rounded-full inline-block mt-2 font-mono">
+            <h3 className="text-xl font-extrabold text-white tracking-tight">{state.userProfile?.name || 'User'}</h3>
+            <span className="px-2.5 py-0.5 bg-emerald-950/40 border border-emerald-900/40 text-emerald-400 text-[9px] uppercase font-bold tracking-widest rounded-full inline-block mt-2 font-mono">
               PREMIER MEMBER
             </span>
           </div>
@@ -193,27 +193,27 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
       {/* CORE DETAILS LIST CONTAINER */}
       <div className="space-y-3">
         {/* Email information */}
-        <div className="flex items-center gap-3.5 bg-card border border-default p-4 rounded-xl">
-          <div className="p-2 bg-card rounded-lg text-muted text-secondary">
+        <div className="flex items-center gap-3.5 bg-zinc-950 border border-zinc-900 p-4 rounded-xl">
+          <div className="p-2 bg-zinc-900 rounded-lg text-zinc-550 text-zinc-400">
             <Mail size={15} />
           </div>
           <div className="min-w-0 flex-1">
-            <span className="text-[9px] font-mono text-muted block uppercase font-bold text-muted">Linked Account Email</span>
-            <span className="text-xs font-mono font-bold text-primary block truncate">{state.userProfile?.email || 'Client Local Storage'}</span>
+            <span className="text-[9px] font-mono text-zinc-550 block uppercase font-bold text-zinc-500">Linked Account Email</span>
+            <span className="text-xs font-mono font-bold text-zinc-300 block truncate">{state.userProfile?.email || 'Client Local Storage'}</span>
           </div>
         </div>
 
         {/* Currency configuration indicator */}
-        <div className="flex items-center gap-3.5 bg-card border border-default p-4 rounded-xl">
-          <div className="p-2 bg-card rounded-lg text-secondary">
+        <div className="flex items-center gap-3.5 bg-zinc-950 border border-zinc-900 p-4 rounded-xl">
+          <div className="p-2 bg-zinc-900 rounded-lg text-zinc-400">
             <CreditCard size={15} />
           </div>
           <div className="min-w-0 flex-1">
-            <span className="text-[9px] font-mono text-muted block uppercase font-bold text-muted">Preferred Local Currency</span>
+            <span className="text-[9px] font-mono text-zinc-550 block uppercase font-bold text-zinc-500">Preferred Local Currency</span>
             <select
               value={state.currency}
               onChange={(e) => updateState(prev => ({ ...prev, currency: e.target.value }))}
-              className="w-full bg-black/40 border border-default rounded-lg text-xs px-2 py-2 text-primary focus:outline-none focus:border-default transition-colors cursor-pointer"
+              className="w-full bg-black/40 border border-zinc-800 rounded-lg text-xs px-2 py-2 text-white focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
             >
               <option value="Rs.">Rs. (Sri Lankan Rupee)</option>
               <option value="$">$ (US Dollar)</option>
@@ -228,18 +228,18 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
         {/* Database cloud settings access */}
         <button
           onClick={onOpenSettings}
-          className="w-full flex items-center justify-between text-left gap-3.5 bg-card border border-default p-4 rounded-xl hover:bg-card-60 transition-colors cursor-pointer group"
+          className="w-full flex items-center justify-between text-left gap-3.5 bg-zinc-950 border border-zinc-900 p-4 rounded-xl hover:bg-zinc-900/60 transition-colors cursor-pointer group"
         >
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="p-2 bg-card rounded-lg text-secondary group-hover:text-indigo-400 duration-200">
+            <div className="p-2 bg-zinc-900 rounded-lg text-zinc-400 group-hover:text-indigo-400 duration-200">
               <KeyRound size={15} />
             </div>
             <div>
-              <span className="text-[9px] font-mono text-muted block uppercase font-bold">Cloud Synch Vaults</span>
-              <span className="text-xs font-bold text-primary">Encryption PIN & Supabase config</span>
+              <span className="text-[9px] font-mono text-zinc-500 block uppercase font-bold">Cloud Synch Vaults</span>
+              <span className="text-xs font-bold text-zinc-300">Encryption PIN & Supabase config</span>
             </div>
           </div>
-          <ShieldCheck size={14} className="text-blue-500 mr-1" />
+          <ShieldCheck size={14} className="text-emerald-500 mr-1" />
         </button>
       </div>
 
@@ -250,7 +250,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
             showToast('info', 'Secure session terminated. Logging out.');
             onLogout();
           }}
-          className="w-full flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-600 border border-rose-950/45 hover:border-rose-500 text-danger hover:text-primary py-3.5 px-4 rounded-xl text-xs font-extrabold transition-all duration-300 cursor-pointer group shadow-lg shadow-rose-950/10"
+          className="w-full flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-600 border border-rose-950/45 hover:border-rose-500 text-rose-400 hover:text-white py-3.5 px-4 rounded-xl text-xs font-extrabold transition-all duration-300 cursor-pointer group shadow-lg shadow-rose-950/10"
         >
           <LogOut size={14} className="group-hover:translate-x-0.5 group-hover:scale-110 transition-all duration-300" />
           <span>Settle Session & Terminate Access</span>

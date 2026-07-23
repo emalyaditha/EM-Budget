@@ -171,7 +171,7 @@ export default function SubscriptionManagement({
 
   // Helper: check subscription due warnings
   const getDueStatus = (dueDateStr: string, status: string) => {
-    if (status !== 'Active') return { label: 'Paused', color: 'text-muted bg-card border-zinc-900 font-mono text-[9px]' };
+    if (status !== 'Active') return { label: 'Paused', color: 'text-zinc-500 bg-zinc-950 border-zinc-900 font-mono text-[9px]' };
     
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -182,7 +182,7 @@ export default function SubscriptionManagement({
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
-      return { label: `Overdue by ${Math.abs(diffDays)}d`, color: 'text-danger bg-rose-950/40 border border-rose-900/40 font-mono font-bold text-[9px]' };
+      return { label: `Overdue by ${Math.abs(diffDays)}d`, color: 'text-rose-400 bg-rose-950/40 border border-rose-900/40 font-mono font-bold text-[9px]' };
     }
     if (diffDays === 0) {
       return { label: 'Due Today', color: 'text-amber-400 bg-amber-955/45 border border-amber-900/50 animate-pulse font-mono font-bold text-[9px]' };
@@ -190,7 +190,7 @@ export default function SubscriptionManagement({
     if (diffDays <= 5) {
       return { label: `Due in ${diffDays}d`, color: 'text-amber-500 bg-amber-950/20 border border-amber-900/20 font-mono font-bold text-[9px]' };
     }
-    return { label: `Due in ${diffDays}d`, color: 'text-[#8aa8bb] bg-[#050510]/60 border border-default font-mono font-bold text-[9px]' };
+    return { label: `Due in ${diffDays}d`, color: 'text-[#8aa8bb] bg-[#050510]/60 border border-zinc-850 font-mono font-bold text-[9px]' };
   };
 
   const selectedSubscription = subscriptions.find(s => s.id === selectedSubId);
@@ -206,33 +206,33 @@ export default function SubscriptionManagement({
       <div className="space-y-6">
         <div className="flex justify-between items-end">
           <div>
-            <h2 className="text-2xl font-black text-primary tracking-tight">Subscriptions</h2>
-            <p className="text-muted text-sm mt-1">Manage recurring income, expenses, and subscriptions.</p>
+            <h2 className="text-2xl font-black text-white tracking-tight">Subscriptions</h2>
+            <p className="text-zinc-500 text-sm mt-1">Manage recurring income, expenses, and subscriptions.</p>
           </div>
           <button
             onClick={() => {
               setIsAdding(!isAdding);
               setSelectedSubId(null);
             }}
-            className="px-5 py-2.5 bg-card border border-default text-primary hover:border-default font-mono text-xs uppercase font-bold rounded-xl flex items-center gap-2 cursor-pointer transition-all shadow-md active:scale-95"
+            className="px-5 py-2.5 bg-zinc-900 border border-zinc-800 text-white hover:border-zinc-500 font-mono text-xs uppercase font-bold rounded-xl flex items-center gap-2 cursor-pointer transition-all shadow-md active:scale-95"
           >
-            <Plus size={14} className="text-blue-400" />
+            <Plus size={14} className="text-emerald-400" />
             {isAdding ? 'Collapse' : 'Add Recurring Plan'}
           </button>
         </div>
         
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-card/50 border border-default/80 p-4 sm:p-5 rounded-2xl flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-widest font-mono">Active Plans</span>
-                <span className="text-xl sm:text-2xl font-black text-primary">{subscriptions.filter(s => s.status === 'Active').length}</span>
+            <div className="bg-zinc-900/50 border border-zinc-800/80 p-4 sm:p-5 rounded-2xl flex flex-col gap-1">
+                <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest font-mono">Active Plans</span>
+                <span className="text-xl sm:text-2xl font-black text-white">{subscriptions.filter(s => s.status === 'Active').length}</span>
             </div>
-            <div className="bg-card/50 border border-default/80 p-4 sm:p-5 rounded-2xl flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-widest font-mono">Monthly Total</span>
-                <span className="text-xl sm:text-2xl font-black text-primary">{currency}{subscriptions.filter(s => s.status === 'Active').reduce((sum, s) => sum + s.amount, 0).toLocaleString()}</span>
+            <div className="bg-zinc-900/50 border border-zinc-800/80 p-4 sm:p-5 rounded-2xl flex flex-col gap-1">
+                <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest font-mono">Monthly Total</span>
+                <span className="text-xl sm:text-2xl font-black text-white">{currency}{subscriptions.filter(s => s.status === 'Active').reduce((sum, s) => sum + s.amount, 0).toLocaleString()}</span>
             </div>
-            <div className="bg-card/50 border border-default/80 p-4 sm:p-5 rounded-2xl flex flex-col gap-1">
-                <span className="text-muted text-[10px] font-bold uppercase tracking-widest font-mono">Upcoming Dues</span>
+            <div className="bg-zinc-900/50 border border-zinc-800/80 p-4 sm:p-5 rounded-2xl flex flex-col gap-1">
+                <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest font-mono">Upcoming Dues</span>
                 <span className="text-xl sm:text-2xl font-black text-amber-400">{subscriptions.filter(s => {
                     const due = new Date(s.dueDate);
                     const now = new Date();
@@ -244,15 +244,15 @@ export default function SubscriptionManagement({
 
       {/* 2. New Subscription Panel */}
       {isAdding && (
-        <form onSubmit={handleCreate} className="bg-card border border-default rounded-[24px] p-6 md:p-8 shadow-2xl space-y-6 animate-fade-in text-left" id="add-subscription-form">
-          <div className="flex gap-2 items-center text-blue-400 font-black text-lg tracking-tight mb-2">
+        <form onSubmit={handleCreate} className="bg-[#050508] border border-zinc-850 rounded-[24px] p-6 md:p-8 shadow-2xl space-y-6 animate-fade-in text-left" id="add-subscription-form">
+          <div className="flex gap-2 items-center text-emerald-400 font-black text-lg tracking-tight mb-2">
             <Sparkles size={18} />
             <span>Setup New Recurring Subscription</span>
           </div>
 
           <div className="space-y-5">
             <div className="space-y-2">
-              <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Service name</label>
+              <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Service name</label>
               <input
                 ref={nameInputRef}
                 type="text"
@@ -262,20 +262,20 @@ export default function SubscriptionManagement({
                   setSubName(e.target.value);
                   validateForm(e.target.value, subAmount, submitted);
                 }}
-                className={`w-full bg-surface border text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all placeholder:text-muted/70 font-semibold ${
+                className={`w-full bg-[#08080c] border text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 transition-all placeholder:text-zinc-600/70 font-semibold ${
                   errors.name
                     ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                    : 'border-default hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                    : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                 }`}
               />
               {errors.name && (
-                <span className="text-danger font-mono text-[10px] pl-1 mt-1 block">{errors.name}</span>
+                <span className="text-rose-400 font-mono text-[10px] pl-1 mt-1 block">{errors.name}</span>
               )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Billing Sum ({currency})</label>
+                <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Billing Sum ({currency})</label>
                 <input
                   ref={amountInputRef}
                   type="number"
@@ -286,22 +286,22 @@ export default function SubscriptionManagement({
                     setSubAmount(e.target.value);
                     validateForm(subName, e.target.value, submitted);
                   }}
-                  className={`w-full bg-surface border text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-muted/70 ${
+                  className={`w-full bg-[#08080c] border text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 font-mono font-bold transition-all placeholder:text-zinc-600/70 ${
                     errors.amount
                       ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500'
-                      : 'border-default hover:border-default/80 focus:border-indigo-500 focus:ring-indigo-500'
+                      : 'border-zinc-855 hover:border-zinc-700/80 focus:border-indigo-500 focus:ring-indigo-500'
                   }`}
                 />
                 {errors.amount && (
-                  <span className="text-danger font-mono text-[10px] pl-1 mt-1 block">{errors.amount}</span>
+                  <span className="text-rose-400 font-mono text-[10px] pl-1 mt-1 block">{errors.amount}</span>
                 )}
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Billing Interval</label>
+                <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Billing Interval</label>
                 <select
                   value={billingCycle}
                   onChange={(e) => setBillingCycle(e.target.value as 'Monthly' | 'Yearly')}
-                  className="w-full bg-surface border border-default hover:border-default/80 text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
+                  className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 text-zinc-300 rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
                 >
                   <option value="Monthly">Monthly Cycle</option>
                   <option value="Yearly">Yearly Cycle</option>
@@ -311,7 +311,7 @@ export default function SubscriptionManagement({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Next Billing Date</label>
+                <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Next Billing Date</label>
                 <DatePicker 
                   value={dueDate} 
                   onChange={setDueDate} 
@@ -319,11 +319,11 @@ export default function SubscriptionManagement({
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Expense Category</label>
+                <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Expense Category</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as CategoryExpense)}
-                  className="w-full bg-surface border border-default hover:border-default/80 text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
+                  className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 text-zinc-300 rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
                 >
                   <option value="Entertainment">Entertainment</option>
                   <option value="Utilities">Utilities</option>
@@ -339,7 +339,7 @@ export default function SubscriptionManagement({
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider pl-0.5">Instance Type / Server Environment (Optional)</label>
+              <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider pl-0.5">Instance Type / Server Environment (Optional)</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <select
                   value={instanceTypeSelection}
@@ -352,7 +352,7 @@ export default function SubscriptionManagement({
                       setInstanceType('');
                     }
                   }}
-                  className="w-full bg-surface border border-default hover:border-default/80 text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
+                  className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 text-zinc-300 rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 cursor-pointer font-semibold"
                 >
                   <option value="none">Not a Server / Cloud Instance</option>
                   <option value="Web Service">Web Service</option>
@@ -370,10 +370,10 @@ export default function SubscriptionManagement({
                     placeholder="e.g. Node VM, Docker container, etc."
                     value={instanceType}
                     onChange={(e) => setInstanceType(e.target.value)}
-                    className="w-full bg-surface border border-default hover:border-default/80 text-primary rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold placeholder:text-muted"
+                    className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 text-white rounded-2xl text-xs px-5 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-semibold placeholder:text-zinc-650"
                   />
                 ) : (
-                  <div className="hidden sm:flex items-center text-xs text-muted italic pl-1">
+                  <div className="hidden sm:flex items-center text-xs text-zinc-500 italic pl-1">
                     Select a preset type or custom label to organize cloud costs.
                   </div>
                 )}
@@ -382,7 +382,7 @@ export default function SubscriptionManagement({
 
             <button
               type="submit"
-              className="w-full h-13 bg-blue-500 hover:bg-blue-400 active:scale-[0.98] text-black font-mono font-black uppercase tracking-widest text-xs rounded-2xl transition-all cursor-pointer shadow-lg shadow-blue-500/10 mt-4 flex items-center justify-center gap-2"
+              className="w-full h-13 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-black font-mono font-black uppercase tracking-widest text-xs rounded-2xl transition-all cursor-pointer shadow-lg shadow-emerald-500/10 mt-4 flex items-center justify-center gap-2"
             >
               <Plus size={14} className="stroke-[2.5px]" />
               Establish Subscription
@@ -393,7 +393,7 @@ export default function SubscriptionManagement({
 
       {/* 3. Subscription Payment Modal (Inline Panel) */}
       {selectedSubscription && (
-        <div className="bg-card border border-amber-500/20 p-6 md:p-8 rounded-[24px] space-y-5 shadow-2xl animate-fade-in text-left" id="subscription-payment-panel">
+        <div className="bg-[#050508] border border-amber-500/20 p-6 md:p-8 rounded-[24px] space-y-5 shadow-2xl animate-fade-in text-left" id="subscription-payment-panel">
           <div className="flex justify-between items-center">
             <div className="flex gap-2 items-center text-amber-400 font-bold text-[10px] font-mono tracking-wider uppercase">
               <Calendar size={13} />
@@ -401,37 +401,37 @@ export default function SubscriptionManagement({
             </div>
             <button 
               onClick={() => setSelectedSubId(null)}
-              className="text-muted hover:text-primary font-mono text-[10px] uppercase font-black cursor-pointer"
+              className="text-zinc-500 hover:text-zinc-300 font-mono text-[10px] uppercase font-black cursor-pointer"
             >
               Cancel
             </button>
           </div>
 
-          <div className="bg-surface p-5 border border-default rounded-2xl flex justify-between items-center">
+          <div className="bg-[#08080c] p-5 border border-zinc-855 rounded-2xl flex justify-between items-center">
             <div>
-              <span className="text-[9px] font-mono font-black uppercase block text-muted">SERVICE TO DEBIT</span>
-              <span className="text-primary text-sm font-black leading-relaxed">{selectedSubscription.name}</span>
+              <span className="text-[9px] font-mono font-black uppercase block text-zinc-500">SERVICE TO DEBIT</span>
+              <span className="text-white text-sm font-black leading-relaxed">{selectedSubscription.name}</span>
             </div>
             <div className="text-right">
-              <span className="text-[9px] font-mono font-black uppercase block text-muted">SUM DUE</span>
-              <span className="text-blue-400 text-sm font-mono font-black">{currency}{selectedSubscription.amount.toLocaleString()}</span>
+              <span className="text-[9px] font-mono font-black uppercase block text-zinc-500">SUM DUE</span>
+              <span className="text-emerald-400 text-sm font-mono font-black">{currency}{selectedSubscription.amount.toLocaleString()}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider block pl-0.5">Deduct Funds From</label>
+              <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider block pl-0.5">Deduct Funds From</label>
               <select
                 value={`${payAccountId}:${payAccountType}`}
                 onChange={(e) => handleSelectPayAccount(e.target.value)}
-                className="w-full bg-surface border border-default hover:border-default/80 text-primary text-xs rounded-2xl px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-bold"
+                className="w-full bg-[#08080c] border border-zinc-855 hover:border-zinc-700/80 text-zinc-300 text-xs rounded-2xl px-4 py-4 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-bold"
               >
-                <optgroup label="Cash Wallets/Accounts" className="bg-surface text-secondary">
+                <optgroup label="Cash Wallets/Accounts" className="bg-[#0c0c0e] text-zinc-450">
                   {cashAccounts.map(c => (
                     <option key={c.id} value={`${c.id}:cash`}>Wallet: {c.name} ({currency}{c.balance.toLocaleString()})</option>
                   ))}
                 </optgroup>
-                <optgroup label="Bank Cards" className="bg-surface text-secondary">
+                <optgroup label="Bank Cards" className="bg-[#0c0c0e] text-zinc-455">
                   {cards.filter(c => !c.isCanceled).map(c => (
                     <option key={c.id} value={`${c.id}:card`}>{c.bankName} - {c.cardName} ({currency}{c.currentBalance.toLocaleString()})</option>
                   ))}
@@ -440,7 +440,7 @@ export default function SubscriptionManagement({
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-mono font-black text-secondary uppercase tracking-wider block pl-0.5">Payment Settle Date</label>
+              <label className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-wider block pl-0.5">Payment Settle Date</label>
               <DatePicker 
                 value={payDate} 
                 onChange={setPayDate} 
@@ -449,17 +449,17 @@ export default function SubscriptionManagement({
           </div>
 
           {payAccountType === 'card' && payAccountId && (
-            <div className="p-4 bg-surface border border-default rounded-2xl space-y-2 animate-fade-in text-xs">
-              <label className="text-[10px] text-secondary font-mono font-black block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
+            <div className="p-4 bg-[#08080c] border border-zinc-855 rounded-2xl space-y-2 animate-fade-in text-xs">
+              <label className="text-[10px] text-zinc-400 font-mono font-black block uppercase pl-0.5">Optional Bank Card Charge ({currency})</label>
               <input
                 type="number"
                 step="any"
                 placeholder="e.g. 1.50 (Leave blank or 0 if none)"
                 value={payBankCharge}
                 onChange={(e) => setPayBankCharge(e.target.value)}
-                className="w-full bg-card border border-default rounded-2xl text-xs px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono text-primary placeholder:text-muted"
+                className="w-full bg-[#050508] border border-zinc-855 rounded-2xl text-xs px-4 py-3.5 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 font-mono text-white placeholder:text-zinc-650"
               />
-              <p className="text-[9px] text-muted font-mono pl-0.5 leading-normal">Paying subscriptions from a card might trigger transaction processing fees. This charge is recorded as a bank fee expense and deducted from the card balance.</p>
+              <p className="text-[9px] text-zinc-500 font-mono pl-0.5 leading-normal">Paying subscriptions from a card might trigger transaction processing fees. This charge is recorded as a bank fee expense and deducted from the card balance.</p>
             </div>
           )}
 
@@ -475,10 +475,10 @@ export default function SubscriptionManagement({
 
       {/* 4. Subscriptions List view */}
       {subscriptions.length === 0 ? (
-        <div className="bg-primary/45 border border-default p-12 rounded-[28px] text-center text-muted space-y-3 animate-fade-in">
-          <Clock className="mx-auto text-muted" size={28} />
-          <h4 className="text-xs font-bold font-mono text-secondary uppercase tracking-widest">Ready for recurring Dues</h4>
-          <p className="text-[11px] leading-relaxed max-w-[325px] mx-auto text-muted">
+        <div className="bg-[#050505]/45 border border-zinc-850 p-12 rounded-[28px] text-center text-zinc-500 space-y-3 animate-fade-in">
+          <Clock className="mx-auto text-zinc-600" size={28} />
+          <h4 className="text-xs font-bold font-mono text-zinc-400 uppercase tracking-widest">Ready for recurring Dues</h4>
+          <p className="text-[11px] leading-relaxed max-w-[325px] mx-auto text-zinc-500">
             Keep track of monthly servers, Netflix accounts, subscription plans, and yearly renewals with instant Ledger postings.
           </p>
         </div>
@@ -491,86 +491,98 @@ export default function SubscriptionManagement({
                 key={sub.id} 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`bg-card/98 border border-default/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 ${
+                className={`bg-[#0c0c12]/98 border border-zinc-800/80 rounded-[32px] p-6 shadow-sm hover:shadow-md transition-all duration-300 ${
                   selectedSubId === sub.id 
-                    ? 'border-blue-500/50 ring-1 ring-blue-500/20' 
-                    : 'hover:border-default'
+                    ? 'border-emerald-500/50 ring-1 ring-emerald-500/20' 
+                    : 'hover:border-zinc-700'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-card border border-default flex items-center justify-center text-blue-400 shrink-0">
-                      <CreditCard size={18} />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-bold text-primary text-sm truncate">{sub.name}</h4>
-                      <span className="text-[10px] font-mono text-muted uppercase tracking-wider">{sub.category} · {sub.billingCycle}</span>
-                    </div>
+                  <div className="flex justify-between items-start gap-4 mb-6">
+                      <div className="flex gap-4 items-center">
+                          <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400">
+                             <CreditCard size={24} />
+                          </div>
+                          <div>
+                              <h4 className="font-bold text-white text-lg tracking-tight">{sub.name}</h4>
+                              <div className="flex gap-2 items-center mt-0.5 flex-wrap">
+                                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-bold border border-zinc-800 rounded-full px-2 py-0.5">
+                                  {sub.category}
+                                </span>
+                                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
+                                  {sub.billingCycle}
+                                </span>
+                                {sub.instanceType && (
+                                  <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5 font-bold uppercase tracking-widest">
+                                    {sub.instanceType}
+                                  </span>
+                                )}
+                              </div>
+                          </div>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full font-mono text-[10px] font-black tracking-widest uppercase ${statusStyle.color}`}>
+                          {statusStyle.label}
+                      </div>
                   </div>
-                  <span className={`shrink-0 px-2.5 py-0.5 rounded-full font-mono text-[9px] font-bold tracking-wider uppercase ${statusStyle.color}`}>
-                    {statusStyle.label}
-                  </span>
-                </div>
 
-                <div className="flex items-end justify-between mb-4">
-                  <div>
-                    <span className="text-[10px] font-mono text-muted uppercase tracking-wider font-semibold">Amount</span>
-                    <p className="text-2xl font-black text-primary font-mono tracking-tight mt-0.5">{currency}{sub.amount.toLocaleString()}</p>
+                  <div className="flex justify-between items-end mb-6">
+                      <span className="text-zinc-500 text-xs font-semibold tracking-wider">Next Renewal</span>
+                      <span className="text-white text-base font-bold font-mono tracking-tight">{sub.dueDate}</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-mono text-muted uppercase tracking-wider font-semibold">Renewal</span>
-                    <p className="text-xs font-bold text-primary font-mono mt-0.5">{sub.dueDate}</p>
-                  </div>
-                </div>
 
-                <div className="flex gap-2 pt-4 border-t border-default">
-                  {sub.status === 'Active' ? (
-                    <button
-                      type="button"
-                      onClick={() => onToggleSubscriptionStatus(sub.id, 'Active')}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-card hover:bg-surface text-primary rounded-xl border border-default transition-all text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer"
-                    >
-                      <Pause size={12} className="text-amber-500" />
-                      Pause
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => onToggleSubscriptionStatus(sub.id, 'Paused')}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-xl border border-blue-500/30 transition-all text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer"
-                    >
-                      <Play size={12} className="text-blue-400" />
-                      Resume
-                    </button>
-                  )}
-                  
-                  {sub.status === 'Active' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedSubId(selectedSubId === sub.id ? null : sub.id);
-                        if (isAdding) setIsAdding(false);
-                      }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border transition-all text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer ${
-                        selectedSubId === sub.id
-                          ? 'bg-amber-500 text-black border-amber-600'
-                          : 'bg-surface hover:bg-zinc-700 text-primary border-zinc-700'
-                      }`}
-                    >
-                      <DollarSign size={12} />
-                      Settle
-                    </button>
-                  )}
-                  
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(sub.id, sub.name)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-500/5 hover:bg-rose-500/10 text-danger rounded-xl border border-rose-500/20 transition-all text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer"
-                    title="Delete"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
+                  <div className="flex justify-between items-baseline mb-8">
+                      <span className="text-zinc-500 text-xs font-semibold tracking-wider">Amount</span>
+                      <span className="text-3xl font-black text-white font-mono tracking-tight">{currency}{sub.amount.toLocaleString()}</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-2 gap-3 pt-6 border-t border-zinc-800">
+                      {sub.status === 'Active' ? (
+                        <button
+                          type="button"
+                          onClick={() => onToggleSubscriptionStatus(sub.id, 'Active')}
+                          className="flex items-center justify-center gap-2 px-4 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl border border-zinc-800 transition-all text-xs font-bold font-mono uppercase tracking-widest cursor-pointer"
+                        >
+                          <Pause size={14} className="text-amber-500" />
+                          Pause
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onToggleSubscriptionStatus(sub.id, 'Paused')}
+                          className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 transition-all text-xs font-bold font-mono uppercase tracking-widest cursor-pointer"
+                        >
+                          <Play size={14} className="text-emerald-400" />
+                          Resume
+                        </button>
+                      )}
+                      
+                      {sub.status === 'Active' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSubId(selectedSubId === sub.id ? null : sub.id);
+                            if (isAdding) setIsAdding(false);
+                          }}
+                          className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all text-xs font-bold font-mono uppercase tracking-widest cursor-pointer ${
+                            selectedSubId === sub.id
+                              ? 'bg-amber-500 text-black border-amber-600 font-extrabold'
+                              : 'bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700'
+                          }`}
+                        >
+                          <DollarSign size={14} />
+                          Settle
+                        </button>
+                      )}
+                      
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(sub.id, sub.name)}
+                        className="col-span-2 flex items-center justify-center gap-2 px-4 py-3 bg-rose-500/5 hover:bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/20 transition-all text-xs font-bold font-mono uppercase tracking-widest cursor-pointer mt-1"
+                      >
+                        <Trash2 size={14} />
+                        Delete Subscription
+                      </button>
+                  </div>
               </motion.div>
             );
           })}

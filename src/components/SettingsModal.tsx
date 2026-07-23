@@ -337,24 +337,24 @@ class CloudSyncService {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 bottom-0 w-full max-w-lg bg-card border-l border-default z-50 shadow-2xl flex flex-col font-sans"
+            className="fixed top-0 right-0 bottom-0 w-full max-w-lg bg-[#09090b] border-l border-zinc-850 z-50 shadow-2xl flex flex-col font-sans"
             id="settings-panel-drawer"
           >
             {/* Header */}
-            <div className="p-6 border-b border-default flex justify-between items-center bg-card">
+            <div className="p-6 border-b border-zinc-850 flex justify-between items-center bg-[#070709]">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-card rounded-lg border border-default text-primary">
+                <div className="p-2 bg-zinc-900 rounded-lg border border-zinc-800 text-zinc-300">
                   <Settings size={16} />
                 </div>
                 <div>
-                  <h2 className="text-sm font-black uppercase tracking-wider text-primary">System Settings</h2>
-                  <p className="text-[10px] text-muted font-mono">Vault configuration & cloud sync</p>
+                  <h2 className="text-sm font-black uppercase tracking-wider text-white">System Settings</h2>
+                  <p className="text-[10px] text-zinc-500 font-mono">Vault configuration & cloud sync</p>
                 </div>
               </div>
 
               <button
                 onClick={onClose}
-                className="p-2 text-muted hover:text-primary bg-card hover:bg-surface border border-default hover:border-default rounded-lg transition-all cursor-pointer"
+                className="p-2 text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-850 hover:border-zinc-700 rounded-lg transition-all cursor-pointer"
                 title="Close settings"
               >
                 <X size={15} />
@@ -365,9 +365,9 @@ class CloudSyncService {
             <div className="flex-1 overflow-y-auto p-6 space-y-5" style={{ scrollbarWidth: 'none' }}>
               
               {/* SECTION: Supabase Cloud Synchronization (Flutter Connected) */}
-              <div className="bg-card-50 border border-default p-5 rounded-2xl space-y-4 shadow-sm">
-                <div className="flex justify-between items-center pb-2 border-b border-default">
-                  <h3 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+              <div className="bg-zinc-900/50 border border-zinc-850 p-5 rounded-2xl space-y-4 shadow-sm">
+                <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
                     <Cloud size={14} className="text-teal-400" />
                     Supabase Cloud Sync
                   </h3>
@@ -377,14 +377,14 @@ class CloudSyncService {
                 </div>
 
                 {/* Subtext description */}
-                <p className="text-[11px] text-secondary leading-normal">
+                <p className="text-[11px] text-zinc-400 leading-normal">
                   Connect your remote Supabase database to synchronize accounts, transactions, and balances instantly with your Flutter codebase.
                 </p>
 
                 {/* Inputs */}
                  <div className="space-y-3">
                   <div>
-                    <label className="text-[10px] text-muted font-semibold font-mono uppercase block mb-1 flex items-center gap-1">
+                    <label className="text-[10px] text-zinc-500 font-semibold font-mono uppercase block mb-1 flex items-center gap-1">
                       <Lock size={9} /> Supabase Project URL (Read-Only)
                     </label>
                     <input
@@ -392,12 +392,12 @@ class CloudSyncService {
                       value={supabaseUrl}
                       disabled={true}
                       placeholder="https://your-project.supabase.co"
-                      className="w-full bg-black/20 border border-default rounded-lg text-xs px-2.5 py-2 text-muted font-mono cursor-not-allowed select-none"
+                      className="w-full bg-black/20 border border-zinc-900 rounded-lg text-xs px-2.5 py-2 text-zinc-500 font-mono cursor-not-allowed select-none"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-muted font-semibold font-mono uppercase block mb-1 flex items-center gap-1">
+                    <label className="text-[10px] text-zinc-500 font-semibold font-mono uppercase block mb-1 flex items-center gap-1">
                       <Lock size={9} /> Anon / Public Public Key (Read-Only)
                     </label>
                     <div className="relative">
@@ -406,12 +406,12 @@ class CloudSyncService {
                         value={supabaseKey}
                         disabled={true}
                         placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                        className="w-full bg-black/20 border border-default rounded-lg text-xs pl-2.5 pr-8 py-2 text-muted font-mono cursor-not-allowed select-none"
+                        className="w-full bg-black/20 border border-zinc-900 rounded-lg text-xs pl-2.5 pr-8 py-2 text-zinc-500 font-mono cursor-not-allowed select-none"
                       />
                       <button
                         type="button"
                         onClick={() => setShowKey(!showKey)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
                       >
                         {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
                       </button>
@@ -434,9 +434,9 @@ class CloudSyncService {
                         setAutoSync(e.target.checked);
                         saveSupabaseConfig('', '', e.target.checked);
                       }}
-                      className="rounded border-default bg-black text-teal-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                      className="rounded border-zinc-800 bg-black text-teal-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
                     />
-                    <label htmlFor="autoSyncToggle" className="text-[10px] text-secondary font-medium select-none cursor-pointer">
+                    <label htmlFor="autoSyncToggle" className="text-[10px] text-zinc-400 font-medium select-none cursor-pointer">
                       Automatically push local modifications to Cloud Database in real-time
                     </label>
                   </div>
@@ -460,12 +460,12 @@ class CloudSyncService {
                   <button
                     onClick={handlePullSync}
                     disabled={syncStatus === 'loading'}
-                    className="py-2 px-3 bg-card border border-default hover:border-default text-primary rounded-xl transition-all text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="py-2 px-3 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 text-zinc-200 rounded-xl transition-all text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     {syncStatus === 'loading' ? (
                       <RefreshCw size={13} className="animate-spin" />
                     ) : (
-                      <RefreshCw size={12} className="text-secondary" />
+                      <RefreshCw size={12} className="text-zinc-400" />
                     )}
                     Pull From Cloud
                   </button>
@@ -475,10 +475,10 @@ class CloudSyncService {
                 {syncMessage && (
                   <div className={`p-3 rounded-xl border text-[11px] font-sans flex items-start gap-2 ${
                     syncStatus === 'success' 
-                      ? 'bg-blue-950/20 border-blue-900/60 text-success' 
+                      ? 'bg-blue-950/20 border-emerald-900/60 text-emerald-400' 
                       : syncStatus === 'error'
-                      ? 'bg-red-950/20 border-red-900/60 text-danger'
-                      : 'bg-card/40 border-default text-secondary'
+                      ? 'bg-red-950/20 border-red-900/60 text-red-400'
+                      : 'bg-zinc-950/40 border-zinc-850 text-zinc-400'
                   }`}>
                     {syncStatus === 'loading' && <RefreshCw size={13} className="animate-spin shrink-0 mt-0.5" />}
                     {syncStatus === 'success' && <Check size={13} className="shrink-0 mt-0.5" />}
@@ -490,37 +490,37 @@ class CloudSyncService {
 
               {/* DEVELOPER SECTION: COLLAPSIBLE DELEGATED SCHEMA CODES */}
               <div className="space-y-2">
-                <span className="text-[10px] text-muted font-bold tracking-wider font-mono uppercase block px-1">
+                <span className="text-[10px] text-zinc-500 font-bold tracking-wider font-mono uppercase block px-1">
                   Cross-Platform Developer Blueprints
                 </span>
 
-                <div className="bg-card/25 border border-default rounded-2xl overflow-hidden">
+                <div className="bg-zinc-900/25 border border-zinc-850 rounded-2xl overflow-hidden">
                   <button
                     onClick={() => setExpandedSection(expandedSection === 'sql' ? 'none' : 'sql')}
-                    className="w-full p-4 flex justify-between items-center text-xs font-bold text-primary hover:bg-card/45 transition-colors"
+                    className="w-full p-4 flex justify-between items-center text-xs font-bold text-zinc-300 hover:bg-zinc-900/45 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <Code size={13} className="text-secondary" />
+                      <Code size={13} className="text-zinc-400" />
                       <span>1. Prepare Supabase Database Tables & Functions (SQL)</span>
                     </div>
                     {expandedSection === 'sql' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   </button>
                   
                   {expandedSection === 'sql' && (
-                    <div className="p-4 bg-black/80 text-[10px] space-y-2 border-t border-default">
-                      <p className="text-secondary text-[11px]">
+                    <div className="p-4 bg-black/80 text-[10px] space-y-2 border-t border-zinc-900">
+                      <p className="text-zinc-400 text-[11px]">
                         Execute this inside your <strong>Supabase SQL Editor</strong> to construct the state synchronization core.
                       </p>
                       <div className="relative">
-                        <pre className="p-3 bg-card rounded-xl overflow-x-auto text-[10px] text-success/90 font-mono border border-default whitespace-pre scrollbar-none" style={{ maxHeight: '180px' }}>
+                        <pre className="p-3 bg-zinc-950 rounded-xl overflow-x-auto text-[10px] text-emerald-400/90 font-mono border border-zinc-900 whitespace-pre scrollbar-none" style={{ maxHeight: '180px' }}>
                           {getSupabaseSQLScript()}
                         </pre>
                         <button
                           onClick={() => copyToClipboard(getSupabaseSQLScript(), 'sql')}
-                          className="absolute right-2 top-2 p-1.5 bg-surface hover:bg-zinc-700 text-primary hover:text-primary rounded transition-colors"
+                          className="absolute right-2 top-2 p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded transition-colors"
                           title="Copy SQL Query"
                         >
-                          {sqlCopied ? <Check size={11} className="text-success" /> : <Copy size={11} />}
+                          {sqlCopied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                         </button>
                       </div>
                     </div>
@@ -528,10 +528,10 @@ class CloudSyncService {
                 </div>
 
                 {/* Flutter setup guide */}
-                <div className="bg-card/25 border border-default rounded-2xl overflow-hidden">
+                <div className="bg-zinc-900/25 border border-zinc-850 rounded-2xl overflow-hidden">
                   <button
                     onClick={() => setExpandedSection(expandedSection === 'flutter' ? 'none' : 'flutter')}
-                    className="w-full p-4 flex justify-between items-center text-xs font-bold text-primary hover:bg-card/45 transition-colors"
+                    className="w-full p-4 flex justify-between items-center text-xs font-bold text-zinc-300 hover:bg-zinc-900/45 transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <Zap size={13} className="text-amber-400 animate-pulse" />
@@ -541,20 +541,20 @@ class CloudSyncService {
                   </button>
                   
                   {expandedSection === 'flutter' && (
-                    <div className="p-4 bg-black/80 text-[10px] space-y-2 border-t border-default">
-                      <p className="text-secondary text-[11px]">
+                    <div className="p-4 bg-black/80 text-[10px] space-y-2 border-t border-zinc-900">
+                      <p className="text-zinc-400 text-[11px]">
                         Add the <code>supabase_flutter</code> package to your Flutter project config, and use this service helper class to pull and push state in Dart!
                       </p>
                       <div className="relative">
-                        <pre className="p-3 bg-card rounded-xl overflow-x-auto text-[10px] text-teal-400/90 font-mono border border-default whitespace-pre scrollbar-none" style={{ maxHeight: '200px' }}>
+                        <pre className="p-3 bg-zinc-950 rounded-xl overflow-x-auto text-[10px] text-teal-400/90 font-mono border border-zinc-900 whitespace-pre scrollbar-none" style={{ maxHeight: '200px' }}>
                           {flutterCode}
                         </pre>
                         <button
                           onClick={() => copyToClipboard(flutterCode, 'flutter')}
-                          className="absolute right-2 top-2 p-1.5 bg-surface hover:bg-zinc-700 text-primary hover:text-primary rounded transition-colors"
+                          className="absolute right-2 top-2 p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded transition-colors"
                           title="Copy Dart helper"
                         >
-                          {flutterCopied ? <Check size={11} className="text-success" /> : <Copy size={11} />}
+                          {flutterCopied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                         </button>
                       </div>
                     </div>
@@ -562,10 +562,10 @@ class CloudSyncService {
                 </div>
 
                 {/* SQL structure upgrade migration guide */}
-                <div className="bg-card/25 border border-default rounded-2xl overflow-hidden">
+                <div className="bg-zinc-900/25 border border-zinc-850 rounded-2xl overflow-hidden">
                   <button
                     onClick={() => setExpandedSection(expandedSection === 'upgrade' ? 'none' : 'upgrade')}
-                    className="w-full p-4 flex justify-between items-center text-xs font-bold text-primary hover:bg-card/45 transition-colors"
+                    className="w-full p-4 flex justify-between items-center text-xs font-bold text-zinc-300 hover:bg-zinc-900/45 transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <Database size={13} className="text-amber-500 animate-pulse" />
@@ -575,20 +575,20 @@ class CloudSyncService {
                   </button>
                   
                   {expandedSection === 'upgrade' && (
-                    <div className="p-4 bg-black/80 text-[10px] space-y-2 border-t border-default">
-                      <p className="text-secondary text-[11px]">
+                    <div className="p-4 bg-black/80 text-[10px] space-y-2 border-t border-zinc-900">
+                      <p className="text-zinc-400 text-[11px]">
                         To update your live Supabase database instantly, go to your <strong>Supabase Dashboard &gt; SQL Editor</strong> and copy-paste the matching upgrade migration query below:
                       </p>
                       <div className="relative">
-                        <pre className="p-3 bg-card rounded-xl overflow-x-auto text-[10px] text-success/90 font-mono border border-default whitespace-pre scrollbar-none" style={{ maxHeight: '180px' }}>
+                        <pre className="p-3 bg-zinc-950 rounded-xl overflow-x-auto text-[10px] text-emerald-400/90 font-mono border border-zinc-900 whitespace-pre scrollbar-none" style={{ maxHeight: '180px' }}>
                           {getSupabaseUpgradeSQLScript()}
                         </pre>
                         <button
                           onClick={() => copyToClipboard(getSupabaseUpgradeSQLScript(), 'upgrade')}
-                          className="absolute right-2 top-2 p-1.5 bg-surface hover:bg-zinc-700 text-primary hover:text-primary rounded transition-colors"
+                          className="absolute right-2 top-2 p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded transition-colors"
                           title="Copy Upgrade Migration"
                         >
-                          {upgradeCopied ? <Check size={11} className="text-success" /> : <Copy size={11} />}
+                          {upgradeCopied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                         </button>
                       </div>
                     </div>
@@ -597,36 +597,36 @@ class CloudSyncService {
               </div>
 
               {/* OLD SECTION 1: Settings & Encryption */}
-              <div className="bg-card/40 border border-default p-5 rounded-2xl space-y-4">
-                <h3 className="text-xs font-bold text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <Shield size={14} className="text-muted" />
+              <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl space-y-4">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Shield size={14} className="text-zinc-500" />
                   Settings & Encryption
                 </h3>
                 
                 <div className="space-y-3.5">
                   {/* Linked Owner Identity Information */}
                   <div>
-                    <span className="text-xs font-bold text-primary block">Secure Bonded Identity</span>
-                    <p className="text-[10px] text-muted">Startup Authentication Bounds</p>
+                    <span className="text-xs font-bold text-white block">Secure Bonded Identity</span>
+                    <p className="text-[10px] text-zinc-500">Startup Authentication Bounds</p>
                   </div>
-                  <div className="bg-black/40 border border-default p-3.5 rounded-xl space-y-2">
-                    <span className="text-[10px] text-secondary font-mono block">Registered System Owner:</span>
-                    <div className="flex items-center gap-2 text-xs text-success font-semibold font-mono bg-blue-950/20 py-2 px-3 border border-blue-950/35 rounded-lg">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  <div className="bg-black/40 border border-zinc-850 p-3.5 rounded-xl space-y-2">
+                    <span className="text-[10px] text-zinc-400 font-mono block">Registered System Owner:</span>
+                    <div className="flex items-center gap-2 text-xs text-emerald-400 font-semibold font-mono bg-emerald-950/20 py-2 px-3 border border-emerald-950/35 rounded-lg">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       <span>{userEmail}</span>
                     </div>
-                    <p className="text-[9px] text-muted leading-normal">
+                    <p className="text-[9px] text-zinc-500 leading-normal">
                       Access is restricted exclusively to this email address via secure 2FA passcode validation.
                     </p>
                   </div>
 
                   {/* Currency Selector */}
-                  <div className="space-y-2 pt-2 border-t border-default">
-                    <span className="text-[10px] text-secondary font-mono block">Accounting Currency</span>
+                  <div className="space-y-2 pt-2 border-t border-zinc-900">
+                    <span className="text-[10px] text-zinc-400 font-mono block">Accounting Currency</span>
                     <select
                       value={state.currency}
                       onChange={(e) => updateState(prev => ({ ...prev, currency: e.target.value }))}
-                      className="w-full bg-black/40 border border-default rounded-lg text-xs px-2 py-2 text-primary focus:outline-none focus:border-default transition-colors cursor-pointer"
+                      className="w-full bg-black/40 border border-zinc-800 rounded-lg text-xs px-2 py-2 text-white focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer"
                     >
                       <option value="Rs.">Rs. (Sri Lankan Rupee)</option>
                       <option value="$">$ (US Dollar)</option>
@@ -638,18 +638,18 @@ class CloudSyncService {
                   </div>
 
                   {/* Theme Mode Selector */}
-                  <div className="space-y-2 pt-3 border-t border-default">
-                    <span className="text-[10px] text-secondary font-mono block">Visual Theme Mode</span>
+                  <div className="space-y-2 pt-3 border-t border-zinc-900">
+                    <span className="text-[10px] text-zinc-400 font-mono block">Visual Theme Mode</span>
                     <button
                       type="button"
                       onClick={toggleTheme}
-                      className="w-full py-2 bg-black/40 border border-default rounded-lg font-sans text-xs font-bold text-primary hover:text-primary hover:border-default transition-all flex items-center justify-between px-3 cursor-pointer"
+                      className="w-full py-2 bg-black/40 border border-zinc-800 rounded-lg font-sans text-xs font-bold text-zinc-300 hover:text-white hover:border-zinc-500 transition-all flex items-center justify-between px-3 cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
-                        {theme === 'light' ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-secondary" />}
+                        {theme === 'light' ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-zinc-400" />}
                         <span>{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span>
                       </div>
-                      <span className="text-[9px] uppercase tracking-wider text-muted bg-card px-2 py-0.5 rounded font-mono font-bold">
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded font-mono font-bold">
                         Toggle theme
                       </span>
                     </button>
@@ -658,9 +658,9 @@ class CloudSyncService {
               </div>
 
               {/* OLD SECTION 2: Backup & Database State */}
-              <div className="bg-card/40 border border-default p-5 rounded-2xl space-y-4">
-                <h3 className="text-xs font-bold text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <Database size={14} className="text-muted" />
+              <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl space-y-4">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Database size={14} className="text-zinc-500" />
                   Backup & Database State
                 </h3>
                 
@@ -669,14 +669,14 @@ class CloudSyncService {
                     onClick={() => {
                       exportStateAsJSON(state, userEmail);
                     }}
-                    className="w-full py-2.5 bg-black border border-default rounded-xl hover:text-primary hover:border-default transition-colors text-xs font-semibold text-secondary flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99]"
+                    className="w-full py-2.5 bg-black border border-zinc-800 rounded-xl hover:text-white hover:border-zinc-500 transition-colors text-xs font-semibold text-zinc-350 flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99]"
                     title="Export all financial ledger records to a transferable JSON file linked to this account"
                   >
                     <FileDown size={13} /> Export Personal Ledger Backup (.JSON)
                   </button>
 
-                  <div className="space-y-1.5 pt-2 border-t border-default">
-                    <label className="text-[10px] text-muted font-semibold uppercase tracking-wider block font-mono">
+                  <div className="space-y-1.5 pt-2 border-t border-zinc-900">
+                    <label className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block font-mono">
                       Import/Sync Database File
                     </label>
                     <input
@@ -684,7 +684,7 @@ class CloudSyncService {
                       id="database-config-uploader"
                       accept=".json"
                       onChange={handleJSONRestore}
-                      className="w-full text-xs text-muted file:mr-2 file:py-1.5 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-surface file:text-primary file:cursor-pointer"
+                      className="w-full text-xs text-zinc-500 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-zinc-800 file:text-white file:cursor-pointer"
                     />
                   </div>
                   
@@ -694,8 +694,8 @@ class CloudSyncService {
                         <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={14} />
                         <div>
                           <p className="text-xs font-bold text-red-500">Identity Verification Required</p>
-                          <p className="text-[10px] text-secondary mt-1 leading-relaxed">
-                            We recorded a request to purge your database records. A 6-digit confirmation code was dispatched to <span className="text-primary font-mono font-bold">{userEmail}</span>. Enter it to finalize the purge.
+                          <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed">
+                            We recorded a request to purge your database records. A 6-digit confirmation code was dispatched to <span className="text-zinc-200 font-mono font-bold">{userEmail}</span>. Enter it to finalize the purge.
                           </p>
                         </div>
                       </div>
@@ -707,16 +707,16 @@ class CloudSyncService {
                           placeholder="Enter 6-Digit Passcode"
                           value={purgeOtp}
                           onChange={(e) => setPurgeOtp(e.target.value.replace(/\D/g, ''))}
-                          className="w-full bg-black border border-red-900/60 rounded-lg text-xs px-2.5 py-1.5 focus:outline-none focus:border-red-500 text-center font-mono tracking-widest text-primary uppercase"
+                          className="w-full bg-black border border-red-900/60 rounded-lg text-xs px-2.5 py-1.5 focus:outline-none focus:border-red-500 text-center font-mono tracking-widest text-white uppercase"
                           disabled={purgeLoading}
                         />
                         {purgeError && (
-                          <p className="text-[10px] text-danger font-semibold">{purgeError}</p>
+                          <p className="text-[10px] text-red-400 font-semibold">{purgeError}</p>
                         )}
                       </div>
 
                       {purgeDevOtp && (
-                        <div className="p-2 bg-card/65 rounded border border-default text-[10px] text-amber-400 font-mono flex items-center justify-between">
+                        <div className="p-2 bg-zinc-900/65 rounded border border-zinc-800 text-[10px] text-amber-400 font-mono flex items-center justify-between">
                           <span>[Dev Assist] One-Time OTP:</span>
                           <span className="font-bold underline">{purgeDevOtp}</span>
                         </div>
@@ -733,7 +733,7 @@ class CloudSyncService {
                             setSyncStatus('idle');
                             setSyncMessage(null);
                           }}
-                          className="py-1.5 bg-card hover:bg-card text-secondary hover:text-primary rounded-lg text-[11px] font-semibold transition-colors cursor-pointer text-center"
+                          className="py-1.5 bg-zinc-900 hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer text-center"
                           disabled={purgeLoading}
                         >
                           Abort Deletion
@@ -741,7 +741,7 @@ class CloudSyncService {
                         <button
                           type="button"
                           onClick={handleConfirmPurge2FA}
-                          className="py-1.5 bg-red-650 hover:bg-red-700 text-primary rounded-lg text-[11px] font-semibold transition-colors cursor-pointer text-center flex items-center justify-center gap-1.5"
+                          className="py-1.5 bg-red-650 hover:bg-red-700 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer text-center flex items-center justify-center gap-1.5"
                           disabled={purgeLoading}
                         >
                           {purgeLoading ? 'Purging...' : 'Confirm Purge'}
@@ -752,7 +752,7 @@ class CloudSyncService {
                     <div className="space-y-1.5 pt-4 border-t border-red-900/30">
                       <button
                         onClick={handleWipeDatabase}
-                        className="w-full py-2.5 bg-red-950/20 border border-red-900/50 rounded-xl hover:bg-danger hover:text-primary hover:border-red-500/50 transition-colors text-xs font-semibold text-red-500 flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99]"
+                        className="w-full py-2.5 bg-red-950/20 border border-red-900/50 rounded-xl hover:bg-red-950/40 hover:text-white hover:border-red-500/50 transition-colors text-xs font-semibold text-red-500 flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99]"
                       >
                         <Shield size={13} /> DANGER: Wipe Cloud Database & Local State
                       </button>
@@ -763,12 +763,12 @@ class CloudSyncService {
               </div>
 
               {/* OLD SECTION 3: Smart Ledger Directives */}
-              <div className="bg-card/10 border border-default p-5 rounded-2xl space-y-3.5">
-                <div className="flex gap-2 items-center text-xs font-bold text-primary">
+              <div className="bg-zinc-900/10 border border-zinc-850 p-5 rounded-2xl space-y-3.5">
+                <div className="flex gap-2 items-center text-xs font-bold text-zinc-300">
                   <Zap size={14} className="text-amber-400 animate-pulse" />
                   <span>Smart Ledger Directives</span>
                 </div>
-                <ul className="text-[11px] text-muted space-y-2 list-disc list-inside leading-relaxed">
+                <ul className="text-[11px] text-zinc-500 space-y-2 list-disc list-inside leading-relaxed">
                   <li>Incomes automatically increment target balance on selected accounts.</li>
                   <li>Expenses check for insufficient balances; failing settled items are blocked.</li>
                   <li>Repaying debt triggers partial decreases on card/cash portfolios in real time.</li>
@@ -780,7 +780,7 @@ class CloudSyncService {
                 <button
                   id="settings-logout-btn"
                   onClick={onLogout}
-                  className="w-full py-3 bg-card hover:bg-card border border-subtle hover:border-red-900 text-danger hover:text-danger rounded-xl transition-all text-xs font-mono font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-[0.99]"
+                  className="w-full py-3 bg-[#1d0e11] hover:bg-[#2c1216] border border-red-950/70 hover:border-red-900 text-red-400 hover:text-red-300 rounded-xl transition-all text-xs font-mono font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-[0.99]"
                 >
                   <LogOut size={13} />
                   TERMINATE ACTIVE SESSION (LOGOUT)
@@ -790,7 +790,7 @@ class CloudSyncService {
             </div>
 
             {/* Sticky footer info */}
-            <div className="p-4 bg-card border-t border-default text-center font-mono text-[9px] text-muted select-none">
+            <div className="p-4 bg-[#070709] border-t border-zinc-850 text-center font-mono text-[9px] text-zinc-600 select-none">
               Secured Connection &bull; 64-bit Device Bound
             </div>
           </motion.div>

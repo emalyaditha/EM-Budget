@@ -104,8 +104,8 @@ export default function GoalsSection({
         {/* BANNER HEADER (7 COLS) */}
         <div className="lg:col-span-8 bg-[var(--bg-card)] border border-[var(--border-primary)] p-6 rounded-[24px] shadow-[var(--shadow-soft)] flex flex-col justify-between">
           <div>
-            <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-warning text-[10px] uppercase font-bold tracking-widest rounded-full items-center gap-1 inline-flex mb-3">
-              <Sparkles size={10} className="text-warning" />
+            <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-[#F59E0B] text-[10px] uppercase font-bold tracking-widest rounded-full items-center gap-1 inline-flex mb-3">
+              <Sparkles size={10} className="text-[#F59E0B]" />
               Wealth Accelerator Active
             </span>
             <h3 className="text-xl font-bold text-[var(--text-primary)]">Personal Vault Jars</h3>
@@ -118,7 +118,7 @@ export default function GoalsSection({
             <div className="flex gap-6">
               <div>
                 <span className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold">Total Saved Reserves</span>
-                <span className="text-xl font-mono font-black text-success block mt-0.5">
+                <span className="text-xl font-mono font-black text-[#10B981] block mt-0.5">
                   {currency}{totalSavedValue.toLocaleString()}
                 </span>
               </div>
@@ -144,8 +144,8 @@ export default function GoalsSection({
                   }}
                   className={`px-4 py-3 border font-bold rounded-xl text-xs uppercase cursor-pointer transition-all hover:scale-[1.03] flex items-center gap-1.5 ${
                     showClearConfirm
-                      ? 'border-red-500 bg-red-600 text-primary animate-pulse'
-                      : 'border-subtle hover:bg-red-500/5 hover:border-subtle text-danger'
+                      ? 'border-red-500 bg-red-600 text-white animate-pulse'
+                      : 'border-red-500/20 hover:bg-red-500/5 hover:border-red-500/40 text-red-400'
                   }`}
                 >
                   <Trash2 size={13} />
@@ -155,7 +155,7 @@ export default function GoalsSection({
 
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="px-5 py-3 bg-warning-solid hover:bg-amber-600 border border-warning text-primary font-bold rounded-xl text-xs uppercase cursor-pointer transition-all hover:scale-[1.03] shadow-[0_4px_16px_rgba(245,158,11,0.25)] flex items-center gap-2"
+                className="px-5 py-3 bg-[#F59E0B] hover:bg-amber-600 border border-[#F59E0B] text-slate-950 font-bold rounded-xl text-xs uppercase cursor-pointer transition-all hover:scale-[1.03] shadow-[0_4px_16px_rgba(245,158,11,0.25)] flex items-center gap-2"
               >
                 <Plus size={14} className="stroke-slate-950" />
                 <span>Establish Jar</span>
@@ -165,21 +165,21 @@ export default function GoalsSection({
         </div>
 
         {/* FUN QUICK SUMMARY CARD (4 COLS) */}
-        <div className="lg:col-span-4 bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-default rounded-[24px] p-6 flex flex-col justify-between text-left shadow-lg relative overflow-hidden">
+        <div className="lg:col-span-4 bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-slate-800 rounded-[24px] p-6 flex flex-col justify-between text-left shadow-lg relative overflow-hidden">
           {/* Jar Backdrop Line-art */}
           <div className="absolute right-2 bottom-0 text-[100px] text-blue-500/5 select-none font-sans pointer-events-none">🏺</div>
           
           <div>
             <span className="text-[10px] tracking-wider text-amber-400 font-mono font-bold uppercase block mb-1">Savings Strategy</span>
-            <h4 className="text-sm font-bold text-primary">How Jars Sync</h4>
+            <h4 className="text-sm font-bold text-white">How Jars Sync</h4>
             <p className="text-[11px] text-slate-400 leading-relaxed mt-1.5">
               Tapping **Save capital** allocates funds from any of your Cash Wallets. The selected cash wallet's balance is automatically adjusted, moving capital directly into the ring-fenced bucket.
             </p>
           </div>
 
-          <div className="bg-card-60 p-3.5 border border-default rounded-xl space-y-1 mt-4">
+          <div className="bg-slate-900/60 p-3.5 border border-slate-800 rounded-xl space-y-1 mt-4">
             <span className="text-[9px] text-slate-400 block uppercase font-semibold">Active Liquidity Available</span>
-            <span className="text-xs font-bold text-success font-mono">
+            <span className="text-xs font-bold text-[#10B981] font-mono">
               {currency}{cashAccounts.reduce((acc, c) => acc + c.balance, 0).toLocaleString()}
             </span>
           </div>
@@ -196,18 +196,18 @@ export default function GoalsSection({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-gradient-to-r from-amber-500/20 via-blue-500/20 to-amber-500/20 border border-amber-505/30 border-amber-500/40 p-6 rounded-[24px] flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left justify-between relative shadow-xl">
+            <div className="bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border border-amber-505/30 border-amber-500/40 p-6 rounded-[24px] flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left justify-between relative shadow-xl">
               <div className="flex items-center gap-3.5 flex-col sm:flex-row">
                 <span className="text-4xl animate-bounce">🏆</span>
                 <div>
-                  <span className="text-[10px] uppercase font-bold tracking-widest text-warning block mb-0.5">VAULT TARGET ACHIEVED</span>
-                  <h4 className="text-sm font-extrabold text-primary">Congratulations! Confetti Burst Triggered!</h4>
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-[#F59E0B] block mb-0.5">VAULT TARGET ACHIEVED</span>
+                  <h4 className="text-sm font-extrabold text-white">Congratulations! Confetti Burst Triggered!</h4>
                   <p className="text-[11px] text-slate-300 mt-1">
                     You have successfully matched 100% of the financial goal target. This capital is successfully secured!
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-mono font-bold text-warning uppercase px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full shrink-0 flex items-center gap-1.5 animate-pulse">
+              <span className="text-xs font-mono font-bold text-[#F59E0B] uppercase px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full shrink-0 flex items-center gap-1.5 animate-pulse">
                 <Award size={13} />
                 Vault Secured
               </span>
@@ -220,7 +220,7 @@ export default function GoalsSection({
       <div>
         {activeGoalsCount === 0 ? (
           <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-[32px] p-12 text-center flex flex-col items-center justify-center space-y-5 shadow-sm">
-            <div className="w-16 h-16 bg-card-60 rounded-full flex items-center justify-center text-3xl shadow-inner border border-default">
+            <div className="w-16 h-16 bg-slate-900/60 rounded-full flex items-center justify-center text-3xl shadow-inner border border-slate-800">
               🏺
             </div>
             <div className="space-y-1.5 max-w-sm">
@@ -231,7 +231,7 @@ export default function GoalsSection({
             </div>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="py-2.5 px-5 bg-warning-solid hover:bg-amber-600 text-primary text-xs font-bold rounded-xl cursor-pointer shadow-md flex items-center gap-1.5"
+              className="py-2.5 px-5 bg-[#F59E0B] hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-xl cursor-pointer shadow-md flex items-center gap-1.5"
             >
               <Plus size={14} className="stroke-slate-950" />
               <span>Define Savings Goal</span>
@@ -248,13 +248,13 @@ export default function GoalsSection({
                   key={goal.id} 
                   className={`bg-[var(--bg-card)] border rounded-[24px] p-6 shadow-sm flex flex-col justify-between text-left relative overflow-hidden transition-all hover:shadow-md ${
                     isFinished 
-                      ? 'border-warning/50' 
+                      ? 'border-[#F59E0B]/50' 
                       : 'border-[var(--border-primary)]'
                   }`}
                 >
                   {/* Glowing completed background wrapper */}
                   {isFinished && (
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-warning rounded-bl-[100px] pointer-events-none flex items-center justify-center" />
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-[#F59E0B]/5 rounded-bl-[100px] pointer-events-none flex items-center justify-center" />
                   )}
 
                   <div className="space-y-4">
@@ -266,12 +266,12 @@ export default function GoalsSection({
                       
                       <div className="flex items-center gap-1.5 shrink-0">
                         {isFinished ? (
-                          <span className="text-xs font-bold text-warning bg-warning border border-subtle py-1 px-2.5 rounded-full uppercase shrink-0 flex items-center gap-1 font-mono">
+                          <span className="text-xs font-bold text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/20 py-1 px-2.5 rounded-full uppercase shrink-0 flex items-center gap-1 font-mono">
                             <Sparkles size={11} />
                             Saved
                           </span>
                         ) : (
-                          <span className="text-[10px] font-bold font-mono text-success bg-success border border-subtle py-1 px-2 rounded-full uppercase shrink-0">
+                          <span className="text-[10px] font-bold font-mono text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20 py-1 px-2 rounded-full uppercase shrink-0">
                             {percent}%
                           </span>
                         )}
@@ -290,8 +290,8 @@ export default function GoalsSection({
                                 }, 4000);
                               }
                             }}
-                            className={`p-1 hover:bg-surface rounded transition-colors cursor-pointer flex items-center gap-1 ${
-                              deleteConfirmId === goal.id ? 'bg-red-600 hover:bg-red-700 text-primary font-bold px-2' : 'text-slate-400 hover:text-danger'
+                            className={`p-1 hover:bg-slate-800 rounded transition-colors cursor-pointer flex items-center gap-1 ${
+                              deleteConfirmId === goal.id ? 'bg-red-600 hover:bg-red-700 text-white font-bold px-2' : 'text-slate-400 hover:text-red-400'
                             }`}
                             title={deleteConfirmId === goal.id ? 'Confirm deletion' : 'Delete Savings Jar'}
                           >
@@ -306,14 +306,14 @@ export default function GoalsSection({
                       <div className="flex justify-between items-baseline text-xs font-mono">
                         <span className="text-[var(--text-secondary)] text-[11px]">Savings ratio:</span>
                         <span className="font-extrabold text-[var(--text-primary)]">
-                          {currency}{goal.current.toLocaleString()} <span className="text-[10px] text-muted font-normal">/ {currency}{goal.target.toLocaleString()}</span>
+                          {currency}{goal.current.toLocaleString()} <span className="text-[10px] text-slate-500 font-normal">/ {currency}{goal.target.toLocaleString()}</span>
                         </span>
                       </div>
 
                       {/* Jar Progress Bar */}
-                      <div className="relative w-full h-3 bg-surface-40 rounded-full overflow-hidden border border-subtle">
+                      <div className="relative w-full h-3 bg-slate-800/40 rounded-full overflow-hidden border border-slate-800/25">
                         <motion.div
-                          className={`h-full ${isFinished ? 'bg-warning-solid' : 'bg-success-solid'}`}
+                          className={`h-full ${isFinished ? 'bg-[#F59E0B]' : 'bg-[#10B981]'}`}
                           initial={{ width: 0 }}
                           animate={{ width: `${percent}%` }}
                           transition={{ duration: 1.2, ease: 'easeOut' }}
@@ -333,7 +333,7 @@ export default function GoalsSection({
                   <div className="pt-5 mt-5 border-t border-[var(--border-primary)] flex justify-between items-center gap-2">
                     <button
                       onClick={() => openFundModal(goal.id, 'remove')}
-                      className="px-3.5 py-2 hover:bg-red-500/10 border border-default hover:border-subtle text-[var(--text-secondary)] hover:text-danger rounded-xl text-[10px] uppercase font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                      className="px-3.5 py-2 hover:bg-red-500/10 border border-slate-800 hover:border-red-500/20 text-[var(--text-secondary)] hover:text-[#F87171] rounded-xl text-[10px] uppercase font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0"
                       disabled={goal.current <= 0}
                     >
                       <MinusCircle size={12} />
@@ -344,8 +344,8 @@ export default function GoalsSection({
                       onClick={() => openFundModal(goal.id, 'add')}
                       className={`px-4 py-2 text-[10px] uppercase font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
                         isFinished 
-                          ? 'border border-subtle hover:bg-warning text-warning'
-                          : 'bg-success hover:bg-success-solid text-success hover:text-primary border border-subtle hover:border-subtle'
+                          ? 'border border-[#F59E0B]/30 hover:bg-[#F59E0B]/10 text-[#F59E0B]'
+                          : 'bg-[#10B981]/20 hover:bg-[#10B981] text-emerald-400 hover:text-white border border-[#10B981]/30 hover:border-emerald-600'
                       }`}
                     >
                       <PlusCircle size={12} />
@@ -367,43 +367,43 @@ export default function GoalsSection({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card border border-default rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative text-left"
+              className="bg-[#050508] border border-zinc-850 rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative text-left"
             >
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="absolute top-4 right-4 p-1.5 hover:bg-surface rounded-lg text-muted hover:text-primary cursor-pointer"
+                className="absolute top-4 right-4 p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white cursor-pointer"
               >
                 <X size={16} />
               </button>
 
-              <h4 className="text-base font-black text-primary mb-1">Establish Savings Goal</h4>
-              <p className="text-xs text-muted mb-6">Create a locked-away pocket of capital.</p>
+              <h4 className="text-base font-black text-white mb-1">Establish Savings Goal</h4>
+              <p className="text-xs text-zinc-500 mb-6">Create a locked-away pocket of capital.</p>
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">Savings Goal / Jar Name</label>
+                  <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block pl-0.5">Savings Goal / Jar Name</label>
                   <input
                     type="text"
                     value={goalName}
                     onChange={(e) => setGoalName(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-surface border border-default rounded-2xl text-xs text-primary focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-muted"
+                    className="w-full px-4 py-3.5 bg-[#08080c] border border-zinc-855 rounded-2xl text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-zinc-600"
                     placeholder="e.g. Dream Holiday, Laptop Fund"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">Target Cap ({currency})</label>
+                  <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block pl-0.5">Target Cap ({currency})</label>
                   <input
                     type="number"
                     value={goalTarget}
                     onChange={(e) => setGoalTarget(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-surface border border-default rounded-2xl text-xs font-mono text-primary focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-muted"
+                    className="w-full px-4 py-3.5 bg-[#08080c] border border-zinc-855 rounded-2xl text-xs font-mono text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-zinc-600"
                     placeholder="e.g. 5000"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">Target Due Date</label>
+                  <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block pl-0.5">Target Due Date</label>
                   <DatePicker 
                     value={goalDate} 
                     onChange={setGoalDate} 
@@ -413,13 +413,13 @@ export default function GoalsSection({
                 <div className="flex gap-3 justify-end pt-3">
                   <button
                     onClick={() => setIsAddModalOpen(false)}
-                    className="py-2.5 h-12 px-4 bg-surface border border-default text-secondary hover:text-primary rounded-2xl text-xs font-mono font-bold cursor-pointer transition-colors"
+                    className="py-2.5 h-12 px-4 bg-[#08080c] border border-zinc-855 text-zinc-400 hover:text-white rounded-2xl text-xs font-mono font-bold cursor-pointer transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleCreateGoal}
-                    className="py-2.5 h-12 px-5 bg-amber-500 hover:bg-amber-400 text-primary rounded-2xl text-xs font-mono font-black uppercase tracking-wider cursor-pointer shadow-md active:scale-95 transition-all"
+                    className="py-2.5 h-12 px-5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl text-xs font-mono font-black uppercase tracking-wider cursor-pointer shadow-md active:scale-95 transition-all"
                   >
                     Lock Away Jar
                   </button>
@@ -438,19 +438,19 @@ export default function GoalsSection({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card border border-default rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative text-left"
+              className="bg-[#050508] border border-zinc-850 rounded-[24px] w-full max-w-sm overflow-hidden p-6 md:p-8 shadow-2xl relative text-left"
             >
               <button
                 onClick={() => setIsFundModalOpen(false)}
-                className="absolute top-4 right-4 p-1.5 hover:bg-surface rounded-lg text-muted hover:text-primary cursor-pointer"
+                className="absolute top-4 right-4 p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white cursor-pointer"
               >
                 <X size={16} />
               </button>
 
-              <h4 className="text-base font-black text-primary mb-1">
+              <h4 className="text-base font-black text-white mb-1">
                 {fundAction === 'add' ? 'Save capital into Jar' : 'Withdraw funds from Jar'}
               </h4>
-              <p className="text-xs text-muted mb-6">
+              <p className="text-xs text-zinc-500 mb-6">
                 {fundAction === 'add' 
                   ? 'Move active cash reserves into this isolated envelope.' 
                   : 'Return pocketed capital to a selected liquid wallet.'}
@@ -458,33 +458,33 @@ export default function GoalsSection({
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">Amount ({currency})</label>
+                  <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block pl-0.5">Amount ({currency})</label>
                   <input
                     type="number"
                     value={fundAmount}
                     onChange={(e) => setFundAmount(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-surface border border-default rounded-2xl text-sm font-semibold font-mono text-primary focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-muted"
+                    className="w-full px-4 py-3.5 bg-[#08080c] border border-zinc-855 rounded-2xl text-sm font-semibold font-mono text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500 placeholder:text-zinc-600"
                     placeholder="e.g. 250"
                     autoFocus
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono font-black uppercase tracking-wider text-secondary block pl-0.5">
+                  <label className="text-[10px] font-mono font-black uppercase tracking-wider text-zinc-400 block pl-0.5">
                     {fundAction === 'add' ? 'Funding Wallet Resource' : 'Disburse back to Wallet'}
                   </label>
                   <select
                     value={fundSourceAccountId}
                     onChange={(e) => setFundSourceAccountId(e.target.value)}
-                    className="w-full px-4 py-3.5 bg-surface border border-default rounded-2xl text-xs text-primary focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500"
+                    className="w-full px-4 py-3.5 bg-[#08080c] border border-zinc-855 rounded-2xl text-xs text-white focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500"
                   >
                     {cashAccounts.map((c) => (
-                      <option key={c.id} value={c.id} className="bg-surface">
+                      <option key={c.id} value={c.id} className="bg-[#0c0c12]">
                         💵 {c.name} ({currency}{c.balance.toLocaleString()})
                       </option>
                     ))}
                     {cashAccounts.length === 0 && (
-                      <option value="" className="bg-surface">No wallets registered. Sync through local fallback mode.</option>
+                      <option value="" className="bg-[#0c0c12]">No wallets registered. Sync through local fallback mode.</option>
                     )}
                   </select>
                 </div>
@@ -492,13 +492,13 @@ export default function GoalsSection({
                 <div className="flex gap-3 justify-end pt-3">
                   <button
                     onClick={() => setIsFundModalOpen(false)}
-                    className="py-2.5 h-12 px-4 bg-surface border border-default text-secondary hover:text-primary rounded-2xl text-xs font-mono font-bold cursor-pointer transition-colors"
+                    className="py-2.5 h-12 px-4 bg-[#08080c] border border-zinc-855 text-zinc-400 hover:text-white rounded-2xl text-xs font-mono font-bold cursor-pointer transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleFundGoalSubmit}
-                    className="py-2.5 h-12 px-5 bg-blue-500 hover:bg-blue-400 text-primary rounded-2xl text-xs font-mono font-black uppercase tracking-wider cursor-pointer shadow-md active:scale-95 transition-all"
+                    className="py-2.5 h-12 px-5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-2xl text-xs font-mono font-black uppercase tracking-wider cursor-pointer shadow-md active:scale-95 transition-all"
                   >
                     Confirm Ledger Sync
                   </button>

@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express from "express";
 import path from "path";
 import fs from "fs";
@@ -51,6 +50,16 @@ async function startServer() {
     }
   }
 
+  // -------------------------------------------------------------
+  // LOCAL DEVELOPMENT MOCK / SANDBOX FALLBACK DATABASE
+  // -------------------------------------------------------------
+  const mockDb = {
+    accounts: [] as Account[],
+    otps: [] as { email: string; otp: string; expires_at: string }[],
+    deviceTokens: new Set<string>(),
+    rateLimits: [] as { key: string; count: number; reset_time: string }[]
+  };
+
   // Scalable Distributed OTP Storage Helpers (No In-Memory Maps for stateless Cloud Run compliance)
   // Hash OTP using SHA-256 with user's email as salt
   function hashOtp(otp: string, email: string): string {
@@ -59,54 +68,102 @@ async function startServer() {
   }
 
   async function storeOtpInDb(email: string, otp: string, expiresAt: number, isDeleteOtp = false, supabase: any) {
-    if (!supabase) {
-      throw new Error("Supabase is required for secure authentication storage.");
-    }
     const normalizedEmail = email.trim().toLowerCase();
     const expiresDate = new Date(expiresAt).toISOString();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
-    
     const hashedOtp = hashOtp(otp, normalizedEmail);
+
+    if (!supabase) {
+      console.log(`[Mock DB] Storing OTP for ${storageEmail} (Expires: ${expiresDate})`);
+      mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
+      mockDb.otps.push({
+        email: storageEmail,
+        otp: hashedOtp,
+        expires_at: expiresDate
+      });
+      return;
+    }
     
-    await supabase.from('auth_otps').delete().eq('email', storageEmail);
-    const { error } = await supabase.from('auth_otps').insert({
-      email: storageEmail,
-      otp: hashedOtp,
-      expires_at: expiresDate
-    });
-    if (error) {
-      console.error("OTP database write failed:", error);
-      throw error;
+    try {
+      await supabase.from('auth_otps').delete().eq('email', storageEmail);
+      const { error } = await supabase.from('auth_otps').insert({
+        email: storageEmail,
+        otp: hashedOtp,
+        expires_at: expiresDate
+      });
+      if (error) {
+        console.error("OTP database write failed:", error);
+        throw error;
+      }
+    } catch (e: any) {
+      console.warn(`[Supabase Connection/Query Failed] storeOtpInDb falling back to Mock DB:`, e.message || e);
+      mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
+      mockDb.otps.push({
+        email: storageEmail,
+        otp: hashedOtp,
+        expires_at: expiresDate
+      });
     }
   }
 
   async function getOtpFromDb(email: string, isDeleteOtp = false, supabase: any): Promise<{ otp: string; expiresAt: number } | null> {
-    if (!supabase) return null;
     const normalizedEmail = email.trim().toLowerCase();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
-    
-    const { data, error } = await supabase.from('auth_otps').select('*').eq('email', storageEmail).maybeSingle();
-    if (error) {
-      console.error("OTP database fetch failed:", error);
+
+    if (!supabase) {
+      const found = mockDb.otps.find(item => item.email === storageEmail);
+      if (found) {
+        return {
+          otp: found.otp,
+          expiresAt: new Date(found.expires_at).getTime()
+        };
+      }
       return null;
     }
-    if (data) {
-      return {
-        otp: data.otp,
-        expiresAt: new Date(data.expires_at).getTime()
-      };
+    
+    try {
+      const { data, error } = await supabase.from('auth_otps').select('*').eq('email', storageEmail).maybeSingle();
+      if (error) {
+        console.error("OTP database fetch failed:", error);
+        throw error;
+      }
+      if (data) {
+        return {
+          otp: data.otp,
+          expiresAt: new Date(data.expires_at).getTime()
+        };
+      }
+      return null;
+    } catch (e: any) {
+      console.warn(`[Supabase Connection/Query Failed] getOtpFromDb falling back to Mock DB:`, e.message || e);
+      const found = mockDb.otps.find(item => item.email === storageEmail);
+      if (found) {
+        return {
+          otp: found.otp,
+          expiresAt: new Date(found.expires_at).getTime()
+        };
+      }
+      return null;
     }
-    return null;
   }
 
   async function deleteOtpFromDb(email: string, isDeleteOtp = false, supabase: any) {
-    if (!supabase) return;
     const normalizedEmail = email.trim().toLowerCase();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
+
+    if (!supabase) {
+      mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
+      return;
+    }
     
-    const { error } = await supabase.from('auth_otps').delete().eq('email', storageEmail);
-    if (error) {
-      console.error("OTP database delete failed:", error);
+    try {
+      const { error } = await supabase.from('auth_otps').delete().eq('email', storageEmail);
+      if (error) {
+        console.error("OTP database delete failed:", error);
+      }
+    } catch (e: any) {
+      console.warn(`[Supabase Connection/Query Failed] deleteOtpFromDb falling back to Mock DB:`, e.message || e);
+      mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
     }
   }
 
@@ -200,59 +257,109 @@ async function startServer() {
   };
   
   async function checkAccountExists(email: string, supabase: any): Promise<boolean> {
-    if (!supabase) return false;
     const normalizedEmail = email.trim().toLowerCase();
-    const { data, error } = await supabase.from('auth_accounts').select('email').eq('email', normalizedEmail).maybeSingle();
-    if (error && error.code !== 'PGRST116') {
-      console.error('Supabase error checking account:', error);
+    if (!supabase) {
+      return mockDb.accounts.some(acc => acc.email === normalizedEmail);
     }
-    return !!data;
+    try {
+      const { data, error } = await supabase.from('auth_accounts').select('email').eq('email', normalizedEmail).maybeSingle();
+      if (error && error.code !== 'PGRST116') {
+        console.error('Supabase error checking account:', error);
+      }
+      return !error && !!data;
+    } catch (e: any) {
+      console.warn(`[Supabase Connection/Query Failed] checkAccountExists falling back to Mock DB:`, e.message || e);
+      return mockDb.accounts.some(acc => acc.email === normalizedEmail);
+    }
   }
   
   async function getAccountByEmail(email: string, supabase: any): Promise<Account | null> {
-    if (!supabase) return null;
     const normalizedEmail = email.trim().toLowerCase();
-    const { data, error } = await supabase.from('auth_accounts').select('*').eq('email', normalizedEmail).maybeSingle();
-    if (!error && data) {
-       return {
-         email: data.email,
-         passwordHash: data.password_hash,
-         createdAt: new Date(data.created_at).getTime()
-       };
+    if (!supabase) {
+      const found = mockDb.accounts.find(acc => acc.email === normalizedEmail);
+      return found || null;
     }
-    return null;
+    try {
+      const { data, error } = await supabase.from('auth_accounts').select('*').eq('email', normalizedEmail).maybeSingle();
+      if (!error && data) {
+         return {
+           email: data.email,
+           passwordHash: data.password_hash,
+           createdAt: new Date(data.created_at).getTime()
+         };
+      }
+      return null;
+    } catch (e: any) {
+      console.warn(`[Supabase Connection/Query Failed] getAccountByEmail falling back to Mock DB:`, e.message || e);
+      const found = mockDb.accounts.find(acc => acc.email === normalizedEmail);
+      return found || null;
+    }
   }
   
   async function saveAccount(acc: Account, supabase: any) {
-    if (!supabase) {
-      throw new Error("Cannot save account: Supabase client is not established.");
-    }
     const normalizedEmail = acc.email.trim().toLowerCase();
-    const { error } = await supabase.from('auth_accounts').upsert({
-      email: normalizedEmail,
-      password_hash: acc.passwordHash,
-      created_at: new Date(acc.createdAt).toISOString()
-    }, { onConflict: 'email' });
-    if (error) {
-      console.error("Error saving account to Supabase:", error);
-      throw error;
+    if (!supabase) {
+      mockDb.accounts = mockDb.accounts.filter(item => item.email !== normalizedEmail);
+      mockDb.accounts.push({
+        email: normalizedEmail,
+        passwordHash: acc.passwordHash,
+        createdAt: acc.createdAt
+      });
+      return;
+    }
+    try {
+      const { error } = await supabase.from('auth_accounts').upsert({
+        email: normalizedEmail,
+        password_hash: acc.passwordHash,
+        created_at: new Date(acc.createdAt).toISOString()
+      }, { onConflict: 'email' });
+      if (error) {
+        console.error("Error saving account to Supabase:", error);
+        throw error;
+      }
+    } catch (e: any) {
+      console.warn(`[Supabase Connection/Query Failed] saveAccount falling back to Mock DB:`, e.message || e);
+      mockDb.accounts = mockDb.accounts.filter(item => item.email !== normalizedEmail);
+      mockDb.accounts.push({
+        email: normalizedEmail,
+        passwordHash: acc.passwordHash,
+        createdAt: acc.createdAt
+      });
     }
   }
 
   async function saveDeviceToken(token: string, supabase: any) {
-    if (!token || !supabase) return;
-    const { error } = await supabase.from('auth_device_tokens').insert({ token });
-    if (error) {
-      console.error("Device token database insert failed:", error);
-    } else {
-      console.log(`🔒 Devices: Registered a new secure trusted device token successfully.`);
+    if (!token) return;
+    if (!supabase) {
+      mockDb.deviceTokens.add(token);
+      console.log(`🔒 Devices (Local Mode): Registered a new secure trusted device token successfully.`);
+      return;
+    }
+    try {
+      const { error } = await supabase.from('auth_device_tokens').insert({ token });
+      if (error) {
+        console.error("Device token database insert failed:", error);
+      } else {
+        console.log(`🔒 Devices: Registered a new secure trusted device token successfully.`);
+      }
+    } catch (e: any) {
+      console.warn(`[Supabase Connection/Query Failed] saveDeviceToken falling back to Mock DB:`, e.message || e);
+      mockDb.deviceTokens.add(token);
     }
   }
 
   async function verifyDeviceToken(token: string, supabase: any): Promise<boolean> {
-    if (!token || !supabase) return false;
-    const { data, error } = await supabase.from('auth_device_tokens').select('token').eq('token', token).maybeSingle();
-    return !error && !!data;
+    if (!token) return false;
+    if (!supabase) {
+      return mockDb.deviceTokens.has(token);
+    }
+    try {
+      const { data, error } = await supabase.from('auth_device_tokens').select('token').eq('token', token).maybeSingle();
+      return !error && !!data;
+    } catch (e: any) {
+      console.warn(`[Supabase Connection/Query Failed] verifyDeviceToken falling back to Mock DB:`, e.message || e);
+      return mockDb.deviceTokens.has(token);
+    }
   }
 
   // -------------------------------------------------------------
@@ -282,13 +389,42 @@ async function startServer() {
 
   // Custom rate-limiter backed strictly by database (Stateless Cloud Run autoscaling compliant)
   async function checkRateLimitInDb(key: string, limit: number, windowMs: number, supabase: any): Promise<boolean> {
-    if (!supabase) {
-      console.warn("Supabase client is not available for rate limiting. Enforcing strict failure mode in production.");
-      return true; // Revert to passive bypass only if not configured yet, otherwise it would lock out dev startup
-    }
     const now = Date.now();
     const resetTime = now + windowMs;
     const resetTimeStr = new Date(resetTime).toISOString();
+
+    if (!supabase) {
+      // Purge expired rate limits periodically
+      mockDb.rateLimits = mockDb.rateLimits.filter(item => new Date(item.reset_time).getTime() > now);
+
+      const foundIndex = mockDb.rateLimits.findIndex(item => item.key === key);
+      if (foundIndex === -1) {
+        mockDb.rateLimits.push({
+          key,
+          count: 1,
+          reset_time: resetTimeStr
+        });
+        return true;
+      }
+
+      const item = mockDb.rateLimits[foundIndex];
+      const recordResetTime = new Date(item.reset_time).getTime();
+      if (now > recordResetTime) {
+        mockDb.rateLimits[foundIndex] = {
+          key,
+          count: 1,
+          reset_time: resetTimeStr
+        };
+        return true;
+      }
+
+      if (item.count >= limit) {
+        return false; // Rate limit exceeded
+      }
+
+      item.count += 1;
+      return true;
+    }
     
     try {
       // Purge expired rate limits periodically
