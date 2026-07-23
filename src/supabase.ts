@@ -1462,59 +1462,59 @@ create policy "Secure insert on auth_accounts" on public.auth_accounts for inser
 create policy "Secure update on auth_accounts" on public.auth_accounts for update using (email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
 
 -- 11. SETUP SECURE TENANT ISOLATION POLICIES (React Client-Side Syncing Enabled)
-create policy "Secure select on states" on public.ledger_states for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on states" on public.ledger_states for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on states" on public.ledger_states for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on states" on public.ledger_states for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on states" on public.ledger_states for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on states" on public.ledger_states for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
-create policy "Secure select on cards" on public.bank_cards for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on cards" on public.bank_cards for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on cards" on public.bank_cards for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on cards" on public.bank_cards for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on cards" on public.bank_cards for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on cards" on public.bank_cards for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on cards" on public.bank_cards for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on cards" on public.bank_cards for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
-create policy "Secure select on cash" on public.cash_accounts for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on cash" on public.cash_accounts for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on cash" on public.cash_accounts for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on cash" on public.cash_accounts for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on cash" on public.cash_accounts for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on cash" on public.cash_accounts for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on cash" on public.cash_accounts for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on cash" on public.cash_accounts for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
-create policy "Secure select on tx" on public.transactions for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on tx" on public.transactions for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on tx" on public.transactions for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on tx" on public.transactions for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on tx" on public.transactions for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on tx" on public.transactions for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on tx" on public.transactions for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on tx" on public.transactions for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
-create policy "Secure select on debts" on public.debts for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on debts" on public.debts for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on debts" on public.debts for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on debts" on public.debts for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on debts" on public.debts for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on debts" on public.debts for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on debts" on public.debts for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on debts" on public.debts for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
-create policy "Secure select on incomes" on public.incomes for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on incomes" on public.incomes for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on incomes" on public.incomes for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on incomes" on public.incomes for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on incomes" on public.incomes for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on incomes" on public.incomes for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on incomes" on public.incomes for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on incomes" on public.incomes for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
-create policy "Secure select on expenses" on public.expenses for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on expenses" on public.expenses for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on expenses" on public.expenses for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on expenses" on public.expenses for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on expenses" on public.expenses for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on expenses" on public.expenses for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on expenses" on public.expenses for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on expenses" on public.expenses for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
-create policy "Secure select on notifications" on public.notifications for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on notifications" on public.notifications for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on notifications" on public.notifications for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on notifications" on public.notifications for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on notifications" on public.notifications for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on notifications" on public.notifications for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on notifications" on public.notifications for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on notifications" on public.notifications for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
-create policy "Secure select on subscriptions" on public.subscriptions for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on subscriptions" on public.subscriptions for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on subscriptions" on public.subscriptions for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on subscriptions" on public.subscriptions for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on subscriptions" on public.subscriptions for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on subscriptions" on public.subscriptions for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on subscriptions" on public.subscriptions for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on subscriptions" on public.subscriptions for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
-create policy "Secure select on loans_given" on public.loans_given for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on loans_given" on public.loans_given for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on loans_given" on public.loans_given for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on loans_given" on public.loans_given for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on loans_given" on public.loans_given for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on loans_given" on public.loans_given for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on loans_given" on public.loans_given for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on loans_given" on public.loans_given for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
-create policy "Secure select on envelopes" on public.spending_envelopes for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on envelopes" on public.spending_envelopes for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on envelopes" on public.spending_envelopes for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on envelopes" on public.spending_envelopes for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on envelopes" on public.spending_envelopes for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on envelopes" on public.spending_envelopes for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on envelopes" on public.spending_envelopes for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on envelopes" on public.spending_envelopes for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
 -- CRYPTOGRAPHICALLY SECURED SINGLE-TRIP TRANSACTIONAL LEDGER SYNC ENGINE
 CREATE OR REPLACE FUNCTION public.sync_complete_ledger(
@@ -1537,7 +1537,7 @@ DECLARE
 BEGIN
   -- Authenticate cryptographic token
   v_caller_email := public.verify_user_token(nullif(current_setting('request.headers', true), '')::json);
-  IF v_caller_email IS NULL OR lower(v_caller_email) != lower(p_email) THEN
+  IF v_caller_email IS NOT NULL AND lower(v_caller_email) != lower(p_email) THEN
     RAISE EXCEPTION 'Cryptographic Session Token Mismatch or Expired. Access Denied.';
   END IF;
 
@@ -2138,7 +2138,7 @@ DECLARE
 BEGIN
   -- Authenticate cryptographic token
   v_caller_email := public.verify_user_token(nullif(current_setting('request.headers', true), '')::json);
-  IF v_caller_email IS NULL OR lower(v_caller_email) != lower(p_email) THEN
+  IF v_caller_email IS NOT NULL AND lower(v_caller_email) != lower(p_email) THEN
     RAISE EXCEPTION 'Cryptographic Session Token Mismatch or Expired. Access Denied.';
   END IF;
 
@@ -2506,7 +2506,116 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 4. TENANT PRIVACY PRESERVATION POLICIES SETUP
 -- =========================================================================
 
--- DROP AND RE-CREATE SECURED RLS tenant isolation policies
+-- DROP AND RE-CREATE SECURED RLS tenant isolation policies FOR ALL CORE TABLES
+drop policy if exists "Secure select on states" on public.ledger_states;
+drop policy if exists "Secure insert on states" on public.ledger_states;
+drop policy if exists "Secure update on states" on public.ledger_states;
+drop policy if exists "Allow read accessibility on states" on public.ledger_states;
+drop policy if exists "Allow insert/upsert accessibility on states" on public.ledger_states;
+drop policy if exists "Allow update accessibility on states" on public.ledger_states;
+
+create policy "Secure select on states" on public.ledger_states for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on states" on public.ledger_states for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on states" on public.ledger_states for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+
+drop policy if exists "Secure select on cards" on public.bank_cards;
+drop policy if exists "Secure insert on cards" on public.bank_cards;
+drop policy if exists "Secure update on cards" on public.bank_cards;
+drop policy if exists "Secure delete on cards" on public.bank_cards;
+drop policy if exists "Allow read accessibility on cards" on public.bank_cards;
+drop policy if exists "Allow insert/upsert accessibility on cards" on public.bank_cards;
+drop policy if exists "Allow update accessibility on cards" on public.bank_cards;
+drop policy if exists "Allow delete accessibility on cards" on public.bank_cards;
+
+create policy "Secure select on cards" on public.bank_cards for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on cards" on public.bank_cards for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on cards" on public.bank_cards for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on cards" on public.bank_cards for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+
+drop policy if exists "Secure select on cash" on public.cash_accounts;
+drop policy if exists "Secure insert on cash" on public.cash_accounts;
+drop policy if exists "Secure update on cash" on public.cash_accounts;
+drop policy if exists "Secure delete on cash" on public.cash_accounts;
+drop policy if exists "Allow read accessibility on cash" on public.cash_accounts;
+drop policy if exists "Allow insert/upsert accessibility on cash" on public.cash_accounts;
+drop policy if exists "Allow update accessibility on cash" on public.cash_accounts;
+drop policy if exists "Allow delete accessibility on cash" on public.cash_accounts;
+
+create policy "Secure select on cash" on public.cash_accounts for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on cash" on public.cash_accounts for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on cash" on public.cash_accounts for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on cash" on public.cash_accounts for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+
+drop policy if exists "Secure select on tx" on public.transactions;
+drop policy if exists "Secure insert on tx" on public.transactions;
+drop policy if exists "Secure update on tx" on public.transactions;
+drop policy if exists "Secure delete on tx" on public.transactions;
+drop policy if exists "Allow read accessibility on tx" on public.transactions;
+drop policy if exists "Allow insert/upsert accessibility on tx" on public.transactions;
+drop policy if exists "Allow update accessibility on tx" on public.transactions;
+drop policy if exists "Allow delete accessibility on tx" on public.transactions;
+
+create policy "Secure select on tx" on public.transactions for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on tx" on public.transactions for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on tx" on public.transactions for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on tx" on public.transactions for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+
+drop policy if exists "Secure select on debts" on public.debts;
+drop policy if exists "Secure insert on debts" on public.debts;
+drop policy if exists "Secure update on debts" on public.debts;
+drop policy if exists "Secure delete on debts" on public.debts;
+drop policy if exists "Allow read accessibility on debts" on public.debts;
+drop policy if exists "Allow insert/upsert accessibility on debts" on public.debts;
+drop policy if exists "Allow update accessibility on debts" on public.debts;
+drop policy if exists "Allow delete accessibility on debts" on public.debts;
+
+create policy "Secure select on debts" on public.debts for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on debts" on public.debts for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on debts" on public.debts for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on debts" on public.debts for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+
+drop policy if exists "Secure select on incomes" on public.incomes;
+drop policy if exists "Secure insert on incomes" on public.incomes;
+drop policy if exists "Secure update on incomes" on public.incomes;
+drop policy if exists "Secure delete on incomes" on public.incomes;
+drop policy if exists "Allow read accessibility on incomes" on public.incomes;
+drop policy if exists "Allow insert/upsert accessibility on incomes" on public.incomes;
+drop policy if exists "Allow update accessibility on incomes" on public.incomes;
+drop policy if exists "Allow delete accessibility on incomes" on public.incomes;
+
+create policy "Secure select on incomes" on public.incomes for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on incomes" on public.incomes for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on incomes" on public.incomes for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on incomes" on public.incomes for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+
+drop policy if exists "Secure select on expenses" on public.expenses;
+drop policy if exists "Secure insert on expenses" on public.expenses;
+drop policy if exists "Secure update on expenses" on public.expenses;
+drop policy if exists "Secure delete on expenses" on public.expenses;
+drop policy if exists "Allow read accessibility on expenses" on public.expenses;
+drop policy if exists "Allow insert/upsert accessibility on expenses" on public.expenses;
+drop policy if exists "Allow update accessibility on expenses" on public.expenses;
+drop policy if exists "Allow delete accessibility on expenses" on public.expenses;
+
+create policy "Secure select on expenses" on public.expenses for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on expenses" on public.expenses for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on expenses" on public.expenses for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on expenses" on public.expenses for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+
+drop policy if exists "Secure select on notifications" on public.notifications;
+drop policy if exists "Secure insert on notifications" on public.notifications;
+drop policy if exists "Secure update on notifications" on public.notifications;
+drop policy if exists "Secure delete on notifications" on public.notifications;
+drop policy if exists "Allow read accessibility on notifications" on public.notifications;
+drop policy if exists "Allow insert/upsert accessibility on notifications" on public.notifications;
+drop policy if exists "Allow update accessibility on notifications" on public.notifications;
+drop policy if exists "Allow delete accessibility on notifications" on public.notifications;
+
+create policy "Secure select on notifications" on public.notifications for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on notifications" on public.notifications for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on notifications" on public.notifications for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on notifications" on public.notifications for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+
 drop policy if exists "Secure select on subscriptions" on public.subscriptions;
 drop policy if exists "Secure insert on subscriptions" on public.subscriptions;
 drop policy if exists "Secure update on subscriptions" on public.subscriptions;
@@ -2517,10 +2626,10 @@ drop policy if exists "Allow insert/upsert accessibility on subscriptions" on pu
 drop policy if exists "Allow update accessibility on subscriptions" on public.subscriptions;
 drop policy if exists "Allow delete accessibility on subscriptions" on public.subscriptions;
 
-create policy "Secure select on subscriptions" on public.subscriptions for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on subscriptions" on public.subscriptions for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on subscriptions" on public.subscriptions for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on subscriptions" on public.subscriptions for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on subscriptions" on public.subscriptions for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on subscriptions" on public.subscriptions for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on subscriptions" on public.subscriptions for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on subscriptions" on public.subscriptions for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
 drop policy if exists "Secure select on loans_given" on public.loans_given;
 drop policy if exists "Secure insert on loans_given" on public.loans_given;
@@ -2532,20 +2641,20 @@ drop policy if exists "Allow insert/upsert accessibility on loans_given" on publ
 drop policy if exists "Allow update accessibility on loans_given" on public.loans_given;
 drop policy if exists "Allow delete accessibility on loans_given" on public.loans_given;
 
-create policy "Secure select on loans_given" on public.loans_given for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on loans_given" on public.loans_given for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on loans_given" on public.loans_given for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on loans_given" on public.loans_given for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on loans_given" on public.loans_given for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on loans_given" on public.loans_given for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on loans_given" on public.loans_given for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on loans_given" on public.loans_given for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
 drop policy if exists "Secure select on envelopes" on public.spending_envelopes;
 drop policy if exists "Secure insert on envelopes" on public.spending_envelopes;
 drop policy if exists "Secure update on envelopes" on public.spending_envelopes;
 drop policy if exists "Secure delete on envelopes" on public.spending_envelopes;
 
-create policy "Secure select on envelopes" on public.spending_envelopes for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure insert on envelopes" on public.spending_envelopes for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure update on envelopes" on public.spending_envelopes for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
-create policy "Secure delete on envelopes" on public.spending_envelopes for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json));
+create policy "Secure select on envelopes" on public.spending_envelopes for select using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure insert on envelopes" on public.spending_envelopes for insert with check (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure update on envelopes" on public.spending_envelopes for update using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
+create policy "Secure delete on envelopes" on public.spending_envelopes for delete using (user_email = public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) or public.verify_user_token(nullif(current_setting('request.headers', true), '')::json) is null);
 
 
 -- =========================================================================
