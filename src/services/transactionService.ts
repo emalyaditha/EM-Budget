@@ -30,7 +30,22 @@ export const transactionService = {
     return [...transactions].sort((a, b) => {
       const timeA = new Date(a.date).getTime();
       const timeB = new Date(b.date).getTime();
-      return order === 'desc' ? timeB - timeA : timeA - timeB;
+      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) {
+        return order === 'desc' ? timeB - timeA : timeA - timeB;
+      }
+
+      const dateCompare = (b.date || '').localeCompare(a.date || '');
+      if (dateCompare !== 0) {
+        return order === 'desc' ? dateCompare : -dateCompare;
+      }
+
+      const aNum = parseInt((a.id || '').replace(/\D/g, ''), 10);
+      const bNum = parseInt((b.id || '').replace(/\D/g, ''), 10);
+      if (!isNaN(aNum) && !isNaN(bNum) && aNum !== bNum) {
+        return order === 'desc' ? bNum - aNum : aNum - bNum;
+      }
+
+      return order === 'desc' ? (b.id || '').localeCompare(a.id || '') : (a.id || '').localeCompare(b.id || '');
     });
   },
 

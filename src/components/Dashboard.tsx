@@ -538,8 +538,8 @@ export default function Dashboard({
               </div>
             ) : (
               [
-                ...state.transactions.map(t => ({ ...t, logType: 'transaction' as const })),
-                ...state.loansGiven.map(l => ({ 
+                ...state.transactions.map((t, idx) => ({ ...t, logType: 'transaction' as const, originalIdx: idx })),
+                ...state.loansGiven.map((l, idx) => ({ 
                     id: l.id, 
                     type: 'expense' as const, 
                     title: `Loan Given: ${l.borrowerName}`, 
@@ -547,9 +547,10 @@ export default function Dashboard({
                     date: l.dateGiven, 
                     category: 'Loan', 
                     logType: 'loan' as const,
-                    accountType: l.sourceAccountType
+                    accountType: l.sourceAccountType,
+                    originalIdx: idx
                 })),
-                ...state.loansGiven.flatMap(l => l.settlements.map(s => ({
+                ...state.loansGiven.flatMap((l, lIdx) => l.settlements.map((s, sIdx) => ({
                     id: s.id,
                     type: 'income' as const,
                     title: `Loan Settle: ${l.borrowerName}`,
@@ -557,10 +558,32 @@ export default function Dashboard({
                     date: s.date,
                     category: 'Loan Settle',
                     logType: 'settlement' as const,
-                    accountType: s.receivedInType
+                    accountType: s.receivedInType,
+                    originalIdx: lIdx * 100 + sIdx
                 })))
               ]
-                .sort((a, b) => b.date.localeCompare(a.date))
+                .sort((a, b) => {
+                  const timeA = new Date(a.date).getTime();
+                  const timeB = new Date(b.date).getTime();
+                  if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) {
+                    return timeB - timeA;
+                  }
+
+                  const dateCompare = (b.date || '').localeCompare(a.date || '');
+                  if (dateCompare !== 0) return dateCompare;
+
+                  const aNum = parseInt((a.id || '').replace(/\D/g, ''), 10);
+                  const bNum = parseInt((b.id || '').replace(/\D/g, ''), 10);
+                  if (!isNaN(aNum) && !isNaN(bNum) && aNum !== bNum) {
+                    return bNum - aNum;
+                  }
+
+                  if (a.originalIdx !== undefined && b.originalIdx !== undefined && a.originalIdx !== b.originalIdx) {
+                    return a.originalIdx - b.originalIdx;
+                  }
+
+                  return (b.id || '').localeCompare(a.id || '');
+                })
                 .slice(0, 5)
                 .map((t) => {
                   const isInc = t.type === 'income' || t.type === 'deposit' || t.type === 'financing' || (t.type === 'transfer' && t.amount > 0);
