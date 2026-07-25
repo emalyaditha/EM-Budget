@@ -139,7 +139,7 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
           </div>
           <div>
             <h4 className="text-xs font-bold text-white font-sans uppercase tracking-wider">AI Receipt & Bill Scanner</h4>
-            <p className="text-[10px] text-zinc-500 font-medium">Extract inflow/outflow info using gemini-3.1-pro-preview</p>
+            <p className="text-[10px] text-zinc-500 font-medium">Extract inflow/outflow info using gemini-3.6-flash</p>
           </div>
         </div>
         {imagePreview && (

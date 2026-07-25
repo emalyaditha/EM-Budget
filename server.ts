@@ -1132,7 +1132,7 @@ Return a JSON object matching this schema:
 }`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3.6-flash",
         contents: [
           {
             inlineData: {
