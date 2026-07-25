@@ -6,18 +6,20 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { createServer as createViteServer } from "vite";
+import { GoogleGenAI } from "@google/genai";
 
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: "20mb" }));
+  app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
   // Cryptographic Signature Vault Systems (OWASP Level Protection)
-  const SESSION_SECRET = process.env.SESSION_SECRET || "vault_secure_suite_signature_key_2026_x92";
-  if (!process.env.SESSION_SECRET) {
-    console.warn("⚠️ WARNING: The SESSION_SECRET environment variable is missing!");
-    console.warn("Using default fallback signature key for development. For production deployments, please set SESSION_SECRET in your settings.");
+  const SESSION_SECRET = process.env.SESSION_SECRET;
+  if (!SESSION_SECRET) {
+    console.error("❌ CRITICAL SECURITY ERROR: The SESSION_SECRET environment variable is missing! The server cannot start without a secure SESSION_SECRET.");
+    process.exit(1);
   }
 
   function generateSecureToken(email: string, durationMs = 24 * 60 * 60 * 1000): string {
@@ -187,56 +189,43 @@ async function startServer() {
 
   // Helper to fetch Supabase client (Strict production-level environmental configs only)
   const getSupabase = (req?: express.Request) => {
-    const isDev = process.env.NODE_ENV !== "production";
-    
-    let rawUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
-    let rawKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "").trim();
+    let url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
+    let key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "").trim();
     
     // Auto-swapped or misconfigured variable detection
-    if (rawUrl.startsWith("eyJ") && (rawKey.startsWith("http://") || rawKey.startsWith("https://"))) {
-      const temp = rawUrl;
-      rawUrl = rawKey;
-      rawKey = temp;
-    } else if (rawUrl.startsWith("eyJ") && (!rawKey || rawKey === "")) {
-      rawKey = rawUrl;
-      rawUrl = "";
+    if (url.startsWith("eyJ") && (key.startsWith("http://") || key.startsWith("https://"))) {
+      const temp = url;
+      url = key;
+      key = temp;
     }
     
-    // Decode JWT to extract the Project Reference ID if URL is missing or incorrect
-    if (!rawUrl || rawUrl.startsWith("eyJ")) {
-      const keyToDecode = rawUrl.startsWith("eyJ") ? rawUrl : rawKey;
-      if (keyToDecode && keyToDecode.startsWith("eyJ")) {
-        try {
-          const parts = keyToDecode.split('.');
-          if (parts.length >= 2) {
-            const payloadStr = Buffer.from(parts[1], 'base64url').toString('utf8');
-            const payload = JSON.parse(payloadStr);
-            if (payload && payload.ref) {
-              rawUrl = `https://${payload.ref}.supabase.co`;
-              console.log(`[Supabase Autocorrect] Extracted URL from JWT: ${rawUrl}`);
+    // Decode JWT to extract the Project Reference ID if URL is a JWT
+    if (url.startsWith("eyJ")) {
+      try {
+        const parts = url.split('.');
+        if (parts.length >= 2) {
+          const payloadStr = Buffer.from(parts[1], 'base64url').toString('utf8');
+          const payload = JSON.parse(payloadStr);
+          if (payload && payload.ref) {
+            if (!key || key === "" || key === url) {
+              key = url;
             }
+            url = `https://${payload.ref}.supabase.co`;
+            console.log(`[Supabase Autocorrect] Extracted URL from JWT: ${url}`);
           }
-        } catch (e) {
-          console.error("[Supabase Autocorrect] Failed to decode JWT payload:", e);
         }
+      } catch (e) {
+        console.error("[Supabase Autocorrect] Failed to decode JWT payload:", e);
       }
     }
     
-    // Final fallback to the hardcoded default reference if rawUrl is still not valid
-    if (!rawUrl || (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://"))) {
-      rawUrl = "https://iivdlgbztzthjbjzzjna.supabase.co";
+    // Final fallback to the hardcoded default reference if url is still not valid
+    if (!url || (!url.startsWith("http://") && !url.startsWith("https://"))) {
+      url = "https://iivdlgbztzthjbjzzjna.supabase.co";
     }
     
-    const url = rawUrl;
-    const key = rawKey;
-    
-    console.log(`[Supabase Debug] Initialization attempt.`);
-    console.log(`[Supabase Debug] isDev: '${isDev}'`);
-    console.log(`[Supabase Debug] url: '${url}'`);
-    console.log(`[Supabase Debug] key length: ${key ? key.length : 0}`);
-    
     if (!url || !key) {
-      console.log(`[Supabase Debug] Missing URL or Key. Returning null.`);
+      console.error("[Supabase Error] Missing Supabase URL or Key environment variables!");
       return null;
     }
     
@@ -657,26 +646,6 @@ async function startServer() {
       const enteredOtp = otp.trim();
       const supabase = getSupabase(req);
 
-      // Check for predefined persistent Master Security PIN/Passcode (restricted to secure env settings)
-      const masterPin = process.env.SECURITY_PIN || process.env.MASTER_PIN;
-      let matchesMaster = false;
-      if (masterPin && enteredOtp === masterPin.trim()) {
-        matchesMaster = true;
-      }
-
-      if (matchesMaster) {
-        let deviceTokenStr = undefined;
-        if (!forRegistrationOrReset) {
-          deviceTokenStr = crypto.randomUUID();
-          await saveDeviceToken(deviceTokenStr, supabase);
-        }
-        res.json({
-          success: true,
-          token: !forRegistrationOrReset ? generateSecureToken(normalizedEmail) : undefined,
-          deviceToken: deviceTokenStr
-        });
-        return;
-      }
 
       const saved = await getOtpFromDb(normalizedEmail, false, supabase);
       if (!saved) {
@@ -734,19 +703,14 @@ async function startServer() {
       const normalizedEmail = email.trim().toLowerCase();
       const supabase = getSupabase(req);
       
-      const masterPin = process.env.SECURITY_PIN || process.env.MASTER_PIN;
       const enteredOtp = otp.trim();
       let isValidOtp = false;
 
-      if (masterPin && enteredOtp === masterPin.trim()) {
+      const saved = await getOtpFromDb(normalizedEmail, false, supabase);
+      const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+      if (saved && saved.otp === enteredHash && Date.now() <= saved.expiresAt) {
         isValidOtp = true;
-      } else {
-        const saved = await getOtpFromDb(normalizedEmail, false, supabase);
-        const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-        if (saved && saved.otp === enteredHash && Date.now() <= saved.expiresAt) {
-          isValidOtp = true;
-          await deleteOtpFromDb(normalizedEmail, false, supabase); // consume OTP
-        }
+        await deleteOtpFromDb(normalizedEmail, false, supabase); // consume OTP
       }
 
       if (!isValidOtp) {
@@ -838,19 +802,14 @@ async function startServer() {
       const normalizedEmail = email.trim().toLowerCase();
       const supabase = getSupabase(req);
       
-      const masterPin = process.env.SECURITY_PIN || process.env.MASTER_PIN;
       const enteredOtp = otp.trim();
       let isValidOtp = false;
 
-      if (masterPin && enteredOtp === masterPin.trim()) {
+      const saved = await getOtpFromDb(normalizedEmail, false, supabase);
+      const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+      if (saved && saved.otp === enteredHash && Date.now() <= saved.expiresAt) {
         isValidOtp = true;
-      } else {
-        const saved = await getOtpFromDb(normalizedEmail, false, supabase);
-        const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-        if (saved && saved.otp === enteredHash && Date.now() <= saved.expiresAt) {
-          isValidOtp = true;
-          await deleteOtpFromDb(normalizedEmail, false, supabase); // consume OTP
-        }
+        await deleteOtpFromDb(normalizedEmail, false, supabase); // consume OTP
       }
 
       if (!isValidOtp) {
@@ -1046,17 +1005,6 @@ async function startServer() {
       const enteredOtp = otp.trim();
       const supabase = getSupabase(req);
 
-      const masterPin = process.env.SECURITY_PIN || process.env.MASTER_PIN;
-      let matchesMaster = false;
-      if (masterPin && enteredOtp === masterPin.trim()) {
-        matchesMaster = true;
-      }
-
-      if (matchesMaster) {
-        res.json({ success: true });
-        return;
-      }
-
       const saved = await getOtpFromDb(normalizedEmail, true, supabase);
       if (!saved) {
         res.status(401).json({ success: false, error: "No active deletion passcode found. Please request a new code." });
@@ -1110,6 +1058,108 @@ async function startServer() {
       supabaseUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "",
       supabaseKey: process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ""
     });
+  });
+
+  // Expose endpoint for SettingsModal to load SQL migration script
+  app.get("/api/config/sql", (req: express.Request, res: express.Response) => {
+    try {
+      const sqlPath = path.join(process.cwd(), "supabase/migrations/20260725_init.sql");
+      const sqlContent = fs.readFileSync(sqlPath, "utf8");
+      res.json({ success: true, sql: sqlContent });
+    } catch (e: any) {
+      console.error("[Error] Failed loading SQL migration script from file:", e.message || e);
+      res.status(500).json({ success: false, error: "Failed to load SQL migration script." });
+    }
+  });
+
+  // Gemini image analysis endpoint for receipts/invoices
+  app.post("/api/gemini/analyze-image", async (req: express.Request, res: express.Response) => {
+    try {
+      const { image, mimeType } = req.body;
+      
+      if (!image) {
+        res.status(400).json({ success: false, error: "Image data is required." });
+        return;
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        res.status(400).json({ 
+          success: false, 
+          error: "Gemini API Key is not configured. Please supply a valid GEMINI_API_KEY inside Settings > Secrets." 
+        });
+        return;
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      // Strip potential base64 prefix
+      let base64Data = image;
+      if (base64Data.includes(";base64,")) {
+        base64Data = base64Data.split(";base64,").pop() || "";
+      }
+
+      // Default the mimeType if not specified
+      const resolvedMimeType = mimeType || "image/jpeg";
+
+      const prompt = `Analyze this receipt, invoice, bill, or financial document. You must extract transaction details and categorize it accurately.
+
+Map the category to one of the following exact categories:
+- For income: 'Salary', 'Freelance', 'Business', 'Bonus', 'Commission', 'Loan Settle', 'Other'
+- For expense: 'Food', 'Transport', 'Shopping', 'Utilities', 'Rent', 'Entertainment', 'Medical', 'Education', 'Insurance', 'Loan', 'Bank Charges & Interest', 'Other'
+
+Extract the date in YYYY-MM-DD format. If no date is found, use the current date (which is 2026-07-25).
+The amount must be a positive number.
+The title should be a brief, descriptive name of the merchant/source (e.g. "Walmart", "McDonald's", "Landlord", "Employer").
+Provide a descriptive summary in the description field.
+
+Return a JSON object matching this schema:
+{
+  "transactionType": "income" | "expense",
+  "title": string,
+  "amount": number,
+  "date": string (YYYY-MM-DD),
+  "category": string,
+  "description": string,
+  "bankCharge": number (optional, default 0)
+}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-pro-preview",
+        contents: [
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: resolvedMimeType
+            }
+          },
+          { text: prompt }
+        ],
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.1,
+        }
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error("Empty response from Gemini Model.");
+      }
+
+      // Try to parse the output as JSON
+      const parsedData = JSON.parse(text);
+      res.json({ success: true, data: parsedData });
+    } catch (err: any) {
+      console.error("[Gemini Image Analysis Error]", err.message || err);
+      res.status(500).json({ success: false, error: err.message || "Failed to analyze image using Gemini." });
+    }
   });
 
   // Vite middleware for development or Static Asset hosting for production

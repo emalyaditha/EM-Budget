@@ -3,6 +3,7 @@ import { CashAccount, BankCard, CategoryIncome, CategoryExpense } from '../types
 import { PlusCircle, MinusCircle, Wallet, CreditCard, Calendar, RefreshCcw, Landmark, ShieldAlert, Tag, Sparkles } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
+import ReceiptScanner from './ReceiptScanner';
 
 interface InflowsOutflowsProps {
   cashAccounts: CashAccount[];
@@ -274,6 +275,44 @@ export default function InflowsOutflows({
     }
   };
 
+  const handleScanSuccess = (data: {
+    transactionType: 'income' | 'expense';
+    title: string;
+    amount: number;
+    date: string;
+    category: string;
+    description: string;
+    bankCharge?: number;
+  }) => {
+    if (data.transactionType === 'income') {
+      setToggleForm('income');
+      setIncSource(data.title || '');
+      setIncAmount(data.amount ? data.amount.toString() : '');
+      // Ensure category is lowercase-matched or fallback if direct match fails
+      const categories: CategoryIncome[] = ['Salary', 'Freelance', 'Business', 'Bonus', 'Commission', 'Other'];
+      const matchedCat = categories.find(c => c.toLowerCase() === data.category.toLowerCase()) || 'Other';
+      setIncCategory(matchedCat);
+      if (data.date) {
+        setIncDate(data.date);
+      }
+    } else {
+      setToggleForm('expense');
+      setExpTitle(data.title || '');
+      setExpDesc(data.description || '');
+      setExpAmount(data.amount ? data.amount.toString() : '');
+      // Ensure category is lowercase-matched or fallback if direct match fails
+      const categories: CategoryExpense[] = ['Food', 'Transport', 'Shopping', 'Utilities', 'Rent', 'Entertainment', 'Medical', 'Education', 'Insurance', 'Other'];
+      const matchedCat = categories.find(c => c.toLowerCase() === data.category.toLowerCase()) || 'Other';
+      setExpCategory(matchedCat);
+      if (data.date) {
+        setExpDate(data.date);
+      }
+      if (data.bankCharge) {
+        setExpBankCharge(data.bankCharge.toString());
+      }
+    }
+  };
+
   return (
     <div id="inflows-outflows-view" className="space-y-6 animate-fade-in">
       
@@ -306,6 +345,9 @@ export default function InflowsOutflows({
           Settle Outflow
         </button>
       </div>
+
+      {/* AI Receipt Scanner Dropzone */}
+      <ReceiptScanner onScanSuccess={handleScanSuccess} currency={currency} />
 
       {/* 2. FORM MODULES */}
       <div className="bg-gradient-to-br from-[#0c0c0f] to-zinc-950 border border-[var(--border-primary)] rounded-[32px] p-6 shadow-2xl relative">

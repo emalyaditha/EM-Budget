@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
 import { exportStateAsJSON } from './utils';
@@ -7,7 +8,7 @@ import {
   TrendingUp, User, Lock, Unlock, Settings, HelpCircle, RefreshCw, 
   FileDown, Share2, Landmark, ShieldAlert, ArrowUpRight, ArrowDownLeft,
   DollarSign, CircleDot, Database, CheckSquare, Zap, BadgeCheck, AlertCircle,
-  Cloud, CloudOff, ArrowRightLeft, Sun, Moon, Menu, LogOut
+  Cloud, CloudOff, ArrowRightLeft, Sun, Moon, Menu, LogOut, MoreHorizontal
 } from 'lucide-react';
 
 import EmailLogin from './components/EmailLogin';
@@ -54,6 +55,7 @@ export default function App() {
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
   // Supabase real-time status tracker
   const [realtimeSyncStatus, setRealtimeSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error' | 'disabled'>('idle');
@@ -2379,91 +2381,157 @@ export default function App() {
               </div>
             )}
 
+            {/* Popover More Menu Dropdown */}
+            <AnimatePresence>
+              {isMoreMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-20 left-4 right-4 bg-[#0a0a0f] border border-zinc-800 rounded-2xl p-2.5 space-y-1 shadow-2xl z-40"
+                  id="desktop-more-dropdown-menu"
+                >
+                  <div className="px-2.5 py-1.5 border-b border-zinc-900 mb-1.5 text-left">
+                    <span className="text-[9px] text-[var(--accent-primary)] font-mono font-bold tracking-widest uppercase block mb-0.5">VAULT COMMANDS</span>
+                    <span className="text-[10px] text-zinc-400 font-medium font-sans truncate block">{userEmail || 'Client Local'}</span>
+                  </div>
+
+                  {/* Profile Button */}
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(true);
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="w-full text-left py-2 px-2.5 hover:bg-zinc-900/60 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white transition-all flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <User size={13} className="text-indigo-400" />
+                    <span>My Profile</span>
+                  </button>
+
+                  {/* Settings Button */}
+                  <button
+                    onClick={() => {
+                      setIsSettingsOpen(true);
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="w-full text-left py-2 px-2.5 hover:bg-zinc-900/60 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white transition-all flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <Settings size={13} className="text-zinc-400" />
+                    <span>App Settings</span>
+                  </button>
+
+                  {/* Notifications Alerts Button */}
+                  <button
+                    onClick={() => {
+                      setIsNotifOpen(true);
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="w-full text-left py-2 px-2.5 hover:bg-zinc-900/60 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white transition-all flex items-center justify-between cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Bell size={13} className="text-amber-400" />
+                      <span>Alerts Center</span>
+                    </div>
+                    {state.notifications.filter(n => !n.read).length > 0 && (
+                      <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                    )}
+                  </button>
+
+                  {/* Toggle Theme */}
+                  <button
+                    onClick={() => {
+                      toggleTheme();
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="w-full text-left py-2 px-2.5 hover:bg-zinc-900/60 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white transition-all flex items-center gap-2.5 cursor-pointer"
+                  >
+                    {theme === 'dark' ? (
+                      <>
+                        <Sun size={13} className="text-yellow-400" />
+                        <span>Switch to Light</span>
+                      </>
+                    ) : (
+                      <>
+                        <Moon size={13} className="text-indigo-400" />
+                        <span>Switch to Dark</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Logout Button */}
+                  <button
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      localStorage.removeItem('auth_user_email');
+                      localStorage.removeItem('auth_session_token');
+                      localStorage.removeItem('auth_device_token');
+                      resetLoadedFromCloud();
+                      setState(DEFAULT_APP_STATE);
+                      setIsUnlocked(false);
+                    }}
+                    className="w-full text-left py-2 px-2.5 hover:bg-rose-950/20 text-[var(--negative)] hover:text-rose-400 rounded-xl text-xs font-semibold transition-all flex items-center gap-2.5 cursor-pointer border-t border-zinc-900 pt-2 mt-1"
+                  >
+                    <LogOut size={13} />
+                    <span>Disconnect Session</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Sidebar bottom control buttons */}
             {!isNavCollapsed ? (
-              <div className="flex items-center justify-between border-t border-[var(--border-primary)]/60 pt-3">
-                <button 
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-[var(--border-primary)]/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer"
-                  title="Application Settings"
-                >
-                  <Settings size={13} />
-                </button>
-                <button 
-                  onClick={() => setIsNotifOpen(true)}
-                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-[var(--border-primary)]/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer relative"
-                  title="Notification Alerts Center"
-                >
-                  <Bell size={13} />
-                  {state.notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                  )}
-                </button>
-                <button 
+              <div className="flex items-center justify-between border-t border-[var(--border-primary)]/60 pt-3.5 relative" id="desktop-sidebar-bottom-trigger">
+                {/* Profile Card Trigger */}
+                <button
                   onClick={() => setIsProfileOpen(true)}
-                  className="w-7 h-7 rounded-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-slate-950 font-bold transition-all cursor-pointer overflow-hidden border border-zinc-700 flex items-center justify-center shrink-0"
-                  title="Profile Suite"
+                  className="flex items-center gap-2 text-left hover:opacity-80 transition-all cursor-pointer overflow-hidden shrink min-w-0"
                 >
-                  {state.userProfile?.avatarUrl ? (
-                    <img 
-                      src={state.userProfile.avatarUrl} 
-                      alt={state.userProfile.name} 
-                      className="w-full h-full object-cover animate-fade-in" 
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    state.userProfile?.name?.charAt(0) || 'U'
-                  )}
+                  <div className="w-7 h-7 rounded-full bg-[var(--accent-primary)] text-slate-950 font-bold overflow-hidden border border-zinc-700 flex items-center justify-center shrink-0">
+                    {state.userProfile?.avatarUrl ? (
+                      <img 
+                        src={state.userProfile.avatarUrl} 
+                        alt={state.userProfile.name} 
+                        className="w-full h-full object-cover" 
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      state.userProfile?.name?.charAt(0) || 'U'
+                    )}
+                  </div>
+                  <div className="truncate text-left min-w-0">
+                    <p className="text-[11px] font-bold text-zinc-300 leading-none truncate">{state.userProfile?.name || 'Owner Profile'}</p>
+                    <p className="text-[8.5px] text-zinc-500 font-mono leading-none mt-1 truncate">{userEmail || 'Local Vault'}</p>
+                  </div>
                 </button>
+
+                {/* More Icon Trigger */}
                 <button 
-                  onClick={() => {
-                    localStorage.removeItem('auth_user_email');
-                    localStorage.removeItem('auth_session_token');
-                    localStorage.removeItem('auth_device_token');
-                    resetLoadedFromCloud();
-                    setState(DEFAULT_APP_STATE);
-                    setIsUnlocked(false);
-                  }}
-                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-[var(--border-primary)]/60 hover:border-[var(--border-primary)] text-[var(--negative)] hover:text-rose-400 transition-all cursor-pointer"
-                  title="Disconnect Identity"
+                  onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                  className={`p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
+                    isMoreMenuOpen 
+                      ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-slate-950' 
+                      : 'bg-zinc-900/50 hover:bg-zinc-900 border-[var(--border-primary)]/60 hover:border-zinc-700 text-zinc-400 hover:text-white'
+                  }`}
+                  title="More Options"
+                  id="sidebar-more-button-desktop"
                 >
-                  <LogOut size={13} />
+                  <MoreHorizontal size={13} />
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-3 border-t border-[var(--border-primary)]/60 pt-3">
+              <div className="flex flex-col items-center gap-3 border-t border-[var(--border-primary)]/60 pt-3.5 relative" id="desktop-sidebar-bottom-trigger-collapsed">
                 <button 
-                  onClick={() => setIsNotifOpen(true)}
-                  className="p-2.5 rounded-xl bg-zinc-900/50 hover:bg-zinc-900 border border-[var(--border-primary)]/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer relative"
-                  title="Notification Alerts Center"
+                  onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                  className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+                    isMoreMenuOpen
+                      ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-slate-950'
+                      : 'bg-zinc-900/50 hover:bg-zinc-900 border-[var(--border-primary)]/60 hover:border-zinc-700 text-zinc-400 hover:text-white'
+                  }`}
+                  title="More Options"
+                  id="sidebar-more-button-desktop-collapsed"
                 >
-                  <Bell size={13} />
-                  {state.notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                  )}
-                </button>
-                <button 
-                  onClick={() => setIsProfileOpen(true)}
-                  className="w-7 h-7 rounded-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-slate-950 font-bold transition-all cursor-pointer overflow-hidden border border-zinc-700 flex items-center justify-center"
-                  title="Profile Suite"
-                >
-                  {state.userProfile?.avatarUrl ? (
-                    <img 
-                      src={state.userProfile.avatarUrl} 
-                      alt={state.userProfile.name} 
-                      className="w-full h-full object-cover animate-fade-in" 
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    state.userProfile?.name?.charAt(0) || 'U'
-                  )}
-                </button>
-                <button 
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-[var(--border-primary)]/60 hover:border-zinc-700 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center"
-                  title="Application Settings"
-                >
-                  <Settings size={13} />
+                  <MoreHorizontal size={13} />
                 </button>
               </div>
             )}

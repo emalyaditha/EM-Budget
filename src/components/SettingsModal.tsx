@@ -11,8 +11,6 @@ import {
   saveSupabaseConfig, 
   syncStateToSupabase, 
   syncStateFromSupabase, 
-  getSupabaseSQLScript,
-  getSupabaseUpgradeSQLScript,
   truncateAllDataInSupabase
 } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
@@ -63,6 +61,7 @@ export default function SettingsModal({
   const [sqlCopied, setSqlCopied] = useState(false);
   const [flutterCopied, setFlutterCopied] = useState(false);
   const [upgradeCopied, setUpgradeCopied] = useState(false);
+  const [sqlScript, setSqlScript] = useState('');
 
   // Authenticated email passed via props
 
@@ -79,6 +78,16 @@ export default function SettingsModal({
       setPurgeOtp('');
       setPurgeError(null);
       setPurgeDevOtp(null);
+
+      // Fetch dynamic SQL migration script from backend
+      fetch('/api/config/sql')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setSqlScript(data.sql);
+          }
+        })
+        .catch(err => console.error("Error fetching SQL script:", err));
     }
   }, [isOpen]);
 
@@ -513,10 +522,10 @@ class CloudSyncService {
                       </p>
                       <div className="relative">
                         <pre className="p-3 bg-zinc-950 rounded-xl overflow-x-auto text-[10px] text-emerald-400/90 font-mono border border-zinc-900 whitespace-pre scrollbar-none" style={{ maxHeight: '180px' }}>
-                          {getSupabaseSQLScript()}
+                          {sqlScript || '-- Loading SQL from backend...'}
                         </pre>
                         <button
-                          onClick={() => copyToClipboard(getSupabaseSQLScript(), 'sql')}
+                          onClick={() => copyToClipboard(sqlScript, 'sql')}
                           className="absolute right-2 top-2 p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded transition-colors"
                           title="Copy SQL Query"
                         >
@@ -581,10 +590,10 @@ class CloudSyncService {
                       </p>
                       <div className="relative">
                         <pre className="p-3 bg-zinc-950 rounded-xl overflow-x-auto text-[10px] text-emerald-400/90 font-mono border border-zinc-900 whitespace-pre scrollbar-none" style={{ maxHeight: '180px' }}>
-                          {getSupabaseUpgradeSQLScript()}
+                          {sqlScript || '-- Loading SQL from backend...'}
                         </pre>
                         <button
-                          onClick={() => copyToClipboard(getSupabaseUpgradeSQLScript(), 'upgrade')}
+                          onClick={() => copyToClipboard(sqlScript, 'upgrade')}
                           className="absolute right-2 top-2 p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded transition-colors"
                           title="Copy Upgrade Migration"
                         >
