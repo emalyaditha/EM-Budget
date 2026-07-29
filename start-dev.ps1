@@ -1,0 +1,10 @@
+$env:SESSION_SECRET="a492f8b1c7dc4a82b95c06feee482810"
+$env:SMTP_FROM="emalyaditha@gmail.com"
+$env:SMTP_HOST="smtp.gmail.com"
+$env:SMTP_PASS="jwdm poyy uqqm sjnc"
+$env:SMTP_PORT="587"
+$env:SMTP_USER="emalyaditha@gmail.com"
+$env:VITE_SUPABASE_URL="https://iivdlgbztzthjbjzzjna.supabase.co"
+$env:VITE_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpdmRsZ2J6dHp0aGpianp6am5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNjMzMzcsImV4cCI6MjA5NTczOTMzN30.lSBWupTcWaevvWGEXcdfaCrCXiz9B0QA6yiUhLosEi0"
+$env:SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpdmRsZ2J6dHp0aGpianp6am5hIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDE2MzMzNywiZXhwIjoyMDk1NzM5MzM3fQ.utsJSEoVnFpTfV85jvx6DjK0RO39jSEhR41_87V1si4"
+npx tsx server.ts
