@@ -1158,7 +1158,11 @@ Return a JSON object matching this schema:
       res.json({ success: true, data: parsedData });
     } catch (err: any) {
       console.error("[Gemini Image Analysis Error]", err.message || err);
-      res.status(500).json({ success: false, error: err.message || "Failed to analyze image using Gemini." });
+      let errMsg = err.message || "Failed to analyze image using Gemini.";
+      if (typeof errMsg === "string" && (errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("prepayment credits") || errMsg.includes("429"))) {
+        errMsg = "Gemini API Quota / Prepayment Credits Depleted. Please top up your billing credits in Google AI Studio or update your GEMINI_API_KEY in Settings > Secrets.";
+      }
+      res.status(500).json({ success: false, error: errMsg });
     }
   });
 
