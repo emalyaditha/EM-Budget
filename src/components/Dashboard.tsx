@@ -204,7 +204,7 @@ export default function Dashboard({
     const due = new Date(dueDateStr);
     due.setHours(0,0,0,0);
     const diffTime = due.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
       return { label: `Overdue (${Math.abs(diffDays)}d)`, style: 'text-[var(--negative)] border border-[var(--negative)]/20 bg-[var(--negative)]/10' };

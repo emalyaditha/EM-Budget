@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Transaction, Income, Expense, Debt, CashAccount, BankCard, LoanGiven } from '../types';
+import { Transaction, Income, Expense, Debt, CashAccount, BankCard, LoanGiven, Subscription } from '../types';
 import { exportTransactionsToCSV, EXPENSE_COLORS, INCOME_COLORS } from '../utils';
 import { 
   FileDown, Printer, BarChart3, TrendingUp, Award, Calendar, 
   DollarSign, PieChart, Landmark, Search, ChevronDown, ChevronUp, 
-  Filter, CheckSquare, Sparkles, BookOpen
+  Filter, CheckSquare, Sparkles, BookOpen, ShieldCheck, AlertTriangle,
+  CheckCircle2, XCircle, RotateCw, Clock, Coins, ShieldAlert
 } from 'lucide-react';
 import { IncomeVsExpenseBar, CategorySpreadAnalysis, TrendAnalysisChart } from './Charts';
 import { DatePicker } from './DatePicker';
+import AuditPanel from './AuditPanel';
 
 interface ReportsCentreProps {
   transactions: Transaction[];
@@ -19,6 +21,9 @@ interface ReportsCentreProps {
   cards: BankCard[];
   currency: string;
   onSelectTransaction: (id: string) => void;
+  subscriptions?: Subscription[];
+  onToggleSubscriptionStatus?: (id: string, currentStatus: 'Active' | 'Paused' | 'Cancelled') => void;
+  onPaySubscription?: (subId: string, accountId: string, accountType: 'cash' | 'card', paymentDate: string, bankCharge?: number) => void;
 }
 
 export default function ReportsCentre({
@@ -31,8 +36,11 @@ export default function ReportsCentre({
   cards,
   currency,
   onSelectTransaction,
+  subscriptions = [],
+  onToggleSubscriptionStatus,
+  onPaySubscription,
 }: ReportsCentreProps) {
-  const [reportType, setReportType] = useState<'monthly' | 'yearly' | 'category' | 'debt'>('monthly');
+  const [reportType, setReportType] = useState<'monthly' | 'yearly' | 'category' | 'debt' | 'audit'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [selectedYear, setSelectedYear] = useState('2026');
 
@@ -157,12 +165,13 @@ export default function ReportsCentre({
     <div id="reports-centre-view" className="space-y-6 animate-fade-in">
       
       {/* 1. Category Switch Header (Glassmorphic Selection Bar) */}
-      <div className="grid grid-cols-4 p-1.5 bg-[#0a0a0f] border border-[var(--border-primary)] rounded-[20px] text-center" id="reports-type-selectors">
+      <div className="grid grid-cols-5 p-1.5 bg-[#0a0a0f] border border-[var(--border-primary)] rounded-[20px] text-center" id="reports-type-selectors">
         {[
-          { key: 'monthly', label: 'Monthly Report' },
-          { key: 'yearly', label: 'Annual Analytics' },
-          { key: 'category', label: 'Category Split' },
-          { key: 'debt', label: 'Debt Ratios' },
+          { key: 'monthly', label: 'Monthly' },
+          { key: 'yearly', label: 'Annual' },
+          { key: 'category', label: 'Categories' },
+          { key: 'debt', label: 'Debts' },
+          { key: 'audit', label: 'Audit & Health' },
         ].map(item => (
           <button
             key={item.key}
@@ -216,7 +225,19 @@ export default function ReportsCentre({
       )}
 
       {/* DUAL COLUMN REPORT VIEW */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {reportType === 'audit' ? (
+        <AuditPanel
+          transactions={transactions}
+          subscriptions={subscriptions}
+          debts={debts}
+          cashAccounts={cashAccounts}
+          cards={cards}
+          currency={currency}
+          onToggleSubscriptionStatus={onToggleSubscriptionStatus}
+          onPaySubscription={onPaySubscription}
+        />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* LEFT COLUMN: METRICS & CHARTS */}
          <div className="lg:col-span-7 space-y-6">
@@ -514,6 +535,7 @@ export default function ReportsCentre({
         </div>
 
       </div>
+      )}
 
     </div>
   );

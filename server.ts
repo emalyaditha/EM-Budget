@@ -23,6 +23,13 @@ async function startServer() {
     process.exit(1);
   }
 
+  function timingSafeEqualString(a: string, b: string): boolean {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+  }
+
   function generateSecureToken(email: string, durationMs = 24 * 60 * 60 * 1000): string {
     const payload = {
       email: email.trim().toLowerCase(),
@@ -39,7 +46,7 @@ async function startServer() {
     if (parts.length !== 2) return null;
     const [payloadStr, signature] = parts;
     const expectedSignature = crypto.createHmac('sha256', SESSION_SECRET || "").update(payloadStr).digest('hex');
-    if (signature !== expectedSignature) {
+    if (!timingSafeEqualString(signature, expectedSignature)) {
       return null; // Invalid signature
     }
     try {
@@ -454,7 +461,7 @@ async function startServer() {
       
     } catch (e) {
       console.error("Rate limit database operation failed:", e);
-      return true; // Log error and fallback gracefully to prevent complete lockout during cold starts
+      return false; // Fail closed
     }
   }
   
@@ -542,7 +549,7 @@ async function startServer() {
       const normalizedEmail = email.trim().toLowerCase();
 
       // Generate a clean crypto-like numeric 6-character text passcode
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = crypto.randomInt(100000, 1000000).toString();
       const expiresAt = Date.now() + 5 * 60 * 1000;
       
       // Store passcode with 5 minutes lifespan (Database with memory fallback)
@@ -661,7 +668,7 @@ async function startServer() {
       }
 
       const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-      if (saved.otp !== enteredHash) {
+      if (!timingSafeEqualString(saved.otp, enteredHash)) {
         res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
         return;
       }
@@ -709,7 +716,7 @@ async function startServer() {
 
       const saved = await getOtpFromDb(normalizedEmail, false, supabase);
       const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-      if (saved && saved.otp === enteredHash && Date.now() <= saved.expiresAt) {
+      if (saved && timingSafeEqualString(saved.otp, enteredHash) && Date.now() <= saved.expiresAt) {
         isValidOtp = true;
         await deleteOtpFromDb(normalizedEmail, false, supabase); // consume OTP
       }
@@ -808,7 +815,7 @@ async function startServer() {
 
       const saved = await getOtpFromDb(normalizedEmail, false, supabase);
       const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-      if (saved && saved.otp === enteredHash && Date.now() <= saved.expiresAt) {
+      if (saved && timingSafeEqualString(saved.otp, enteredHash) && Date.now() <= saved.expiresAt) {
         isValidOtp = true;
         await deleteOtpFromDb(normalizedEmail, false, supabase); // consume OTP
       }
@@ -887,7 +894,7 @@ async function startServer() {
         return;
       }
 
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = crypto.randomInt(100000, 1000000).toString();
       const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes validity
       const supabase = getSupabase(req);
 
@@ -1019,7 +1026,7 @@ async function startServer() {
       }
 
       const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-      if (saved.otp !== enteredHash) {
+      if (!timingSafeEqualString(saved.otp, enteredHash)) {
         res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
         return;
       }

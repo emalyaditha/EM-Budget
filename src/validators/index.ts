@@ -22,6 +22,7 @@ export const CategoryExpenseSchema = z.enum([
   'Education',
   'Insurance',
   'Loan',
+  'Bank Charges & Interest',
   'Other'
 ]);
 

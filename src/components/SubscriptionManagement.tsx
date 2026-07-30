@@ -179,7 +179,7 @@ export default function SubscriptionManagement({
     due.setHours(0,0,0,0);
 
     const diffTime = due.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
       return { label: `Overdue by ${Math.abs(diffDays)}d`, color: 'text-rose-400 bg-rose-950/40 border border-rose-900/40 font-mono font-bold text-[9px]' };

@@ -34,6 +34,8 @@ import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCan
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 import { EXPENSE_COLORS, calculateNetWorth } from './utils';
+import { toMinorUnits, toMajorUnits } from './lib/money';
+import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
 
 export default function App() {
   const { showConfirm, showToast } = useNotifications();
@@ -65,6 +67,70 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
+
+  const reconcileSubscriptionsWithTransactions = (subscriptions: Subscription[], transactions: Transaction[]): Subscription[] => {
+    if (!subscriptions || !transactions) return subscriptions || [];
+    return subscriptions.map(sub => {
+      if (sub.status === 'Cancelled') return sub;
+
+      let currentDueDate = sub.dueDate;
+      let lastPaid = sub.lastPaidDate;
+      let paymentMethodId = sub.paymentMethodId;
+      let paymentMethodType = sub.paymentMethodType;
+
+      // Find all expense transactions matching this subscription
+      const matchingTx = transactions.filter(t => {
+        if (t.type !== 'expense') return false;
+        
+        const lowerTitle = (t.title || '').toLowerCase().trim();
+        const lowerSubName = (sub.name || '').toLowerCase().trim();
+        
+        // Exact, containing, or common variations
+        const isNameMatch = lowerTitle === lowerSubName ||
+                            lowerTitle.includes(lowerSubName) ||
+                            lowerSubName.includes(lowerTitle) ||
+                            lowerTitle.replace(/subscription\s*(settle|payment)?:?\s*/g, '') === lowerSubName;
+        
+        return isNameMatch;
+      });
+
+      // Sort matching transactions by date ascending, so we can process payments in chronological order
+      const sortedTx = [...matchingTx].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      // Process each transaction to see if it qualifies to advance the due date
+      for (const tx of sortedTx) {
+        if (!tx.date) continue;
+        
+        const txTime = new Date(tx.date).getTime();
+        const dueTime = new Date(currentDueDate).getTime();
+        
+        // Window is [-15 days, 25 days] around the due date
+        const diffDays = (txTime - dueTime) / (1000 * 60 * 60 * 24);
+        
+        if (diffDays >= -15 && diffDays <= 25) {
+          // Advance currentDueDate by cycle
+          const dueObj = new Date(currentDueDate);
+          if (sub.billingCycle === 'Monthly') {
+            dueObj.setMonth(dueObj.getMonth() + 1);
+          } else {
+            dueObj.setFullYear(dueObj.getFullYear() + 1);
+          }
+          currentDueDate = dueObj.toISOString().split('T')[0];
+          lastPaid = tx.date;
+          paymentMethodId = tx.accountId;
+          paymentMethodType = tx.accountType;
+        }
+      }
+
+      return {
+        ...sub,
+        dueDate: currentDueDate,
+        lastPaidDate: lastPaid,
+        paymentMethodId,
+        paymentMethodType
+      };
+    });
+  };
 
   const migrateStateCards = (loadedState: AppState): AppState => {
     if (!loadedState) return loadedState;
@@ -119,6 +185,14 @@ export default function App() {
         }
         return b;
       });
+    }
+
+    // 3. Auto-reconcile subscriptions with transactions on state pull/migration
+    if (nextState.subscriptions && nextState.transactions) {
+      nextState.subscriptions = reconcileSubscriptionsWithTransactions(
+        nextState.subscriptions,
+        nextState.transactions
+      );
     }
 
     return nextState;
@@ -181,33 +255,17 @@ export default function App() {
   const updateState = (updater: (prev: AppState) => AppState) => {
     setState(oldState => {
       const nextState = updater(oldState);
-      const sanitizedTransactions = nextState.transactions.map((t): Transaction => {
-        if (t.type === 'income') {
-          const tCategoryLower = (t.category || '').toLowerCase().trim();
-          const tTitleLower = (t.title || '').toLowerCase().trim();
-          const isRefDebt = t.referenceId && (t.referenceId.startsWith('debt-') || t.referenceId.startsWith('inc_debt') || t.referenceId.startsWith('tx_debt'));
-          
-          const isLendingFinancing = 
-            tCategoryLower.includes('borrow') || 
-            tCategoryLower.includes('financing') || 
-            tCategoryLower.includes('loan') || 
-            tCategoryLower.includes('debt') ||
-            tTitleLower.includes('borrowed') || 
-            tTitleLower.includes('loan received') || 
-            tTitleLower.includes('cash advance') ||
-            isRefDebt;
-            
-          if (isLendingFinancing) {
-            return {
-              ...t,
-              type: 'financing'
-            };
-          }
-        }
-        return t;
-      });
+      const sanitizedTransactions = nextState.transactions;
+
+      // Reconcile subscriptions automatically with updated transactions
+      const reconciledSubscriptions = reconcileSubscriptionsWithTransactions(
+        nextState.subscriptions || [],
+        sanitizedTransactions
+      );
+
       return {
         ...nextState,
+        subscriptions: reconciledSubscriptions,
         transactions: sanitizedTransactions
       };
     });
@@ -325,13 +383,13 @@ export default function App() {
             showToast('Insufficient wallet reserves for allocation transfer', 'error');
             return prev;
           }
-          account.balance += (absAmount * factor);
+          account.balance = (toMinorUnits(account.balance) + (toMinorUnits(absAmount) * factor)) / 100;
         }
       }
 
       const updatedGoals = (prev.savingsGoals || []).map(g => {
         if (g.id === id) {
-          const newCurrent = Math.max(0, g.current + amount);
+          const newCurrent = Math.max(0, (toMinorUnits(g.current) + toMinorUnits(amount)) / 100);
           return { ...g, current: newCurrent };
         }
         return g;
@@ -392,6 +450,24 @@ export default function App() {
       targetType,
     };
 
+    const newTransaction: Transaction = {
+      id: transactionId,
+      type: 'income',
+      title: source,
+      amount,
+      date,
+      category,
+      accountId: targetAccountId,
+      accountType: targetType,
+      referenceId: incomeId,
+    };
+
+    const validation = validateData(TransactionSchema, newTransaction);
+    if (!validation.success) {
+      showToast((validation as any).error, 'error');
+      return;
+    }
+
     updateState(prev => {
       // 1. Increment target account balances
       let updatedCash = [...prev.cashAccounts];
@@ -399,11 +475,11 @@ export default function App() {
 
       if (targetType === 'cash') {
         updatedCash = updatedCash.map(c => 
-          c.id === targetAccountId ? { ...c, balance: c.balance + amount } : c
+          c.id === targetAccountId ? { ...c, balance: (toMinorUnits(c.balance) + toMinorUnits(amount)) / 100 } : c
         );
       } else {
         updatedCards = updatedCards.map(c => 
-          c.id === targetAccountId ? { ...c, currentBalance: c.currentBalance + amount } : c
+          c.id === targetAccountId ? { ...c, currentBalance: (toMinorUnits(c.currentBalance) + toMinorUnits(amount)) / 100 } : c
         );
       }
 
@@ -469,18 +545,38 @@ export default function App() {
       paymentMethodType,
     };
 
+    const newTransaction: Transaction = {
+      id: transactionId,
+      type: 'expense',
+      title,
+      amount,
+      date,
+      category,
+      accountId: paymentMethodId,
+      accountType: paymentMethodType,
+      referenceId: expenseId,
+      charge: bankCharge > 0 ? bankCharge : undefined,
+    };
+
+    const validation = validateData(TransactionSchema, newTransaction);
+    if (!validation.success) {
+      showToast((validation as any).error, 'error');
+      return;
+    }
+
     updateState(prev => {
       // 1. Deduct target account balances
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
       let newAlertNotifications: AppNotification[] = [];
 
-      const totalDeduction = amount + bankCharge;
+      const totalDeductionCents = toMinorUnits(amount) + toMinorUnits(bankCharge);
+      const totalDeduction = totalDeductionCents / 100;
 
       if (paymentMethodType === 'cash') {
         updatedCash = updatedCash.map(c => {
           if (c.id === paymentMethodId) {
-            const nextVal = c.balance - totalDeduction;
+            const nextVal = (toMinorUnits(c.balance) - totalDeductionCents) / 100;
             if (nextVal < 5000) {
               newAlertNotifications.push({
                 id: `nt-alert-${Date.now()}`,
@@ -498,7 +594,7 @@ export default function App() {
         updatedCards = updatedCards.map(c => {
           if (c.id === paymentMethodId) {
             const isCredit = c.cardType === 'Credit';
-            const nextVal = c.currentBalance - totalDeduction;
+            const nextVal = (toMinorUnits(c.currentBalance) - totalDeductionCents) / 100;
             
             const isLow = isCredit 
               ? (c.limit !== undefined && (c.limit + nextVal) < 1000)
@@ -591,6 +687,12 @@ export default function App() {
       payments: [],
       status: debtData.totalAmount === 0 ? 'Fully Repaid' : 'Active',
     };
+
+    const validation = validateData(DebtSchema, newDebt);
+    if (!validation.success) {
+      showToast((validation as any).error, 'error');
+      return;
+    }
 
     updateState(prev => {
       let updatedCash = [...prev.cashAccounts];
@@ -1220,9 +1322,15 @@ export default function App() {
       ...subData,
       id: `sub-${Date.now()}`,
     };
+    const validation = validateData(SubscriptionSchema, newSub);
+    if (!validation.success) {
+      showToast((validation as any).error, 'error');
+      return;
+    }
+    const validatedSub = (validation as any).data;
     updateState(prev => ({
       ...prev,
-      subscriptions: [...(prev.subscriptions || []), newSub],
+      subscriptions: [...(prev.subscriptions || []), validatedSub],
     }));
   };
 
@@ -1516,11 +1624,11 @@ export default function App() {
       if (targetAccountId && targetAccountType) {
         if (targetAccountType === 'cash') {
           updatedCash = updatedCash.map(c =>
-            c.id === targetAccountId ? { ...c, balance: Number(c.balance) + Number(amount) } : c
+            c.id === targetAccountId ? { ...c, balance: (toMinorUnits(c.balance) + toMinorUnits(amount)) / 100 } : c
           );
         } else {
           updatedCards = updatedCards.map(c =>
-            c.id === targetAccountId ? { ...c, currentBalance: Number(c.currentBalance) + Number(amount) } : c
+            c.id === targetAccountId ? { ...c, currentBalance: (toMinorUnits(c.currentBalance) + toMinorUnits(amount)) / 100 } : c
           );
         }
 
@@ -1676,9 +1784,15 @@ export default function App() {
       name,
       balance,
     };
+    const validation = validateData(CashAccountSchema, newAcct);
+    if (!validation.success) {
+      showToast((validation as any).error, 'error');
+      return;
+    }
+    const validatedAcct = (validation as any).data;
     updateState(prev => ({
       ...prev,
-      cashAccounts: [...prev.cashAccounts, newAcct],
+      cashAccounts: [...prev.cashAccounts, validatedAcct],
     }));
   };
 
@@ -1719,9 +1833,15 @@ export default function App() {
       ...newCardData,
       id: `card-${Date.now()}`,
     };
+    const validation = validateData(BankCardSchema, rawCard);
+    if (!validation.success) {
+      showToast((validation as any).error, 'error');
+      return;
+    }
+    const validatedCard = (validation as any).data;
     updateState(prev => ({
       ...prev,
-      cards: [...prev.cards, rawCard],
+      cards: [...prev.cards, validatedCard],
     }));
   };
 
@@ -1915,16 +2035,16 @@ export default function App() {
 
       // Deduct from source (amount + charge)
       if (fromType === 'cash') {
-        updatedCash = updatedCash.map(c => c.id === fromId ? { ...c, balance: c.balance - amount - charge } : c);
+        updatedCash = updatedCash.map(c => c.id === fromId ? { ...c, balance: (toMinorUnits(c.balance) - toMinorUnits(amount) - toMinorUnits(charge)) / 100 } : c);
       } else {
-        updatedCards = updatedCards.map(c => c.id === fromId ? { ...c, currentBalance: c.currentBalance - amount - charge } : c);
+        updatedCards = updatedCards.map(c => c.id === fromId ? { ...c, currentBalance: (toMinorUnits(c.currentBalance) - toMinorUnits(amount) - toMinorUnits(charge)) / 100 } : c);
       }
 
       // Add to destination
       if (toType === 'cash') {
-        updatedCash = updatedCash.map(c => c.id === toId ? { ...c, balance: c.balance + amount } : c);
+        updatedCash = updatedCash.map(c => c.id === toId ? { ...c, balance: (toMinorUnits(c.balance) + toMinorUnits(amount)) / 100 } : c);
       } else {
-        updatedCards = updatedCards.map(c => c.id === toId ? { ...c, currentBalance: c.currentBalance + amount } : c);
+        updatedCards = updatedCards.map(c => c.id === toId ? { ...c, currentBalance: (toMinorUnits(c.currentBalance) + toMinorUnits(amount)) / 100 } : c);
       }
 
       // 3. Transactions
@@ -2922,6 +3042,9 @@ export default function App() {
                   cashAccounts={state.cashAccounts}
                   cards={state.cards}
                   onSelectTransaction={(id) => setEditingTransactionId(id)}
+                  subscriptions={state.subscriptions || []}
+                  onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
+                  onPaySubscription={handlePaySubscription}
                 />
               )}
 
