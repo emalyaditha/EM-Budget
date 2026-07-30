@@ -7,6 +7,7 @@ import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import { createWorker } from "tesseract.js";
 
 async function startServer() {
   const app = express();
@@ -1157,12 +1158,42 @@ Return a JSON object matching this schema:
       const parsedData = JSON.parse(text);
       res.json({ success: true, data: parsedData });
     } catch (err: any) {
-      console.error("[Gemini Image Analysis Error]", err.message || err);
-      let errMsg = err.message || "Failed to analyze image using Gemini.";
+      console.error("[Gemini Image Analysis Error]", err?.message || err);
+      let errMsg = err?.message || (typeof err === "string" ? err : "Failed to analyze image using Gemini.");
       if (typeof errMsg === "string" && (errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("prepayment credits") || errMsg.includes("429"))) {
         errMsg = "Gemini API Quota / Prepayment Credits Depleted. Please top up your billing credits in Google AI Studio or update your GEMINI_API_KEY in Settings > Secrets.";
       }
       res.status(500).json({ success: false, error: errMsg });
+    }
+  });
+
+  // Free Server-Side OCR Endpoint via Tesseract.js (Works in all environments/sandboxes)
+  app.post("/api/ocr/free-scan", async (req, res) => {
+    try {
+      const { image } = req.body;
+      if (!image) {
+        return res.status(400).json({ success: false, error: "Image payload is required." });
+      }
+
+      let base64Data = image;
+      if (base64Data.includes(";base64,")) {
+        base64Data = base64Data.split(";base64,").pop() || "";
+      }
+
+      const imgBuffer = Buffer.from(base64Data, "base64");
+      const worker = await createWorker("eng");
+      const ret = await worker.recognize(imgBuffer);
+      await worker.terminate();
+
+      const extractedText = ret?.data?.text || "";
+      if (!extractedText.trim()) {
+        return res.status(422).json({ success: false, error: "No legible text found in image. Try a clearer photo or enter manually." });
+      }
+
+      res.json({ success: true, text: extractedText });
+    } catch (err: any) {
+      console.error("[Free Server OCR Error]", err?.message || err);
+      res.status(500).json({ success: false, error: err?.message || "Failed to scan image using Server OCR." });
     }
   });
 

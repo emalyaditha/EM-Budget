@@ -90,36 +90,76 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
     }
   };
 
-  // Free Local OCR via Tesseract.js
+  // Free Local / Server OCR via Tesseract.js
   const runFreeOCR = async () => {
     if (!imagePreview) return;
     setIsAnalyzing(true);
     setError(null);
-    setStatusMessage('Initializing 100% Free Browser OCR Engine...');
+    setStatusMessage('Scanning document with 100% Free OCR Engine...');
 
+    let extractedText = '';
+    let worker: any = null;
+
+    // Strategy 1: Try Browser Tesseract Worker
     try {
-      const worker = await createWorker('eng');
-      setStatusMessage('Extracting text from document pixels...');
-      const ret = await worker.recognize(imagePreview);
-      await worker.terminate();
+      worker = await createWorker('eng', 1, {
+        logger: (m: any) => {
+          if (m && typeof m === 'object' && m.status) {
+            const pct = typeof m.progress === 'number' ? ` (${Math.round(m.progress * 100)}%)` : '';
+            setStatusMessage(`Local OCR: ${m.status}${pct}`);
+          }
+        },
+      }).catch(() => null);
 
-      const extractedText = ret.data.text;
-      if (!extractedText || extractedText.trim().length === 0) {
-        throw new Error('No legible text found in image. Please try a clearer photo or adjust values manually.');
+      if (worker) {
+        setStatusMessage('Extracting text from image pixels...');
+        const ret = await worker.recognize(imagePreview).catch(() => null);
+        extractedText = ret?.data?.text || '';
       }
+    } catch {
+      // Browser worker initialization failed, proceed to server fallback
+    } finally {
+      if (worker) {
+        try {
+          await worker.terminate();
+        } catch {
+          // ignore termination errors
+        }
+      }
+    }
 
-      setStatusMessage('Parsing amounts, date, merchant & category...');
+    // Strategy 2: Fallback to Server-Side Free OCR Endpoint if client worker produced no text
+    if (!extractedText.trim()) {
+      try {
+        setStatusMessage('Processing scan on Free Server OCR Service...');
+        const response = await fetch('/api/ocr/free-scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imagePreview })
+        });
+
+        const resData = await response.json().catch(() => null);
+        if (response.ok && resData?.success && resData?.text) {
+          extractedText = resData.text;
+        } else if (resData?.error) {
+          throw new Error(resData.error);
+        }
+      } catch (srvErr: any) {
+        console.warn('[Server OCR Fallback error]', srvErr);
+      }
+    }
+
+    setIsAnalyzing(false);
+    setStatusMessage('');
+
+    if (extractedText.trim()) {
       const parsed = parseReceiptText(extractedText);
       setScannedResult(parsed);
       showToast('success', '100% Free OCR Scan complete! Verify or tweak details below.');
-    } catch (err: any) {
-      console.error('[Free Local OCR Error]', err);
-      const msg = err.message || 'Failed to scan image locally.';
+    } else {
+      const msg = 'No legible text found in image. Please try a clearer photo or enter transaction details manually.';
       setError(msg);
       showToast('error', msg);
-    } finally {
-      setIsAnalyzing(false);
-      setStatusMessage('');
     }
   };
 
@@ -142,19 +182,25 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
         })
       });
 
-      const result = await response.json();
+      const result = await response.json().catch(() => null);
 
-      if (response.ok && result.success) {
+      if (response.ok && result?.success && result?.data) {
         setScannedResult(result.data);
         showToast('success', 'Gemini AI analysis complete! Verify details below.');
       } else {
-        const errorMsg = result.error || 'Failed to analyze receipt with Gemini.';
+        const errorMsg = result?.error || result?.message || 'Failed to analyze receipt with Gemini.';
         setError(errorMsg);
         showToast('error', errorMsg);
       }
     } catch (err: any) {
       console.error('[Receipt Analysis Client Error]', err);
-      setError('Connection failed. Network or server error.');
+      let msg = 'Connection failed. Network or server error.';
+      if (typeof err === 'string') {
+        msg = err;
+      } else if (err && typeof err === 'object' && err.message) {
+        msg = err.message;
+      }
+      setError(msg);
       showToast('error', 'Network error reaching Gemini endpoint.');
     } finally {
       setIsAnalyzing(false);

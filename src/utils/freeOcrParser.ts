@@ -12,8 +12,9 @@ export interface ScannedTransaction {
 /**
  * Parses raw OCR text extracted from a receipt/bill image into a structured transaction.
  */
-export function parseReceiptText(rawText: string): ScannedTransaction {
-  const lines = rawText
+export function parseReceiptText(rawText: string = ''): ScannedTransaction {
+  const safeText = typeof rawText === 'string' ? rawText : '';
+  const lines = safeText
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l.length > 0);

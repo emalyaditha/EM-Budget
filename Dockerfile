@@ -7,7 +7,7 @@ WORKDIR /usr/src/app
 
 # Leverage Docker layer caching for node dependency footprints
 COPY package*.json ./
-RUN npm ci --only=production && cp -r node_modules prod_node_modules
+RUN npm ci --omit=dev && cp -r node_modules prod_node_modules
 RUN npm ci
 
 # Copy full repository footprints
