@@ -1,4 +1,5 @@
 import { AppState, Transaction } from './types';
+import { sanitizeCsvCell, escapeCsvRow, downloadBlob } from './lib/download';
 
 const STORAGE_KEY = 'cashflow_manager_state_v1';
 
@@ -60,41 +61,31 @@ export function exportStateAsJSON(state: AppState, userEmail?: string) {
     exportedAt: new Date().toISOString(),
     data: state
   };
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
-  const downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute("href", dataStr);
   const stamp = new Date().toISOString().split('T')[0];
   const emailPrefix = userEmail ? `${userEmail.split('@')[0]}_` : '';
-  downloadAnchor.setAttribute("download", `em_budget_${emailPrefix}backup_${stamp}.json`);
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  downloadAnchor.remove();
+  downloadBlob(
+    JSON.stringify(payload, null, 2),
+    `em_budget_${emailPrefix}backup_${stamp}.json`,
+    'application/json'
+  );
 }
 
 // Export Transactions to CSV / Excel spreadsheet
 export function exportTransactionsToCSV(transactions: Transaction[], currency: string = 'Rs.') {
-  const headers = ['Transaction ID', 'Type', 'Title', 'Amount', 'Date', 'Category', 'Paid Form'];
+  const headers = ['Transaction ID', 'Type', 'Title', 'Amount', 'Date', 'Category', 'Paid From'];
   const rows = transactions.map(t => [
     t.id,
     t.type.toUpperCase(),
-    t.title.replace(/"/g, '""'),
+    t.title,
     `${currency} ${t.amount}`,
     t.date,
     t.category,
     t.accountId ? `${t.accountType === 'card' ? 'Card' : 'Cash Account'}: ${t.accountId}` : 'N/A'
   ]);
 
-  const csvContent = "data:text/csv;charset=utf-8," 
-    + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(','))].join('\n');
-    
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
+  const csvContent = [escapeCsvRow(headers), ...rows.map(escapeCsvRow)].join('\n');
   const stamp = new Date().toISOString().split('T')[0];
-  link.setAttribute("download", `finance_statement_${stamp}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  downloadBlob(csvContent, `finance_statement_${stamp}.csv`, 'text/csv;charset=utf-8');
 }
 
 // Standard category colors configuration

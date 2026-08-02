@@ -1,4 +1,5 @@
 import express from "express";
+import helmet from "helmet";
 import path from "path";
 import fs from "fs";
 import nodemailer from "nodemailer";
@@ -8,6 +9,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { createWorker } from "tesseract.js";
+import { IS_PRODUCTION } from "./server/security.js";
 
 async function startServer() {
   const app = express();
@@ -15,6 +17,21 @@ async function startServer() {
 
   app.use(express.json({ limit: "20mb" }));
   app.use(express.urlencoded({ limit: "20mb", extended: true }));
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        // style-src 'unsafe-inline' required by motion/react inline styles & Tailwind v4
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'", "https:", "wss:"],
+        frameAncestors: ["'self'", "https://*.google.com", "https://*.run.app", "https://ai.studio", "https://*.googleusercontent.com"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  }));
 
   // Cryptographic Signature Vault Systems (OWASP Level Protection)
   const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -106,7 +123,9 @@ async function startServer() {
         throw error;
       }
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] storeOtpInDb falling back to Mock DB:`, e.message || e);
+      console.error(`[Supabase] storeOtpInDb failed:`, e.message || e);
+      if (IS_PRODUCTION) return;
+      console.warn(`[Supabase] Falling back to Mock DB:`, e.message || e);
       mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
       mockDb.otps.push({
         email: storageEmail,
@@ -145,7 +164,9 @@ async function startServer() {
       }
       return null;
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] getOtpFromDb falling back to Mock DB:`, e.message || e);
+      console.error(`[Supabase] getOtpFromDb failed:`, e.message || e);
+      if (IS_PRODUCTION) return null;
+      console.warn(`[Supabase] Falling back to Mock DB:`, e.message || e);
       const found = mockDb.otps.find(item => item.email === storageEmail);
       if (found) {
         return {
@@ -172,7 +193,9 @@ async function startServer() {
         console.error("OTP database delete failed:", error);
       }
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] deleteOtpFromDb falling back to Mock DB:`, e.message || e);
+      console.error(`[Supabase] deleteOtpFromDb failed:`, e.message || e);
+      if (IS_PRODUCTION) return;
+      console.warn(`[Supabase] Falling back to Mock DB:`, e.message || e);
       mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
     }
   }
@@ -265,7 +288,9 @@ async function startServer() {
       }
       return !error && !!data;
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] checkAccountExists falling back to Mock DB:`, e.message || e);
+      console.error(`[Supabase] checkAccountExists failed:`, e.message || e);
+      if (IS_PRODUCTION) return false;
+      console.warn(`[Supabase] Falling back to Mock DB:`, e.message || e);
       return mockDb.accounts.some(acc => acc.email === normalizedEmail);
     }
   }
@@ -287,7 +312,9 @@ async function startServer() {
       }
       return null;
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] getAccountByEmail falling back to Mock DB:`, e.message || e);
+      console.error(`[Supabase] getAccountByEmail failed:`, e.message || e);
+      if (IS_PRODUCTION) return null;
+      console.warn(`[Supabase] Falling back to Mock DB:`, e.message || e);
       const found = mockDb.accounts.find(acc => acc.email === normalizedEmail);
       return found || null;
     }
@@ -315,7 +342,9 @@ async function startServer() {
         throw error;
       }
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] saveAccount falling back to Mock DB:`, e.message || e);
+      console.error(`[Supabase] saveAccount failed:`, e.message || e);
+      if (IS_PRODUCTION) return;
+      console.warn(`[Supabase] Falling back to Mock DB:`, e.message || e);
       mockDb.accounts = mockDb.accounts.filter(item => item.email !== normalizedEmail);
       mockDb.accounts.push({
         email: normalizedEmail,
@@ -325,36 +354,56 @@ async function startServer() {
     }
   }
 
-  async function saveDeviceToken(token: string, supabase: any) {
+  async function saveDeviceToken(token: string, email: string, supabase: any) {
     if (!token) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    const hashedEmail = crypto.createHash('sha256').update(normalizedEmail).digest('hex');
+    const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days
     if (!supabase) {
       mockDb.deviceTokens.add(token);
       console.log(`🔒 Devices (Local Mode): Registered a new secure trusted device token successfully.`);
       return;
     }
     try {
-      const { error } = await supabase.from('auth_device_tokens').insert({ token });
+      const { error } = await supabase.from('auth_device_tokens').insert({
+        token,
+        hashed_email: hashedEmail,
+        expires_at: expiresAt,
+      });
       if (error) {
         console.error("Device token database insert failed:", error);
       } else {
         console.log(`🔒 Devices: Registered a new secure trusted device token successfully.`);
       }
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] saveDeviceToken falling back to Mock DB:`, e.message || e);
+      console.error(`[Supabase] saveDeviceToken failed:`, e.message || e);
+      if (IS_PRODUCTION) return;
+      console.warn(`[Supabase] Falling back to Mock DB:`, e.message || e);
       mockDb.deviceTokens.add(token);
     }
   }
 
-  async function verifyDeviceToken(token: string, supabase: any): Promise<boolean> {
+  async function verifyDeviceToken(token: string, email: string, supabase: any): Promise<boolean> {
     if (!token) return false;
+    const normalizedEmail = email.trim().toLowerCase();
+    const hashedEmail = crypto.createHash('sha256').update(normalizedEmail).digest('hex');
     if (!supabase) {
       return mockDb.deviceTokens.has(token);
     }
     try {
-      const { data, error } = await supabase.from('auth_device_tokens').select('token').eq('token', token).maybeSingle();
+      // Cleanup expired tokens on verify
+      await supabase.from('auth_device_tokens').delete().lt('expires_at', new Date().toISOString());
+      const { data, error } = await supabase.from('auth_device_tokens')
+        .select('token')
+        .eq('token', token)
+        .eq('hashed_email', hashedEmail)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
       return !error && !!data;
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] verifyDeviceToken falling back to Mock DB:`, e.message || e);
+      console.error(`[Supabase] verifyDeviceToken failed:`, e.message || e);
+      if (IS_PRODUCTION) return false;
+      console.warn(`[Supabase] Falling back to Mock DB:`, e.message || e);
       return mockDb.deviceTokens.has(token);
     }
   }
@@ -362,27 +411,7 @@ async function startServer() {
   // -------------------------------------------------------------
   // SECURITY & OWASP AUDIT HARDENING SYSTEM
   // -------------------------------------------------------------
-
-  // Custom HTTP Security Headers Middleware (Capping Clickjacking, XSS, MIME-sniffing, HSTS)
-  app.use((req, res, next) => {
-    // 1. Strict Content Security Policy (allows preview frames to render correctly)
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: referrer; connect-src 'self' https: wss:; frame-ancestors 'self' https://*.google.com https://*.run.app https://ai.studio https://*.googleusercontent.com;"
-    );
-
-    // 2. Prevent dynamic MIME Sniffing attacks
-    res.setHeader("X-Content-Type-Options", "nosniff");
-
-    // 3. HTTP Strict Transport Security
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-
-    // 4. Referrer & Permissions constraints
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-
-    next();
-  });
+  // Helmet is wired above — it replaces the manual CSP/HSTS/XFO headers.
 
   // Custom rate-limiter backed strictly by database (Stateless Cloud Run autoscaling compliant)
   async function checkRateLimitInDb(key: string, limit: number, windowMs: number, supabase: any): Promise<boolean> {
@@ -461,16 +490,14 @@ async function startServer() {
       
     } catch (e) {
       console.error("Rate limit database operation failed:", e);
-      return false; // Fail closed
+      return !IS_PRODUCTION; // Fail closed in production
     }
   }
   
   const rateLimitAuth = (limit: number, windowMs: number) => {
     return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-      const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "unknown";
-      // Normalize email or use fallback IP to restrict malicious credential flooding
-      const reqEmail = req.body && typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
-      const key = `${ip}:${req.path}:${reqEmail}`;
+      const ip = req.ip || req.socket.remoteAddress || "unknown";
+      const key = `${ip}:${req.path}`;
       const supabase = getSupabase(req);
 
       const allowed = await checkRateLimitInDb(key, limit, windowMs, supabase);
@@ -526,10 +553,7 @@ async function startServer() {
         res.status(400).json({ success: false, error: emailErr });
         return;
       }
-      const normalizedEmail = email.trim().toLowerCase();
-      const supabase = getSupabase(req);
-      const exists = await checkAccountExists(normalizedEmail, supabase);
-      res.json({ success: true, exists });
+      res.json({ success: true, message: "Email check completed." });
     } catch (err: any) {
       console.error("[SECURITY LOG] Check-email operation failed:", err.message || err);
       res.status(500).json({ success: false, error: "System authentication service error. Please try again later." });
@@ -681,7 +705,7 @@ async function startServer() {
 
       // Generate a secure persistent device token
       const deviceToken = crypto.randomUUID();
-      await saveDeviceToken(deviceToken, supabase);
+      await saveDeviceToken(deviceToken, normalizedEmail, supabase);
 
       // Successful unlock - clear OTP
       await deleteOtpFromDb(normalizedEmail, false, supabase);
@@ -728,7 +752,7 @@ async function startServer() {
 
       const exists = await checkAccountExists(normalizedEmail, supabase);
       if (exists) {
-        res.status(400).json({ success: false, error: "Account already exists." });
+        res.status(400).json({ success: false, error: "Authentication failed. Please check your credentials." });
         return;
       }
 
@@ -742,7 +766,7 @@ async function startServer() {
       }, supabase);
 
       const deviceToken = crypto.randomUUID();
-      await saveDeviceToken(deviceToken, supabase);
+      await saveDeviceToken(deviceToken, normalizedEmail, supabase);
 
       res.json({
         success: true,
@@ -782,7 +806,7 @@ async function startServer() {
       }
 
       const deviceToken = crypto.randomUUID();
-      await saveDeviceToken(deviceToken, supabase);
+      await saveDeviceToken(deviceToken, normalizedEmail, supabase);
 
       res.json({
         success: true,
@@ -827,7 +851,7 @@ async function startServer() {
 
       const exists = await checkAccountExists(normalizedEmail, supabase);
       if (!exists) {
-        res.status(400).json({ success: false, error: "Account does not exist." });
+        res.status(400).json({ success: false, error: "Authentication failed. Please check your credentials." });
         return;
       }
 
@@ -841,7 +865,7 @@ async function startServer() {
       }, supabase);
 
       const deviceToken = crypto.randomUUID();
-      await saveDeviceToken(deviceToken, supabase);
+      await saveDeviceToken(deviceToken, normalizedEmail, supabase);
 
       res.json({
         success: true,
@@ -857,13 +881,17 @@ async function startServer() {
   // 3. Verify Remembered Device Token route
   app.post("/api/auth/verify-device", rateLimitAuth(25, 60 * 1000), async (req: express.Request, res: express.Response) => {
     try {
-      const { deviceToken } = req.body;
+      const { deviceToken, email } = req.body;
       if (!deviceToken || typeof deviceToken !== "string" || deviceToken.length > 200) {
         res.json({ success: false, error: "No valid device token provided" });
         return;
       }
-
-      const isValid = await verifyDeviceToken(deviceToken, getSupabase(req));
+      if (!email || typeof email !== "string") {
+        res.json({ success: false, error: "Email is required" });
+        return;
+      }
+      const normalizedEmail = email.trim().toLowerCase();
+      const isValid = await verifyDeviceToken(deviceToken, normalizedEmail, getSupabase(req));
       res.json({ success: isValid });
     } catch (err: any) {
       console.error("[SECURITY LOG] Device verification error:", err.message || err);

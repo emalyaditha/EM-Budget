@@ -49,28 +49,11 @@ class TelemetryLogger {
       userEmail
     };
 
-    // Format output beautifully for the container logs inside Cloud Run or development web inspectors
-    const logColor = 
-      level === 'ERROR' || level === 'FATAL' ? '\x1b[31m' :
-      level === 'WARN' ? '\x1b[33m' :
-      level === 'INFO' ? '\x1b[32m' : '\x1b[36m';
-    const logReset = '\x1b[0m';
-
     console.log(
       `%c[${logObj.timestamp}] [${logObj.level}] [CID: ${logObj.correlationId}] [SRC: ${logObj.source}] - ${logObj.message}`,
       `color: ${level === 'ERROR' ? '#f87171' : level === 'WARN' ? '#fbbf24' : '#60a5fa'}; font-weight: bold; font-family: monospace;`,
       metadata ? metadata : ''
     );
-
-    // Integrated Third-Party SaaS Telemetry Proxies
-    if ((window as any).Sentry) {
-      if (level === 'ERROR' || level === 'FATAL') {
-        (window as any).Sentry.captureMessage(`[${source}] ${message}`, {
-          level: 'error',
-          extra: { correlationId: this.appCorrelationId, metadata }
-        });
-      }
-    }
   }
 
   public debug(source: string, message: string, metadata?: Record<string, any>) {

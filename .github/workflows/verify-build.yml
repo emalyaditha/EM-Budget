@@ -1,31 +1,22 @@
-name: 🛡️ Enterprise Production Quality CI
+name: Verify Build
 
 on:
   push:
-    branches: [ main, master, development ]
+    branches: [main]
   pull_request:
-    branches: [ main, master ]
+    branches: [main]
 
 jobs:
-  validate:
+  verify:
     runs-on: ubuntu-latest
-    name: Codebase Health, Style and Security Audit
-    
     steps:
-    - name: Clone Repository Footprints
-      uses: actions/checkout@v4
-
-    - name: Bootstrap Hardened Node runtime
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22
-        cache: 'npm'
-
-    - name: Restore/Assemble Packages Cache
-      run: npm ci
-
-    - name: Run Syntax & Typecheck Audit
-      run: npm run lint
-
-    - name: Run Build Target Compile
-      run: npm run build
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run eslint
+      - run: npm test
+      - run: npm run build

@@ -61,11 +61,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       {children}
       
       {/* Toast Manager */}
-      <div className="fixed top-4 left-4 right-4 md:left-auto md:right-4 z-[9999] flex flex-col gap-2 items-center md:items-end">
+      <div className="fixed top-4 left-4 right-4 md:left-auto md:right-4 z-[9999] flex flex-col gap-2 items-center md:items-end" role="status" aria-live="polite" aria-atomic="false">
         <AnimatePresence>
           {toasts.map((toast) => (
             <motion.div
               key={toast.id}
+              role={toast.type === 'error' ? 'alert' : 'status'}
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -80,7 +81,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
               {toast.type === 'warning' && <AlertCircle size={20} />}
               {toast.type === 'info' && <Info size={20} />}
               <p className="text-sm font-medium">{toast.message}</p>
-              <button className="ml-auto" onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}><X size={16} /></button>
+              <button className="ml-auto" onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} aria-label="Dismiss"><X size={16} /></button>
             </motion.div>
           ))}
         </AnimatePresence>

@@ -57,6 +57,7 @@ export function BottomSheet({ isOpen, onClose, title, subtitle, children }: Bott
                 </div>
                 <button
                   onClick={onClose}
+                  aria-label="Close"
                   className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] rounded-lg transition-colors cursor-pointer"
                 >
                   <X size={16} />

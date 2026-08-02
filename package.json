@@ -9,7 +9,10 @@
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "eslint": "eslint src/",
+    "test": "vitest run"
   },
   "dependencies": {
     "@google/genai": "^2.14.0",
@@ -20,6 +23,7 @@
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "helmet": "^8.3.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "nodemailer": "^8.0.10",

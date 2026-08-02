@@ -1,30 +1,9 @@
 import { z } from 'zod';
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../types';
 
-// Category Definitions matching types.ts
-export const CategoryIncomeSchema = z.enum([
-  'Salary',
-  'Freelance',
-  'Business',
-  'Bonus',
-  'Commission',
-  'Loan Settle',
-  'Other'
-]);
-
-export const CategoryExpenseSchema = z.enum([
-  'Food',
-  'Transport',
-  'Shopping',
-  'Utilities',
-  'Rent',
-  'Entertainment',
-  'Medical',
-  'Education',
-  'Insurance',
-  'Loan',
-  'Bank Charges & Interest',
-  'Other'
-]);
+// Category Definitions derived from shared arrays in types.ts
+export const CategoryIncomeSchema = z.enum(INCOME_CATEGORIES);
+export const CategoryExpenseSchema = z.enum(EXPENSE_CATEGORIES);
 
 // 1. CashAccount Schema
 export const CashAccountSchema = z.object({
@@ -116,6 +95,121 @@ export const SubscriptionSchema = z.object({
   paymentMethodType: z.enum(['cash', 'card']).optional(),
   lastPaidDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/).optional(),
   instanceType: z.string().optional()
+});
+
+// AppState schema for validating JSON imports/restores
+export const UserProfileSchema = z.object({
+  name: z.string(),
+  email: z.string(),
+  avatarUrl: z.string().optional(),
+});
+
+const CreditCardSchema = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  balance: z.number().finite(),
+  limit: z.number().finite(),
+  dueDate: z.string(),
+  minPayment: z.number(),
+});
+
+const CreditCardPurchaseSchema = z.object({
+  id: z.string().min(1),
+  cardId: z.string().min(1),
+  amount: z.number().finite(),
+  description: z.string(),
+  merchant: z.string(),
+  date: z.string(),
+});
+
+const IncomeSchema = z.object({
+  id: z.string().min(1),
+  amount: z.number().finite(),
+  date: z.string(),
+  source: z.string(),
+  category: z.string(),
+  targetAccountId: z.string(),
+  targetType: z.enum(['cash', 'card']),
+});
+
+const ExpenseSchema = z.object({
+  id: z.string().min(1),
+  title: z.string(),
+  description: z.string(),
+  amount: z.number().finite(),
+  date: z.string(),
+  category: z.string(),
+  paymentMethodId: z.string(),
+  paymentMethodType: z.enum(['cash', 'card']),
+});
+
+const AppNotificationSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(['reminder', 'alert', 'system']),
+  message: z.string(),
+  date: z.string(),
+  read: z.boolean(),
+});
+
+const LoanSettlementSchema = z.object({
+  id: z.string().min(1),
+  loanId: z.string().min(1),
+  amount: z.number().finite(),
+  date: z.string(),
+  receivedInId: z.string(),
+  receivedInType: z.enum(['cash', 'card']),
+  receivedInName: z.string(),
+});
+
+const LoanGivenSchema = z.object({
+  id: z.string().min(1),
+  borrowerName: z.string(),
+  totalAmount: z.number().finite(),
+  remainingAmount: z.number().finite(),
+  dateGiven: z.string(),
+  sourceAccountId: z.string(),
+  sourceAccountType: z.enum(['cash', 'card']),
+  sourceAccountName: z.string(),
+  status: z.enum(['Active', 'Partially Settled', 'Settled']),
+  notes: z.string(),
+  settlements: z.array(LoanSettlementSchema).default([]),
+});
+
+const BudgetSchema = z.object({
+  id: z.string().min(1),
+  category: z.string(),
+  limit: z.number().finite(),
+  spent: z.number().finite(),
+  icon: z.string(),
+  subBreakdown: z.array(z.object({ name: z.string(), spent: z.number() })).default([]),
+});
+
+const SavingsGoalSchema = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  target: z.number().finite(),
+  current: z.number().finite(),
+  targetDate: z.string(),
+});
+
+export const AppStateSchema = z.object({
+  userProfile: UserProfileSchema,
+  cashAccounts: z.array(CashAccountSchema),
+  cards: z.array(BankCardSchema),
+  creditCards: z.array(CreditCardSchema).default([]),
+  creditCardPurchases: z.array(CreditCardPurchaseSchema).default([]),
+  incomes: z.array(IncomeSchema),
+  expenses: z.array(ExpenseSchema),
+  debts: z.array(DebtSchema),
+  transactions: z.array(TransactionSchema),
+  notifications: z.array(AppNotificationSchema),
+  subscriptions: z.array(SubscriptionSchema).default([]),
+  loansGiven: z.array(LoanGivenSchema).default([]),
+  budgets: z.array(BudgetSchema).default([]),
+  savingsGoals: z.array(SavingsGoalSchema).default([]),
+  pinCode: z.string(),
+  pinEnabled: z.boolean(),
+  currency: z.string(),
 });
 
 // Helper function to safely run verification and format errors cleanly

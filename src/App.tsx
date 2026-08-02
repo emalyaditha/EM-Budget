@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
+import { addMoney, subtractMoney } from './lib/money';
 import { exportStateAsJSON } from './utils';
 import { 
   Plus, Search, Bell, CreditCard, Wallet, LayoutDashboard, ChevronRight, 
@@ -35,7 +36,7 @@ import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 import { EXPENSE_COLORS, calculateNetWorth } from './utils';
 import { toMinorUnits, toMajorUnits } from './lib/money';
-import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
+import { validateData, AppStateSchema, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
 
 export default function App() {
   const { showConfirm, showToast } = useNotifications();
@@ -1557,24 +1558,30 @@ export default function App() {
     showToast('success', 'Purchase recorded successfully!');
   };
 
+  function computeCreditCardOverpayment(currentState: AppState, cardId: string, amount: number): string {
+    const card = currentState.cards.find(c => c.id === cardId);
+    if (!card || card.currentBalance >= 0) return '';
+    const outstanding = Math.abs(card.currentBalance);
+    if (amount > outstanding) {
+      return `Note: Payment of ${currentState.currency}${amount.toLocaleString()} exceeds outstanding debt of ${currentState.currency}${outstanding.toLocaleString()}, resulting in a positive credit balance of ${currentState.currency}${subtractMoney(amount, outstanding).toLocaleString()}.`;
+    }
+    return '';
+  }
+
   const handlePayCreditCard = (cardId: string, amount: number, fromId: string, fromType: 'cash' | 'card') => {
-      let overpaymentMsg = '';
+      const overpaymentMsg = computeCreditCardOverpayment(state, cardId, amount);
       updateState(prev => {
           let updatedCash = prev.cashAccounts.map(c => 
-            (fromType === 'cash' && c.id === fromId) ? { ...c, balance: c.balance - amount } : c
+            (fromType === 'cash' && c.id === fromId) ? { ...c, balance: subtractMoney(c.balance, amount) } : c
           );
           
           let updatedCards = prev.cards.map(c => {
             let cBal = c.currentBalance;
             if (fromType === 'card' && c.id === fromId) {
-                cBal -= amount; // We paid using this card, so its balance decreases (debt increases)
+                cBal = subtractMoney(cBal, amount);
             }
             if (c.id === cardId) {
-                const outstanding = c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0;
-                if (amount > outstanding) {
-                    overpaymentMsg = `Note: Payment of ${prev.currency}${amount.toLocaleString()} exceeds outstanding debt of ${prev.currency}${outstanding.toLocaleString()}, resulting in a positive credit balance of ${prev.currency}${(amount - outstanding).toLocaleString()}.`;
-                }
-                cBal += amount; // We paid off this card, so its balance increases (debt decreases)
+                cBal = addMoney(cBal, amount);
             }
             return { ...c, currentBalance: cBal };
           });
@@ -2227,50 +2234,44 @@ export default function App() {
         if (loadedJson.version === 'EM_BUDGET_SECURE_EX_V1' && loadedJson.data) {
           stateToLoad = loadedJson.data;
           originalOwner = loadedJson.exportedBy || '';
-        } else if (loadedJson.cashAccounts && loadedJson.cards && loadedJson.transactions) {
+        } else {
           stateToLoad = loadedJson;
         }
 
-        if (stateToLoad) {
-          const sanitizedState: AppState = {
-            ...DEFAULT_APP_STATE,
-            ...stateToLoad,
-            cashAccounts: stateToLoad.cashAccounts || [],
-            cards: stateToLoad.cards || [],
-            creditCards: stateToLoad.creditCards || [],
-            creditCardPurchases: stateToLoad.creditCardPurchases || [],
-            incomes: stateToLoad.incomes || [],
-            expenses: stateToLoad.expenses || [],
-            debts: stateToLoad.debts || [],
-            transactions: stateToLoad.transactions || [],
-            notifications: stateToLoad.notifications || [],
-            subscriptions: stateToLoad.subscriptions || [],
-            loansGiven: stateToLoad.loansGiven || [],
-            budgets: stateToLoad.budgets || DEFAULT_APP_STATE.budgets || [],
-            savingsGoals: stateToLoad.savingsGoals || DEFAULT_APP_STATE.savingsGoals || [],
-          };
-          updateState(() => sanitizedState);
-          
-          if (originalOwner && originalOwner !== 'Anonymous') {
-            showToast('success', `Personal ledger belonging to ${originalOwner} imported successfully! All records linked to your active identity.`);
-          } else {
-            showToast('success', 'Database restored successfully! Ledger tracks have re-balanced.');
-          }
+        // Backup current state before overwriting
+        try {
+          localStorage.setItem('cashflow_manager_state_backup_v1', JSON.stringify(state));
+        } catch (e) {
+          // backup best-effort
+        }
 
-          // Trigger manual push to ensure data is synced to cloud immediately
-          const { autoSync } = getSupabaseConfig();
-          if (autoSync && userEmail) {
-            syncStateToSupabase(userEmail, stateToLoad, true).then(res => {
-              if (res.success) {
-                showToast('success', 'Imported data pushed to cloud automatically!');
-              } else {
-                console.warn('Auto-push failed after import:', res.error);
-                showToast('error', 'Imported data failed to push to cloud.');
-              }
-            });
-          }
+        // Validate with AppStateSchema
+        const validation = validateData(AppStateSchema, stateToLoad);
+        if (!validation.success) {
+          showToast('error', `Invalid backup file: ${(validation as { success: false; error: string }).error}`);
+          return;
+        }
+
+        const sanitizedState = (validation as { success: true; data: AppState }).data;
+        updateState(() => sanitizedState);
+        
+        if (originalOwner && originalOwner !== 'Anonymous') {
+          showToast('success', `Personal ledger belonging to ${originalOwner} imported successfully!`);
         } else {
-          showToast('error', 'Invalid backup file. Requisite database structures were missing.');
+          showToast('success', 'Database restored successfully!');
+        }
+
+        // Trigger manual push to ensure data is synced to cloud immediately
+        const { autoSync } = getSupabaseConfig();
+        if (autoSync && userEmail) {
+          syncStateToSupabase(userEmail, sanitizedState, true).then(res => {
+            if (res.success) {
+              showToast('success', 'Imported data pushed to cloud automatically!');
+            } else {
+              console.warn('Auto-push failed after import:', res.error);
+              showToast('error', 'Imported data failed to push to cloud.');
+            }
+          });
         }
       } catch (err) {
         showToast('error', 'File decode failure. Try with a valid export JSON backup.');
