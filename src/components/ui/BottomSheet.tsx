@@ -36,6 +36,9 @@ export function BottomSheet({ isOpen, onClose, title, subtitle, children }: Bott
 
           {/* Sheet */}
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={typeof title === 'string' ? title : 'Bottom Sheet Dialog'}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}

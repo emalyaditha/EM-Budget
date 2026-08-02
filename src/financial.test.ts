@@ -1,8 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { validateData, TransactionSchema, CashAccountSchema, BankCardSchema } from './validators';
 import { calculateNetWorth } from './utils';
+import { toMinorUnits, toMajorUnits, addMoney, subtractMoney, sumMoney, compareMoney, multiplyMoney } from './lib/money';
 
 describe('💰 Financial Ledger Integrity Audits', () => {
+
+  describe('Money Precision Utilities', () => {
+    it('prevents floating-point precision errors (e.g. 0.1 + 0.2)', () => {
+      expect(addMoney(0.1, 0.2)).toBe(0.3);
+      expect(subtractMoney(19.99, 0.09)).toBe(19.9);
+      expect(sumMoney([10.55, 20.45, 0.01])).toBe(31.01);
+      expect(compareMoney(10.50, 10.50)).toBe(0);
+      expect(multiplyMoney(10.25, 3)).toBe(30.75);
+      expect(toMinorUnits(19.99)).toBe(1999);
+      expect(toMajorUnits(1999)).toBe("19.99");
+    });
+  });
+
 
   describe('Validation Schemas', () => {
     it('should validate complete and correct cash account formats', () => {

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
 import { exportStateAsJSON, generateUniqueId } from './utils';
+import { addMoney, subtractMoney } from './lib/money';
+import { authSession } from './services/authSession';
 import { 
   Plus, Search, Bell, CreditCard, Wallet, LayoutDashboard, ChevronRight, 
   TrendingUp, User, Lock, Unlock, Settings, HelpCircle, RefreshCw, 
@@ -134,7 +136,7 @@ export default function App() {
 
   const migrateStateCards = (loadedState: AppState): AppState => {
     if (!loadedState) return loadedState;
-    let nextState = { ...loadedState };
+    const nextState = { ...loadedState };
 
     // 1. Normalizing card balances (existing migration logic)
     if (nextState.cards) {
@@ -219,19 +221,31 @@ export default function App() {
       const token = localStorage.getItem('auth_session_token');
       
       if (email && token) {
-        setUserEmail(email);
         try {
-          const result = await syncStateFromSupabase(email);
-          if (result.success && result.state) {
-            setState(migrateStateCards(result.state));
+          const vRes = await fetch('/api/auth/verify-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, token })
+          });
+          const vData = await vRes.json();
+          if (vData.success) {
+            authSession.setToken(token);
+            authSession.setEmail(email);
+            setUserEmail(email);
+            const result = await syncStateFromSupabase(email);
+            if (result.success && result.state) {
+              setState(migrateStateCards(result.state));
+            }
             setIsUnlocked(true);
           } else {
-            console.warn("Could not sync from database, allowing offline fallback mode:", result.error);
-            setIsUnlocked(true);
+            console.warn("Session token expired or invalid:", vData.error);
+            localStorage.removeItem('auth_session_token');
+            authSession.clear();
+            setIsUnlocked(false);
           }
         } catch (err) {
-          console.warn("Fatal error syncing from database, continuing offline...", err);
-          setIsUnlocked(true);
+          console.warn("Fatal error verifying session token:", err);
+          setIsUnlocked(false);
         }
       } else {
         setIsUnlocked(false);
@@ -569,7 +583,7 @@ export default function App() {
       // 1. Deduct target account balances
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
-      let newAlertNotifications: AppNotification[] = [];
+      const newAlertNotifications: AppNotification[] = [];
 
       const totalDeductionCents = toMinorUnits(amount) + toMinorUnits(bankCharge);
       const totalDeduction = totalDeductionCents / 100;
@@ -1384,7 +1398,7 @@ export default function App() {
       // Deduct TARGET card/cash balances
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
-      let newAlertNotifications: AppNotification[] = [];
+      const newAlertNotifications: AppNotification[] = [];
 
       const totalDeduction = sub.amount + bankCharge;
 
@@ -1558,30 +1572,34 @@ export default function App() {
   };
 
   const handlePayCreditCard = (cardId: string, amount: number, fromId: string, fromType: 'cash' | 'card') => {
+      if (fromType === 'card' && fromId === cardId) {
+        showToast('Cannot pay a credit card using the same card as source.', 'error');
+        return;
+      }
       let overpaymentMsg = '';
       updateState(prev => {
-          let updatedCash = prev.cashAccounts.map(c => 
-            (fromType === 'cash' && c.id === fromId) ? { ...c, balance: c.balance - amount } : c
+          const updatedCash = prev.cashAccounts.map(c => 
+            (fromType === 'cash' && c.id === fromId) ? { ...c, balance: subtractMoney(c.balance, amount) } : c
           );
           
-          let updatedCards = prev.cards.map(c => {
+          const updatedCards = prev.cards.map(c => {
             let cBal = c.currentBalance;
             if (fromType === 'card' && c.id === fromId) {
-                cBal -= amount; // We paid using this card, so its balance decreases (debt increases)
+                cBal = subtractMoney(cBal, amount); // We paid using this card, so balance decreases
             }
             if (c.id === cardId) {
                 const outstanding = c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0;
                 if (amount > outstanding) {
-                    overpaymentMsg = `Note: Payment of ${prev.currency}${amount.toLocaleString()} exceeds outstanding debt of ${prev.currency}${outstanding.toLocaleString()}, resulting in a positive credit balance of ${prev.currency}${(amount - outstanding).toLocaleString()}.`;
+                    overpaymentMsg = `Note: Payment of ${prev.currency}${amount.toLocaleString()} exceeds outstanding debt of ${prev.currency}${outstanding.toLocaleString()}, resulting in a positive credit balance of ${prev.currency}${(subtractMoney(amount, outstanding)).toLocaleString()}.`;
                 }
-                cBal += amount; // We paid off this card, so its balance increases (debt decreases)
+                cBal = addMoney(cBal, amount); // We paid off this card
             }
             return { ...c, currentBalance: cBal };
           });
           
           const targetCard = prev.cards.find(c => c.id === cardId);
           const newTransaction: Transaction = {
-            id: `trans-${Date.now()}`,
+            id: generateUniqueId('trans'),
             type: 'debt_payment',
             title: `Credit Card Settlement: ${targetCard?.cardName || 'Card'}`,
             amount: amount,
@@ -2139,11 +2157,12 @@ export default function App() {
         changeBalance(-newData.amount, newData.accountId, newData.accountType);
       }
 
-      let updatedIncomes = [...prev.incomes];
+      const updatedIncomes = [...prev.incomes];
       let updatedExpenses = [...prev.expenses];
       let updatedDebts = [...prev.debts];
 
       if (tx.type === 'income') {
+        /* No linked income record update required */
       } else if (tx.type === 'expense') {
         updatedExpenses = updatedExpenses.map(e => e.id === tx.referenceId ? {
           ...e, amount: newData.amount, title: newData.title, date: newData.date, category: newData.category,
@@ -2779,6 +2798,7 @@ export default function App() {
                   localStorage.removeItem('auth_user_email');
                   localStorage.removeItem('auth_session_token');
                   localStorage.removeItem('auth_device_token');
+                  authSession.clear();
                   resetLoadedFromCloud();
                   setState(DEFAULT_APP_STATE);
                   setIsUnlocked(false);
@@ -2794,10 +2814,13 @@ export default function App() {
         {!isUnlocked && (
           <EmailLogin
             onUnlocked={async (email, token, rememberMe, deviceToken) => {
+              authSession.setToken(token);
+              authSession.setEmail(email);
               localStorage.setItem('auth_user_email', email);
               localStorage.setItem('auth_session_token', token);
               if (rememberMe && deviceToken) {
                 localStorage.setItem('auth_device_token', deviceToken);
+                authSession.setDeviceToken(deviceToken);
               }
               setUserEmail(email);
               try {

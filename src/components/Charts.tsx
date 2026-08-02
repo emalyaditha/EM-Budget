@@ -106,7 +106,9 @@ export function TrendAnalysisChart({ data, currency }: { data: { date: string; v
               const day = dateObj.getDate();
               label = `${day} ${month}`;
             }
-          } catch (e) {}
+          } catch (e) {
+            /* Fallback to raw date string on parse error */
+          }
           return (
             <span key={idx} className="text-[var(--text-secondary)] font-semibold text-center" title={d.date}>
               {label}

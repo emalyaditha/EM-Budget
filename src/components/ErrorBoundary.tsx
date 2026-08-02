@@ -62,7 +62,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
             </div>
 
             <p className="text-xs text-zinc-400 leading-relaxed font-mono">
-              The interface state engine encountered an unexpected runtime crash when rendering. Your financial ledger data is fully intact and saved to persistent cloud engines safely.
+              The interface state engine encountered an unexpected runtime crash when rendering. Please reload the application to restore the interface.
             </p>
 
             {this.state.error && (

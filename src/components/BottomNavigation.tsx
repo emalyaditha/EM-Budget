@@ -41,13 +41,15 @@ export function BottomNavigation({
       </div>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-sidebar)]/95 backdrop-blur-xl border-t border-[var(--border-primary)] md:hidden px-3 py-2">
+      <nav aria-label="Bottom Navigation" className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-sidebar)]/95 backdrop-blur-xl border-t border-[var(--border-primary)] md:hidden px-3 py-2">
         <div className="flex items-center justify-around max-w-md mx-auto">
           {tabs.map((tab) => {
             const isActive = tab.id === 'more' ? isMoreOpen : activeTab === tab.id && !isMoreOpen;
             return (
               <button
                 key={tab.id}
+                aria-label={tab.label}
+                aria-current={isActive ? 'page' : undefined}
                 onClick={() => {
                   if (tab.id === 'more') {
                     onMoreClick();

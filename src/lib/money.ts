@@ -18,3 +18,25 @@ export function toMajorUnits(cents: number | null | undefined): string {
   if (cents === null || cents === undefined || isNaN(cents)) return "0.00";
   return (cents / 100).toFixed(2);
 }
+
+export function addMoney(a: number, b: number): number {
+  return (toMinorUnits(a) + toMinorUnits(b)) / 100;
+}
+
+export function subtractMoney(a: number, b: number): number {
+  return (toMinorUnits(a) - toMinorUnits(b)) / 100;
+}
+
+export function sumMoney(amounts: number[]): number {
+  const totalCents = amounts.reduce((acc, val) => acc + toMinorUnits(val), 0);
+  return totalCents / 100;
+}
+
+export function compareMoney(a: number, b: number): number {
+  return toMinorUnits(a) - toMinorUnits(b);
+}
+
+export function multiplyMoney(amount: number, factor: number): number {
+  return Math.round(toMinorUnits(amount) * factor) / 100;
+}
+

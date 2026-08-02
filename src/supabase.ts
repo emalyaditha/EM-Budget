@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AppState } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
+import { authSession } from './services/authSession';
 
 const URL_STORAGE_KEY = 'cashflow_supabase_url_v1';
 const KEY_STORAGE_KEY = 'cashflow_supabase_key_v1';
@@ -14,7 +15,7 @@ export function clearSyncedStatesCache() {
 }
 
 // Session safety guard to prevent background pushes with empty state before a successful fetch
-let loadedFromCloudEmails = new Set<string>();
+const loadedFromCloudEmails = new Set<string>();
 
 export function markEmailAsLoadedFromCloud(email: string) {
   loadedFromCloudEmails.add(email.trim().toLowerCase());
@@ -38,14 +39,14 @@ export function getSupabaseConfig() {
   // Guard against stringified 'undefined' or 'null'
   if (url === 'undefined' || url === 'null') url = '';
   if (key === 'undefined' || key === 'null') key = '';
-  
+
   // Auto-swapped or misconfigured variable detection
   if (url.startsWith('eyJ') && (key.startsWith('http://') || key.startsWith('https://'))) {
     const temp = url;
     url = key;
     key = temp;
   }
-  
+
   // Decode JWT to extract the Project Reference ID if URL is a JWT
   if (url.startsWith('eyJ')) {
     try {
@@ -54,21 +55,15 @@ export function getSupabaseConfig() {
         const payloadStr = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
         const payload = JSON.parse(payloadStr);
         if (payload && payload.ref) {
-          if (!key || key === "" || key === url) {
+          if (!key || key === '' || key === url) {
             key = url;
           }
           url = `https://${payload.ref}.supabase.co`;
-          console.log(`[Supabase Autocorrect] Reconstructed URL from JWT: ${url}`);
         }
       }
     } catch (e) {
-      console.error("[Supabase Autocorrect] Failed to decode JWT payload:", e);
+      console.error('[Supabase Autocorrect] Failed to decode JWT payload:', e);
     }
-  }
-  
-  // Final fallback to the hardcoded default reference if url is still not valid
-  if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
-    url = "https://iivdlgbztzthjbjzzjna.supabase.co";
   }
 
   const storedAutoSync = localStorage.getItem(AUTO_SYNC_KEY);
@@ -83,8 +78,6 @@ export function getSupabaseConfig() {
   if (!key) {
     console.warn('[CONFIG] Supabase ANON Key is missing!');
   }
-  
-  console.log(`[CONFIG] Using Supabase URL: ${url}`);
   
   return { url, key, autoSync };
 }
@@ -103,8 +96,8 @@ export function getSupabaseClient(): SupabaseClient | null {
     return null;
   }
   try {
-    const token = localStorage.getItem('auth_session_token');
-    const email = localStorage.getItem('auth_user_email') || '';
+    const token = authSession.getToken() || localStorage.getItem('auth_session_token');
+    const email = authSession.getEmail() || localStorage.getItem('auth_user_email') || '';
     const clientKey = `${url}:${token}:${email}`;
 
     if (!supabaseClientInstance || (globalThis as any).__lastClientKey !== clientKey) {
@@ -372,7 +365,7 @@ export async function truncateAllDataInSupabase(email: string): Promise<{ succes
         emailCol = 'userEmail';
       }
       
-      let { error } = await client.from(table).delete().eq(emailCol, email);
+      const { error } = await client.from(table).delete().eq(emailCol, email);
       if (error && error.message.includes(`column "${emailCol}" does not exist`)) {
         const fallbackCol = emailCol === 'userEmail' ? 'user_email' : 'userEmail';
         const { error: err2 } = await client.from(table).delete().eq(fallbackCol, email);
@@ -407,7 +400,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
     return { success: true };
   }
 
-  let errorDetails: string[] = [];
+  const errorDetails: string[] = [];
 
   try {
     // 1. Map all arrays for modern transactional database sync
@@ -550,11 +543,13 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       settlements: loan.settlements || []
     }));
 
+    const sanitizedState = { ...state, pinCode: '' };
+
     // 2. ATTEMPT TRANSACTIONAL SINGLE-TRIP RPC
     try {
       const { data: rpcRes, error: rpcErr } = await client.rpc('sync_complete_ledger', {
         p_email: email,
-        p_state: state,
+        p_state: sanitizedState,
         p_cards: recordsCards,
         p_cash_accounts: recordsCash,
         p_transactions: recordsTx,
@@ -588,7 +583,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
     
     const payload = { 
         user_email: email, 
-        state: state,
+        state: sanitizedState,
         updated_at: new Date().toISOString()
     };
     console.log('[SYNC] ledger_states payload:', payload);
@@ -607,7 +602,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
     if (cardsCols.length > 0) {
       if (recordsCards.length > 0) {
         console.log(`[SYNC] Upserting ${recordsCards.length} cards...`);
-        let { error: cardErr } = await client.from('bank_cards').upsert(recordsCards, { onConflict: 'id' });
+        const { error: cardErr } = await client.from('bank_cards').upsert(recordsCards, { onConflict: 'id' });
         
         if (cardErr) {
           console.error('[SYNC] Card Upsert Error:', cardErr);

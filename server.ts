@@ -88,6 +88,7 @@ async function startServer() {
     const hashedOtp = hashOtp(otp, normalizedEmail);
 
     if (!supabase) {
+      if (IS_PRODUCTION) throw new Error("Database connection unavailable in production mode.");
       console.log(`[Mock DB] Storing OTP for ${storageEmail} (Expires: ${expiresDate})`);
       mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
       mockDb.otps.push({
@@ -110,7 +111,8 @@ async function startServer() {
         throw error;
       }
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] storeOtpInDb falling back to Mock DB:`, e.message || e);
+      console.warn(`[Supabase Connection/Query Failed] storeOtpInDb:`, e.message || e);
+      if (IS_PRODUCTION) throw e;
       mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
       mockDb.otps.push({
         email: storageEmail,
@@ -125,6 +127,7 @@ async function startServer() {
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
 
     if (!supabase) {
+      if (IS_PRODUCTION) return null;
       const found = mockDb.otps.find(item => item.email === storageEmail);
       if (found) {
         return {
@@ -149,7 +152,8 @@ async function startServer() {
       }
       return null;
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] getOtpFromDb falling back to Mock DB:`, e.message || e);
+      console.warn(`[Supabase Connection/Query Failed] getOtpFromDb:`, e.message || e);
+      if (IS_PRODUCTION) return null;
       const found = mockDb.otps.find(item => item.email === storageEmail);
       if (found) {
         return {
@@ -166,7 +170,7 @@ async function startServer() {
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
 
     if (!supabase) {
-      mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
+      if (!IS_PRODUCTION) mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
       return;
     }
     
@@ -176,8 +180,8 @@ async function startServer() {
         console.error("OTP database delete failed:", error);
       }
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] deleteOtpFromDb falling back to Mock DB:`, e.message || e);
-      mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
+      console.warn(`[Supabase Connection/Query Failed] deleteOtpFromDb:`, e.message || e);
+      if (!IS_PRODUCTION) mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
     }
   }
 
@@ -223,7 +227,6 @@ async function startServer() {
               key = url;
             }
             url = `https://${payload.ref}.supabase.co`;
-            console.log(`[Supabase Autocorrect] Extracted URL from JWT: ${url}`);
           }
         }
       } catch (e) {
@@ -231,18 +234,10 @@ async function startServer() {
       }
     }
     
-    // Final fallback: do not hardcode third-party project URLs
-    if (!url || (!url.startsWith("http://") && !url.startsWith("https://"))) {
-      console.error("[Supabase Error] Missing or invalid VITE_SUPABASE_URL environment variable!");
-      return null;
-    }
-    
     if (!url || !key) {
-      console.error("[Supabase Error] Missing Supabase URL or Key environment variables!");
       return null;
     }
     
-    // Strict URL validation
     if (!url.startsWith('https://') && !url.startsWith('http://')) {
       console.error(`[Supabase Error] Detected invalid URL structure: '${url}'. Must start with https:// or http://`);
       return null;
@@ -261,6 +256,7 @@ async function startServer() {
   async function checkAccountExists(email: string, supabase: any): Promise<boolean> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!supabase) {
+      if (IS_PRODUCTION) return false;
       return mockDb.accounts.some(acc => acc.email === normalizedEmail);
     }
     try {
@@ -270,7 +266,8 @@ async function startServer() {
       }
       return !error && !!data;
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] checkAccountExists falling back to Mock DB:`, e.message || e);
+      console.warn(`[Supabase Connection/Query Failed] checkAccountExists:`, e.message || e);
+      if (IS_PRODUCTION) return false;
       return mockDb.accounts.some(acc => acc.email === normalizedEmail);
     }
   }
@@ -278,6 +275,7 @@ async function startServer() {
   async function getAccountByEmail(email: string, supabase: any): Promise<Account | null> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!supabase) {
+      if (IS_PRODUCTION) return null;
       const found = mockDb.accounts.find(acc => acc.email === normalizedEmail);
       return found || null;
     }
@@ -292,7 +290,8 @@ async function startServer() {
       }
       return null;
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] getAccountByEmail falling back to Mock DB:`, e.message || e);
+      console.warn(`[Supabase Connection/Query Failed] getAccountByEmail:`, e.message || e);
+      if (IS_PRODUCTION) return null;
       const found = mockDb.accounts.find(acc => acc.email === normalizedEmail);
       return found || null;
     }
@@ -301,6 +300,7 @@ async function startServer() {
   async function saveAccount(acc: Account, supabase: any) {
     const normalizedEmail = acc.email.trim().toLowerCase();
     if (!supabase) {
+      if (IS_PRODUCTION) throw new Error("Database connection unavailable in production mode.");
       mockDb.accounts = mockDb.accounts.filter(item => item.email !== normalizedEmail);
       mockDb.accounts.push({
         email: normalizedEmail,
@@ -320,7 +320,8 @@ async function startServer() {
         throw error;
       }
     } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] saveAccount falling back to Mock DB:`, e.message || e);
+      console.warn(`[Supabase Connection/Query Failed] saveAccount:`, e.message || e);
+      if (IS_PRODUCTION) throw e;
       mockDb.accounts = mockDb.accounts.filter(item => item.email !== normalizedEmail);
       mockDb.accounts.push({
         email: normalizedEmail,

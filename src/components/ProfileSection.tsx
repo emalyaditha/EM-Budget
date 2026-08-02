@@ -76,7 +76,6 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
   };
 
   const firstLetter = name ? name.charAt(0).toUpperCase() : 'U';
-  const isAllowedEmail = state.userProfile?.email === 'emalyaditha@gmail.com';
 
   return (
     <div className="bg-gradient-to-br from-zinc-900/90 via-[#0a0a0d] to-zinc-950 border border-[var(--border-primary)] p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6" id="secure-profile-card">
@@ -134,7 +133,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
               firstLetter
             )}
             
-            {isEditing && isAllowedEmail && (
+            {isEditing && (
               <label className="absolute inset-0 bg-black/70 hover:bg-black/80 flex flex-col items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer">
                 <Camera size={18} className="text-indigo-400 mb-0.5 animate-bounce" />
                 <span className="text-[8px] font-bold uppercase tracking-wider">Change</span>
@@ -154,7 +153,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
 
         {isEditing ? (
           <div className="w-full max-w-[220px] space-y-2.5 mt-2">
-            {tempAvatar && isAllowedEmail && (
+            {tempAvatar && (
               <button
                 onClick={handleRemovePhoto}
                 className="w-full py-1.5 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/45 hover:border-rose-500 text-rose-400 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer"

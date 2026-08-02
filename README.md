@@ -18,7 +18,7 @@ EM Budget is a premium, minimalist, and mobile-oriented personal finance applica
 ### 🛡️ 3. High-Security Cloud Database Purge (With 2FA)
 - **Zero-Trust Hard Purge**: An advanced, multi-step cloud-wipe security module to securely sanitize database records.
 - **Critical Deletion OTP**: When triggered, a dedicated deletion 2FA token is dispatched to your verified physical email via **Nodemailer (SMTP)**, accompanied by an urgent, responsive HTML security notice.
-- **In-Memory Volatile Verifier**: OTP codes are captured and processed inside a state-isolated `deleteOtpStore` server micro-cache with clean, 5-minute decay windows.
+- **Volatile Verifier**: OTP codes are captured and processed securely with hashed values and strict expiration windows.
 - **Scoped User-Only Purge**: Upon confirmation, the backend deletes *only* database rows registered under the executing user's email, leaving other global ledger assets secure, and cleanly resets local reactive states.
 
 ### 📊 4. Personal Asset & Ledger Registry
@@ -65,9 +65,8 @@ Define the following environment variables in your local `.env` file (see `.env.
 ```env
 # Server Configuration
 PORT=3000
-
-# Security Configurations
-SECURITY_PIN=000000
+NODE_ENV=production
+SESSION_SECRET=your-random-32-character-secret-key
 
 # SMTP / Email Configuration for 2FA Delivery
 SMTP_HOST=smtp.example.com
@@ -77,8 +76,9 @@ SMTP_PASS=your-secure-password
 SMTP_FROM="EM Budget Vault <ledger@example.com>"
 
 # Cloud Sync Database Configuration (Supabase / Postgres Client)
-SUPABASE_URL=https://your-supabase-project.supabase.co
-SUPABASE_KEY=your-supabase-public-anon-key
+VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-public-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ```
 
 ---

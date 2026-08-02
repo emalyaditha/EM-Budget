@@ -63,7 +63,7 @@ export function parseReceiptText(rawText: string = ''): ScannedTransaction {
   let amount = 0;
   // Look specifically for lines containing TOTAL, NET, AMOUNT DUE, BALANCE DUE, PAID
   const totalLineRegex = /(?:total|net|amount due|balance due|grand total|paid|amount)\b[:\s]*[$€£₹Rp]?[ba\s]*([0-9]{1,6}(?:[.,][0-9]{2})?)/gi;
-  let totalMatches: number[] = [];
+  const totalMatches: number[] = [];
   let lineMatch;
 
   while ((lineMatch = totalLineRegex.exec(rawText)) !== null) {
