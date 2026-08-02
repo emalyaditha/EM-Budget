@@ -1,5 +1,4 @@
 import { AppState, Transaction } from './types';
-import { sanitizeCsvCell, escapeCsvRow, downloadBlob } from './lib/download';
 
 const STORAGE_KEY = 'cashflow_manager_state_v1';
 
@@ -53,39 +52,60 @@ export function loadStateFromStorage(defaultState: AppState): AppState {
   }
 }
 
+export function generateUniqueId(prefix = ''): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    const uuid = crypto.randomUUID();
+    return prefix ? `${prefix}-${uuid}` : uuid;
+  }
+  const rand = Math.random().toString(36).substring(2, 9);
+  return prefix ? `${prefix}-${Date.now()}-${rand}` : `${Date.now()}-${rand}`;
+}
+
 // Download state as backup JSON file
 export function exportStateAsJSON(state: AppState, userEmail?: string) {
+  // Strip sensitive security PIN from exports
+  const { pinCode, ...sanitizedState } = state;
   const payload = {
     version: "EM_BUDGET_SECURE_EX_V1",
     exportedBy: userEmail || "Anonymous",
     exportedAt: new Date().toISOString(),
-    data: state
+    data: { ...sanitizedState, pinCode: '' }
   };
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
   const stamp = new Date().toISOString().split('T')[0];
   const emailPrefix = userEmail ? `${userEmail.split('@')[0]}_` : '';
-  downloadBlob(
-    JSON.stringify(payload, null, 2),
-    `em_budget_${emailPrefix}backup_${stamp}.json`,
-    'application/json'
-  );
+  downloadAnchor.setAttribute("download", `em_budget_${emailPrefix}backup_${stamp}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
 }
 
 // Export Transactions to CSV / Excel spreadsheet
 export function exportTransactionsToCSV(transactions: Transaction[], currency: string = 'Rs.') {
-  const headers = ['Transaction ID', 'Type', 'Title', 'Amount', 'Date', 'Category', 'Paid From'];
+  const headers = ['Transaction ID', 'Type', 'Title', 'Amount', 'Date', 'Category', 'Paid Form'];
   const rows = transactions.map(t => [
     t.id,
     t.type.toUpperCase(),
-    t.title,
+    t.title.replace(/"/g, '""'),
     `${currency} ${t.amount}`,
     t.date,
     t.category,
     t.accountId ? `${t.accountType === 'card' ? 'Card' : 'Cash Account'}: ${t.accountId}` : 'N/A'
   ]);
 
-  const csvContent = [escapeCsvRow(headers), ...rows.map(escapeCsvRow)].join('\n');
+  const csvContent = "data:text/csv;charset=utf-8," 
+    + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(','))].join('\n');
+    
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
   const stamp = new Date().toISOString().split('T')[0];
-  downloadBlob(csvContent, `finance_statement_${stamp}.csv`, 'text/csv;charset=utf-8');
+  link.setAttribute("download", `finance_statement_${stamp}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 // Standard category colors configuration

@@ -1,8 +1,5 @@
-export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Business', 'Bonus', 'Commission', 'Loan Settle', 'Other'] as const;
-export const EXPENSE_CATEGORIES = ['Food', 'Transport', 'Shopping', 'Utilities', 'Rent', 'Entertainment', 'Medical', 'Education', 'Insurance', 'Loan', 'Bank Charges & Interest', 'Other'] as const;
-
-export type CategoryIncome = typeof INCOME_CATEGORIES[number];
-export type CategoryExpense = typeof EXPENSE_CATEGORIES[number];
+export type CategoryIncome = 'Salary' | 'Freelance' | 'Business' | 'Bonus' | 'Commission' | 'Loan Settle' | 'Other';
+export type CategoryExpense = 'Food' | 'Transport' | 'Shopping' | 'Utilities' | 'Rent' | 'Entertainment' | 'Medical' | 'Education' | 'Insurance' | 'Loan' | 'Bank Charges & Interest' | 'Other';
 
 export interface CashAccount {
   id: string;

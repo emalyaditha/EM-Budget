@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
 
@@ -12,8 +12,6 @@ export interface ModalProps {
   showCloseButton?: boolean;
 }
 
-const focusableSelector = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 export function Modal({
   isOpen,
   onClose,
@@ -23,42 +21,17 @@ export function Modal({
   maxWidth = 'md',
   showCloseButton = true,
 }: ModalProps) {
-  const titleId = typeof title === 'string' ? `modal-title-${title.slice(0, 20).replace(/\s+/g, '-')}` : undefined;
-  const containerRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<Element | null>(null);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if (e.key === 'Tab' && containerRef.current) {
-        const focusable = containerRef.current.querySelectorAll<HTMLElement>(focusableSelector);
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
     };
     if (isOpen) {
-      previousFocusRef.current = document.activeElement;
       document.body.style.overflow = 'hidden';
       window.addEventListener('keydown', handleKeyDown);
-      setTimeout(() => {
-        const firstFocusable = containerRef.current?.querySelector<HTMLElement>(focusableSelector);
-        firstFocusable?.focus();
-      }, 50);
     }
     return () => {
       document.body.style.overflow = 'unset';
       window.removeEventListener('keydown', handleKeyDown);
-      if (previousFocusRef.current instanceof HTMLElement) {
-        previousFocusRef.current.focus();
-      }
     };
   }, [isOpen, onClose]);
 
@@ -86,10 +59,6 @@ export function Modal({
 
           {/* Modal Container */}
           <motion.div
-            ref={containerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -100,7 +69,7 @@ export function Modal({
               <div className="flex items-center justify-between p-5 border-b border-[var(--border-primary)] bg-[var(--bg-surface)]/50">
                 <div>
                   {typeof title === 'string' ? (
-                    <h3 id={titleId} className="text-base font-bold font-display text-[var(--text-primary)]">{title}</h3>
+                    <h3 className="text-base font-bold font-display text-[var(--text-primary)]">{title}</h3>
                   ) : (
                     title
                   )}
@@ -109,7 +78,6 @@ export function Modal({
                 {showCloseButton && (
                   <button
                     onClick={onClose}
-                    aria-label="Close"
                     className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] rounded-lg transition-colors cursor-pointer"
                   >
                     <X size={16} />

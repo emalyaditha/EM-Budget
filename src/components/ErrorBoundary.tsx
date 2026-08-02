@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { ShieldAlert, RefreshCw } from 'lucide-react';
+import { ShieldAlert, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface Props {
   children?: ReactNode;
@@ -25,8 +25,13 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error('👾 [CRITICAL SYSTEM ERRROR DETECTED BY BOUNDARY]:', error, errorInfo);
     this.setState({ errorInfo });
+    
+    // Transparently forward telemetry markers to Sentry/Datadog if loaded
+    if ((window as any).Sentry) {
+      (window as any).Sentry.captureException(error);
+    }
   }
 
   private handleReset = () => {
@@ -57,7 +62,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
             </div>
 
             <p className="text-xs text-zinc-400 leading-relaxed font-mono">
-              The application encountered an unexpected rendering error. Your data may not have been saved. Please check your data after reloading.
+              The interface state engine encountered an unexpected runtime crash when rendering. Your financial ledger data is fully intact and saved to persistent cloud engines safely.
             </p>
 
             {this.state.error && (

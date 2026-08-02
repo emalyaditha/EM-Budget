@@ -4,15 +4,8 @@ dist/
 coverage/
 .DS_Store
 *.log
+server.err
+bun.lock
+start-dev.ps1
 .env*
 !.env.example
-
-# Dev cruft
-AUDIT_SPECIFICATION.md
-color_report.txt
-final_color_report.txt
-rewrite_supabase.ts
-test-db.ts
-test-map.js
-server.err
-.zcode/

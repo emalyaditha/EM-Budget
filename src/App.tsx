@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
-import { addMoney, subtractMoney } from './lib/money';
-import { exportStateAsJSON } from './utils';
+import { exportStateAsJSON, generateUniqueId } from './utils';
 import { 
   Plus, Search, Bell, CreditCard, Wallet, LayoutDashboard, ChevronRight, 
   TrendingUp, User, Lock, Unlock, Settings, HelpCircle, RefreshCw, 
@@ -36,7 +35,7 @@ import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 import { EXPENSE_COLORS, calculateNetWorth } from './utils';
 import { toMinorUnits, toMajorUnits } from './lib/money';
-import { validateData, AppStateSchema, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
+import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
 
 export default function App() {
   const { showConfirm, showToast } = useNotifications();
@@ -374,9 +373,9 @@ export default function App() {
       const targetGoal = (prev.savingsGoals || []).find(g => g.id === id);
       if (!targetGoal) return prev;
 
-      let finalCashAccounts = [...prev.cashAccounts];
+      let finalCashAccounts = prev.cashAccounts;
       if (cashAccountId) {
-        const account = finalCashAccounts.find(a => a.id === cashAccountId);
+        const account = prev.cashAccounts.find(a => a.id === cashAccountId);
         if (account) {
           const factor = amount > 0 ? -1 : 1; // saving (amount > 0) decrements wallet, withdrawing (amount < 0) increments wallet
           const absAmount = Math.abs(amount);
@@ -384,7 +383,8 @@ export default function App() {
             showToast('Insufficient wallet reserves for allocation transfer', 'error');
             return prev;
           }
-          account.balance = (toMinorUnits(account.balance) + (toMinorUnits(absAmount) * factor)) / 100;
+          const newBal = (toMinorUnits(account.balance) + (toMinorUnits(absAmount) * factor)) / 100;
+          finalCashAccounts = prev.cashAccounts.map(a => a.id === cashAccountId ? { ...a, balance: newBal } : a);
         }
       }
 
@@ -438,8 +438,8 @@ export default function App() {
     targetAccountId: string,
     targetType: 'cash' | 'card'
   ) => {
-    const incomeId = `inc-${Date.now()}`;
-    const transactionId = `trans-${Date.now()}`;
+    const incomeId = generateUniqueId('inc');
+    const transactionId = generateUniqueId('trans');
 
     const newIncome: Income = {
       id: incomeId,
@@ -465,7 +465,7 @@ export default function App() {
 
     const validation = validateData(TransactionSchema, newTransaction);
     if (!validation.success) {
-      showToast((validation as any).error, 'error');
+      showToast(validation.error, 'error');
       return;
     }
 
@@ -532,8 +532,8 @@ export default function App() {
     paymentMethodType: 'cash' | 'card',
     bankCharge: number = 0
   ) => {
-    const expenseId = `exp-${Date.now()}`;
-    const transactionId = `trans-${Date.now()}`;
+    const expenseId = generateUniqueId('exp');
+    const transactionId = generateUniqueId('trans');
 
     const newExpense: Expense = {
       id: expenseId,
@@ -561,7 +561,7 @@ export default function App() {
 
     const validation = validateData(TransactionSchema, newTransaction);
     if (!validation.success) {
-      showToast((validation as any).error, 'error');
+      showToast(validation.error, 'error');
       return;
     }
 
@@ -1321,17 +1321,16 @@ export default function App() {
   const handleAddSubscription = (subData: Omit<Subscription, 'id'>) => {
     const newSub: Subscription = {
       ...subData,
-      id: `sub-${Date.now()}`,
+      id: generateUniqueId('sub'),
     };
     const validation = validateData(SubscriptionSchema, newSub);
     if (!validation.success) {
-      showToast((validation as any).error, 'error');
+      showToast(validation.error, 'error');
       return;
     }
-    const validatedSub = (validation as any).data;
     updateState(prev => ({
       ...prev,
-      subscriptions: [...(prev.subscriptions || []), validatedSub],
+      subscriptions: [...(prev.subscriptions || []), validation.data],
     }));
   };
 
@@ -1558,30 +1557,24 @@ export default function App() {
     showToast('success', 'Purchase recorded successfully!');
   };
 
-  function computeCreditCardOverpayment(currentState: AppState, cardId: string, amount: number): string {
-    const card = currentState.cards.find(c => c.id === cardId);
-    if (!card || card.currentBalance >= 0) return '';
-    const outstanding = Math.abs(card.currentBalance);
-    if (amount > outstanding) {
-      return `Note: Payment of ${currentState.currency}${amount.toLocaleString()} exceeds outstanding debt of ${currentState.currency}${outstanding.toLocaleString()}, resulting in a positive credit balance of ${currentState.currency}${subtractMoney(amount, outstanding).toLocaleString()}.`;
-    }
-    return '';
-  }
-
   const handlePayCreditCard = (cardId: string, amount: number, fromId: string, fromType: 'cash' | 'card') => {
-      const overpaymentMsg = computeCreditCardOverpayment(state, cardId, amount);
+      let overpaymentMsg = '';
       updateState(prev => {
           let updatedCash = prev.cashAccounts.map(c => 
-            (fromType === 'cash' && c.id === fromId) ? { ...c, balance: subtractMoney(c.balance, amount) } : c
+            (fromType === 'cash' && c.id === fromId) ? { ...c, balance: c.balance - amount } : c
           );
           
           let updatedCards = prev.cards.map(c => {
             let cBal = c.currentBalance;
             if (fromType === 'card' && c.id === fromId) {
-                cBal = subtractMoney(cBal, amount);
+                cBal -= amount; // We paid using this card, so its balance decreases (debt increases)
             }
             if (c.id === cardId) {
-                cBal = addMoney(cBal, amount);
+                const outstanding = c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0;
+                if (amount > outstanding) {
+                    overpaymentMsg = `Note: Payment of ${prev.currency}${amount.toLocaleString()} exceeds outstanding debt of ${prev.currency}${outstanding.toLocaleString()}, resulting in a positive credit balance of ${prev.currency}${(amount - outstanding).toLocaleString()}.`;
+                }
+                cBal += amount; // We paid off this card, so its balance increases (debt decreases)
             }
             return { ...c, currentBalance: cBal };
           });
@@ -1787,19 +1780,18 @@ export default function App() {
   // Core cash account list modifiers
   const handleAddCashAccount = (name: string, balance: number) => {
     const newAcct: CashAccount = {
-      id: `cash-${Date.now()}`,
+      id: generateUniqueId('cash'),
       name,
       balance,
     };
     const validation = validateData(CashAccountSchema, newAcct);
     if (!validation.success) {
-      showToast((validation as any).error, 'error');
+      showToast(validation.error, 'error');
       return;
     }
-    const validatedAcct = (validation as any).data;
     updateState(prev => ({
       ...prev,
-      cashAccounts: [...prev.cashAccounts, validatedAcct],
+      cashAccounts: [...prev.cashAccounts, validation.data],
     }));
   };
 
@@ -1816,7 +1808,7 @@ export default function App() {
       let updatedTrans = [...prev.transactions];
       if (delta !== 0) {
         updatedTrans = [{
-          id: `trans-adjust-${Date.now()}`,
+          id: generateUniqueId('trans-adjust'),
           type: delta > 0 ? 'deposit' : 'withdrawal',
           title: `Balance adjustment: ${match?.name || 'Cash'}`,
           amount: Math.abs(delta),
@@ -1838,17 +1830,16 @@ export default function App() {
   const handleAddCard = (newCardData: Omit<BankCard, 'id'>) => {
     const rawCard: BankCard = {
       ...newCardData,
-      id: `card-${Date.now()}`,
+      id: generateUniqueId('card'),
     };
     const validation = validateData(BankCardSchema, rawCard);
     if (!validation.success) {
-      showToast((validation as any).error, 'error');
+      showToast(validation.error, 'error');
       return;
     }
-    const validatedCard = (validation as any).data;
     updateState(prev => ({
       ...prev,
-      cards: [...prev.cards, validatedCard],
+      cards: [...prev.cards, validation.data],
     }));
   };
 
@@ -2234,44 +2225,50 @@ export default function App() {
         if (loadedJson.version === 'EM_BUDGET_SECURE_EX_V1' && loadedJson.data) {
           stateToLoad = loadedJson.data;
           originalOwner = loadedJson.exportedBy || '';
-        } else {
+        } else if (loadedJson.cashAccounts && loadedJson.cards && loadedJson.transactions) {
           stateToLoad = loadedJson;
         }
 
-        // Backup current state before overwriting
-        try {
-          localStorage.setItem('cashflow_manager_state_backup_v1', JSON.stringify(state));
-        } catch (e) {
-          // backup best-effort
-        }
+        if (stateToLoad) {
+          const sanitizedState: AppState = {
+            ...DEFAULT_APP_STATE,
+            ...stateToLoad,
+            cashAccounts: stateToLoad.cashAccounts || [],
+            cards: stateToLoad.cards || [],
+            creditCards: stateToLoad.creditCards || [],
+            creditCardPurchases: stateToLoad.creditCardPurchases || [],
+            incomes: stateToLoad.incomes || [],
+            expenses: stateToLoad.expenses || [],
+            debts: stateToLoad.debts || [],
+            transactions: stateToLoad.transactions || [],
+            notifications: stateToLoad.notifications || [],
+            subscriptions: stateToLoad.subscriptions || [],
+            loansGiven: stateToLoad.loansGiven || [],
+            budgets: stateToLoad.budgets || DEFAULT_APP_STATE.budgets || [],
+            savingsGoals: stateToLoad.savingsGoals || DEFAULT_APP_STATE.savingsGoals || [],
+          };
+          updateState(() => sanitizedState);
+          
+          if (originalOwner && originalOwner !== 'Anonymous') {
+            showToast('success', `Personal ledger belonging to ${originalOwner} imported successfully! All records linked to your active identity.`);
+          } else {
+            showToast('success', 'Database restored successfully! Ledger tracks have re-balanced.');
+          }
 
-        // Validate with AppStateSchema
-        const validation = validateData(AppStateSchema, stateToLoad);
-        if (!validation.success) {
-          showToast('error', `Invalid backup file: ${(validation as { success: false; error: string }).error}`);
-          return;
-        }
-
-        const sanitizedState = (validation as { success: true; data: AppState }).data;
-        updateState(() => sanitizedState);
-        
-        if (originalOwner && originalOwner !== 'Anonymous') {
-          showToast('success', `Personal ledger belonging to ${originalOwner} imported successfully!`);
+          // Trigger manual push to ensure data is synced to cloud immediately
+          const { autoSync } = getSupabaseConfig();
+          if (autoSync && userEmail) {
+            syncStateToSupabase(userEmail, stateToLoad, true).then(res => {
+              if (res.success) {
+                showToast('success', 'Imported data pushed to cloud automatically!');
+              } else {
+                console.warn('Auto-push failed after import:', res.error);
+                showToast('error', 'Imported data failed to push to cloud.');
+              }
+            });
+          }
         } else {
-          showToast('success', 'Database restored successfully!');
-        }
-
-        // Trigger manual push to ensure data is synced to cloud immediately
-        const { autoSync } = getSupabaseConfig();
-        if (autoSync && userEmail) {
-          syncStateToSupabase(userEmail, sanitizedState, true).then(res => {
-            if (res.success) {
-              showToast('success', 'Imported data pushed to cloud automatically!');
-            } else {
-              console.warn('Auto-push failed after import:', res.error);
-              showToast('error', 'Imported data failed to push to cloud.');
-            }
-          });
+          showToast('error', 'Invalid backup file. Requisite database structures were missing.');
         }
       } catch (err) {
         showToast('error', 'File decode failure. Try with a valid export JSON backup.');

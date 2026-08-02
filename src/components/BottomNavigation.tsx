@@ -48,7 +48,6 @@ export function BottomNavigation({
             return (
               <button
                 key={tab.id}
-                aria-label={tab.label}
                 onClick={() => {
                   if (tab.id === 'more') {
                     onMoreClick();

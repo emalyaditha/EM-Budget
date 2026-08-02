@@ -11,22 +11,26 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [];
 export const INITIAL_NOTIFICATIONS: AppNotification[] = [];
 export const INITIAL_SUBSCRIPTIONS: Subscription[] = [];
 
-export const DEFAULT_APP_STATE: AppState = {
-  cashAccounts: INITIAL_CASH_ACCOUNTS,
-  cards: INITIAL_CARDS,
-  creditCards: INITIAL_CREDIT_CARDS,
-  creditCardPurchases: INITIAL_CREDIT_CARD_PURCHASES,
-  incomes: INITIAL_INCOMES,
-  expenses: INITIAL_EXPENSES,
-  debts: INITIAL_DEBTS,
-  transactions: INITIAL_TRANSACTIONS,
-  notifications: INITIAL_NOTIFICATIONS,
-  subscriptions: INITIAL_SUBSCRIPTIONS,
-  loansGiven: [],
-  budgets: [],
-  savingsGoals: [],
-  userProfile: { name: 'User', email: 'user@example.com' },
-  pinCode: '',
-  pinEnabled: false,
-  currency: 'Rs.',
-};
+export function createDefaultAppState(): AppState {
+  return {
+    cashAccounts: [],
+    cards: [],
+    creditCards: [],
+    creditCardPurchases: [],
+    incomes: [],
+    expenses: [],
+    debts: [],
+    transactions: [],
+    notifications: [],
+    subscriptions: [],
+    loansGiven: [],
+    budgets: [],
+    savingsGoals: [],
+    userProfile: { name: 'User', email: 'user@example.com' },
+    pinCode: '',
+    pinEnabled: false,
+    currency: 'Rs.',
+  };
+}
+
+export const DEFAULT_APP_STATE: AppState = createDefaultAppState();
