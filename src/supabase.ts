@@ -260,11 +260,37 @@ function mapObjectToColumns(item: any, columns: string[], email: string, mapping
     result['userEmail'] = email;
   }
   
-  // Set timestamp marker
+  // Set timestamp marker: ONLY default to current timestamp if the item DOES NOT ALREADY HAVE an updated_at or updatedAt value or date!
+  const getExistingTs = (obj: any): string | undefined => {
+    if (!obj) return undefined;
+    const ts = obj.updated_at || obj.updatedAt || obj.created_at || obj.createdAt;
+    if (ts) return ts;
+    if (obj.date) {
+      try {
+        const d = new Date(obj.date);
+        if (!isNaN(d.getTime())) return d.toISOString();
+      } catch {
+        // ignore
+      }
+      return obj.date;
+    }
+    if (obj.dateGiven) {
+      try {
+        const d = new Date(obj.dateGiven);
+        if (!isNaN(d.getTime())) return d.toISOString();
+      } catch {
+        // ignore
+      }
+      return obj.dateGiven;
+    }
+    return undefined;
+  };
+
+  const existingTimestamp = getExistingTs(item);
   if (columns.includes('updated_at')) {
-    result['updated_at'] = new Date().toISOString();
+    result['updated_at'] = existingTimestamp || new Date().toISOString();
   } else if (columns.includes('updatedAt')) {
-    result['updatedAt'] = new Date().toISOString();
+    result['updatedAt'] = existingTimestamp || new Date().toISOString();
   }
 
   // Pre-load explicit mapping overrides
@@ -892,6 +918,12 @@ function mapDatabaseResultToState(item: any): any {
     result.isFrozen = false;
   } else {
     result.isFrozen = Boolean(result.isFrozen);
+  }
+  
+  const timestamp = item.updated_at || item.updatedAt || item.created_at || item.createdAt;
+  if (timestamp) {
+    result.updated_at = timestamp;
+    result.updatedAt = timestamp;
   }
   
   return result;

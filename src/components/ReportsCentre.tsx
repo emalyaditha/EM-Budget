@@ -125,7 +125,9 @@ export default function ReportsCentre({
     category: 'Loan Settle',
     accountId: s.receivedInId,
     accountType: s.receivedInType,
-    referenceId: l.id
+    referenceId: l.id,
+    updated_at: s.updated_at || s.updatedAt,
+    updatedAt: s.updated_at || s.updatedAt,
   })));
 
   const allTransactions = [...transactions, ...settlementTransactions];
@@ -145,6 +147,17 @@ export default function ReportsCentre({
       return matchesSearch && matchesType && matchesAccount && matchesStart && matchesEnd;
     })
     .sort((a, b) => {
+      const getTs = (item: any): number => {
+        const raw = item.updated_at || item.updatedAt || item.created_at || item.createdAt || item.date;
+        if (!raw) return 0;
+        const time = new Date(raw).getTime();
+        return isNaN(time) ? 0 : time;
+      };
+
+      const timeA = getTs(a);
+      const timeB = getTs(b);
+      if (timeA !== timeB) return timeB - timeA;
+
       const dateCompare = b.date.localeCompare(a.date);
       if (dateCompare !== 0) return dateCompare;
       const aNum = parseInt(a.id.replace(/\D/g, ''), 10);

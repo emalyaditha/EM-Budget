@@ -61,6 +61,10 @@ export interface Income {
   category: CategoryIncome;
   targetAccountId: string; // ID of either CashAccount or BankCard
   targetType: 'cash' | 'card';
+  updated_at?: string;
+  updatedAt?: string;
+  created_at?: string;
+  createdAt?: string;
 }
 
 export interface Expense {
@@ -72,6 +76,10 @@ export interface Expense {
   category: CategoryExpense;
   paymentMethodId: string; // ID of CashAccount or BankCard
   paymentMethodType: 'cash' | 'card';
+  updated_at?: string;
+  updatedAt?: string;
+  created_at?: string;
+  createdAt?: string;
 }
 
 export interface DebtPayment {
@@ -81,6 +89,10 @@ export interface DebtPayment {
   date: string;
   paidFromId: string;
   paidFromType: 'cash' | 'card';
+  updated_at?: string;
+  updatedAt?: string;
+  created_at?: string;
+  createdAt?: string;
 }
 
 export interface Debt {
@@ -95,6 +107,8 @@ export interface Debt {
   accountType?: 'cash' | 'card';
   accountName?: string;
   status?: 'Active' | 'Closed' | 'Fully Repaid';
+  updated_at?: string;
+  updatedAt?: string;
 }
 
 export interface Transaction {
@@ -110,6 +124,10 @@ export interface Transaction {
   targetAccountId?: string; // for transfer/deposit/withdrawal
   targetAccountType?: 'cash' | 'card';
   referenceId?: string; // ID of income, expense, debt payment
+  updated_at?: string;
+  updatedAt?: string;
+  created_at?: string;
+  createdAt?: string;
 }
 
 export interface AppNotification {
@@ -128,6 +146,10 @@ export interface LoanSettlement {
   receivedInId: string;
   receivedInType: 'cash' | 'card';
   receivedInName: string;
+  updated_at?: string;
+  updatedAt?: string;
+  created_at?: string;
+  createdAt?: string;
 }
 
 export interface LoanGiven {
@@ -142,6 +164,10 @@ export interface LoanGiven {
   status: 'Active' | 'Partially Settled' | 'Settled';
   notes: string;
   settlements: LoanSettlement[];
+  updated_at?: string;
+  updatedAt?: string;
+  created_at?: string;
+  createdAt?: string;
 }
 
 export interface Subscription {

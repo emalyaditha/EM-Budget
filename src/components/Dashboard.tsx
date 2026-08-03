@@ -548,6 +548,8 @@ export default function Dashboard({
                     category: 'Loan', 
                     logType: 'loan' as const,
                     accountType: l.sourceAccountType,
+                    updated_at: l.updated_at || l.updatedAt,
+                    updatedAt: l.updated_at || l.updatedAt,
                     originalIdx: idx
                 })),
                 ...state.loansGiven.flatMap((l, lIdx) => l.settlements.map((s, sIdx) => ({
@@ -559,17 +561,28 @@ export default function Dashboard({
                     category: 'Loan Settle',
                     logType: 'settlement' as const,
                     accountType: s.receivedInType,
+                    updated_at: s.updated_at || s.updatedAt,
+                    updatedAt: s.updated_at || s.updatedAt,
                     originalIdx: lIdx * 100 + sIdx
                 })))
               ]
                 .sort((a, b) => {
-                  const timeA = new Date(a.date).getTime();
-                  const timeB = new Date(b.date).getTime();
-                  if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) {
+                  const getTs = (item: any): number => {
+                    const raw = item.updated_at || item.updatedAt || item.created_at || item.createdAt || item.date || item.dateGiven;
+                    if (!raw) return 0;
+                    const time = new Date(raw).getTime();
+                    return isNaN(time) ? 0 : time;
+                  };
+
+                  const timeA = getTs(a);
+                  const timeB = getTs(b);
+                  if (timeA !== timeB) {
                     return timeB - timeA;
                   }
 
-                  const dateCompare = (b.date || '').localeCompare(a.date || '');
+                  const dateA = a.date || (a as any).dateGiven || '';
+                  const dateB = b.date || (b as any).dateGiven || '';
+                  const dateCompare = dateB.localeCompare(dateA);
                   if (dateCompare !== 0) return dateCompare;
 
                   const aNum = parseInt((a.id || '').replace(/\D/g, ''), 10);
@@ -579,7 +592,7 @@ export default function Dashboard({
                   }
 
                   if (a.originalIdx !== undefined && b.originalIdx !== undefined && a.originalIdx !== b.originalIdx) {
-                    return a.originalIdx - b.originalIdx;
+                    return b.originalIdx - a.originalIdx;
                   }
 
                   return (b.id || '').localeCompare(a.id || '');

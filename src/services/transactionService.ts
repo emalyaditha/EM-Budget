@@ -1,4 +1,4 @@
-import { Transaction, Income, Expense, DebtPayment, AppState } from '../types';
+import { Transaction } from '../types';
 
 export const transactionService = {
   getFilteredTransactions: (
@@ -28,9 +28,16 @@ export const transactionService = {
 
   sortTransactionsByDate: (transactions: Transaction[], order: 'asc' | 'desc' = 'desc'): Transaction[] => {
     return [...transactions].sort((a, b) => {
-      const timeA = new Date(a.date).getTime();
-      const timeB = new Date(b.date).getTime();
-      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) {
+      const getTimestamp = (item: any): number => {
+        const raw = item.updated_at || item.updatedAt || item.created_at || item.createdAt || item.date;
+        if (!raw) return 0;
+        const time = new Date(raw).getTime();
+        return isNaN(time) ? 0 : time;
+      };
+
+      const timeA = getTimestamp(a);
+      const timeB = getTimestamp(b);
+      if (timeA !== timeB) {
         return order === 'desc' ? timeB - timeA : timeA - timeB;
       }
 

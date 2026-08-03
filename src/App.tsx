@@ -455,6 +455,8 @@ export default function App() {
     const incomeId = generateUniqueId('inc');
     const transactionId = generateUniqueId('trans');
 
+    const nowIso = new Date().toISOString();
+
     const newIncome: Income = {
       id: incomeId,
       amount,
@@ -463,6 +465,8 @@ export default function App() {
       category,
       targetAccountId,
       targetType,
+      updated_at: nowIso,
+      updatedAt: nowIso,
     };
 
     const newTransaction: Transaction = {
@@ -475,6 +479,8 @@ export default function App() {
       accountId: targetAccountId,
       accountType: targetType,
       referenceId: incomeId,
+      updated_at: nowIso,
+      updatedAt: nowIso,
     };
 
     const validation = validateData(TransactionSchema, newTransaction);
@@ -513,6 +519,8 @@ export default function App() {
         accountId: targetAccountId,
         accountType: targetType,
         referenceId: incomeId,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       // 3. Optional balance threshold triggers
@@ -549,6 +557,8 @@ export default function App() {
     const expenseId = generateUniqueId('exp');
     const transactionId = generateUniqueId('trans');
 
+    const nowIso = new Date().toISOString();
+
     const newExpense: Expense = {
       id: expenseId,
       title,
@@ -558,6 +568,8 @@ export default function App() {
       category,
       paymentMethodId,
       paymentMethodType,
+      updated_at: nowIso,
+      updatedAt: nowIso,
     };
 
     const newTransaction: Transaction = {
@@ -571,6 +583,8 @@ export default function App() {
       accountType: paymentMethodType,
       referenceId: expenseId,
       charge: bankCharge > 0 ? bankCharge : undefined,
+      updated_at: nowIso,
+      updatedAt: nowIso,
     };
 
     const validation = validateData(TransactionSchema, newTransaction);
@@ -645,6 +659,8 @@ export default function App() {
         accountType: paymentMethodType,
         referenceId: expenseId,
         charge: bankCharge > 0 ? bankCharge : undefined,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       const newExpenses = [...prev.expenses, newExpense];
@@ -663,6 +679,8 @@ export default function App() {
           category: 'Bank Charges & Interest',
           paymentMethodId,
           paymentMethodType,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         const chargeTransaction: Transaction = {
@@ -675,6 +693,8 @@ export default function App() {
           accountId: paymentMethodId,
           accountType: paymentMethodType,
           referenceId: chargeExpenseId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         newExpenses.push(chargeExpense);
@@ -695,12 +715,15 @@ export default function App() {
   // Rule: Debt Registered
   const handleAddDebt = (debtData: Omit<Debt, 'id' | 'payments' | 'remainingAmount'>) => {
     const debtId = `debt-${Date.now()}`;
+    const nowIso = new Date().toISOString();
     const newDebt: Debt = {
       ...debtData,
       id: debtId,
       remainingAmount: debtData.totalAmount,
       payments: [],
       status: debtData.totalAmount === 0 ? 'Fully Repaid' : 'Active',
+      updated_at: nowIso,
+      updatedAt: nowIso,
     };
 
     const validation = validateData(DebtSchema, newDebt);
@@ -737,6 +760,8 @@ export default function App() {
           accountId: debtData.accountId,
           accountType: debtData.accountType,
           referenceId: debtId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
         newTransactions.unshift(newTx);
       }
@@ -827,12 +852,15 @@ export default function App() {
     bankCharge: number = 0
   ) => {
     const loanId = `loan_given_${Date.now()}`;
+    const nowIso = new Date().toISOString();
     const newLoan: LoanGiven = {
       ...loanData,
       id: loanId,
       remainingAmount: loanData.totalAmount,
       status: 'Active',
       settlements: [],
+      updated_at: nowIso,
+      updatedAt: nowIso,
     };
 
     updateState(prev => {
@@ -865,6 +893,8 @@ export default function App() {
         accountType: loanData.sourceAccountType,
         referenceId: loanId,
         charge: bankCharge > 0 ? bankCharge : undefined,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       // 3. Create Expense entry
@@ -877,6 +907,8 @@ export default function App() {
         category: 'Loan',
         paymentMethodId: loanData.sourceAccountId,
         paymentMethodType: loanData.sourceAccountType,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       const newExpenses = [newExp, ...prev.expenses];
@@ -895,6 +927,8 @@ export default function App() {
           category: 'Bank Charges & Interest',
           paymentMethodId: loanData.sourceAccountId,
           paymentMethodType: loanData.sourceAccountType,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         const chargeTransaction: Transaction = {
@@ -907,6 +941,8 @@ export default function App() {
           accountId: loanData.sourceAccountId,
           accountType: loanData.sourceAccountType,
           referenceId: chargeExpenseId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         newExpenses.unshift(chargeExpense);
@@ -944,6 +980,7 @@ export default function App() {
   ) => {
     const settlementId = `setl_${Date.now()}`;
     const settlementDate = new Date().toISOString().split('T')[0];
+    const nowIso = new Date().toISOString();
 
     updateState(prev => {
       // Find the loan item to capture borrower info
@@ -975,6 +1012,8 @@ export default function App() {
         receivedInId,
         receivedInType,
         receivedInName,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       const updatedLoans: LoanGiven[] = (prev.loansGiven || []).map(loan => {
@@ -986,6 +1025,8 @@ export default function App() {
             remainingAmount: newRemaining,
             status: newStatus,
             settlements: [...(loan.settlements || []), newSettlement],
+            updated_at: nowIso,
+            updatedAt: nowIso,
           };
         }
         return loan;
@@ -1004,6 +1045,8 @@ export default function App() {
         accountType: receivedInType,
         referenceId: settlementId,
         charge: bankCharge > 0 ? bankCharge : undefined,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       // 4. Create Income entry
@@ -1015,6 +1058,8 @@ export default function App() {
         category: 'Loan Settle',
         targetAccountId: receivedInId,
         targetType: receivedInType,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       const newExpenses = [...prev.expenses];
@@ -1033,6 +1078,8 @@ export default function App() {
           category: 'Bank Charges & Interest',
           paymentMethodId: receivedInId,
           paymentMethodType: receivedInType,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         const chargeTransaction: Transaction = {
@@ -1045,6 +1092,8 @@ export default function App() {
           accountId: receivedInId,
           accountType: receivedInType,
           referenceId: chargeExpenseId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         newExpenses.unshift(chargeExpense);
@@ -1093,6 +1142,7 @@ export default function App() {
       }
 
       // 2. Add an audit transaction record
+      const nowIso = new Date().toISOString();
       const refundTransaction: Transaction = {
         id: `trans-refund-${Date.now()}`,
         type: 'deposit',
@@ -1103,6 +1153,8 @@ export default function App() {
         accountId: loanToDelete.sourceAccountId,
         accountType: loanToDelete.sourceAccountType,
         referenceId: loanId,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       // 3. Optional: Remove associated transaction/expense if needed (for now just refund)
@@ -1168,6 +1220,7 @@ export default function App() {
       });
 
       // 3. Create Transaction log
+      const nowIso = new Date().toISOString();
       const txId = `tx_loan_add_${Date.now()}`;
       const newTx: Transaction = {
         id: txId,
@@ -1180,6 +1233,8 @@ export default function App() {
         accountType: sourceAccountType,
         referenceId: loanId,
         charge: bankCharge > 0 ? bankCharge : undefined,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       // 4. Create Expense entry
@@ -1192,6 +1247,8 @@ export default function App() {
         category: 'Loan',
         paymentMethodId: sourceAccountId,
         paymentMethodType: sourceAccountType,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       const newExpenses = [newExp, ...prev.expenses];
@@ -1210,6 +1267,8 @@ export default function App() {
           category: 'Bank Charges & Interest',
           paymentMethodId: sourceAccountId,
           paymentMethodType: sourceAccountType,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         const chargeTransaction: Transaction = {
@@ -1222,6 +1281,8 @@ export default function App() {
           accountId: sourceAccountId,
           accountType: sourceAccountType,
           referenceId: chargeExpenseId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         newExpenses.unshift(chargeExpense);
@@ -1266,6 +1327,7 @@ export default function App() {
   const handleApplyCardCharge = (cardId: string, charge: any) => {
     updateState(prev => {
       const transactionId = `trans-${Date.now()}`;
+      const nowIso = new Date().toISOString();
       const newTransaction: Transaction = {
         id: transactionId,
         type: 'credit_card_charge',
@@ -1276,6 +1338,8 @@ export default function App() {
         accountId: cardId,
         accountType: 'card',
         referenceId: charge.id,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       const updatedCards = prev.cards.map(c => {
@@ -1353,6 +1417,7 @@ export default function App() {
       const subToDelete = (prev.subscriptions || []).find(s => s.id === id);
       if (!subToDelete) return prev;
 
+      const nowIso = new Date().toISOString();
       const auditTransaction: Transaction = {
         id: `trans-sub-del-${Date.now()}`,
         type: 'expense',
@@ -1361,6 +1426,8 @@ export default function App() {
         date: new Date().toISOString().split('T')[0],
         category: 'Subscription Deletion',
         referenceId: id,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       return {
@@ -1464,6 +1531,7 @@ export default function App() {
       });
 
       // Draft unified Expense item
+      const nowIso = new Date().toISOString();
       const expenseId = `exp-${Date.now()}`;
       const transactionId = `trans-${Date.now()}`;
       const newExpense: Expense = {
@@ -1475,6 +1543,8 @@ export default function App() {
         category: sub.category,
         paymentMethodId: accountId,
         paymentMethodType: accountType,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       // Draft unified Journal ledger transaction record
@@ -1489,6 +1559,8 @@ export default function App() {
         accountType,
         referenceId: expenseId,
         charge: bankCharge > 0 ? bankCharge : undefined,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       const newExpenses = [...prev.expenses, newExpense];
@@ -1507,6 +1579,8 @@ export default function App() {
           category: 'Bank Charges & Interest',
           paymentMethodId: accountId,
           paymentMethodType: accountType,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         const chargeTransaction: Transaction = {
@@ -1519,6 +1593,8 @@ export default function App() {
           accountId,
           accountType,
           referenceId: chargeExpenseId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         newExpenses.push(chargeExpense);
@@ -1550,6 +1626,7 @@ export default function App() {
     updateState(prev => {
         const updatedCards = prev.cards.map(c => c.id === purchase.cardId ? { ...c, currentBalance: c.currentBalance - purchase.amount } : c);
         
+        const nowIso = new Date().toISOString();
         const newTransaction: Transaction = {
           id: `trans-${Date.now()}`,
           type: 'expense',
@@ -1559,6 +1636,8 @@ export default function App() {
           category: 'Shopping', // Default category
           accountId: purchase.cardId,
           accountType: 'card',
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
         
         return {
@@ -1598,6 +1677,7 @@ export default function App() {
           });
           
           const targetCard = prev.cards.find(c => c.id === cardId);
+          const nowIso = new Date().toISOString();
           const newTransaction: Transaction = {
             id: generateUniqueId('trans'),
             type: 'debt_payment',
@@ -1607,6 +1687,8 @@ export default function App() {
             category: 'Debt Repayment',
             accountId: fromId,
             accountType: fromType,
+            updated_at: nowIso,
+            updatedAt: nowIso,
           };
           
           return {
@@ -1651,6 +1733,7 @@ export default function App() {
         }
 
         // Add transaction for additional borrowed liability funds
+        const nowIso = new Date().toISOString();
         const txId = `tx_debt_inc_${Date.now()}`;
         const newTx: Transaction = {
           id: txId,
@@ -1662,6 +1745,8 @@ export default function App() {
           accountId: targetAccountId,
           accountType: targetAccountType,
           referenceId: debtId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
         newTransactions.unshift(newTx);
       }
@@ -1728,6 +1813,7 @@ export default function App() {
       });
 
       const matchedDebt = prev.debts.find(d => d.id === debtId);
+      const nowIso = new Date().toISOString();
       const newTransaction: Transaction = {
         id: transactionId,
         type: 'debt_payment',
@@ -1739,6 +1825,8 @@ export default function App() {
         accountType: paidFromType,
         referenceId: paymentId,
         charge: bankCharge > 0 ? bankCharge : undefined,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       const newExpenses = [...prev.expenses];
@@ -1757,6 +1845,8 @@ export default function App() {
           category: 'Bank Charges & Interest',
           paymentMethodId: paidFromId,
           paymentMethodType: paidFromType,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         const chargeTransaction: Transaction = {
@@ -1769,6 +1859,8 @@ export default function App() {
           accountId: paidFromId,
           accountType: paidFromType,
           referenceId: chargeExpenseId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
 
         newExpenses.push(chargeExpense);
@@ -1825,6 +1917,7 @@ export default function App() {
       // Log adjustments trace on Transactions Audit ledger
       let updatedTrans = [...prev.transactions];
       if (delta !== 0) {
+        const nowIso = new Date().toISOString();
         updatedTrans = [{
           id: generateUniqueId('trans-adjust'),
           type: delta > 0 ? 'deposit' : 'withdrawal',
@@ -1834,6 +1927,8 @@ export default function App() {
           category: 'Adjustment',
           accountId: id,
           accountType: 'cash',
+          updated_at: nowIso,
+          updatedAt: nowIso,
         }, ...prev.transactions];
       }
 
@@ -1892,6 +1987,7 @@ export default function App() {
       
       if (!accountToDelete) return prev;
       
+      const nowIso = new Date().toISOString();
       const auditTransaction: Transaction = {
         id: `trans-cash-del-${Date.now()}`,
         type: 'expense',
@@ -1900,6 +1996,8 @@ export default function App() {
         date: new Date().toISOString().split('T')[0],
         category: 'Account Deletion',
         referenceId: id,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       return {
@@ -1987,6 +2085,7 @@ export default function App() {
         if (tx.accountId) reverseAmount(tx.amount, tx.accountId, 'cash', false);
       }
 
+      const nowIso = new Date().toISOString();
       const auditTransaction: Transaction = {
         id: `trans-del-${Date.now()}`,
         type: 'expense',
@@ -1995,6 +2094,8 @@ export default function App() {
         date: new Date().toISOString().split('T')[0],
         category: 'Transaction Deletion',
         referenceId: txId,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       return {
@@ -2067,6 +2168,8 @@ export default function App() {
       const fromName = fromType === 'cash' ? prev.cashAccounts.find(x => x.id === fromId)?.name || 'Cash' : prev.cards.find(x => x.id === fromId)?.cardName || 'Bank Card';
       const toName = toType === 'cash' ? prev.cashAccounts.find(x => x.id === toId)?.name || 'Cash' : prev.cards.find(x => x.id === toId)?.cardName || 'Bank Card';
 
+      const nowIso = new Date().toISOString();
+
       const transOut: Transaction = {
         id: transOutId,
         type: 'transfer',
@@ -2080,6 +2183,8 @@ export default function App() {
         targetAccountId: toId,
         targetAccountType: toType,
         referenceId: transferId,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       const transIn: Transaction = {
@@ -2095,6 +2200,8 @@ export default function App() {
         targetAccountId: fromId,
         targetAccountType: fromType,
         referenceId: transferId,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
 
       const newTransactions: Transaction[] = [transOut, transIn];
@@ -2111,6 +2218,8 @@ export default function App() {
           accountId: fromId,
           accountType: fromType,
           referenceId: transferId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
         };
         newTransactions.push(transFee);
       }
@@ -2161,12 +2270,15 @@ export default function App() {
       let updatedExpenses = [...prev.expenses];
       let updatedDebts = [...prev.debts];
 
+      const nowIso = new Date().toISOString();
+
       if (tx.type === 'income') {
         /* No linked income record update required */
       } else if (tx.type === 'expense') {
         updatedExpenses = updatedExpenses.map(e => e.id === tx.referenceId ? {
           ...e, amount: newData.amount, title: newData.title, date: newData.date, category: newData.category,
-          paymentMethodId: newData.accountId, paymentMethodType: newData.accountType
+          paymentMethodId: newData.accountId, paymentMethodType: newData.accountType,
+          updated_at: nowIso, updatedAt: nowIso
         } : e);
       } else if (tx.type === 'debt_payment') {
         updatedDebts = updatedDebts.map(d => {
@@ -2177,8 +2289,11 @@ export default function App() {
             return {
               ...d,
               remainingAmount: nextRemaining,
+              updated_at: nowIso,
+              updatedAt: nowIso,
               payments: d.payments.map(p => p.id === tx.referenceId ? { 
-                ...p, amount: newData.amount, date: newData.date, paidFromId: newData.accountId, paidFromType: newData.accountType 
+                ...p, amount: newData.amount, date: newData.date, paidFromId: newData.accountId, paidFromType: newData.accountType,
+                updated_at: nowIso, updatedAt: nowIso
               } : p),
               status: nextRemaining === 0 ? 'Fully Repaid' : 'Active'
             };
@@ -2196,7 +2311,9 @@ export default function App() {
         debts: updatedDebts,
         transactions: prev.transactions.map(t => t.id === txId ? {
           ...t,
-          ...newData
+          ...newData,
+          updated_at: nowIso,
+          updatedAt: nowIso
         } : t)
       };
     });
@@ -2372,6 +2489,17 @@ export default function App() {
       return matchesSearch && matchesType && matchesAccount;
     })
     .sort((a, b) => {
+      const getTs = (item: any): number => {
+        const raw = item.updated_at || item.updatedAt || item.created_at || item.createdAt || item.date;
+        if (!raw) return 0;
+        const time = new Date(raw).getTime();
+        return isNaN(time) ? 0 : time;
+      };
+
+      const timeA = getTs(a);
+      const timeB = getTs(b);
+      if (timeA !== timeB) return timeB - timeA;
+
       const dateCompare = b.date.localeCompare(a.date);
       if (dateCompare !== 0) return dateCompare;
       const aNum = parseInt(a.id.replace(/\D/g, ''), 10);
