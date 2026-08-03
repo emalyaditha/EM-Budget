@@ -992,7 +992,7 @@ h1, h2, h3, h4, h5, h6,
    CHARTS & GRID HARMONIZATION
    ========================================================================== */
 
-svg:not(#em-logo) text {
+svg:not(#em-logo):not(#sidebar-logo) text {
   fill: var(--text-secondary) !important;
   font-family: "JetBrains Mono", monospace !important;
   font-size: 10px !important;
@@ -1001,17 +1001,24 @@ svg:not(#em-logo) text {
 /* ==========================================================================
    BRAND LOGO ICON SPECIFIC STYLES
    ========================================================================== */
-#em-logo text {
+#em-logo text,
+#sidebar-logo text {
   fill: #ffffff !important;
   font-family: "Inter", "Plus Jakarta Sans", ui-sans-serif, sans-serif !important;
-  font-size: 22px !important;
+  font-size: 26px !important;
   font-weight: 900 !important;
   letter-spacing: -0.02em !important;
 }
 
-#em-logo rect {
+#em-logo rect,
+#sidebar-logo rect {
   fill: #000000 !important;
-  stroke: #27272a !important;
+  stroke: #52525b !important;
+}
+
+#em-logo path,
+#sidebar-logo path {
+  stroke: #ffffff !important;
 }
 
 svg line,

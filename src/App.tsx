@@ -2427,11 +2427,11 @@ export default function App() {
           <div className="space-y-6">
             {/* Logo/Brand block */}
             <div className={`flex items-center gap-3 ${isNavCollapsed ? 'justify-center' : ''}`}>
-              <svg viewBox="0 0 100 100" className="w-9 h-9 shrink-0 select-none animate-fade-in" fill="none" xmlns="http://www.w3.org/2000/svg" id="sidebar-logo">
-                <rect width="100" height="100" rx="22" fill="black" stroke="#27272a" strokeWidth="4px" />
+              <svg viewBox="0 0 100 100" className="w-10 h-10 shrink-0 select-none animate-fade-in transition-all duration-200" fill="none" xmlns="http://www.w3.org/2000/svg" id="sidebar-logo">
+                <rect width="100" height="100" rx="22" fill="black" stroke="#52525b" strokeWidth="4px" />
                 <path d="M 34 22 C 26 22, 22 26, 22 34 L 22 44 C 22 48, 18 50, 14 50 C 18 50, 22 52, 22 56 L 22 66 C 22 74, 26 78, 34 78" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                 <path d="M 66 22 C 74 22, 78 26, 78 34 L 78 44 C 78 48, 82 50, 86 50 C 82 50, 78 52, 78 56 L 78 66 C 78 74, 74 78, 66 78" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                <text x="50" y="58" fill="white" fontSize="22" fontWeight="900" fontFamily='"Inter", ui-sans-serif, system-ui, sans-serif' textAnchor="middle" letterSpacing="-0.02em">
+                <text x="50" y="52" fill="white" fontSize="26" fontWeight="900" fontFamily='"Inter", ui-sans-serif, system-ui, sans-serif' textAnchor="middle" dominantBaseline="central" letterSpacing="-0.02em">
                   EM
                 </text>
               </svg>
@@ -2440,7 +2440,7 @@ export default function App() {
                   <h1 className="text-sm font-black tracking-tight text-[var(--text-primary)] uppercase leading-none">
                     EM Budget
                   </h1>
-                  <p className="text-[9px] text-[var(--text-secondary)] font-mono mt-1">Owner Device Secured</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] font-mono mt-1 font-medium">Owner Device Secured</p>
                 </div>
               )}
             </div>
@@ -2684,11 +2684,11 @@ export default function App() {
         {/* 1. TOP HEADER BRAND RAIL (Visible on Mobile only, hidden on Desktop via lg:hidden) */}
         <header className="lg:hidden px-6 py-4 bg-[var(--bg-sidebar)] border-b border-[var(--border-primary)] flex justify-between items-center z-20" id="header-brand-rail">
           <div className="flex items-center gap-3">
-            <svg viewBox="0 0 100 100" className="w-9 h-9 shrink-0 select-none animate-fade-in" fill="none" xmlns="http://www.w3.org/2000/svg" id="em-logo">
-              <rect width="100" height="100" rx="22" fill="black" stroke="#27272a" strokeWidth="4px" />
+            <svg viewBox="0 0 100 100" className="w-10 h-10 shrink-0 select-none animate-fade-in" fill="none" xmlns="http://www.w3.org/2000/svg" id="em-logo">
+              <rect width="100" height="100" rx="22" fill="black" stroke="#52525b" strokeWidth="4px" />
               <path d="M 34 22 C 26 22, 22 26, 22 34 L 22 44 C 22 48, 18 50, 14 50 C 18 50, 22 52, 22 56 L 22 66 C 22 74, 26 78, 34 78" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
               <path d="M 66 22 C 74 22, 78 26, 78 34 L 78 44 C 78 48, 82 50, 86 50 C 82 50, 78 52, 78 56 L 78 66 C 78 74, 74 78, 66 78" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              <text x="50" y="58" fill="white" fontSize="22" fontWeight="900" fontFamily='"Inter", ui-sans-serif, system-ui, sans-serif' textAnchor="middle" letterSpacing="-0.02em">
+              <text x="50" y="52" fill="white" fontSize="26" fontWeight="900" fontFamily='"Inter", ui-sans-serif, system-ui, sans-serif' textAnchor="middle" dominantBaseline="central" letterSpacing="-0.02em">
                 EM
               </text>
             </svg>
@@ -2696,7 +2696,7 @@ export default function App() {
               <h1 className="text-sm font-black tracking-tight text-[var(--text-primary)] uppercase flex items-center gap-1.5 leading-none">
                 EM Budget
               </h1>
-              <p className="text-[9px] text-[var(--text-secondary)] font-mono mt-1">Owner Device Secured</p>
+              <p className="text-[10px] text-[var(--text-secondary)] font-mono mt-1 font-medium">Owner Device Secured</p>
             </div>
           </div>
 
