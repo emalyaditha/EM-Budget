@@ -5,7 +5,6 @@ import nodemailer from "nodemailer";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { createWorker } from "tesseract.js";
 
@@ -1227,6 +1226,7 @@ Return a JSON object matching this schema:
 
   // Vite middleware for development or Static Asset hosting for production
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

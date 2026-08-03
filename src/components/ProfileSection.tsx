@@ -35,12 +35,12 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
         userProfile: { 
           ...prev.userProfile, 
           name: name.trim(),
-          avatarUrl: isAllowedEmail ? tempAvatar : prev.userProfile?.avatarUrl
+          avatarUrl: tempAvatar
         }
     }));
 
     try {
-        await updateAuthAccountName(state.userProfile?.email || '', name.trim(), isAllowedEmail ? tempAvatar : undefined);
+        await updateAuthAccountName(state.userProfile?.email || '', name.trim(), tempAvatar);
         showToast('success', 'Profile records synced with secure cloud record.');
     } catch (err) {
         console.error("Failed to sync profile to auth_accounts", err);
