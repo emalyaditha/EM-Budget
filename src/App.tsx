@@ -2417,7 +2417,7 @@ export default function App() {
   }).sort((a, b) => b.value - a.value).slice(0, 4);
 
   return (
-    <div id="full-workspace-view" className="min-h-screen bg-[#050505] text-white flex flex-col lg:flex-row font-sans selection:bg-white selection:text-black antialiased relative">
+    <div id="full-workspace-view" className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-[#050505] text-white flex flex-col lg:flex-row font-sans selection:bg-white selection:text-black antialiased relative">
       
       {/* ======================= DOCKED LEFT SIDEBAR NAVIGATION (Desktop Only) ======================= */}
       {isUnlocked && (
@@ -2677,7 +2677,7 @@ export default function App() {
       )}
 
       {/* ======================= CONTENT WRAPPER CANVAS AREA ======================= */}
-      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
+      <div className={`flex-1 flex flex-col min-h-[100dvh] w-full max-w-full overflow-x-hidden transition-all duration-300 ${
         isUnlocked ? (isNavCollapsed ? 'lg:pl-20' : 'lg:pl-64') : ''
       }`}>
         
