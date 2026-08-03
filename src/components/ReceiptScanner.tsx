@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Sparkles, Loader2, X, UploadCloud, CheckCircle2, 
-  AlertCircle, ClipboardCopy, Image as ImageIcon, Zap, FileText, Edit2
+  Loader2, X, UploadCloud, CheckCircle2, 
+  AlertCircle, ClipboardCopy, Image as ImageIcon, FileText, Edit2
 } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
 import { useNotifications } from '../context/NotificationContext';
@@ -23,7 +22,6 @@ interface ReceiptScannerProps {
 
 export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScannerProps) {
   const { showToast } = useNotifications();
-  const [scanEngine, setScanEngine] = useState<'free-ocr' | 'gemini'>('free-ocr');
   const [dragActive, setDragActive] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState<string>('');
@@ -90,12 +88,12 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
     }
   };
 
-  // Free Local / Server OCR via Tesseract.js
-  const runFreeOCR = async () => {
+  // OCR Recognition via Tesseract.js client worker & server fallback
+  const runOCR = async () => {
     if (!imagePreview) return;
     setIsAnalyzing(true);
     setError(null);
-    setStatusMessage('Scanning document with 100% Free OCR Engine...');
+    setStatusMessage('Scanning document...');
 
     let extractedText = '';
     let worker: any = null;
@@ -106,7 +104,7 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
         logger: (m: any) => {
           if (m && typeof m === 'object' && m.status) {
             const pct = typeof m.progress === 'number' ? ` (${Math.round(m.progress * 100)}%)` : '';
-            setStatusMessage(`Local OCR: ${m.status}${pct}`);
+            setStatusMessage(`OCR: ${m.status}${pct}`);
           }
         },
       }).catch(() => null);
@@ -128,10 +126,10 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
       }
     }
 
-    // Strategy 2: Fallback to Server-Side Free OCR Endpoint if client worker produced no text
+    // Strategy 2: Fallback to Server-Side OCR Endpoint if client worker produced no text
     if (!extractedText.trim()) {
       try {
-        setStatusMessage('Processing scan on Free Server OCR Service...');
+        setStatusMessage('Processing scan on OCR server...');
         const response = await fetch('/api/ocr/free-scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -155,64 +153,11 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
     if (extractedText.trim()) {
       const parsed = parseReceiptText(extractedText);
       setScannedResult(parsed);
-      showToast('success', '100% Free OCR Scan complete! Verify or tweak details below.');
+      showToast('success', 'OCR Scan complete! Verify or tweak details below.');
     } else {
       const msg = 'No legible text found in image. Please try a clearer photo or enter transaction details manually.';
       setError(msg);
       showToast('error', msg);
-    }
-  };
-
-  // Gemini Cloud AI Scan (Optional)
-  const runGeminiScan = async () => {
-    if (!imagePreview) return;
-    setIsAnalyzing(true);
-    setError(null);
-    setStatusMessage('Connecting to Gemini Cloud AI...');
-
-    try {
-      const response = await fetch('/api/gemini/analyze-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          image: imagePreview,
-          mimeType: mimeType
-        })
-      });
-
-      const result = await response.json().catch(() => null);
-
-      if (response.ok && result?.success && result?.data) {
-        setScannedResult(result.data);
-        showToast('success', 'Gemini AI analysis complete! Verify details below.');
-      } else {
-        const errorMsg = result?.error || result?.message || 'Failed to analyze receipt with Gemini.';
-        setError(errorMsg);
-        showToast('error', errorMsg);
-      }
-    } catch (err: any) {
-      console.error('[Receipt Analysis Client Error]', err);
-      let msg = 'Connection failed. Network or server error.';
-      if (typeof err === 'string') {
-        msg = err;
-      } else if (err && typeof err === 'object' && err.message) {
-        msg = err.message;
-      }
-      setError(msg);
-      showToast('error', 'Network error reaching Gemini endpoint.');
-    } finally {
-      setIsAnalyzing(false);
-      setStatusMessage('');
-    }
-  };
-
-  const triggerAnalysis = () => {
-    if (scanEngine === 'free-ocr') {
-      runFreeOCR();
-    } else {
-      runGeminiScan();
     }
   };
 
@@ -228,57 +173,25 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
       <div className="absolute -top-10 -left-10 w-24 h-24 bg-[var(--accent-primary)]/5 rounded-full blur-2xl pointer-events-none" />
       
       {/* Title Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-zinc-800/80">
+      <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-zinc-800/80">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-[var(--accent-primary)]/10 flex items-center justify-center border border-[var(--accent-primary)]/20 shadow-inner">
-            <Zap size={18} className="text-[var(--accent-primary)]" />
+            <FileText size={18} className="text-[var(--accent-primary)]" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h4 className="text-xs font-bold text-white font-sans uppercase tracking-wider">Receipt & Bill Scanner</h4>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">100% FREE</span>
-            </div>
-            <p className="text-[10px] text-zinc-400 font-medium">Extract transaction info locally or via cloud AI</p>
+            <h4 className="text-xs font-bold text-white font-sans uppercase tracking-wider">Receipt & Bill Scanner</h4>
+            <p className="text-[10px] text-zinc-400 font-medium">Extract transaction info automatically from images</p>
           </div>
         </div>
 
-        {/* Engine Switcher */}
-        <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
-          <button
-            type="button"
-            onClick={() => setScanEngine('free-ocr')}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-medium flex items-center gap-1 transition-all cursor-pointer ${
-              scanEngine === 'free-ocr'
-                ? 'bg-[var(--accent-primary)] text-slate-950 font-bold shadow'
-                : 'text-zinc-400 hover:text-white'
-            }`}
+        {imagePreview && (
+          <button 
+            onClick={handleClear}
+            className="text-[10px] font-mono text-zinc-400 hover:text-rose-400 flex items-center gap-1 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-lg transition-all cursor-pointer"
           >
-            <Zap size={11} />
-            Free Local OCR
+            <X size={10} /> Clear
           </button>
-
-          <button
-            type="button"
-            onClick={() => setScanEngine('gemini')}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-medium flex items-center gap-1 transition-all cursor-pointer ${
-              scanEngine === 'gemini'
-                ? 'bg-purple-600 text-white font-bold shadow'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Sparkles size={11} />
-            Gemini AI
-          </button>
-
-          {imagePreview && (
-            <button 
-              onClick={handleClear}
-              className="text-[10px] font-mono text-zinc-400 hover:text-rose-400 flex items-center gap-1 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-lg transition-all cursor-pointer ml-1"
-            >
-              <X size={10} /> Clear
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Upload Zone / Preview Area */}
@@ -305,9 +218,6 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
           <UploadCloud size={28} className="text-[var(--accent-primary)] mb-2.5 stroke-[1.5]" />
           <span className="text-xs font-semibold text-zinc-200">Drag & drop your receipt or bill photo</span>
           <span className="text-[10px] text-zinc-500 mt-1">or click to choose image (JPG, PNG, WEBP)</span>
-          <div className="mt-3 flex items-center gap-2 text-[9.5px] font-mono text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-            <Zap size={10} /> Free mode works instantly with no sign-up or API key!
-          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -331,22 +241,16 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
                   <div>
                     <p className="text-xs font-semibold text-zinc-200">Document Image Ready</p>
                     <p className="text-[11px] text-zinc-400 leading-relaxed mt-0.5">
-                      {scanEngine === 'free-ocr' 
-                        ? 'Using 100% Free Local Browser OCR. No external API key required!'
-                        : 'Using Gemini Cloud AI vision model.'}
+                      Ready to parse merchant, total amount, date, and category.
                     </p>
                   </div>
 
                   <button
-                    onClick={triggerAnalysis}
-                    className={`w-full sm:w-auto py-2.5 px-5 font-mono text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
-                      scanEngine === 'free-ocr'
-                        ? 'bg-[var(--accent-primary)] hover:brightness-110 text-slate-950 font-bold'
-                        : 'bg-purple-600 hover:bg-purple-500 text-white font-bold'
-                    }`}
+                    onClick={runOCR}
+                    className="w-full sm:w-auto py-2.5 px-5 font-mono text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg bg-[var(--accent-primary)] hover:brightness-110 text-slate-950 font-bold"
                   >
-                    {scanEngine === 'free-ocr' ? <Zap size={13} /> : <Sparkles size={13} />}
-                    Start {scanEngine === 'free-ocr' ? 'Free Local OCR' : 'Gemini AI'} Scan
+                    <FileText size={13} />
+                    Start OCR Scan
                   </button>
                 </div>
               )}
@@ -368,19 +272,8 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
                   <p className="text-[10.5px] text-rose-300/90 leading-relaxed">{error}</p>
 
                   <div className="flex items-center gap-2 pt-1">
-                    {scanEngine === 'gemini' && (
-                      <button
-                        onClick={() => {
-                          setScanEngine('free-ocr');
-                          setError(null);
-                        }}
-                        className="text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-lg hover:bg-emerald-500/30 transition cursor-pointer flex items-center gap-1"
-                      >
-                        <Zap size={10} /> Switch to Free Local OCR
-                      </button>
-                    )}
                     <button 
-                      onClick={triggerAnalysis}
+                      onClick={runOCR}
                       className="text-[10px] font-mono text-zinc-400 hover:text-white underline cursor-pointer"
                     >
                       Retry
