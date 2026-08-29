@@ -1,0 +1,97 @@
+﻿@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+/* =========================================================
+   EM BUDGET — ULTRA PINTEREST HIGH-END
+   Pins: Money Wise (dark pastel) + Aivo ($126k) + Mitchell
+   ($13k gradient) + Raul (orange card) + Janvis (One Platform)
+   ========================================================= */
+
+.light {
+  --bg: #F6F7F9;
+  --bg-2: #EFF1F4;
+  --surface: #FFFFFF;
+  --surface-2: #F1F3F6;
+  --surface-3: #E8EBEF;
+  --ink: #0A0A0F;
+  --ink-2: #6B7280;
+  --ink-3: #9CA3AF;
+  --line: #E5E7EB;
+  --line-strong: #D1D5DB;
+  --accent: #0A0A0F;
+  --accent-fg: #FFFFFF;
+  --shadow: 0 8px 32px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-hover: 0 16px 48px rgba(0,0,0,0.08);
+  --pastel-pink: #F4B5BE; --pastel-mint: #C8E9D5; --pastel-yellow: #F5E6A3; --pastel-lavender: #D4C5F9; --pastel-blue: #B8D4F0;
+  --gradient-nueva: linear-gradient(135deg, #FFF9B5 0%, #E0F2F7 100%);
+  --gradient-card-orange: linear-gradient(135deg, #FF8A5B 0%, #FF6B8A 50%, #FF5A7A 100%);
+  --gradient-card-blue: linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #6366F1 100%);
+  --gradient-card-dark: linear-gradient(180deg, #1C1C1F 0%, #0A0A0C 100%);
+  --rainbow: linear-gradient(90deg, #F4B5BE 0%, #C8E9D5 25%, #F5E6A3 50%, #D4C5F9 75%, #B8D4F0 100%);
+}
+
+.dark {
+  --bg: #070709;
+  --bg-2: #0F1012;
+  --surface: #1B1D20;
+  --surface-2: #24262B;
+  --surface-3: #2E3238;
+  --ink: #FFFFFF;
+  --ink-2: #A1A1AA;
+  --ink-3: #71717A;
+  --line: #2A2E33;
+  --line-strong: #3A3E45;
+  --accent: #FFFFFF;
+  --accent-fg: #070709;
+  --shadow: 0 8px 32px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-hover: 0 16px 48px rgba(0,0,0,0.6);
+  --pastel-pink: #F4B5BE; --pastel-mint: #C8E9D5; --pastel-yellow: #F5E6A3; --pastel-lavender: #D4C5F9; --pastel-blue: #B8D4F0;
+  --gradient-nueva: linear-gradient(135deg, #FFF9B5 0%, #E0F2F7 100%);
+  --gradient-card-orange: linear-gradient(135deg, #FF6B5B 0%, #FF8A5B 50%, #FF6B8A 100%);
+  --gradient-card-blue: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
+  --gradient-card-dark: linear-gradient(180deg, #24262B 0%, #1B1D20 100%);
+  --rainbow: linear-gradient(90deg, #F4B5BE 0%, #C8E9D5 25%, #F5E6A3 50%, #D4C5F9 75%, #B8D4F0 100%);
+}
+
+@theme { --font-sans: "Inter", system-ui, sans-serif; --font-mono: "JetBrains Mono", monospace; }
+html { -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font-sans); background: var(--bg); color: var(--ink); min-height: 100dvh; }
+.dark body { background: radial-gradient(100% 60% at 50% 0%, #1E2025 0%, var(--bg) 60%); background-attachment: fixed; }
+#root { min-height: 100dvh; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.ledger-rule { height: 1px; background: var(--line); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); }
+.card:hover { box-shadow: var(--shadow-hover); }
+.card-dark { background: linear-gradient(180deg, #24262B 0%, #1B1D20 100%); border: 1px solid var(--line); border-radius: 20px; }
+.gradient-card { border-radius: 20px; border: none; color: white; position: relative; overflow: hidden; }
+.gradient-card::before { content:""; position:absolute; inset:0; background: radial-gradient(80% 100% at 100% 0%, rgba(255,255,255,0.15) 0%, transparent 60%); pointer-events:none; }
+.pill { background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 12px; font-weight: 600; display:inline-flex; align-items:center; gap:6px; cursor:pointer; transition: border-color .15s, background .15s, color .15s, transform .12s; user-select:none; }
+.pill:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+.pill:active { transform: translateY(0); }
+.pill-active { background: var(--ink); color: var(--accent-fg); border-color: var(--ink); }
+.pill-active:hover { opacity: .92; }
+.rainbow-bar { height: 6px; border-radius: 999px; background: var(--rainbow); }
+.mw-nueva { background: var(--gradient-nueva); border-radius: 20px; color: #0A0A0C; }
+.mw-progress { background: var(--gradient-nueva); border-radius: 999px; }
+/* pastel bars — Money Wise 5 heights */
+.bar-pink { background: var(--pastel-pink); }
+.bar-mint { background: var(--pastel-mint); }
+.bar-yellow { background: var(--pastel-yellow); }
+.bar-lavender { background: var(--pastel-lavender); }
+.bar-blue { background: var(--pastel-blue); }
+.card-dark { color: #FFFFFF; }
+.card-dark .eyebrow { color: rgba(255,255,255,0.55); }
+.card-dark .ledger-rule { background: rgba(255,255,255,0.12); }
+.btn-primary { background: var(--accent); color: var(--accent-fg); border-radius: 999px; font-weight: 700; font-size: 13px; padding: 11px 20px; border: 1px solid var(--accent); }
+.btn-ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; font-weight: 600; font-size: 13px; padding: 11px 20px; }
+.input { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 11px 14px; font-size: 13.5px; color: var(--ink); width:100%; }
+.input::placeholder { color: var(--ink-3); }
+.input:focus { outline:none; border-color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent); }
+.nav-pill { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px; display:flex; gap:4px; box-shadow: var(--shadow); }
+* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+::-webkit-scrollbar { width:6px; height:6px; } ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius:999px; }
+*:focus-visible { outline: 2px solid var(--ink); outline-offset:2px; }
+@media (prefers-reduced-motion: reduce) { * { animation-duration:0.01ms !important; } }
+.light .bg-black, .light .bg-\[\#050508\], .light .bg-\[\#08080c\], .light .bg-zinc-900, .light .bg-zinc-950 { background: var(--surface) !important; }
+.light .text-white { color: var(--ink) !important; }
