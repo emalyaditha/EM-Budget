@@ -9,3 +9,7 @@ bun.lock
 start-dev.ps1
 .env*
 !.env.example
+
+# Vercel serverless build output
+api/index.js
+api/index.js.map

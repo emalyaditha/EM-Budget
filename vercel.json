@@ -1,8 +1,9 @@
 {
+  "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/index.ts": {
+    "api/index.js": {
       "includeFiles": "dist/**"
     }
   },
