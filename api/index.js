@@ -61246,11 +61246,9 @@ async function createApp() {
   app.get("/api/config", rateLimitAuth(30, 60 * 1e3), (req, res) => {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
-    const token = getTokenFromRequest(req);
-    const authed = token ? verifySecureToken(token) : null;
     res.json({
       supabaseUrl,
-      supabaseKey: authed ? supabaseKey.startsWith("eyJ") ? supabaseKey : "" : ""
+      supabaseKey: supabaseKey.startsWith("eyJ") ? supabaseKey : ""
     });
   });
   app.get("/api/config/sql", rateLimitAuth(10, 60 * 1e3), (req, res) => {

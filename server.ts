@@ -1181,13 +1181,12 @@ export async function createApp(): Promise<express.Express> {
   app.get("/api/config", rateLimitAuth(30, 60 * 1000), (req: express.Request, res: express.Response) => {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
-    const token = getTokenFromRequest(req);
-    const authed = token ? verifySecureToken(token) : null;
-    // Always return URL (needed pre-auth for Supabase client init), but only return anon key if authenticated
-    // Client has build-time VITE_ fallback, so unauthenticated callers can still use bundled config
+    // The anon key is a PUBLIC key (VITE_ prefix = safe to expose to the client),
+    // so return it unconditionally. This lets any device self-configure Supabase
+    // from the backend instead of relying on build-time env or per-device localStorage.
     res.json({
       supabaseUrl,
-      supabaseKey: authed ? (supabaseKey.startsWith("eyJ") ? supabaseKey : "") : ""
+      supabaseKey: supabaseKey.startsWith("eyJ") ? supabaseKey : ""
     });
   });
 

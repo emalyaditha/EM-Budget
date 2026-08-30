@@ -89,6 +89,27 @@ export function saveSupabaseConfig(url: string, key: string, autoSync: boolean) 
   localStorage.setItem(AUTO_SYNC_KEY, String(autoSync));
 }
 
+// Resolve Supabase config from the backend when the current device has no
+// build-time VITE_ env vars baked in and nothing saved in localStorage yet.
+// The anon key is public (VITE_ prefix), so /api/config returns it freely.
+export async function ensureSupabaseConfigFromBackend(): Promise<void> {
+  const current = getSupabaseConfig();
+  if (current.url && current.key) return;
+  try {
+    const base = (import.meta as any).env?.VITE_API_URL || '';
+    const res = await fetch(`${base}/api/config`, { method: 'GET', headers: { Accept: 'application/json' } });
+    const data = await safeJson(res);
+    if (!data) return;
+    const newUrl = (data.supabaseUrl || '').trim();
+    const newKey = (data.supabaseKey || '').trim();
+    if (!newUrl) return;
+    const cfg = getSupabaseConfig();
+    saveSupabaseConfig(newUrl, newKey || cfg.key, cfg.autoSync);
+  } catch (e) {
+    console.warn('[Config] Failed to auto-load Supabase config from backend:', e);
+  }
+}
+
 let supabaseClientInstance: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient | null {

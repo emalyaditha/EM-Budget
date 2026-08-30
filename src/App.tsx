@@ -31,7 +31,7 @@ import BudgetsSection from './components/BudgetsSection';
 import GoalsSection from './components/GoalsSection';
 import { CommandPalette } from './components/CommandPalette';
 import { BottomNavigation } from './components/BottomNavigation';
-import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud } from './supabase';
+import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud, ensureSupabaseConfigFromBackend } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 import { EXPENSE_COLORS, calculateNetWorth } from './utils';
@@ -232,6 +232,7 @@ export default function App() {
             authSession.setToken(token);
             authSession.setEmail(email);
             setUserEmail(email);
+            await ensureSupabaseConfigFromBackend();
             const result = await syncStateFromSupabase(email);
             if (result.success && result.state) {
               setState(migrateStateCards(result.state));
@@ -2905,6 +2906,7 @@ export default function App() {
               }
               setUserEmail(email);
               try {
+                await ensureSupabaseConfigFromBackend();
                 const result = await syncStateFromSupabase(email);
                 if (result.success && result.state) {
                   setState(migrateStateCards(result.state));
