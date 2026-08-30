@@ -1,4 +1,4 @@
-node_modules/
+﻿node_modules/
 build/
 dist/
 coverage/
@@ -11,5 +11,3 @@ start-dev.ps1
 !.env.example
 
 # Vercel serverless build output
-api/index.js
-api/index.js.map
