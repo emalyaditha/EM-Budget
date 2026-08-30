@@ -5,8 +5,6 @@ import nodemailer from "nodemailer";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
-import { GoogleGenAI } from "@google/genai";
-import { createWorker } from "tesseract.js";
 import "dotenv/config";
 
 export async function createApp(): Promise<express.Express> {
@@ -579,6 +577,25 @@ export async function createApp(): Promise<express.Express> {
   // Diagnostic route
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", mode: process.env.NODE_ENV || "development" });
+  });
+
+  // Diagnostics: reports which backend env vars are present (never leaks secret values)
+  app.get("/api/diagnostics", (req, res) => {
+    const has = (k: string) => !!process.env[k];
+    res.json({
+      status: "ok",
+      env: {
+        VITE_SUPABASE_URL: has("VITE_SUPABASE_URL"),
+        SUPABASE_URL: has("SUPABASE_URL"),
+        VITE_SUPABASE_ANON_KEY: has("VITE_SUPABASE_ANON_KEY"),
+        SUPABASE_SERVICE_ROLE_KEY: has("SUPABASE_SERVICE_ROLE_KEY"),
+        SESSION_SECRET: has("SESSION_SECRET"),
+        GEMINI_API_KEY: has("GEMINI_API_KEY"),
+        SMTP_HOST: has("SMTP_HOST"),
+        NODE_ENV: process.env.NODE_ENV || "not set",
+        VERCEL: process.env.VERCEL || "not set",
+      },
+    });
   });
 
   // 0. Check Email Route
@@ -1236,6 +1253,7 @@ export async function createApp(): Promise<express.Express> {
         return;
       }
 
+      const { GoogleGenAI } = await import("@google/genai");
       const ai = new GoogleGenAI({
         apiKey,
         httpOptions: {
@@ -1349,6 +1367,7 @@ Return a JSON object matching this schema:
       }
 
       const imgBuffer = Buffer.from(base64Data, "base64");
+      const { createWorker } = await import("tesseract.js");
       const worker = await createWorker("eng");
       try {
         const ret = await worker.recognize(imgBuffer);
@@ -1394,6 +1413,13 @@ Return a JSON object matching this schema:
       });
     }
   }
+
+  // JSON error handler: ensures async/middleware errors return JSON, never an empty 500 body
+  app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("[Unhandled Error]", err?.message || err);
+    if (res.headersSent) return;
+    res.status(500).json({ success: false, error: "Internal server error. Check function logs." });
+  });
 
   return app;
 }

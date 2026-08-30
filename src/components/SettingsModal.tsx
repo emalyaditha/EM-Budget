@@ -86,7 +86,7 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
       const token = localStorage.getItem('auth_session_token') || '';
       const res = await fetch(apiUrl('/api/auth/send-delete-otp'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: userEmail }) });
       const data = await safeJson(res); setPurgeLoading(false);
-      if (!data) throw new Error("Empty response from API (" + resp.status + " " + resp.statusText + ") — check VITE_API_URL (should be your Railway URL) and Vercel function logs for /api");
+      if (!data) throw new Error("Empty response from API (" + res.status + " " + res.statusText + ") — check VITE_API_URL (should be your Railway URL) and Vercel function logs for /api");
       if (data.success) { setShowPurge2FA(true); setPurgeDevOtp(data.devOtp || null); setSyncStatus('success'); setSyncMessage(data.emailSent ? 'Code sent to your email.' : 'Dev code generated.'); showToast('Passcode sent. Enter the code below.', 'success'); }
       else { setSyncStatus('error'); setSyncMessage(data.error || 'Failed to send code.'); showToast(data.error || 'Failed.', 'error'); }
     } catch (err: any) { setPurgeLoading(false); setSyncStatus('error'); setSyncMessage(err.message || 'Network error.'); showToast('Connection failure.', 'error'); }
