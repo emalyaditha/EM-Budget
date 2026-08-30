@@ -20,6 +20,7 @@ interface DashboardHeroProps {
   onAddExpense?: () => void;
   onAddIncome?: () => void;
   onViewTransactions?: () => void;
+  onSend?: () => void;
   onProfileClick?: () => void;
 }
 
@@ -42,6 +43,7 @@ export function DashboardHero({
   onAddExpense,
   onAddIncome,
   onViewTransactions,
+  onSend,
 }: DashboardHeroProps) {
   const firstName = getFirstName(userName);
 
@@ -143,7 +145,7 @@ export function DashboardHero({
           <button type="button" onClick={onAddIncome} className="pill !py-2 !px-4 mono !text-[12px] font-semibold bg-[var(--surface)]">
             <Download size={13} strokeWidth={2} /> Receive
           </button>
-          <button type="button" onClick={onViewTransactions} className="pill !py-2 !px-4 mono !text-[12px] font-semibold bg-[var(--surface)]">
+          <button type="button" onClick={onSend} className="pill !py-2 !px-4 mono !text-[12px] font-semibold bg-[var(--surface)]">
             <Send size={13} strokeWidth={2} /> Send
           </button>
         </div>

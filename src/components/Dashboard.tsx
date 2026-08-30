@@ -277,6 +277,12 @@ export default function Dashboard({
             onAddExpense={() => openQuick('expense')}
             onAddIncome={() => openQuick('income')}
             onViewTransactions={() => setActiveTab('reports')}
+            onSend={() => {
+              setActiveTab('accounts');
+              setTimeout(() => {
+                document.getElementById('transfer-capital')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 60);
+            }}
             onProfileClick={onProfileClick}
           />
         </div>

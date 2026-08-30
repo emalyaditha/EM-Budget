@@ -107,7 +107,7 @@ export default function TransferFunds({ cashAccounts, cards, currency, onTransfe
   };
 
   return (
-    <form onSubmit={handleTransfer} className="space-y-4">
+    <form onSubmit={handleTransfer} className="space-y-4" id="transfer-capital">
       {/* Mitchell gradient card — source/dest header */}
       <div className="gradient-card p-6 md:p-7 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
         <div className="flex items-start justify-between gap-4 relative z-10">
