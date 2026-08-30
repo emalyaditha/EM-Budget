@@ -9,9 +9,8 @@ import { GoogleGenAI } from "@google/genai";
 import { createWorker } from "tesseract.js";
 import "dotenv/config";
 
-async function startServer() {
+export async function createApp(): Promise<express.Express> {
   const app = express();
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
   const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
   app.set("trust proxy", 1);
@@ -1369,33 +1368,65 @@ Return a JSON object matching this schema:
   });
 
   // Vite middleware for development or Static Asset hosting for production
-  if (process.env.NODE_ENV !== "production") {
-    try {
-      const { createServer: createViteServer } = await import("vite");
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      });
-      app.use(vite.middlewares);
-    } catch {
-      console.warn("[Server] Vite dynamic module not found. Falling back to static asset serving.");
+  // Skip static handling on Vercel - Vercel serves dist/ as static output
+  if (!process.env.VERCEL) {
+    if (process.env.NODE_ENV !== "production") {
+      try {
+        const { createServer: createViteServer } = await import("vite");
+        const vite = await createViteServer({
+          server: { middlewareMode: true },
+          appType: "spa",
+        });
+        app.use(vite.middlewares);
+      } catch {
+        console.warn("[Server] Vite dynamic module not found. Falling back to static asset serving.");
+        const distPath = path.join(process.cwd(), "dist");
+        app.use(express.static(distPath));
+        app.get("*", (req, res) => {
+          res.sendFile(path.join(distPath, "index.html"));
+        });
+      }
+    } else {
       const distPath = path.join(process.cwd(), "dist");
       app.use(express.static(distPath));
       app.get("*", (req, res) => {
         res.sendFile(path.join(distPath, "index.html"));
       });
     }
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Express Backend] Running on http://0.0.0.0:${PORT}`);
-  });
+  return app;
 }
 
-startServer();
+// Cached singleton for serverless (Vercel) - avoids re-creating app on warm invocations
+let cachedApp: express.Express | null = null;
+
+export async function getApp(): Promise<express.Express> {
+  if (cachedApp) return cachedApp;
+  cachedApp = await createApp();
+  return cachedApp;
+}
+
+export async function startServer(): Promise<express.Express> {
+  const app = await getApp();
+  if (!process.env.VERCEL) {
+    const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`[Express Backend] Running on http://0.0.0.0:${PORT}`);
+    });
+  }
+  return app;
+}
+
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+// Vercel serverless handler - default export is the Express app via wrapper
+const vercelHandler = async (req: any, res: any) => {
+  const app = await getApp();
+  return (app as any)(req, res);
+};
+
+export default vercelHandler;
+export { vercelHandler as handler };

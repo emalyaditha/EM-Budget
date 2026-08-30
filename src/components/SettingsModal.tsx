@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl } from "../lib/api";
+import { apiUrl, safeJson } from "../lib/api";
 import { Settings, Database, Zap, FileDown, X, Shield, Cloud, RefreshCw, Check, Copy, Eye, EyeOff, Code, ChevronDown, ChevronUp, AlertCircle, LogOut, Sun, Moon, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState } from '../types';
@@ -50,7 +50,7 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
       setPurgeOtp('');
       setPurgeError(null);
       setPurgeDevOtp(null);
-      fetch(apiUrl('/api/config/sql')).then((r) => r.json()).then((d) => { if (d.success) setSqlScript(d.sql); }).catch(() => {});
+      fetch(apiUrl('/api/config/sql')).then((r) => safeJson(r)).then((d) => { if (d?.success) setSqlScript(d.sql); }).catch(() => {});
     }
   }, [isOpen]);
 
@@ -85,7 +85,8 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
     try {
       const token = localStorage.getItem('auth_session_token') || '';
       const res = await fetch(apiUrl('/api/auth/send-delete-otp'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: userEmail }) });
-      const data = await res.json(); setPurgeLoading(false);
+      const data = await safeJson(res); setPurgeLoading(false);
+      if (!data) throw new Error("Empty response");
       if (data.success) { setShowPurge2FA(true); setPurgeDevOtp(data.devOtp || null); setSyncStatus('success'); setSyncMessage(data.emailSent ? 'Code sent to your email.' : 'Dev code generated.'); showToast('Passcode sent. Enter the code below.', 'success'); }
       else { setSyncStatus('error'); setSyncMessage(data.error || 'Failed to send code.'); showToast(data.error || 'Failed.', 'error'); }
     } catch (err: any) { setPurgeLoading(false); setSyncStatus('error'); setSyncMessage(err.message || 'Network error.'); showToast('Connection failure.', 'error'); }
@@ -97,7 +98,8 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
     try {
       const token = localStorage.getItem('auth_session_token') || '';
       const res = await fetch(apiUrl('/api/auth/verify-delete-otp'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: userEmail, otp: purgeOtp }) });
-      const data = await res.json();
+      const data = await safeJson(res);
+      if (!data) { setPurgeLoading(false); setSyncStatus('error'); const m = "Empty response"; setSyncMessage(m); setPurgeError(m); showToast(m, 'error'); return; }
       if (!res.ok || !data.success) { setPurgeLoading(false); setSyncStatus('error'); const m = data.error || 'Invalid or expired code.'; setSyncMessage(m); setPurgeError(m); showToast(m, 'error'); return; }
       setSyncMessage('Wiping cloud records...');
       updateState((prev) => ({ ...prev, cashAccounts: [], cards: [], transactions: [], debts: [], incomes: [], expenses: [], notifications: [] }));

@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AppState } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
 import { authSession } from './services/authSession';
+import { safeJson } from './lib/api';
 
 const URL_STORAGE_KEY = 'cashflow_supabase_url_v1';
 const KEY_STORAGE_KEY = 'cashflow_supabase_key_v1';
@@ -229,7 +230,8 @@ async function getColumnsForTable(tableName: string): Promise<string[]> {
         }
       });
       if (response.ok) {
-        const swagger = await response.json();
+        const swagger = await safeJson(response);
+        if (!swagger) return FALLBACK_COLUMNS[tableName] || [];
         const tableDef = swagger.definitions?.[tableName];
         if (tableDef && tableDef.properties) {
           const cols = Object.keys(tableDef.properties);

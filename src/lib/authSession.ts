@@ -1,3 +1,5 @@
+import { apiUrl, safeJson } from "./api";
+
 /** In-memory session — never persisted to localStorage (XSS-resistant). */
 let sessionEmail: string | null = null;
 let sessionToken: string | null = null;
@@ -31,8 +33,8 @@ export async function fetchSessionFromServer(): Promise<{ email: string; token: 
   try {
     const resp = await fetch(apiUrl('/api/auth/session'), { credentials: 'include' });
     if (!resp.ok) return null;
-    const data = await resp.json();
-    if (!data.success || !data.email || !data.token) return null;
+    const data = await safeJson(resp);
+    if (!data?.success || !data.email || !data.token) return null;
     setAuthSession(data.email, data.token, data.deviceToken);
     return { email: data.email, token: data.token, deviceToken: data.deviceToken };
   } catch {

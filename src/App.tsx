@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl } from "./lib/api";
+import { apiUrl, safeJson } from "./lib/api";
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
@@ -206,8 +206,8 @@ export default function App() {
       try {
         const confResp = await fetch(apiUrl('/api/config'), { credentials: 'include' });
         if (confResp.ok) {
-          const confData = await confResp.json();
-          if (confData.supabaseUrl && confData.supabaseKey) {
+          const confData = await safeJson(confResp);
+          if (confData?.supabaseUrl && confData?.supabaseKey) {
             localStorage.setItem('cashflow_supabase_url_v1', confData.supabaseUrl);
             localStorage.setItem('cashflow_supabase_key_v1', confData.supabaseKey);
           }
@@ -227,8 +227,8 @@ export default function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, token })
           });
-          const vData = await vRes.json();
-          if (vData.success) {
+          const vData = await safeJson(vRes);
+          if (vData?.success) {
             authSession.setToken(token);
             authSession.setEmail(email);
             setUserEmail(email);
@@ -238,7 +238,7 @@ export default function App() {
             }
             setIsUnlocked(true);
           } else {
-            console.warn("Session token expired or invalid:", vData.error);
+            console.warn("Session token expired or invalid:", vData?.error);
             localStorage.removeItem('auth_session_token');
             authSession.clear();
             setIsUnlocked(false);

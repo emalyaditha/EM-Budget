@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { apiUrl } from "../lib/api";
+import { apiUrl, safeJson } from "../lib/api";
 import { 
   Loader2, X, UploadCloud, CheckCircle2, 
   AlertCircle, ClipboardCopy, Image as ImageIcon, FileText, Edit2
@@ -122,7 +122,7 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: imagePreview })
         });
-        const resData = await response.json().catch(() => null);
+        const resData = await safeJson(response);
         if (response.ok && resData?.success && resData?.text) {
           extractedText = resData.text;
         } else if (resData?.error) {
