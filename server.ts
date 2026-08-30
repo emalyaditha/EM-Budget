@@ -18,6 +18,9 @@ export async function createApp(): Promise<express.Express> {
   // Cryptographic Signature Vault Systems (OWASP Level Protection)
   const SESSION_SECRET = process.env.SESSION_SECRET;
   if (!SESSION_SECRET) {
+    if (process.env.VERCEL) {
+      throw new Error("SESSION_SECRET environment variable is missing.");
+    }
     console.error("❌ CRITICAL SECURITY ERROR: The SESSION_SECRET environment variable is missing! The server cannot start without a secure SESSION_SECRET.");
     process.exit(1);
   }
@@ -1414,6 +1417,11 @@ Return a JSON object matching this schema:
     }
   }
 
+  // API 404 fallback: no matched API route => JSON, never an empty/HTML response
+  app.use("/api", (req, res) => {
+    res.status(404).json({ success: false, error: `Route not found: ${req.method} ${req.originalUrl}` });
+  });
+
   // JSON error handler: ensures async/middleware errors return JSON, never an empty 500 body
   app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error("[Unhandled Error]", err?.message || err);
@@ -1450,8 +1458,14 @@ if (!process.env.VERCEL) {
 
 // Vercel serverless handler - default export is the Express app via wrapper
 const vercelHandler = async (req: any, res: any) => {
-  const app = await getApp();
-  return (app as any)(req, res);
+  try {
+    const app = await getApp();
+    return (app as any)(req, res);
+  } catch (err: any) {
+    console.error("[vercelHandler] Failed to start server:", err?.message || err);
+    if (res.headersSent) return;
+    res.status(500).json({ success: false, error: `Server failed to initialize: ${err?.message || "unknown"}` });
+  }
 };
 
 export default vercelHandler;
