@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { apiUrl } from "../lib/api";
 import { 
   Loader2, X, UploadCloud, CheckCircle2, 
   AlertCircle, ClipboardCopy, Image as ImageIcon, FileText, Edit2
@@ -116,7 +117,7 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
     if (!extractedText.trim()) {
       try {
         setStatusMessage('Processing scan on OCR server...');
-        const response = await fetch('/api/ocr/free-scan', {
+        const response = await fetch(apiUrl('/api/ocr/free-scan'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: imagePreview })

@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
+import { apiUrl } from "../lib/api";
 import { Mail, ShieldCheck, KeyRound, AlertCircle, RefreshCw, Lock, ArrowRight, Eye, EyeOff, Key } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getSupabaseConfig } from '../supabase';
@@ -57,7 +58,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
     if (!emailRegex.test(cleanEmail)) { setErrorMsg('Invalid email format. Use user@domain.com.'); return; }
     setLoading(true); setErrorMsg(null); setInfoMsg(null); setSandboxOtp(null);
     try {
-      const resp = await fetch('/api/auth/check-email', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: cleanEmail }) });
+      const resp = await fetch(apiUrl('/api/auth/check-email'), { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: cleanEmail }) });
       const data = await resp.json();
       if (!resp.ok || !data.success) throw new Error(data.error || 'Failed to check account');
       if (data.exists) setStep('login-password');
@@ -68,7 +69,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
 
   const initOtpSend = async () => {
     const cleanEmail = email.trim();
-    const resp = await fetch('/api/auth/send-otp', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: cleanEmail }) });
+    const resp = await fetch(apiUrl('/api/auth/send-otp'), { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: cleanEmail }) });
     const data = await resp.json();
     if (!resp.ok || !data.success) throw new Error(data.error || 'Failed to dispatch verification code.');
     setResendTimer(60);
@@ -89,7 +90,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
     if (cleanOtp.length !== 6 || !/^\d+$/.test(cleanOtp)) { setErrorMsg('Enter a complete 6-digit code.'); return; }
     setLoading(true); setErrorMsg(null);
     try {
-      const resp = await fetch('/api/auth/verify-otp', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: email.trim(), otp: cleanOtp, forRegistrationOrReset: true }) });
+      const resp = await fetch(apiUrl('/api/auth/verify-otp'), { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: email.trim(), otp: cleanOtp, forRegistrationOrReset: true }) });
       const data = await resp.json();
       if (!resp.ok || !data.success) throw new Error(data.error || 'Code could not be verified.');
       setStep(isReset ? 'reset-password' : 'create-password');
@@ -102,7 +103,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
     if (!password) { setErrorMsg('Enter your password.'); return; }
     setLoading(true); setErrorMsg(null);
     try {
-      const resp = await fetch('/api/auth/login-password', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: email.trim(), password }) });
+      const resp = await fetch(apiUrl('/api/auth/login-password'), { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: email.trim(), password }) });
       const data = await resp.json();
       if (!resp.ok || !data.success) throw new Error(data.error);
       onUnlocked(email.trim().toLowerCase(), data.token || '', rememberMe, data.deviceToken);

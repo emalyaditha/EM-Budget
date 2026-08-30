@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiUrl } from "./lib/api";
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
@@ -203,7 +204,7 @@ export default function App() {
     const verifyDevice = async () => {
       // Load system-provided environments on mount to ensure fresh configuration matches backend
       try {
-        const confResp = await fetch('/api/config', { credentials: 'include' });
+        const confResp = await fetch(apiUrl('/api/config'), { credentials: 'include' });
         if (confResp.ok) {
           const confData = await confResp.json();
           if (confData.supabaseUrl && confData.supabaseKey) {
@@ -220,7 +221,7 @@ export default function App() {
       
       if (email && token) {
         try {
-          const vRes = await fetch('/api/auth/verify-session', {
+          const vRes = await fetch(apiUrl('/api/auth/verify-session'), {
             credentials: 'include',
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

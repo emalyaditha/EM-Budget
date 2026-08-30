@@ -29,7 +29,7 @@ export function getDeviceToken(): string | null {
 
 export async function fetchSessionFromServer(): Promise<{ email: string; token: string; deviceToken?: string } | null> {
   try {
-    const resp = await fetch('/api/auth/session', { credentials: 'include' });
+    const resp = await fetch(apiUrl('/api/auth/session'), { credentials: 'include' });
     if (!resp.ok) return null;
     const data = await resp.json();
     if (!data.success || !data.email || !data.token) return null;
@@ -42,7 +42,7 @@ export async function fetchSessionFromServer(): Promise<{ email: string; token: 
 
 export async function logoutSession(): Promise<void> {
   try {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' });
   } finally {
     clearAuthSession();
   }
