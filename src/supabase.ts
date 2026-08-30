@@ -110,6 +110,28 @@ export async function ensureSupabaseConfigFromBackend(): Promise<void> {
   }
 }
 
+// Pull the user's subscriptions from the database through the backend, which
+// uses the service-role key (bypasses RLS). Returns the canonical Subscription
+// objects, or [] on any failure so callers can proceed harmlessly.
+export async function refreshSubscriptionsFromBackend(email: string, token: string): Promise<any[]> {
+  try {
+    const base = (import.meta as any).env?.VITE_API_URL || '';
+    const res = await fetch(`${base}/api/sync/refresh-subscriptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email }),
+    });
+    const data = await safeJson(res);
+    if (data && data.success && Array.isArray(data.subscriptions)) {
+      return data.subscriptions;
+    }
+    return [];
+  } catch (e) {
+    console.warn('[Sync] Backend subscription refresh failed:', e);
+    return [];
+  }
+}
+
 let supabaseClientInstance: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient | null {
@@ -616,6 +638,17 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       if (rpcSuccess) {
         console.log('[TRANSACTIONAL SYNC ENGINE] Successfully synced entire ledger atomically using single-trip Postgres Transaction!');
         lastSyncedStatesCache[cacheKey] = currentStateString;
+        // Always persist the full state JSON snapshot (including subscriptions) to
+        // ledger_states.state, even though the RPC succeeded. The app falls back to
+        // this JSON when relational-table reads are blocked (e.g. RLS), so it must
+        // be kept current or subscriptions can be lost from the restored view.
+        try {
+          await client
+            .from('ledger_states')
+            .upsert({ user_email: email, state: sanitizedState, updated_at: new Date().toISOString() }, { onConflict: 'user_email' });
+        } catch (jsonErr) {
+          console.warn('[SYNC] ledger_states snapshot upsert failed after RPC:', jsonErr);
+        }
         return { success: true };
       }
 
@@ -1099,6 +1132,24 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       return [];
     };
 
+    // Subscriptions can come from two sources: the relational `subscriptions`
+    // table and the `ledger_states.state` JSON snapshot. Either one may be
+    // blocked/empty (e.g. RLS blocks the relational read), so union both by id
+    // to guarantee nothing is lost when reconstructing state from the database.
+    const mergeSubscriptions = (relational: any[], jsonField: any[] | undefined): any[] => {
+      const relationalMapped = relational && relational.length > 0 ? relational.map(mapDatabaseResultToState) : [];
+      const jsonArr = jsonField && Array.isArray(jsonField) ? jsonField : [];
+      const byId = new Map<string, any>();
+      for (const s of [...relationalMapped, ...jsonArr]) {
+        if (s && s.id) {
+          const existing = byId.get(s.id);
+          if (!existing) byId.set(s.id, s);
+          else if (relationalMapped.some((r: any) => r && r.id === s.id)) byId.set(s.id, s);
+        }
+      }
+      return Array.from(byId.values());
+    };
+
     // Construct the AppState from individual tables with mapping applied, falling back to fullJsonStateStr if tables are empty
     const reconstructedState: AppState = {
       ...DEFAULT_APP_STATE, // Use initial structure
@@ -1114,7 +1165,7 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       incomes: getListField(incomes, fullJsonStateStr?.incomes),
       expenses: getListField(expenses, fullJsonStateStr?.expenses),
       notifications: getListField(notifications, fullJsonStateStr?.notifications),
-      subscriptions: getListField(fetchedSubs, fullJsonStateStr?.subscriptions),
+      subscriptions: mergeSubscriptions(fetchedSubs, fullJsonStateStr?.subscriptions),
       loansGiven: fetchedLoansGiven && fetchedLoansGiven.length > 0
         ? fetchedLoansGiven
         : (fullJsonStateStr && Array.isArray(fullJsonStateStr.loansGiven) ? fullJsonStateStr.loansGiven : []),

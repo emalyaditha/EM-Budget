@@ -61251,6 +61251,55 @@ async function createApp() {
       supabaseKey: supabaseKey.startsWith("eyJ") ? supabaseKey : ""
     });
   });
+  app.post("/api/sync/refresh-subscriptions", rateLimitAuth(20, 60 * 1e3), async (req, res) => {
+    const token = getTokenFromRequest(req);
+    const session = token ? verifySecureToken(token) : null;
+    if (!session || !session.email) {
+      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
+      return;
+    }
+    const email = session.email;
+    try {
+      const supabase = getSupabase(req);
+      if (!supabase) {
+        return res.status(500).json({ success: false, error: "Supabase not configured." });
+      }
+      const { data: subs, error: subErr } = await supabase.from("subscriptions").select("*").eq("user_email", email);
+      if (subErr) {
+        return res.status(500).json({ success: false, error: subErr.message });
+      }
+      const rows = Array.isArray(subs) ? subs : [];
+      const subscriptions = rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        amount: r.amount,
+        billingCycle: r.billing_cycle,
+        dueDate: r.due_date,
+        category: r.category,
+        status: r.status,
+        instanceType: r.instance_type || void 0,
+        paymentMethodId: r.payment_method_id || void 0,
+        paymentMethodType: r.payment_method_type || void 0,
+        lastPaidDate: r.last_paid_date || void 0,
+        updated_at: r.updated_at,
+        updatedAt: r.updated_at
+      }));
+      const { data: lsData } = await supabase.from("ledger_states").select("state").eq("user_email", email).limit(1).maybeSingle();
+      let stateJson = {};
+      if (lsData && lsData.state) {
+        stateJson = typeof lsData.state === "string" ? JSON.parse(lsData.state) : lsData.state;
+      }
+      stateJson.subscriptions = subscriptions;
+      await supabase.from("ledger_states").upsert(
+        { user_email: email, state: stateJson, updated_at: (/* @__PURE__ */ new Date()).toISOString() },
+        { onConflict: "user_email" }
+      );
+      return res.json({ success: true, subscriptions });
+    } catch (e) {
+      console.error("[Sync] refresh-subscriptions error:", e.message || e);
+      return res.status(500).json({ success: false, error: e.message || "Failed to refresh subscriptions." });
+    }
+  });
   app.get("/api/config/sql", rateLimitAuth(10, 60 * 1e3), (req, res) => {
     const token = getTokenFromRequest(req);
     if (!verifySecureToken(token)) {

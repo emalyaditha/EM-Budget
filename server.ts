@@ -1190,6 +1190,62 @@ export async function createApp(): Promise<express.Express> {
     });
   });
 
+  // Backfill subscriptions from the relational table into the anon-readable
+  // ledger_states.state JSON snapshot. The service-role client bypasses RLS,
+  // so this recovers subscriptions even when the client's anon table read is
+  // blocked. Called by the frontend after login.
+  app.post("/api/sync/refresh-subscriptions", rateLimitAuth(20, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    const token = getTokenFromRequest(req);
+    const session = token ? verifySecureToken(token) : null;
+    if (!session || !session.email) {
+      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
+      return;
+    }
+    const email = session.email;
+    try {
+      const supabase = getSupabase(req);
+      if (!supabase) {
+        return res.status(500).json({ success: false, error: "Supabase not configured." });
+      }
+      const { data: subs, error: subErr } = await supabase.from("subscriptions").select("*").eq("user_email", email);
+      if (subErr) {
+        return res.status(500).json({ success: false, error: subErr.message });
+      }
+      const rows: any[] = Array.isArray(subs) ? subs : [];
+      const subscriptions = rows.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        amount: r.amount,
+        billingCycle: r.billing_cycle,
+        dueDate: r.due_date,
+        category: r.category,
+        status: r.status,
+        instanceType: r.instance_type || undefined,
+        paymentMethodId: r.payment_method_id || undefined,
+        paymentMethodType: r.payment_method_type || undefined,
+        lastPaidDate: r.last_paid_date || undefined,
+        updated_at: r.updated_at,
+        updatedAt: r.updated_at,
+      }));
+
+      const { data: lsData } = await supabase.from("ledger_states").select("state").eq("user_email", email).limit(1).maybeSingle();
+      let stateJson: any = {};
+      if (lsData && lsData.state) {
+        stateJson = typeof lsData.state === "string" ? JSON.parse(lsData.state) : lsData.state;
+      }
+      stateJson.subscriptions = subscriptions;
+      await supabase.from("ledger_states").upsert(
+        { user_email: email, state: stateJson, updated_at: new Date().toISOString() },
+        { onConflict: "user_email" }
+      );
+
+      return res.json({ success: true, subscriptions });
+    } catch (e: any) {
+      console.error("[Sync] refresh-subscriptions error:", e.message || e);
+      return res.status(500).json({ success: false, error: e.message || "Failed to refresh subscriptions." });
+    }
+  });
+
   // Expose endpoint for SettingsModal to load SQL migration script - C2 FIX: now authenticated + rate-limited
   app.get("/api/config/sql", rateLimitAuth(10, 60 * 1000), (req: express.Request, res: express.Response) => {
     const token = getTokenFromRequest(req);

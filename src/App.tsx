@@ -31,12 +31,26 @@ import BudgetsSection from './components/BudgetsSection';
 import GoalsSection from './components/GoalsSection';
 import { CommandPalette } from './components/CommandPalette';
 import { BottomNavigation } from './components/BottomNavigation';
-import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud, ensureSupabaseConfigFromBackend } from './supabase';
+import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud, ensureSupabaseConfigFromBackend, refreshSubscriptionsFromBackend } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 import { EXPENSE_COLORS, calculateNetWorth } from './utils';
 import { toMinorUnits } from './lib/money';
 import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
+
+// Merge locally-held subscriptions with ones freshly fetched from the backend
+// (by id), preferring the fetched values then filling in any local-only rows.
+// Returns a fresh array (immutability).
+function mergeSubscriptionsList(local: Subscription[], fetched: Subscription[]): Subscription[] {
+  const byId = new Map<string, Subscription>();
+  for (const s of fetched || []) {
+    if (s && s.id && !byId.has(s.id)) byId.set(s.id, s);
+  }
+  for (const s of local || []) {
+    if (s && s.id && !byId.has(s.id)) byId.set(s.id, s);
+  }
+  return Array.from(byId.values());
+}
 
 export default function App() {
   const { showConfirm, showToast } = useNotifications();
@@ -236,6 +250,10 @@ export default function App() {
             const result = await syncStateFromSupabase(email);
             if (result.success && result.state) {
               setState(migrateStateCards(result.state));
+            }
+            const backendSubs = await refreshSubscriptionsFromBackend(email, token);
+            if (backendSubs && backendSubs.length > 0) {
+              setState(prev => ({ ...prev, subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs) }));
             }
             setIsUnlocked(true);
           } else {
@@ -2910,6 +2928,10 @@ export default function App() {
                 const result = await syncStateFromSupabase(email);
                 if (result.success && result.state) {
                   setState(migrateStateCards(result.state));
+                }
+                const backendSubs = await refreshSubscriptionsFromBackend(email, token);
+                if (backendSubs && backendSubs.length > 0) {
+                  setState(prev => ({ ...prev, subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs) }));
                 }
               } catch (err) {
                 console.warn("Fatal error syncing from database, continuing offline...", err);
