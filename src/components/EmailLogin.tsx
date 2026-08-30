@@ -60,7 +60,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
     try {
       const resp = await fetch(apiUrl('/api/auth/check-email'), { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: cleanEmail }) });
       const data = await safeJson(resp);
-      if (!data) throw new Error("Empty response");
+      if (!data) throw new Error("Empty response from API (" + resp.status + " " + resp.statusText + ") — check VITE_API_URL (should be your Railway URL) and Vercel function logs for /api");
       if (!resp.ok || !data.success) throw new Error(data.error || 'Failed to check account');
       if (data.exists) setStep('login-password');
       else { await initOtpSend(); setStep('verify-otp'); }
@@ -72,7 +72,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
     const cleanEmail = email.trim();
     const resp = await fetch(apiUrl('/api/auth/send-otp'), { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: cleanEmail }) });
     const data = await safeJson(resp);
-    if (!data) throw new Error("Empty response");
+    if (!data) throw new Error("Empty response from API (" + resp.status + " " + resp.statusText + ") — check VITE_API_URL (should be your Railway URL) and Vercel function logs for /api");
     if (!resp.ok || !data.success) throw new Error(data.error || 'Failed to dispatch verification code.');
     setResendTimer(60);
     if (!data.emailSent) { setSandboxOtp(data.devOtp); setInfoMsg('Dev bypass code: ' + data.devOtp); }
@@ -94,7 +94,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
     try {
       const resp = await fetch(apiUrl('/api/auth/verify-otp'), { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: email.trim(), otp: cleanOtp, forRegistrationOrReset: true }) });
       const data = await safeJson(resp);
-      if (!data) throw new Error("Empty response");
+      if (!data) throw new Error("Empty response from API (" + resp.status + " " + resp.statusText + ") — check VITE_API_URL (should be your Railway URL) and Vercel function logs for /api");
       if (!resp.ok || !data.success) throw new Error(data.error || 'Code could not be verified.');
       setStep(isReset ? 'reset-password' : 'create-password');
     } catch (err: any) { setErrorMsg(err.message); }
@@ -108,7 +108,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
     try {
       const resp = await fetch(apiUrl('/api/auth/login-password'), { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: email.trim(), password }) });
       const data = await safeJson(resp);
-      if (!data) throw new Error("Empty response");
+      if (!data) throw new Error("Empty response from API (" + resp.status + " " + resp.statusText + ") — check VITE_API_URL (should be your Railway URL) and Vercel function logs for /api");
       if (!resp.ok || !data.success) throw new Error(data.error);
       onUnlocked(email.trim().toLowerCase(), data.token || '', rememberMe, data.deviceToken);
     } catch (err: any) { setErrorMsg(err.message); }
@@ -125,7 +125,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
       const endpoint = isReset ? '/api/auth/reset-password' : '/api/auth/register';
       const resp = await fetch(apiUrl(endpoint), { method: 'POST', headers: getHeaders(), body: JSON.stringify({ email: email.trim(), password, otp: otpValue.trim() }) });
       const data = await safeJson(resp);
-      if (!data) throw new Error("Empty response");
+      if (!data) throw new Error("Empty response from API (" + resp.status + " " + resp.statusText + ") — check VITE_API_URL (should be your Railway URL) and Vercel function logs for /api");
       if (!resp.ok || !data.success) throw new Error(data.error);
       onUnlocked(email.trim().toLowerCase(), data.token || '', rememberMe, data.deviceToken);
     } catch (err: any) { setErrorMsg(err.message); }
