@@ -383,8 +383,6 @@ export async function forceCancelCardInSupabase(email: string, cardId: string): 
     const { data, error } = await client.from('bank_cards').update({ is_canceled: true }).eq('user_email', email).eq('id', cardId).select();
     if (error) {
       console.warn(`Supabase explicit cancel update failed:`, error);
-    } else {
-      console.log(`DEBUG: Forced canceled status for card ${cardId} in DB. Result:`, data);
     }
   } catch(err) {
     console.warn(`Failed to execute explicit card cancel override`, err);

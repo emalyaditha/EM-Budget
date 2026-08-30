@@ -3,6 +3,7 @@ import { CashAccount, BankCard, Charge } from '../types';
 import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronDown, CornerDownRight, Snowflake, RefreshCw, Lock } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
+import { todayLocal } from '../utils';
 
 interface CashCardManagementProps {
   cashAccounts: CashAccount[];
@@ -159,7 +160,7 @@ export default function CashCardManagement({
   const [chargeType, setChargeType] = useState<'Interest'|'LatePayment'|'OverLimit'|'Annual'|'Custom'>('Interest');
   const [chargeName, setChargeName] = useState('Interest Charge');
   const [chargeAmount, setChargeAmount] = useState('');
-  const [chargeDate, setChargeDate] = useState(new Date().toISOString().split('T')[0]);
+  const [chargeDate, setChargeDate] = useState(todayLocal());
   const [chargeDescription, setChargeDescription] = useState('');
   const [chargeRecurring, setChargeRecurring] = useState<'none'|'Monthly'|'Yearly'|'Custom'>('none');
   const CHARGE_DEFAULT_NAMES: Record<string,string> = { Interest:'Interest Charge', LatePayment:'Late Payment Fee', OverLimit:'Over-Limit Fee', Annual:'Annual Fee', Custom:'Custom Charge' };

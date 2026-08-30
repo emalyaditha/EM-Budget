@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Debt, CashAccount, BankCard } from '../types';
 import { X, Plus, CornerDownRight, Wallet, Calendar, FileText } from 'lucide-react';
+import { compareMoney } from '../lib/money';
 
 interface DebtDetailModalProps {
   debt: Debt;
@@ -33,7 +34,7 @@ export default function DebtDetailModal({ debt, currency, cashAccounts, cards, o
 
   const repaid = debt.totalAmount - debt.remainingAmount;
   const payoffPct = debt.totalAmount > 0 ? Math.round((repaid / debt.totalAmount) * 100) : 0;
-  const isFullyRepaid = debt.remainingAmount === 0;
+  const isFullyRepaid = compareMoney(debt.remainingAmount, 0) === 0;
 
   const timeline = useMemo<TimelineEvent[]>(() => {
     const events: TimelineEvent[] = [];

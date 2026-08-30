@@ -4,6 +4,7 @@ import { CashAccount, BankCard, Subscription, CategoryExpense } from '../types';
 import { Plus, Trash2, Calendar, CreditCard, Play, Pause, CheckCircle2, Clock, DollarSign } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
+import { todayLocal } from '../utils';
 
 interface SubscriptionManagementProps {
   subscriptions: Subscription[];
@@ -22,14 +23,14 @@ export default function SubscriptionManagement({ subscriptions, cashAccounts, ca
   const [subName, setSubName] = useState('');
   const [subAmount, setSubAmount] = useState('');
   const [billingCycle, setBillingCycle] = useState<'Monthly' | 'Yearly'>('Monthly');
-  const [dueDate, setDueDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState(() => todayLocal());
   const [category, setCategory] = useState<CategoryExpense>('Entertainment');
   const [instanceType, setInstanceType] = useState('');
   const [instanceTypeSelection, setInstanceTypeSelection] = useState('none');
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
   const [payAccountId, setPayAccountId] = useState('');
   const [payAccountType, setPayAccountType] = useState<'cash' | 'card'>('cash');
-  const [payDate, setPayDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [payDate, setPayDate] = useState(() => todayLocal());
   const [payBankCharge, setPayBankCharge] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -60,7 +61,7 @@ export default function SubscriptionManagement({ subscriptions, cashAccounts, ca
     const isValid = validateForm(subName, subAmount, true);
     if (!isValid) { if (!subName.trim()) nameInputRef.current?.focus(); else amountInputRef.current?.focus(); showToast('error', 'Resolve errors.'); return; }
     onAddSubscription({ name: subName.trim(), amount: parseFloat(subAmount), billingCycle, dueDate, category, status: 'Active', instanceType: instanceType ? instanceType.trim() : undefined });
-    setSubName(''); setSubAmount(''); setDueDate(new Date().toISOString().split('T')[0]); setInstanceType(''); setInstanceTypeSelection('none'); setIsAdding(false); setSubmitted(false); setErrors({}); showToast('success', 'Subscription registered.');
+    setSubName(''); setSubAmount(''); setDueDate(todayLocal()); setInstanceType(''); setInstanceTypeSelection('none'); setIsAdding(false); setSubmitted(false); setErrors({}); showToast('success', 'Subscription registered.');
   };
 
   const handleSelectPayAccount = (val: string) => { const [id, type] = val.split(':'); setPayAccountId(id); setPayAccountType(type as 'cash' | 'card'); };

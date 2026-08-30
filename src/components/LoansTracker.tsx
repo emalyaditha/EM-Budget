@@ -3,6 +3,7 @@ import { LoanGiven, CashAccount, BankCard } from '../types';
 import { Plus, CheckCircle2, Calendar, ArrowDownLeft, Trash2, Wallet, History, ChevronDown, ChevronUp, ArrowUpRight } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
+import { todayLocal } from '../utils';
 
 interface LoansTrackerProps {
   loans: LoanGiven[];
@@ -20,7 +21,7 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
   const [isGivingLoan, setIsGivingLoan] = useState(false);
   const [borrowerName, setBorrowerName] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
-  const [dateGiven, setDateGiven] = useState(new Date().toISOString().split('T')[0]);
+  const [dateGiven, setDateGiven] = useState(todayLocal());
   const [sourceAccountId, setSourceAccountId] = useState('');
   const [sourceAccountType, setSourceAccountType] = useState<'cash' | 'card'>('cash');
   const [giveLoanBankCharge, setGiveLoanBankCharge] = useState('');

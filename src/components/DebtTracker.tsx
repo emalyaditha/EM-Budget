@@ -3,6 +3,7 @@ import { Debt, CashAccount, BankCard } from '../types';
 import { Plus, AlertCircle, Calendar, Wallet, CornerDownRight, Eye } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
+import { compareMoney } from '../lib/money';
 import DebtDetailModal from './DebtDetailModal';
 
 interface DebtTrackerProps {
@@ -166,7 +167,7 @@ export default function DebtTracker({ debts, cashAccounts, cards, onAddDebt, onI
           [...activeDebts].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).map((debt) => {
             const repaid = debt.totalAmount - debt.remainingAmount;
             const payoffPct = Math.round((repaid / debt.totalAmount) * 100);
-            const isFullyPaid = debt.remainingAmount === 0;
+            const isFullyPaid = compareMoney(debt.remainingAmount, 0) === 0;
             return (
               <div key={debt.id} id={`debt-block-${debt.id}`} data-debt-status={isFullyPaid ? "paid" : "outstanding"} className="card p-5 space-y-4 overflow-hidden relative">
                 <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-50" />

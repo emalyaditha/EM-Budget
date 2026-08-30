@@ -1,4 +1,22 @@
 import { AppState, Transaction } from './types';
+import { escapeCsvRow } from './lib/download';
+
+// Local-timezone "YYYY-MM-DD" date for today. Replaces the widespread
+// `new Date().toISOString().split('T')[0]` pattern, which returns the UTC date
+// and can be YESTERDAY for UTC+5:30 users in the morning — misdating entries.
+export function todayLocal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Whole days from today to a "YYYY-MM-DD" date, compared in LOCAL calendar space
+// so "due today" is 0 and "due tomorrow" is 1 (no UTC midnight shift).
+export function daysFromToday(dateStr: string): number {
+  const then = new Date(`${dateStr}T00:00:00`);
+  const now = new Date();
+  const nowLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((then.getTime() - nowLocal.getTime()) / (1000 * 60 * 60 * 24));
+}
 
 const STORAGE_KEY = 'cashflow_manager_state_v1';
 
@@ -84,11 +102,11 @@ export function exportStateAsJSON(state: AppState, userEmail?: string) {
 
 // Export Transactions to CSV / Excel spreadsheet
 export function exportTransactionsToCSV(transactions: Transaction[], currency: string = 'Rs.') {
-  const headers = ['Transaction ID', 'Type', 'Title', 'Amount', 'Date', 'Category', 'Paid Form'];
+  const headers = ['Transaction ID', 'Type', 'Title', 'Amount', 'Date', 'Category', 'Paid From'];
   const rows = transactions.map(t => [
     t.id,
     t.type.toUpperCase(),
-    t.title.replace(/"/g, '""'),
+    t.title,
     `${currency} ${t.amount}`,
     t.date,
     t.category,
@@ -96,7 +114,7 @@ export function exportTransactionsToCSV(transactions: Transaction[], currency: s
   ]);
 
   const csvContent = "data:text/csv;charset=utf-8," 
-    + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(','))].join('\n');
+    + [headers.map(h => `"${h}"`).join(','), ...rows.map(escapeCsvRow)].join('\n');
     
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
@@ -130,6 +148,34 @@ export const INCOME_COLORS: Record<string, string> = {
   Commission: '#84CC16',  // Lime
   Other: '#6B7280',       // Gray
 };
+
+// Canonical category lists. These are the single source of truth for category
+// <select>s across the app. They must match the zod enums in
+// src/validators/index.ts so that exact-string budget/audit matching works.
+export const EXPENSE_CATEGORIES = [
+  'Food',
+  'Transport',
+  'Shopping',
+  'Utilities',
+  'Rent',
+  'Entertainment',
+  'Medical',
+  'Education',
+  'Insurance',
+  'Loan',
+  'Bank Charges & Interest',
+  'Other',
+] as const;
+
+export const INCOME_CATEGORIES = [
+  'Salary',
+  'Freelance',
+  'Business',
+  'Bonus',
+  'Commission',
+  'Loan Settle',
+  'Other',
+] as const;
 
 export interface NetWorthBreakdown {
   cash: number;

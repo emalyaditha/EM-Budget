@@ -3,6 +3,7 @@ import { CashAccount, BankCard, CreditCardPurchase } from '../types';
 import { CreditCard as CcIcon, Plus, CheckSquare, Lock, Unlock } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
+import { todayLocal } from '../utils';
 
 interface Props {
   creditCards: BankCard[];
@@ -23,7 +24,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
   const [purDesc, setPurDesc] = useState('');
   const [purMerchant, setPurMerchant] = useState('');
   const [purCardId, setPurCardId] = useState('');
-  const [purDate, setPurDate] = useState(()=> new Date().toISOString().split('T')[0]);
+  const [purDate, setPurDate] = useState(()=> todayLocal());
   const [purchaseErrors, setPurchaseErrors] = useState<Record<string,string>>({});
   const [purchaseSubmitted, setPurchaseSubmitted] = useState(false);
   const purchaseCardRef = React.useRef<HTMLSelectElement>(null);
@@ -71,7 +72,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
     const ok=validatePurchase(purCardId,purAmount,purMerchant,purDesc,true);
     if(!ok){ if(!purCardId) purchaseCardRef.current?.focus(); else if(!purAmount) purchaseAmountRef.current?.focus(); else purchaseMerchantRef.current?.focus(); showToast('error','Fix purchase errors.'); return; }
     onAddPurchase({ cardId:purCardId, amount:parseFloat(purAmount), description:purDesc, merchant:purMerchant, date:purDate });
-    setPurAmount(''); setPurDesc(''); setPurMerchant(''); setPurDate(new Date().toISOString().split('T')[0]); setPurchaseSubmitted(false); setPurchaseErrors({}); showToast('success','Purchase recorded.');
+    setPurAmount(''); setPurDesc(''); setPurMerchant(''); setPurDate(todayLocal()); setPurchaseSubmitted(false); setPurchaseErrors({}); showToast('success','Purchase recorded.');
   };
 
   return (

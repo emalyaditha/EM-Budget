@@ -101,11 +101,11 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
       const data = await safeJson(res);
       if (!data) { setPurgeLoading(false); setSyncStatus('error'); const m = "Empty response"; setSyncMessage(m); setPurgeError(m); showToast(m, 'error'); return; }
       if (!res.ok || !data.success) { setPurgeLoading(false); setSyncStatus('error'); const m = data.error || 'Invalid or expired code.'; setSyncMessage(m); setPurgeError(m); showToast(m, 'error'); return; }
-      setSyncMessage('Wiping cloud records...');
-      updateState((prev) => ({ ...prev, cashAccounts: [], cards: [], transactions: [], debts: [], incomes: [], expenses: [], notifications: [] }));
+      setSyncStatus('loading'); setSyncMessage('Wiping cloud records...');
       const result = await truncateAllDataInSupabase(userEmail);
       setPurgeLoading(false); setShowPurge2FA(false); setPurgeOtp(''); setPurgeDevOtp(null);
       if (!result.success) { setSyncStatus('error'); setSyncMessage(result.error || 'Cloud truncate failed.'); showToast('Cloud sync failure.', 'error'); return; }
+      updateState((prev) => ({ ...prev, cashAccounts: [], cards: [], transactions: [], debts: [], incomes: [], expenses: [], notifications: [] }));
       setSyncStatus('success'); setSyncMessage('Ledger purged.'); showToast('Ledger purged.', 'success');
     } catch (err: any) { setPurgeLoading(false); setSyncStatus('error'); const m = err.message || 'Verification failed.'; setSyncMessage(m); setPurgeError(m); showToast(m, 'error'); }
   };
@@ -176,7 +176,7 @@ class CloudSyncService {
                     </div>
                     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5 flex gap-2 text-[11px] leading-4 text-[var(--ink-2)]"><Lock size={12} className="shrink-0 mt-0.5 text-[var(--ink-3)]" /><span>Connection credentials are locked to environment variables.</span></div>
                     <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input type="checkbox" id="autoSyncToggle" checked={autoSync} onChange={(e) => { setAutoSync(e.target.checked); saveSupabaseConfig('', '', e.target.checked); }} className="w-3.5 h-3.5 rounded border-[var(--line)] bg-[var(--surface)] accent-[var(--ink)]" />
+                      <input type="checkbox" id="autoSyncToggle" checked={autoSync} onChange={(e) => { const v = e.target.checked; setAutoSync(v); const cfg = getSupabaseConfig(); saveSupabaseConfig(cfg.url, cfg.key, v); }} className="w-3.5 h-3.5 rounded border-[var(--line)] bg-[var(--surface)] accent-[var(--ink)]" />
                       <span className="text-[12px] text-[var(--ink-2)]">Auto-push local changes to cloud</span>
                     </label>
                   </div>

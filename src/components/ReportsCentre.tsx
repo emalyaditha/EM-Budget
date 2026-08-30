@@ -24,13 +24,15 @@ interface ReportsCentreProps {
 export default function ReportsCentre({ transactions, incomes, expenses, debts, loansGiven, cashAccounts, cards, currency, onSelectTransaction, subscriptions = [], onToggleSubscriptionStatus, onPaySubscription }: ReportsCentreProps) {
   const [reportType, setReportType] = useState<'monthly' | 'yearly' | 'category' | 'debt' | 'audit'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
-  const [selectedYear, setSelectedYear] = useState('2026');
-  const filteredTransactions = transactions.filter(t => {
-    const [year, month] = t.date.split('-');
-    if (reportType === 'monthly') return month === selectedMonth && year === selectedYear;
-    if (reportType === 'yearly') return year === selectedYear;
-    return true;
-  });
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+  const filteredTransactions = React.useMemo(() => {
+    return transactions.filter(t => {
+      const [year, month] = t.date.split('-');
+      if (reportType === 'monthly') return month === selectedMonth && year === selectedYear;
+      if (reportType === 'yearly') return year === selectedYear;
+      return true;
+    });
+  }, [transactions, reportType, selectedMonth, selectedYear]);
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const totalDebtPaid = filteredTransactions.filter(t => t.type === 'debt_payment').reduce((sum, t) => sum + t.amount, 0);
@@ -91,7 +93,9 @@ export default function ReportsCentre({ transactions, incomes, expenses, debts, 
             </select>
           )}
           <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} className="input flex-1 !py-2.5">
-            <option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
+            {Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - 1 + i).map(y => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
           </select>
         </div>
       )}

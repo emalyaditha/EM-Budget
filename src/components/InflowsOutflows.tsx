@@ -4,6 +4,7 @@ import { PlusCircle, MinusCircle, Sparkles } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
 import ReceiptScanner from './ReceiptScanner';
+import { todayLocal } from '../utils';
 
 interface InflowsOutflowsProps {
   cashAccounts: CashAccount[];
@@ -21,14 +22,14 @@ export default function InflowsOutflows({ cashAccounts, cards, onAddIncome, onAd
   const [incCategory, setIncCategory] = useState<CategoryIncome>('Salary');
   const [incTargetId, setIncTargetId] = useState('');
   const [incTargetType, setIncTargetType] = useState<'cash'|'card'>('cash');
-  const [incDate, setIncDate] = useState(()=> new Date().toISOString().split('T')[0]);
+  const [incDate, setIncDate] = useState(()=> todayLocal());
   const [expTitle, setExpTitle] = useState('');
   const [expDesc, setExpDesc] = useState('');
   const [expAmount, setExpAmount] = useState('');
   const [expCategory, setExpCategory] = useState<CategoryExpense>('Utilities');
   const [expMethodId, setExpMethodId] = useState('');
   const [expMethodType, setExpMethodType] = useState<'cash'|'card'>('cash');
-  const [expDate, setExpDate] = useState(()=> new Date().toISOString().split('T')[0]);
+  const [expDate, setExpDate] = useState(()=> todayLocal());
   const [expBankCharge, setExpBankCharge] = useState('');
   const [insufficiencyError, setInsufficiencyError] = useState<string|null>(null);
   const [isProcessing, setIsProcessing] = useState(false);

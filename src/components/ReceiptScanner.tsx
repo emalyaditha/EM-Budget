@@ -117,19 +117,29 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
     if (!extractedText.trim()) {
       try {
         setStatusMessage('Processing scan on OCR server...');
+        const token = localStorage.getItem('auth_session_token') || '';
         const response = await fetch(apiUrl('/api/ocr/free-scan'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ image: imagePreview })
         });
         const resData = await safeJson(response);
+        if (response.status === 401) {
+          setIsAnalyzing(false); setStatusMessage('');
+          const msg = 'Sign in required to use server-based OCR. Log in, then try again.';
+          setError(msg); showToast('error', msg);
+          return;
+        }
         if (response.ok && resData?.success && resData?.text) {
           extractedText = resData.text;
         } else if (resData?.error) {
           throw new Error(resData.error);
         }
       } catch (srvErr: any) {
-        console.warn('[Server OCR Fallback error]', srvErr);
+        setIsAnalyzing(false); setStatusMessage('');
+        const msg = 'Server OCR is unavailable. Please use a clearer photo or enter the details manually.';
+        setError(msg); showToast('error', msg);
+        return;
       }
     }
     setIsAnalyzing(false);

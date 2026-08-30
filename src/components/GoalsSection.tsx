@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { SavingsGoal, CashAccount } from '../types';
 import { Plus, X, Trash2, MinusCircle, PlusCircle } from 'lucide-react';
 import { DatePicker } from './DatePicker';
+import { todayLocal } from '../utils';
 
 interface GoalsSectionProps {
   goals: SavingsGoal[];
@@ -49,7 +50,7 @@ export default function GoalsSection({
   const handleCreateGoal = () => {
     const targetVal = parseFloat(goalTarget);
     if (goalName && !isNaN(targetVal) && targetVal > 0) {
-      onAddGoal(goalName, targetVal, goalDate || new Date().toISOString().split('T')[0]);
+      onAddGoal(goalName, targetVal, goalDate || todayLocal());
       setIsAddModalOpen(false);
       setGoalName(''); setGoalTarget(''); setGoalDate('');
     }

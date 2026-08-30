@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles } from 'lucide-react';
 import { AppState } from '../../types';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, todayLocal } from '../../utils';
 
 interface QuickActionModalProps {
   isOpen: boolean;
@@ -25,11 +26,15 @@ export function QuickActionModal({
   const [txAmount, setTxAmount] = useState('');
   const [txCategory, setTxCategory] = useState('Utilities');
   const [txAccountId, setTxAccountId] = useState('');
-  const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
+  const [txDate, setTxDate] = useState(todayLocal());
 
   useEffect(() => {
     setTxType(initialType);
   }, [initialType]);
+
+  useEffect(() => {
+    setTxCategory(txType === 'expense' ? 'Utilities' : 'Salary');
+  }, [txType]);
 
   useEffect(() => {
     if (isOpen) {
@@ -169,25 +174,13 @@ export function QuickActionModal({
                     className="input cursor-pointer"
                   >
                     {txType === 'expense' ? (
-                      <>
-                        <option value="Utilities">Utilities</option>
-                        <option value="Food & Dining">Food & Dining</option>
-                        <option value="Rent & Housing">Rent & Housing</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Investment">Investment</option>
-                        <option value="Others">Others</option>
-                      </>
+                      EXPENSE_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))
                     ) : (
-                      <>
-                        <option value="Salary">Salary</option>
-                        <option value="Freelance">Freelance</option>
-                        <option value="Investments">Investments</option>
-                        <option value="Gifts">Gifts</option>
-                        <option value="Refunds">Refunds</option>
-                        <option value="Others">Others</option>
-                      </>
+                      INCOME_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))
                     )}
                   </select>
                 </div>

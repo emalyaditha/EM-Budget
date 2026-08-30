@@ -3,7 +3,7 @@ import { apiUrl, safeJson } from "./lib/api";
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
-import { exportStateAsJSON, generateUniqueId } from './utils';
+import { exportStateAsJSON, generateUniqueId, todayLocal } from './utils';
 import { addMoney, subtractMoney, compareMoney } from './lib/money';
 import { authSession } from './services/authSession';
 import { 
@@ -547,7 +547,7 @@ export default function App() {
         id: `nt-${Date.now()}`,
         type: 'system',
         message: `Ledger balanced: Income of ${prev.currency} ${amount.toLocaleString()} credited to ${nameOfTarget}.`,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         read: false,
       };
 
@@ -630,7 +630,7 @@ export default function App() {
                 id: `nt-alert-${Date.now()}`,
                 type: 'alert',
                 message: `Low balance alert! ${c.name} is critically low: ${prev.currency} ${nextVal.toLocaleString()}`,
-                date: new Date().toISOString().split('T')[0],
+                date: todayLocal(),
                 read: false,
               });
             }
@@ -656,7 +656,7 @@ export default function App() {
                 id: `nt-alert-${Date.now()}`,
                 type: 'alert',
                 message: alertMsg,
-                date: new Date().toISOString().split('T')[0],
+                date: todayLocal(),
                 read: false,
               });
             }
@@ -774,7 +774,7 @@ export default function App() {
           type: 'financing',
           title: `Borrowed: ${debtData.debtSource}`,
           amount: debtData.totalAmount,
-          date: new Date().toISOString().split('T')[0],
+          date: todayLocal(),
           category: 'Other',
           accountId: debtData.accountId,
           accountType: debtData.accountType,
@@ -789,7 +789,7 @@ export default function App() {
         id: `nt-${Date.now()}`,
         type: 'reminder',
         message: `Debt due alert set! Repay principal ${prev.currency} ${debtData.totalAmount.toLocaleString()} to ${debtData.debtSource} before ${debtData.dueDate}.`,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         read: false,
       };
 
@@ -850,7 +850,7 @@ export default function App() {
         id: `nt_del_debt_${Date.now()}`,
         type: 'system',
         message: `Liability to ${debtToDelete.debtSource} was deleted. Balance adjustments successfully reversed.`,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         read: false,
       };
 
@@ -973,7 +973,7 @@ export default function App() {
         id: `nt_loan_${Date.now()}`,
         type: 'system',
         message: `Registered loan given to ${loanData.borrowerName}: model tracks ${prev.currency} ${loanData.totalAmount.toLocaleString()} receivable.`,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         read: false,
       };
 
@@ -998,7 +998,7 @@ export default function App() {
     bankCharge: number = 0
   ) => {
     const settlementId = `setl_${Date.now()}`;
-    const settlementDate = new Date().toISOString().split('T')[0];
+    const settlementDate = todayLocal();
     const nowIso = new Date().toISOString();
 
     updateState(prev => {
@@ -1189,7 +1189,7 @@ export default function App() {
         type: 'deposit',
         title: `Loan Refund: ${loanToDelete.borrowerName}`,
         amount: loanToDelete.totalAmount,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         category: 'Loan Refund',
         accountId: loanToDelete.sourceAccountId,
         accountType: loanToDelete.sourceAccountType,
@@ -1272,7 +1272,7 @@ export default function App() {
         type: 'expense',
         title: `Lent More: ${targetLoan.borrowerName}`,
         amount: amount,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         category: 'Loan',
         accountId: sourceAccountId,
         accountType: sourceAccountType,
@@ -1288,7 +1288,7 @@ export default function App() {
         title: `Lent More to ${targetLoan.borrowerName}`,
         description: `Lent additional capital. Notes: ${notes || 'Added principal'}`,
         amount: amount,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         category: 'Loan',
         paymentMethodId: sourceAccountId,
         paymentMethodType: sourceAccountType,
@@ -1308,7 +1308,7 @@ export default function App() {
           title: `Bank Charge: Lent More ${targetLoan.borrowerName}`,
           description: `Automatic bank charge fee for lending additional capital`,
           amount: bankCharge,
-          date: new Date().toISOString().split('T')[0],
+          date: todayLocal(),
           category: 'Bank Charges & Interest',
           paymentMethodId: sourceAccountId,
           paymentMethodType: sourceAccountType,
@@ -1321,7 +1321,7 @@ export default function App() {
           type: 'expense',
           title: `Bank Charge: Lent More ${targetLoan.borrowerName}`,
           amount: bankCharge,
-          date: new Date().toISOString().split('T')[0],
+          date: todayLocal(),
           category: 'Bank Charges & Interest',
           accountId: sourceAccountId,
           accountType: sourceAccountType,
@@ -1339,7 +1339,7 @@ export default function App() {
         id: `nt_loan_add_${Date.now()}`,
         type: 'system',
         message: `Dispatched additional ${prev.currency} ${amount.toLocaleString()} to ${targetLoan.borrowerName} under existing loan agreement.`,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         read: false,
       };
 
@@ -1468,7 +1468,7 @@ export default function App() {
         type: 'expense',
         title: `Subscription Cancelled: ${subToDelete.name}`,
         amount: 0,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         category: 'Subscription Deletion',
         referenceId: id,
         updated_at: nowIso,
@@ -1527,7 +1527,7 @@ export default function App() {
                 id: `nt-alert-${Date.now()}`,
                 type: 'alert',
                 message: `Low balance alert! ${c.name} is critically low: ${prev.currency} ${nextVal.toLocaleString()}`,
-                date: new Date().toISOString().split('T')[0],
+                date: todayLocal(),
                 read: false,
               });
             }
@@ -1545,7 +1545,7 @@ export default function App() {
                 id: `nt-alert-${Date.now()}`,
                 type: 'alert',
                 message: `Low balance alert! Card ${c.cardName} balance is low: ${prev.currency} ${nextVal.toLocaleString()}`,
-                date: new Date().toISOString().split('T')[0],
+                date: todayLocal(),
                 read: false,
               });
             }
@@ -1653,7 +1653,7 @@ export default function App() {
         id: `nt-sys-${Date.now()}`,
         type: 'system',
         message: `Subscription paid: ${sub.name} is settled (${prev.currency} ${sub.amount.toLocaleString()}). Next due: ${nextDueDateStr}.`,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         read: false,
       };
 
@@ -1730,7 +1730,7 @@ export default function App() {
             type: 'debt_payment',
             title: `Credit Card Settlement: ${targetCard?.cardName || 'Card'}`,
             amount: amount,
-            date: new Date().toISOString().split('T')[0],
+            date: todayLocal(),
             category: 'Debt Repayment',
             accountId: fromId,
             accountType: fromType,
@@ -1760,7 +1760,7 @@ export default function App() {
         if (targetAccountTypeResolved === 'cash') accountName = prev.cashAccounts.find(c => c.id === targetAccountIdResolved)?.name;
         else accountName = prev.cards.find(c => c.id === targetAccountIdResolved)?.bankName || prev.cards.find(c => c.id === targetAccountIdResolved)?.cardName;
       }
-      const incEntry = { id: `inc-${Date.now()}`, amount, date: new Date().toISOString().split('T')[0], accountName };
+      const incEntry = { id: `inc-${Date.now()}`, amount, date: todayLocal(), accountName };
 
       const updatedDebt = { 
         ...debt, 
@@ -1797,7 +1797,7 @@ export default function App() {
           type: 'financing',
           title: `Borrowed More: ${updatedDebt.debtSource}`,
           amount: amount,
-          date: new Date().toISOString().split('T')[0],
+          date: todayLocal(),
           category: 'Other',
           accountId: targetAccountId,
           accountType: targetAccountType,
@@ -1828,7 +1828,7 @@ export default function App() {
   ) => {
     const paymentId = `dp-${Date.now()}`;
     const transactionId = `trans-${Date.now()}`;
-    const paymentDate = new Date().toISOString().split('T')[0];
+    const paymentDate = todayLocal();
 
     updateState(prev => {
       // 1. Deduct principal accounts
@@ -1980,7 +1980,7 @@ export default function App() {
           type: delta > 0 ? 'deposit' : 'withdrawal',
           title: `Balance adjustment: ${match?.name || 'Cash'}`,
           amount: Math.abs(delta),
-          date: new Date().toISOString().split('T')[0],
+          date: todayLocal(),
           category: 'Adjustment',
           accountId: id,
           accountType: 'cash',
@@ -2013,16 +2013,10 @@ export default function App() {
     }));
   };
 
-  const handleDeleteCard = (idToDelete: string) => {
-    console.log(`DEBUG: Soft-canceling card with id: "${idToDelete}"`);
-    
-    // Explicit guaranteed database override for this critical action
-    if (userEmail) forceCancelCardInSupabase(userEmail, idToDelete);
-
+  const handleDeleteCard = async (idToDelete: string) => {
     updateState(prev => {
       const updatedCards = prev.cards.map(card => {
         if (String(card.id) === String(idToDelete)) {
-          console.log("DEBUG: Matching card found inside mapped state, setting isCanceled to true", card);
           return { ...card, isCanceled: true };
         }
         return card;
@@ -2032,6 +2026,16 @@ export default function App() {
         cards: updatedCards,
       };
     });
+
+    // Explicit guaranteed database override for this critical action; await so
+    // a network/RLS failure is surfaced instead of silently keeping the card live.
+    if (userEmail) {
+      try {
+        await forceCancelCardInSupabase(userEmail, idToDelete);
+      } catch (err: any) {
+        showToast('Failed to sync card cancellation to cloud: ' + (err?.message || 'unknown error'), 'error');
+      }
+    }
   };
 
   const handleDeleteCashAccount = (id: string) => {
@@ -2050,7 +2054,7 @@ export default function App() {
         type: 'expense',
         title: `Cash Account Deleted: ${accountToDelete.name}`,
         amount: 0,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         category: 'Account Deletion',
         referenceId: id,
         updated_at: nowIso,
@@ -2148,7 +2152,7 @@ export default function App() {
         type: 'expense',
         title: `Transaction Deleted: ${tx.title}`,
         amount: 0,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         category: 'Transaction Deletion',
         referenceId: txId,
         updated_at: nowIso,

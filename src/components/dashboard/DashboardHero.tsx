@@ -54,26 +54,14 @@ export function DashboardHero({
       const cat = (t.category || 'Otros').trim() || 'Otros';
       byCat.set(cat, (byCat.get(cat) || 0) + Math.abs(t.amount));
     }
-    let entries = Array.from(byCat.entries())
+    const entries = Array.from(byCat.entries())
       .map(([category, total]) => ({ category, total }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
-
-    const fallbackLabels = ['Food', 'Transporte', 'Ocio', 'Vivienda', 'Otros'];
-    const fallbackTotals = [420, 310, 260, 180, 120];
-    if (entries.length === 0) {
-      entries = fallbackLabels.map((c, i) => ({ category: c, total: fallbackTotals[i] }));
-    } else if (entries.length < 5) {
-      for (let i = entries.length; i < 5; i++) {
-        if (!entries.find((e) => e.category === fallbackLabels[i])) {
-          entries.push({ category: fallbackLabels[i], total: 0 });
-        }
-      }
-    }
     const max = Math.max(...entries.map((e) => e.total), 1);
-    return entries.slice(0, 5).map((e, i) => ({
+    return entries.map((e, i) => ({
       ...e,
-      pct: e.total === 0 ? 18 + i * 3 : Math.max(14, Math.round((e.total / max) * 100)),
+      pct: e.total === 0 ? 0 : Math.max(14, Math.round((e.total / max) * 100)),
       pastel: PASTEL_CLASSES[i % PASTEL_CLASSES.length],
     }));
   })();
@@ -184,24 +172,31 @@ export function DashboardHero({
           </button>
         </div>
         <div className="space-y-2.5">
-          {report.map((row) => (
-            <div key={row.category} className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="mono text-[10px] font-semibold tracking-wide uppercase text-white/70 truncate">{row.category}</span>
-                <span className="mono text-[10px] font-medium tabular-nums text-white/50 shrink-0">
-                  {currency}
-                  {row.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </span>
-              </div>
-              <div className="h-10 w-full rounded-[12px] bg-white/[0.08] border border-white/10 overflow-hidden p-1">
-                <div
-                  className={`h-full rounded-[8px] ${row.pastel} transition-all duration-700`}
-                  style={{ width: `${row.pct}%` }}
-                  aria-label={`${row.category} ${row.pct}%`}
-                />
-              </div>
+          {report.length === 0 ? (
+            <div className="rounded-[12px] border border-dashed border-white/15 bg-white/[0.04] px-4 py-6 text-center">
+              <p className="text-[12px] text-white/60">No spending yet.</p>
+              <p className="text-[10px] text-white/35 mt-1">Add an expense to see your financial breakdown.</p>
             </div>
-          ))}
+          ) : (
+            report.map((row) => (
+              <div key={row.category} className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="mono text-[10px] font-semibold tracking-wide uppercase text-white/70 truncate">{row.category}</span>
+                  <span className="mono text-[10px] font-medium tabular-nums text-white/50 shrink-0">
+                    {currency}
+                    {row.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                <div className="h-10 w-full rounded-[12px] bg-white/[0.08] border border-white/10 overflow-hidden p-1">
+                  <div
+                    className={`h-full rounded-[8px] ${row.pastel} transition-all duration-700`}
+                    style={{ width: `${row.pct}%` }}
+                    aria-label={`${row.category} ${row.pct}%`}
+                  />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

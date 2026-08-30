@@ -13,8 +13,11 @@ export function AnimatedCountUp({ value, duration = 1200, prefix = "", suffix = 
     let startTimestamp: number | null = null;
     const startValue = displayValue;
     const endValue = value;
+    let rafId = 0;
+    let cancelled = false;
 
     const step = (timestamp: number) => {
+      if (cancelled) return;
       if (!startTimestamp) startTimestamp = timestamp;
       const progress = Math.min((timestamp - startTimestamp) / duration, 1);
       const easeProgress = progress * (2 - progress);
@@ -22,13 +25,17 @@ export function AnimatedCountUp({ value, duration = 1200, prefix = "", suffix = 
       setDisplayValue(currentValue);
 
       if (progress < 1) {
-        window.requestAnimationFrame(step);
+        rafId = window.requestAnimationFrame(step);
       } else {
         setDisplayValue(endValue);
       }
     };
 
-    window.requestAnimationFrame(step);
+    rafId = window.requestAnimationFrame(step);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(rafId);
+    };
   }, [value, duration]);
 
   return <span className="tabular-nums font-semibold">{prefix}{Math.round(displayValue).toLocaleString()}{suffix}</span>;

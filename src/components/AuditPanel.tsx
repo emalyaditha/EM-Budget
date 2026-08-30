@@ -5,6 +5,8 @@ import {
   Clock, Coins, ShieldAlert, CheckSquare, Settings, Landmark,
   Calendar, Check, ChevronDown, Eye, AlertCircle, HelpCircle
 } from 'lucide-react';
+import { compareMoney } from '../lib/money';
+import { todayLocal } from '../utils';
 
 interface AuditPanelProps {
   transactions: Transaction[];
@@ -31,7 +33,7 @@ export default function AuditPanel({
   const [selectedSubToSettle, setSelectedSubToSettle] = useState<string | null>(null);
   const [settlingAccountId, setSettlingAccountId] = useState<string>('');
   const [settlingAccountType, setSettlingAccountType] = useState<'cash' | 'card'>('cash');
-  const [settleDate, setSettleDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [settleDate, setSettleDate] = useState<string>(todayLocal());
   const [bankCharge, setBankCharge] = useState<number>(0);
 
   // Default select first cash/card account
@@ -94,16 +96,7 @@ export default function AuditPanel({
 
     // Accounts Audit
     cashAccounts.forEach(acc => {
-      if (acc.balance < 5000) {
-        score -= 3;
-        issues.push({
-          id: `acc-issue-${acc.id}`,
-          type: 'warning',
-          section: 'accounts',
-          title: `Low Cash Balance: ${acc.name}`,
-          desc: `Current balance is ${currency}${acc.balance.toLocaleString()} which is below the safe threshold of ${currency}5,000.`
-        });
-      } else if (acc.balance < 0) {
+      if (acc.balance < 0) {
         score -= 10;
         issues.push({
           id: `acc-issue-neg-${acc.id}`,
@@ -111,6 +104,15 @@ export default function AuditPanel({
           section: 'accounts',
           title: `Overdrawn Cash Account: ${acc.name}`,
           desc: `Account balance is negative (${currency}${acc.balance.toLocaleString()}). Check if expenses are over-recorded.`
+        });
+      } else if (acc.balance < 5000) {
+        score -= 3;
+        issues.push({
+          id: `acc-issue-${acc.id}`,
+          type: 'warning',
+          section: 'accounts',
+          title: `Low Cash Balance: ${acc.name}`,
+          desc: `Current balance is ${currency}${acc.balance.toLocaleString()} which is below the safe threshold of ${currency}5,000.`
         });
       } else {
         reconciledItemsCount.accounts++;
@@ -187,7 +189,7 @@ export default function AuditPanel({
           title: `Overdue Outstanding Debt: ${debt.debtSource}`,
           desc: `Repayment deadline was ${debt.dueDate}, but there is still an outstanding balance of ${currency}${debt.remainingAmount.toLocaleString()} to settle.`
         });
-      } else if (debt.remainingAmount === 0 && debt.status !== 'Fully Repaid') {
+      } else if (compareMoney(debt.remainingAmount, 0) === 0 && debt.status !== 'Fully Repaid') {
         issues.push({
           id: `debt-issue-status-${debt.id}`,
           type: 'info',
