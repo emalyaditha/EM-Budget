@@ -26,7 +26,7 @@ interface DashboardHeroProps {
 const PASTEL_CLASSES = ['bar-pink', 'bar-mint', 'bar-yellow', 'bar-lavender', 'bar-blue'] as const;
 
 function getFirstName(full: string) {
-  if (!full) return 'Sara';
+  if (!full) return '';
   const n = full.trim().split(/\s+/)[0];
   return n.charAt(0).toUpperCase() + n.slice(1);
 }
@@ -37,7 +37,7 @@ export function DashboardHero({
   currentMonthInflow = 0,
   currentMonthOutflow = 0,
   transactions = [],
-  userName = 'Sara',
+  userName = '',
   userAvatarUrl,
   onAddExpense,
   onAddIncome,
@@ -109,7 +109,7 @@ export function DashboardHero({
       <div className="space-y-1">
         <p className="eyebrow">Welcome</p>
         <h2 className="text-[26px] sm:text-[28px] font-bold tracking-tight leading-none text-[var(--ink)]">
-          <span className="font-normal">Welcome</span> <span className="font-extrabold">{firstName}!</span>
+          <span className="font-normal">Welcome</span> <span className="font-extrabold">{firstName || 'there'}!</span>
         </h2>
       </div>
 

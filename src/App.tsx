@@ -2996,6 +2996,7 @@ export default function App() {
               {activeTab === 'dashboard' && (
                 <Dashboard 
                   state={state} 
+                  userEmail={userEmail}
                   aggregateActiveWealth={aggregateActiveWealth}
                   totalCashAmount={totalCashAmount}
                   totalDebitCardsAmount={totalDebitCardsAmount}

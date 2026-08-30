@@ -15,11 +15,19 @@ interface ProfileSectionProps {
 export default function ProfileSection({ state, updateState, onOpenSettings, onLogout, onClose }: ProfileSectionProps) {
   const { showToast } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(state.userProfile?.name || 'User');
+  const profileFallback = (() => {
+    const e = state.userProfile?.email;
+    if (e && typeof e === 'string') {
+      const local = e.trim().split('@')[0] || '';
+      if (local) return local.charAt(0).toUpperCase() + local.slice(1).replace(/[._-]+/g, ' ');
+    }
+    return 'User';
+  })();
+  const [name, setName] = useState(state.userProfile?.name || profileFallback);
   const [tempAvatar, setTempAvatar] = useState<string | undefined>(state.userProfile?.avatarUrl);
 
   useEffect(() => {
-    setName(state.userProfile?.name || 'User');
+    setName(state.userProfile?.name || profileFallback);
     setTempAvatar(state.userProfile?.avatarUrl);
   }, [state.userProfile]);
 
@@ -54,7 +62,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
           <h2 className="text-[16px] font-bold tracking-tight text-[var(--ink)] mt-1">Profile</h2>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => { if (isEditing) { setName(state.userProfile?.name || 'User'); setTempAvatar(state.userProfile?.avatarUrl); } setIsEditing((v) => !v); }} className="btn-ghost px-3 py-1.5 text-[12px] inline-flex items-center gap-1.5">
+          <button onClick={() => { if (isEditing) { setName(state.userProfile?.name || profileFallback); setTempAvatar(state.userProfile?.avatarUrl); } setIsEditing((v) => !v); }} className="btn-ghost px-3 py-1.5 text-[12px] inline-flex items-center gap-1.5">
             {isEditing ? <span>Cancel</span> : <><Edit2 size={12} /><span>Edit</span></>}
           </button>
           <button onClick={onClose} aria-label="Close profile" className="w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center">
@@ -88,7 +96,7 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
           </div>
         ) : (
           <div className="mt-3">
-            <h3 className="text-[15px] font-bold text-[var(--ink)] tracking-tight">{state.userProfile?.name || 'User'}</h3>
+            <h3 className="text-[15px] font-bold text-[var(--ink)] tracking-tight">{state.userProfile?.name || profileFallback}</h3>
             <p className="mono text-[11px] text-[var(--ink-2)] mt-0.5">{state.userProfile?.email || 'Local vault'}</p>
             <span className="mt-2 inline-flex mono text-[10px] px-2 py-0.5 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]">Premier member</span>
           </div>

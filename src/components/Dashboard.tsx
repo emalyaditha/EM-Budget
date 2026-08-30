@@ -36,6 +36,7 @@ export function AnimatedCountUp({ value, duration = 1200, prefix = "", suffix = 
 
 interface DashboardProps {
   state: AppState;
+  userEmail?: string;
   aggregateActiveWealth: number;
   totalCashAmount: number;
   totalDebitCardsAmount: number;
@@ -53,8 +54,17 @@ interface DashboardProps {
   onAddExpense?: (title: string, description: string, amount: number, date: string, category: any, paymentMethodId: string, paymentMethodType: 'cash' | 'card', bankCharge?: number) => void;
 }
 
+function deriveNameFromEmail(email?: string): string {
+  if (email && typeof email === 'string') {
+    const local = email.trim().split('@')[0] || '';
+    if (local) return local.charAt(0).toUpperCase() + local.slice(1).replace(/[._-]+/g, ' ');
+  }
+  return '';
+}
+
 export default function Dashboard({
   state,
+  userEmail,
   aggregateActiveWealth,
   totalCashAmount,
   totalDebitCardsAmount,
@@ -259,7 +269,7 @@ export default function Dashboard({
             trendLabel=""
             trendColorClass=""
             onManageWallets={() => setActiveTab('accounts')}
-            userName={state.userProfile?.name || 'Sara'}
+            userName={state.userProfile?.name && state.userProfile.name !== 'User' ? state.userProfile.name : deriveNameFromEmail(userEmail) || 'User'}
             userAvatarUrl={state.userProfile?.avatarUrl}
             currentMonthInflow={currentMonthInflow}
             currentMonthOutflow={currentMonthOutflow}

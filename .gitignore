@@ -11,3 +11,4 @@ start-dev.ps1
 !.env.example
 
 # Vercel serverless build output
+api/index.js.map
