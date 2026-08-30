@@ -109,11 +109,7 @@ export default function GoalsSection({
                 {activeGoalsCount} goals · {completedGoalsCount} completed · {currency}{totalSavedValue.toLocaleString()} saved
               </p>
             )}
-            {false && (
-              <p className="text-[12px] leading-relaxed mt-2" style={{ color: 'var(--ink-2)' }}>
-                Inspired by the pin — add your first goal to replace the examples.
-              </p>
-            )}
+
           </div>
           {goals.length > 0 && onClearAllGoals && (
             <button

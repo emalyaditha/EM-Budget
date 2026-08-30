@@ -385,9 +385,9 @@ async function startServer() {
   }
 
   // --- Cookie helpers (httpOnly session) ---
-  function parseCookies(req) {
+  function parseCookies(req: any): Record<string, string> {
     const header = req.headers.cookie || "";
-    const out = {};
+    const out: Record<string, string> = {};
     header.split(";").forEach(p => {
       const idx = p.indexOf("=");
       if (idx < 0) return;

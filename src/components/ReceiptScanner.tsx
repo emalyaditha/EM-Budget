@@ -106,10 +106,11 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
         const ret = await worker.recognize(imagePreview).catch(() => null);
         extractedText = ret?.data?.text || '';
       }
-    } catch {
+    } catch (e) {
+      console.warn('OCR init failed', e);
     } finally {
       if (worker) {
-        try { await worker.terminate(); } catch {}
+        try { await worker.terminate(); } catch (e) { console.warn('worker terminate failed', e); }
       }
     }
     if (!extractedText.trim()) {

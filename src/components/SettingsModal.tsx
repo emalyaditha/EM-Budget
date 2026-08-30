@@ -123,13 +123,13 @@ class CloudSyncService {
     try {
       final response = await _supabase.from('ledger_states').select('state').eq('user_email', userEmail).order('updated_at', descending: true).limit(1).maybeSingle();
       return response != null ? response['state'] as Map<String, dynamic>? : null;
-    } catch (e) { print('Cloud Retrieve Error: \$e'); return null; }
+    } catch (e) { print('Cloud Retrieve Error: $e'); return null; }
   }
   Future<bool> pushLedgerState(String userEmail, Map<String, dynamic> stateJson) async {
     try {
       await _supabase.from('ledger_states').insert({ 'user_email': userEmail, 'state': stateJson, 'updated_at': DateTime.now().toUtc().toIso8601String() });
       return true;
-    } catch (e) { print('Cloud Dispatch Error: \$e'); return false; }
+    } catch (e) { print('Cloud Dispatch Error: $e'); return false; }
   }
 }`;
 
