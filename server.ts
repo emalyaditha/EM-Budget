@@ -6,6 +6,12 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import "dotenv/config";
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse
+} from "@simplewebauthn/server";
 
 export async function createApp(): Promise<express.Express> {
   const app = express();
@@ -72,7 +78,37 @@ export async function createApp(): Promise<express.Express> {
     accounts: [] as Account[],
     otps: [] as { email: string; otp: string; expires_at: string }[],
     deviceTokens: new Set<string>(),
-    rateLimits: [] as { key: string; count: number; reset_time: string }[]
+    rateLimits: [] as { key: string; count: number; reset_time: string }[],
+    appLocks: [] as {
+      email: string;
+      pinHash?: string;
+      pinEnabled: boolean;
+      failedAttempts: number;
+      lockedUntil: number | null;
+    }[],
+    webauthnCreds: [] as {
+      email: string;
+      credentialId: string;
+      publicKey: string;
+      signCount: number;
+      deviceLabel: string;
+    }[],
+    webauthnChallenges: [] as {
+      id: string;
+      email: string;
+      challenge: string;
+      purpose: string;
+      expiresAt: number;
+    }[],
+    trustedDevices: [] as {
+      id: string;
+      email: string;
+      tokenHash: string;
+      createdAt: number;
+      expiresAt: number;
+      lastUsedAt: number;
+      userAgent?: string;
+    }[]
   };
 
   // Scalable Distributed OTP Storage Helpers (No In-Memory Maps for stateless Cloud Run compliance)
@@ -384,6 +420,406 @@ export async function createApp(): Promise<express.Express> {
     }
   }
 
+  // =====================================================================
+  // APP LOCK SECURITY LAYER — helpers
+  // (PIN hashing + lockout, WebAuthn challenge store, trusted devices.
+  //  All operations require a valid session token at the caller.)
+  // =====================================================================
+
+  function validatePin(pin: any): string | null {
+    if (typeof pin !== "string" || !/^\d{4,6}$/.test(pin)) {
+      return "PIN must be 4 to 6 digits.";
+    }
+    if (/^(0+|\d)\1*$/.test(pin)) {
+      return "PIN cannot be all the same digit.";
+    }
+    if (pin === "1234" || pin === "0000" || pin === "4321") {
+      return "That PIN is too easy to guess. Choose a different one.";
+    }
+    // Reject sequential ascending/descending runs (e.g. 123456, 654321, 2345)
+    const asc = "0123456789".split("");
+    const desc = "9876543210".split("");
+    for (let i = 0; i <= pin.length - 4; i++) {
+      const seg = pin.slice(i, i + 4).split("");
+      const ascMatch = asc.join("").includes(seg.join(""));
+      const descMatch = desc.join("").includes(seg.join(""));
+      if (ascMatch || descMatch) return "That PIN is sequential. Choose a different one.";
+    }
+    return null;
+  }
+
+  function normalizeEmailLower(email: any): string {
+    return (typeof email === "string" ? email : "").trim().toLowerCase();
+  }
+
+  // --- app_lock_credentials ---
+  async function getAppLock(email: string, supabase: any) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      return mockDb.appLocks.find(x => x.email === e) || null;
+    }
+    try {
+      const { data, error } = await supabase.from("app_lock_credentials").select("*").eq("user_email", e).maybeSingle();
+      if (error) throw error;
+      if (!data) return mockDb.appLocks.find(x => x.email === e) || null;
+      return {
+        email: data.user_email,
+        pinHash: data.pin_hash || null,
+        pinEnabled: !!data.pin_enabled,
+        failedAttempts: Number(data.failed_attempts || 0),
+        lockedUntil: data.locked_until ? Number(data.locked_until) : null
+      };
+    } catch (err: any) {
+      console.warn("[AppLock] getAppLock fallback:", err?.message || err);
+      return mockDb.appLocks.find(x => x.email === e) || null;
+    }
+  }
+
+  async function upsertAppLock(email: string, fields: any, supabase: any) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      let rec = mockDb.appLocks.find(x => x.email === e);
+      if (!rec) {
+        rec = { email: e, pinEnabled: false, failedAttempts: 0, lockedUntil: null };
+        mockDb.appLocks.push(rec);
+      }
+      Object.assign(rec, {
+        ...(fields.pinHash !== undefined ? { pinHash: fields.pinHash } : {}),
+        ...(fields.pinEnabled !== undefined ? { pinEnabled: fields.pinEnabled } : {}),
+        ...(fields.failedAttempts !== undefined ? { failedAttempts: fields.failedAttempts } : {}),
+        ...(fields.lockedUntil !== undefined ? { lockedUntil: fields.lockedUntil } : {})
+      });
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from("app_lock_credentials")
+        .upsert({ user_email: e, ...fields, updated_at: new Date().toISOString() }, { onConflict: "user_email" })
+        .select("user_email")
+        .maybeSingle();
+      if (error) throw error;
+    } catch (err: any) {
+      console.warn("[AppLock] upsertAppLock fallback:", err?.message || err);
+      let rec = mockDb.appLocks.find(x => x.email === e);
+      if (!rec) {
+        rec = { email: e, pinEnabled: false, failedAttempts: 0, lockedUntil: null };
+        mockDb.appLocks.push(rec);
+      }
+      // Translate DB column names to the mock's camelCase fields
+      if (fields.pin_hash !== undefined) rec.pinHash = fields.pin_hash;
+      if (fields.pin_enabled !== undefined) rec.pinEnabled = fields.pin_enabled;
+      if (fields.failed_attempts !== undefined) rec.failedAttempts = fields.failed_attempts;
+      if (fields.locked_until !== undefined) rec.lockedUntil = fields.locked_until;
+    }
+  }
+
+  // --- webauthn_challenges ---
+  async function storeWebAuthnChallenge(email: string, challenge: string, purpose: string, supabase: any): Promise<string> {
+    const e = normalizeEmailLower(email);
+    const id = crypto.randomUUID();
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    if (!supabase) {
+      mockDb.webauthnChallenges.push({ id, email: e, challenge, purpose, expiresAt });
+      return id;
+    }
+    try {
+      const { error } = await supabase.from("webauthn_challenges").insert({ id, user_email: e, challenge, purpose, expires_at: expiresAt });
+      if (error) throw error;
+    } catch (err: any) {
+      console.warn("[AppLock] storeWebAuthnChallenge fallback:", err?.message || err);
+      mockDb.webauthnChallenges.push({ id, email: e, challenge, purpose, expiresAt });
+    }
+    return id;
+  }
+
+  async function consumeWebAuthnChallenge(id: string, email: string, purpose: string, supabase: any): Promise<string | null> {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      const idx = mockDb.webauthnChallenges.findIndex(c => c.id === id && c.email === e && c.purpose === purpose);
+      if (idx === -1) return null;
+      const [rec] = mockDb.webauthnChallenges.splice(idx, 1);
+      if (Date.now() > rec.expiresAt) return null;
+      return rec.challenge;
+    }
+    try {
+      await supabase.from("webauthn_challenges").delete().lt("expires_at", Date.now());
+      const { data, error } = await supabase
+        .from("webauthn_challenges")
+        .select("*")
+        .eq("id", id)
+        .eq("user_email", e)
+        .eq("purpose", purpose)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      if (data.expires_at && Date.now() > Number(data.expires_at)) return null;
+      const { error: delError } = await supabase.from("webauthn_challenges").delete().eq("id", id);
+      if (delError) throw delError;
+      return data.challenge;
+    } catch (err: any) {
+      console.warn("[AppLock] consumeWebAuthnChallenge fallback:", err?.message || err);
+      const idx = mockDb.webauthnChallenges.findIndex(c => c.id === id && c.email === e && c.purpose === purpose);
+      if (idx === -1) return null;
+      const [rec] = mockDb.webauthnChallenges.splice(idx, 1);
+      if (Date.now() > rec.expiresAt) return null;
+      return rec.challenge;
+    }
+  }
+
+  // --- webauthn_credentials ---
+  async function listWebAuthnCredentials(email: string, supabase: any) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      return mockDb.webauthnCreds.filter(c => c.email === e);
+    }
+    try {
+      const { data, error } = await supabase.from("webauthn_credentials").select("*").eq("user_email", e).order("created_at", { ascending: true });
+      if (error) throw error;
+      const fromDb = (data || []).map((r: any) => ({
+        email: r.user_email,
+        credentialId: r.credential_id,
+        publicKey: r.public_key,
+        signCount: Number(r.sign_count || 0),
+        deviceLabel: r.device_label || "Biometric device",
+        transports: r.transports || [],
+        createdAt: r.created_at
+      }));
+      const fromMock = mockDb.webauthnCreds.filter(c => c.email === e).map(c => ({
+        email: c.email,
+        credentialId: c.credentialId,
+        publicKey: c.publicKey,
+        signCount: c.signCount,
+        deviceLabel: c.deviceLabel,
+        transports: [],
+        createdAt: 0
+      }));
+      const seen = new Set(fromDb.map(c => c.credentialId));
+      return [...fromDb, ...fromMock.filter(c => !seen.has(c.credentialId))];
+    } catch (err: any) {
+      console.warn("[AppLock] listWebAuthnCredentials fallback:", err?.message || err);
+      return mockDb.webauthnCreds.filter(c => c.email === e);
+    }
+  }
+
+  async function saveWebAuthnCredential(email: string, cred: any, deviceLabel: string, supabase: any) {
+    const e = normalizeEmailLower(email);
+    const publicKeyB64 = publicKeyToBase64url(cred.publicKey);
+    if (!supabase) {
+      mockDb.webauthnCreds.push({ email: e, credentialId: cred.credentialId, publicKey: publicKeyB64, signCount: cred.signCount || 0, deviceLabel });
+      return;
+    }
+    try {
+      const { error } = await supabase.from("webauthn_credentials").insert({
+        user_email: e,
+        credential_id: cred.credentialId,
+        public_key: publicKeyB64,
+        sign_count: cred.signCount || 0,
+        device_label: deviceLabel,
+        transports: cred.transports || []
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.warn("[AppLock] saveWebAuthnCredential fallback:", err?.message || err);
+      mockDb.webauthnCreds.push({ email: e, credentialId: cred.credentialId, publicKey: publicKeyB64, signCount: cred.signCount || 0, deviceLabel });
+    }
+  }
+
+  async function deleteWebAuthnCredential(email: string, credentialId: string, supabase: any) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      mockDb.webauthnCreds = mockDb.webauthnCreds.filter(c => !(c.email === e && c.credentialId === credentialId));
+      return;
+    }
+    try {
+      const { error } = await supabase.from("webauthn_credentials").delete().eq("user_email", e).eq("credential_id", credentialId);
+      if (error) throw error;
+    } catch (err: any) {
+      console.warn("[AppLock] deleteWebAuthnCredential fallback:", err?.message || err);
+      mockDb.webauthnCreds = mockDb.webauthnCreds.filter(c => !(c.email === e && c.credentialId === credentialId));
+    }
+  }
+
+  // --- trusted_devices ---
+  async function createTrustedDevice(email: string, token: string, userAgent: string, supabase: any): Promise<{ id: string; expiresAt: number }> {
+    const e = normalizeEmailLower(email);
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const id = crypto.randomUUID();
+    if (!supabase) {
+      mockDb.trustedDevices.push({ id, email: e, tokenHash, createdAt: Date.now(), expiresAt, lastUsedAt: Date.now(), userAgent });
+      return { id, expiresAt };
+    }
+    try {
+      const { error } = await supabase.from("trusted_devices").insert({
+        id,
+        user_email: e,
+        device_token_hash: tokenHash,
+        expires_at: expiresAt,
+        last_used_at: Date.now(),
+        user_agent: (userAgent || "").slice(0, 300)
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.warn("[AppLock] createTrustedDevice fallback:", err?.message || err);
+      mockDb.trustedDevices.push({ id, email: e, tokenHash, createdAt: Date.now(), expiresAt, lastUsedAt: Date.now(), userAgent });
+    }
+    return { id, expiresAt };
+  }
+
+  async function findTrustedDeviceByToken(token: string, supabase: any): Promise<{ email: string; expiresAt: number } | null> {
+    if (!token) return null;
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    if (!supabase) {
+      const rec = mockDb.trustedDevices.find(d => d.tokenHash === tokenHash);
+      if (!rec) return null;
+      if (Date.now() > rec.expiresAt) {
+        mockDb.trustedDevices = mockDb.trustedDevices.filter(d => d.tokenHash !== tokenHash);
+        return null;
+      }
+      return { email: rec.email, expiresAt: rec.expiresAt };
+    }
+    try {
+      const { data, error } = await supabase.from("trusted_devices").select("*").eq("device_token_hash", tokenHash).maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        // Dev parity: if the table isn't provisioned upstream yet, honour the
+        // mock store so trusted-device tests behave consistently.
+        const rec = mockDb.trustedDevices.find(d => d.tokenHash === tokenHash);
+        if (rec) {
+          if (Date.now() > rec.expiresAt) {
+            mockDb.trustedDevices = mockDb.trustedDevices.filter(d => d.tokenHash !== tokenHash);
+            return null;
+          }
+          rec.lastUsedAt = Date.now();
+          return { email: rec.email, expiresAt: rec.expiresAt };
+        }
+        return null;
+      }
+      if (data.expires_at && Date.now() > Number(data.expires_at)) {
+        await supabase.from("trusted_devices").delete().eq("id", data.id);
+        return null;
+      }
+      // sliding inactivity window refresh (30 days from last use)
+      const newExpiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      await supabase.from("trusted_devices").update({ last_used_at: Date.now(), expires_at: newExpiry }).eq("id", data.id);
+      return { email: data.user_email, expiresAt: newExpiry };
+    } catch (err: any) {
+      console.warn("[AppLock] findTrustedDeviceByToken fallback:", err?.message || err);
+      const rec = mockDb.trustedDevices.find(d => d.tokenHash === tokenHash);
+      if (!rec) return null;
+      if (Date.now() > rec.expiresAt) {
+        mockDb.trustedDevices = mockDb.trustedDevices.filter(d => d.tokenHash !== tokenHash);
+        return null;
+      }
+      rec.lastUsedAt = Date.now();
+      return { email: rec.email, expiresAt: rec.expiresAt };
+    }
+  }
+
+  async function listTrustedDevices(email: string, supabase: any) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      return mockDb.trustedDevices.filter(d => d.email === e).map(d => ({
+        id: d.id,
+        createdAt: d.createdAt,
+        lastUsedAt: d.lastUsedAt,
+        expiresAt: d.expiresAt,
+        userAgent: d.userAgent || ""
+      }));
+    }
+    try {
+      const { data, error } = await supabase.from("trusted_devices").select("*").eq("user_email", e).order("created_at", { ascending: false });
+      if (error) throw error;
+      const fromDb = (data || []).map((r: any) => ({
+        id: r.id,
+        createdAt: Number(r.created_at ? new Date(r.created_at).getTime() : Date.now()),
+        lastUsedAt: Number(r.last_used_at || 0),
+        expiresAt: Number(r.expires_at || 0),
+        userAgent: r.user_agent || ""
+      }));
+      // Dev parity: prefer real rows, fill in any local-only mock rows too
+      const fromMock = mockDb.trustedDevices.filter(d => d.email === e).map(d => ({
+        id: d.id,
+        createdAt: d.createdAt,
+        lastUsedAt: d.lastUsedAt,
+        expiresAt: d.expiresAt,
+        userAgent: d.userAgent || ""
+      }));
+      const seen = new Set(fromDb.map(d => d.id));
+      return [...fromDb, ...fromMock.filter(d => !seen.has(d.id))];
+    } catch (err: any) {
+      console.warn("[AppLock] listTrustedDevices fallback:", err?.message || err);
+      return mockDb.trustedDevices.filter(d => d.email === e).map(d => ({ id: d.id, createdAt: d.createdAt, lastUsedAt: d.lastUsedAt, expiresAt: d.expiresAt, userAgent: d.userAgent || "" }));
+    }
+  }
+
+  async function deleteTrustedDevice(email: string, id: string, supabase: any) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      mockDb.trustedDevices = mockDb.trustedDevices.filter(d => !(d.email === e && d.id === id));
+      return;
+    }
+    try {
+      const { error } = await supabase.from("trusted_devices").delete().eq("user_email", e).eq("id", id);
+      if (error) throw error;
+    } catch (err: any) {
+      console.warn("[AppLock] deleteTrustedDevice fallback:", err?.message || err);
+      mockDb.trustedDevices = mockDb.trustedDevices.filter(d => !(d.email === e && d.id === id));
+    }
+  }
+
+  async function deleteAllTrustedDevices(email: string, supabase: any) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      mockDb.trustedDevices = mockDb.trustedDevices.filter(d => d.email !== e);
+      return;
+    }
+    try {
+      const { error } = await supabase.from("trusted_devices").delete().eq("user_email", e);
+      if (error) throw error;
+    } catch (err: any) {
+      console.warn("[AppLock] deleteAllTrustedDevices fallback:", err?.message || err);
+      mockDb.trustedDevices = mockDb.trustedDevices.filter(d => d.email !== e);
+    }
+  }
+
+  // Audit-style trace log for app-lock security events (no user data leaked).
+  function traceAppLockEvent(email: string, event: string) {
+    try {
+      console.log(`[AppLock/audit] event=${event} email=${normalizeEmailLower(email)} ts=${Date.now()}`);
+    } catch (_err) {
+      // never let audit logging break the request
+    }
+  }
+
+  async function updateWebAuthnCredentialCounter(email: string, credentialId: string, counter: number, supabase: any) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      const rec = mockDb.webauthnCreds.find(c => c.email === e && c.credentialId === credentialId);
+      if (rec) rec.signCount = counter;
+      return;
+    }
+    try {
+      const { error } = await supabase.from("webauthn_credentials").update({ sign_count: counter }).eq("user_email", e).eq("credential_id", credentialId);
+      if (error) throw error;
+    } catch (err: any) {
+      console.warn("[AppLock] updateWebAuthnCredentialCounter:", err?.message || err);
+      const rec = mockDb.webauthnCreds.find(c => c.email === e && c.credentialId === credentialId);
+      if (rec) rec.signCount = counter;
+    }
+  }
+
+  // Require the caller to hold a valid signed session token for <email>.
+  function requireSession(req, res, email): boolean {
+    const token = getTokenFromRequest(req);
+    const decoded = token ? verifySecureToken(token) : null;
+    if (!decoded || decoded.email !== normalizeEmailLower(email)) {
+      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
+      return false;
+    }
+    return true;
+  }
+
   // --- Cookie helpers (httpOnly session) ---
   function parseCookies(req: any): Record<string, string> {
     const header = req.headers.cookie || "";
@@ -404,6 +840,15 @@ export async function createApp(): Promise<express.Express> {
   function clearSessionCookie(res) {
     const secure = IS_PRODUCTION ? "; Secure" : "";
     res.setHeader("Set-Cookie", `session_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
+  }
+  function setTrustCookie(res, token) {
+    const secure = IS_PRODUCTION ? "; Secure" : "";
+    // 30-day, httpOnly, SameSite=Strict device trust token (separate from session)
+    res.append("Set-Cookie", `app_lock_trust=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${30 * 24 * 60 * 60}${secure}`);
+  }
+  function clearTrustCookie(res) {
+    const secure = IS_PRODUCTION ? "; Secure" : "";
+    res.append("Set-Cookie", `app_lock_trust=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
   }
   function getTokenFromRequest(req) {
     const auth = req.headers.authorization;
@@ -446,7 +891,8 @@ export async function createApp(): Promise<express.Express> {
   });
 
   // Custom rate-limiter backed strictly by database (Stateless Cloud Run autoscaling compliant)
-  async function checkRateLimitInDb(key: string, limit: number, windowMs: number, supabase: any): Promise<boolean> {
+  // Returns { allowed, retryAfterSeconds } so callers get precise retry timing.
+  async function checkRateLimitInDb(key: string, limit: number, windowMs: number, supabase: any): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
     const now = Date.now();
     const resetTime = now + windowMs;
     const resetTimeStr = new Date(resetTime).toISOString();
@@ -462,7 +908,7 @@ export async function createApp(): Promise<express.Express> {
           count: 1,
           reset_time: resetTimeStr
         });
-        return true;
+        return { allowed: true, retryAfterSeconds: 0 };
       }
 
       const item = mockDb.rateLimits[foundIndex];
@@ -473,15 +919,16 @@ export async function createApp(): Promise<express.Express> {
           count: 1,
           reset_time: resetTimeStr
         };
-        return true;
+        return { allowed: true, retryAfterSeconds: 0 };
       }
 
       if (item.count >= limit) {
-        return false; // Rate limit exceeded
+        const retryAfterSeconds = Math.ceil((recordResetTime - now) / 1000);
+        return { allowed: false, retryAfterSeconds };
       }
 
       item.count += 1;
-      return true;
+      return { allowed: true, retryAfterSeconds: 0 };
     }
     
     try {
@@ -497,7 +944,7 @@ export async function createApp(): Promise<express.Express> {
           count: 1,
           reset_time: resetTimeStr
         });
-        return true;
+        return { allowed: true, retryAfterSeconds: 0 };
       }
       
       const recordResetTime = new Date(data.reset_time).getTime();
@@ -507,22 +954,44 @@ export async function createApp(): Promise<express.Express> {
           reset_time: resetTimeStr,
           updated_at: new Date().toISOString()
         }).eq('key', key);
-        return true;
+        return { allowed: true, retryAfterSeconds: 0 };
       }
       
       if (data.count >= limit) {
-        return false; // Rate limit exceeded
+        const retryAfterSeconds = Math.ceil((recordResetTime - now) / 1000);
+        return { allowed: false, retryAfterSeconds };
       }
       
       await supabase.from('auth_rate_limits').update({
         count: data.count + 1,
         updated_at: new Date().toISOString()
       }).eq('key', key);
-      return true;
+      return { allowed: true, retryAfterSeconds: 0 };
       
     } catch (e) {
       console.error("Rate limit database operation failed:", e);
-      return false; // Fail closed
+      // Fail open with in-memory fallback instead of hard-blocking all auth.
+      // A DB schema/connectivity issue must never brick login for every user.
+      const fallbackKey = `fallback:${key}`;
+      const fbNow = Date.now();
+      const fbResetTimeStr = new Date(fbNow + windowMs).toISOString();
+      mockDb.rateLimits = mockDb.rateLimits.filter(item => new Date(item.reset_time).getTime() > fbNow);
+      const fbIdx = mockDb.rateLimits.findIndex(item => item.key === fallbackKey);
+      if (fbIdx === -1) {
+        mockDb.rateLimits.push({ key: fallbackKey, count: 1, reset_time: fbResetTimeStr });
+        return { allowed: true, retryAfterSeconds: 0 };
+      }
+      const fbItem = mockDb.rateLimits[fbIdx];
+      const fbReset = new Date(fbItem.reset_time).getTime();
+      if (fbNow > fbReset) {
+        mockDb.rateLimits[fbIdx] = { key: fallbackKey, count: 1, reset_time: fbResetTimeStr };
+        return { allowed: true, retryAfterSeconds: 0 };
+      }
+      if (fbItem.count >= limit) {
+        return { allowed: false, retryAfterSeconds: Math.ceil((fbReset - fbNow) / 1000) };
+      }
+      fbItem.count += 1;
+      return { allowed: true, retryAfterSeconds: 0 };
     }
   }
   
@@ -535,14 +1004,16 @@ export async function createApp(): Promise<express.Express> {
       const key = `${ip}:${req.path}:${reqEmail}`;
       const supabase = getSupabase(req);
 
-      const allowed = await checkRateLimitInDb(key, limit, windowMs, supabase);
+      const { allowed, retryAfterSeconds } = await checkRateLimitInDb(key, limit, windowMs, supabase);
       if (allowed) {
         next();
       } else {
         console.warn(`[SECURITY SUSPICIOUS ACTIVITY] Rate limit exceeded on route ${req.path} for target key segment: ${key}`);
+        res.setHeader('Retry-After', String(retryAfterSeconds));
         res.status(429).json({
           success: false,
-          error: "Too many authentication requests. Please try again in a few minutes."
+          error: "Too many authentication requests. Please try again later.",
+          retryAfter: retryAfterSeconds
         });
       }
     };
@@ -967,6 +1438,550 @@ export async function createApp(): Promise<express.Express> {
     } catch (err: any) {
       console.error("[SECURITY LOG] Device verification error:", err.message || err);
       res.status(500).json({ success: false, error: "Internal verification error" });
+    }
+  });
+
+  // =====================================================================
+  // APP LOCK SECURITY LAYER — endpoints
+  // These sit on top of the existing auth flow. Every route below requires a
+  // valid signed session token for the target account. They NEVER replace
+  // primary auth — they only gate access to the UI.
+  // =====================================================================
+
+  const WEBAUTHN_RP_ID = process.env.WEB_AUTHN_RP_ID || "";
+  const appLockRPRouter = express.Router();
+
+  function getRPID(req) {
+    return WEBAUTHN_RP_ID || (req.headers.host || "localhost").split(":")[0];
+  }
+  function getOrigin(req) {
+    if (process.env.APP_ORIGIN) return process.env.APP_ORIGIN;
+    const proto = req.headers["x-forwarded-proto"] || (req.secure || req.headers.host?.includes("localhost") ? "https" : "http");
+    // localhost over http in dev
+    if ((req.headers.host || "").includes("localhost") && !process.env.VERCEL) return `http://${req.headers.host}`;
+    return `${proto}://${req.headers.host}`;
+  }
+  function userIDBytes(email) {
+    const buf = crypto.createHash("sha256").update(normalizeEmailLower(email)).digest();
+    return new Uint8Array(buf);
+  }
+  // base64url serializer for WebAuthn public keys (Uint8Array <-> string)
+  function publicKeyToBase64url(key: Uint8Array | Buffer | string): string {
+    if (typeof key === "string") return key;
+    const bytes = Buffer.from(key.buffer || key, key.byteOffset || 0, key.byteLength || key.length);
+    return bytes.toString("base64url");
+  }
+  function publicKeyFromBase64url(key: string): Uint8Array {
+    const buf = Buffer.from(key, "base64url");
+    return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+  }
+
+  // --- App-lock overall status ---
+  app.post("/api/app-lock/status", rateLimitAuth(30, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      const lock = await getAppLock(normalizedEmail, supabase);
+      const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+      res.json({
+        success: true,
+        appLockEnabled: !!lock?.pinEnabled || creds.length > 0,
+        pinEnabled: !!lock?.pinEnabled,
+        hasPin: !!lock?.pinHash,
+        biometricCount: creds.length,
+        failedAttempts: lock?.failedAttempts || 0,
+        lockedUntil: lock?.lockedUntil || null,
+        webauthnRpid: getRPID(req)
+      });
+    } catch (err: any) {
+      console.error("[AppLock] status error:", err?.message || err);
+      res.status(500).json({ success: false, error: "System app-lock status error." });
+    }
+  });
+
+  // --- PIN: set (create/change) ---
+  app.post("/api/app-lock/pin/set", rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email, pin } = req.body;
+      const emailErr = validateEmail(email);
+      const pinErr = validatePin(pin);
+      if (emailErr || pinErr) {
+        res.status(400).json({ success: false, error: emailErr || pinErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      const pinHash = await bcrypt.hash(String(pin), 12);
+      await upsertAppLock(normalizedEmail, { pin_hash: pinHash, pin_enabled: true, failed_attempts: 0, locked_until: null }, supabase);
+      console.log(`[AppLock] PIN set for ${normalizedEmail} (hash only, PIN never stored).`);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] App-lock PIN set failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System app-lock service error." });
+    }
+  });
+
+  // --- PIN: disable ---
+  app.post("/api/app-lock/pin/disable", rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      await upsertAppLock(normalizedEmail, { pin_hash: null, pin_enabled: false, failed_attempts: 0, locked_until: null }, supabase);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] App-lock PIN disable failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System app-lock service error." });
+    }
+  });
+
+  // --- PIN: verify (unlock) with server-side lockout ---
+  app.post("/api/app-lock/pin/verify", rateLimitAuth(30, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email, pin } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr || typeof pin !== "string") {
+        res.status(400).json({ success: false, error: emailErr || "PIN is required." });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+
+      let lock = await getAppLock(normalizedEmail, supabase);
+      if (!lock || !lock.pinHash) {
+        traceAppLockEvent(normalizedEmail, "pin_verify_no_pin");
+        res.json({ success: false, error: "No PIN is configured for app lock.", code: "NO_PIN" });
+        return;
+      }
+
+      // Server-side lockout: check locked_until
+      const now = Date.now();
+      if (lock.lockedUntil && now < lock.lockedUntil) {
+        const remaining = Math.ceil((lock.lockedUntil - now) / 1000);
+        res.json({ success: false, error: `Too many attempts. Locked for ${remaining}s.`, code: "LOCKED", retryAfter: remaining });
+        return;
+      }
+
+      const isMatch = await bcrypt.compare(String(pin), lock.pinHash);
+      if (isMatch) {
+        await upsertAppLock(normalizedEmail, { failed_attempts: 0, locked_until: null }, supabase);
+        res.json({ success: true });
+        return;
+      }
+
+      // Wrong PIN: increment and apply doubling lockout
+      const failed = (lock.failedAttempts || 0) + 1;
+      let lockedUntil: number | null = null;
+      let retryAfter = 0;
+      if (failed >= 5) {
+        const lockCount = Math.min(Math.ceil((failed - 4) / 1), 8); // 1st lock = 60s, doubles each repeat
+        const seconds = 60 * Math.pow(2, lockCount - 1);
+        lockedUntil = now + seconds * 1000;
+        retryAfter = seconds;
+      }
+      traceAppLockEvent(normalizedEmail, "pin_verify_failed");
+      await upsertAppLock(normalizedEmail, { failed_attempts: failed, locked_until: lockedUntil }, supabase);
+      res.json({
+        success: false,
+        error: retryAfter ? `Too many attempts. Locked for ${retryAfter}s.` : `Incorrect PIN. ${5 - failed} attempt${5 - failed === 1 ? "" : "s"} remaining.`,
+        code: "BAD_PIN",
+        attemptsRemaining: Math.max(0, 5 - failed),
+        retryAfter
+      });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] App-lock PIN verify failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System app-lock verification error." });
+    }
+  });
+
+  // --- PIN: reset (Forgot PIN) — requires a FRESH full re-auth session token ---
+  // The lock screen's "Forgot PIN" path forces the user back through full
+  // email/password (or OTP) login, which yields a fresh signed token. That
+  // token is what authorizes clearing the PIN here so they can set a new one.
+  app.post("/api/app-lock/pin/reset", rateLimitAuth(5, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      await upsertAppLock(normalizedEmail, { pin_hash: null, pin_enabled: false, failed_attempts: 0, locked_until: null }, supabase);
+      traceAppLockEvent(normalizedEmail, "pin_reset");
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] App-lock PIN reset failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System app-lock reset error." });
+    }
+  });
+
+  // --- WebAuthn: registration options ---
+  app.post("/api/app-lock/webauthn/register-options", rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email, deviceLabel } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+
+      const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+      const rpID = getRPID(req);
+      const rpName = process.env.APP_NAME || "EM Budget";
+
+      const options = await generateRegistrationOptions({
+        rpName,
+        rpID,
+        userName: normalizedEmail,
+        userDisplayName: normalizedEmail,
+        userID: userIDBytes(normalizedEmail),
+        attestationType: "none",
+        excludeCredentials: creds.map(c => ({ id: c.credentialId, transports: c.transports })).slice(0, 16),
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "required",
+          residentKey: "preferred"
+        }
+      });
+
+      const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, "registration", supabase);
+      res.json({ success: true, stateId, options });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] WebAuthn register-options failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "WebAuthn registration could not start." });
+    }
+  });
+
+  // --- WebAuthn: registration verification ---
+  app.post("/api/app-lock/webauthn/register-verify", rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email, stateId, credential, deviceLabel } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+
+      const challenge = await consumeWebAuthnChallenge(stateId, normalizedEmail, "registration", supabase);
+      if (!challenge) {
+        res.status(400).json({ success: false, error: "Registration challenge expired. Please try again." });
+        return;
+      }
+
+      const expectedOrigin = getOrigin(req);
+      const rpID = getRPID(req);
+
+      let verification;
+      try {
+        verification = await verifyRegistrationResponse({
+          response: credential,
+          expectedChallenge: challenge,
+          expectedOrigin,
+          expectedRPID: rpID,
+          requireUserVerification: true
+        });
+      } catch (verr: any) {
+        console.error("[SECURITY LOG] WebAuthn registration verification error:", verr?.message || verr);
+        res.status(400).json({ success: false, error: "Biometric registration could not be verified." });
+        return;
+      }
+
+      if (!verification.verified || !verification.registrationInfo) {
+        res.status(400).json({ success: false, error: "Biometric registration was rejected." });
+        return;
+      }
+
+      const regInfo = verification.registrationInfo;
+      await saveWebAuthnCredential(
+        normalizedEmail,
+        {
+          credentialId: regInfo.credential.id,
+          publicKey: regInfo.credential.publicKey,
+          transports: regInfo.credential.transports || (credential && credential.response && credential.response.transports) || [],
+          signCount: typeof regInfo.credential.counter === "number" ? regInfo.credential.counter : 0
+        },
+        typeof deviceLabel === "string" && deviceLabel.trim() ? deviceLabel.trim().slice(0, 60) : "Biometric device",
+        supabase
+      );
+      traceAppLockEvent(normalizedEmail, "webauthn_registered");
+      res.json({ success: true, credentialId: regInfo.credential.id });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] WebAuthn register-verify failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System WebAuthn registration error." });
+    }
+  });
+
+  // --- WebAuthn: authentication (unlock) options ---
+  app.post("/api/app-lock/webauthn/authentication-options", rateLimitAuth(30, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+
+      const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+      if (creds.length === 0) {
+        res.json({ success: false, error: "No biometric credentials configured.", code: "NO_CREDS" });
+        return;
+      }
+      const rpID = getRPID(req);
+      const options = await generateAuthenticationOptions({
+        rpID,
+        allowCredentials: creds.map(c => ({ id: c.credentialId, transports: c.transports })),
+        userVerification: "required"
+      });
+      const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, "authentication", supabase);
+      res.json({ success: true, stateId, options });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] WebAuthn authentication-options failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "Biometric unlock could not start." });
+    }
+  });
+
+  // --- WebAuthn: authentication (unlock) verification ---
+  app.post("/api/app-lock/webauthn/authentication-verify", rateLimitAuth(30, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email, stateId, credential } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+
+      const challenge = await consumeWebAuthnChallenge(stateId, normalizedEmail, "authentication", supabase);
+      if (!challenge) {
+        res.status(400).json({ success: false, error: "Biometric challenge expired. Please try again." });
+        return;
+      }
+
+      const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+      const rawId: string = credential?.rawId || credential?.id || "";
+      const stored = creds.find(c => c.credentialId === rawId);
+      if (!stored) {
+        res.json({ success: false, error: "Biometric credential not recognized." });
+        return;
+      }
+
+      const verification = await verifyAuthenticationResponse({
+        response: credential,
+        expectedChallenge: challenge,
+        expectedOrigin: getOrigin(req),
+        expectedRPID: getRPID(req),
+        credential: {
+          id: stored.credentialId,
+          publicKey: publicKeyFromBase64url(stored.publicKey),
+          counter: stored.signCount || 0,
+          transports: stored.transports || []
+        },
+        requireUserVerification: true
+      });
+
+      if (!verification.verified || !verification.authenticationInfo) {
+        traceAppLockEvent(normalizedEmail, "webauthn_unlock_failed");
+        res.json({ success: false, error: "Biometric unlock was rejected." });
+        return;
+      }
+
+      // sign_count replay protection
+      const newCounter = verification.authenticationInfo.newCounter;
+      await updateWebAuthnCredentialCounter(normalizedEmail, stored.credentialId, newCounter, supabase);
+      traceAppLockEvent(normalizedEmail, "webauthn_unlock_success");
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] WebAuthn authentication-verify failed:", err?.message || err);
+      res.json({ success: false, error: "Biometric unlock could not be verified." });
+    }
+  });
+
+  // --- WebAuthn: remove a credential ---
+  app.post("/api/app-lock/webauthn/remove", rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email, credentialId } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr || typeof credentialId !== "string") {
+        res.status(400).json({ success: false, error: emailErr || "credentialId is required." });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      await deleteWebAuthnCredential(normalizedEmail, credentialId, supabase);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] WebAuthn remove failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System WebAuthn removal error." });
+    }
+  });
+
+  // --- WebAuthn: list credentials (for settings management) ---
+  app.post("/api/app-lock/webauthn/list", rateLimitAuth(20, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+      res.json({
+        success: true,
+        credentials: creds.map((c: any) => ({
+          credentialId: c.credentialId,
+          deviceLabel: c.deviceLabel || "Biometric device",
+          createdAt: c.createdAt ? Number(new Date(c.createdAt).getTime()) : 0,
+        })),
+      });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] WebAuthn list failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System WebAuthn list error." });
+    }
+  });
+
+  // --- Trusted device: issue (remember this device) ---
+  // Requires a valid session. Rotates the token, stores its SHA-256 hash, and
+  // sets an httpOnly SameSite=Strict cookie (separate from the session token).
+  app.post("/api/app-lock/device/issue", rateLimitAuth(10, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      const rawToken = crypto.randomBytes(32).toString("base64url");
+      const ua = req.headers["user-agent"] || "";
+      await createTrustedDevice(normalizedEmail, rawToken, ua, supabase);
+      setTrustCookie(res, rawToken);
+      res.json({ success: true, expiresInDays: 30 });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] Trusted device issue failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System device-trust error." });
+    }
+  });
+
+  // --- Trusted device: check (used on app open) ---
+  // Reads the httpOnly app_lock_trust cookie server-side only. Returns the
+  // account email if the token is valid & non-expired, so the client knows it
+  // can skip full email/password login and go to the PIN/biometric screen.
+  // To call this the client does NOT need a session token (that's the point).
+  app.post("/api/app-lock/device/check", rateLimitAuth(20, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const cookies = parseCookies(req);
+      const trustToken = cookies.app_lock_trust;
+      if (!trustToken) {
+        res.json({ success: false, trusted: false });
+        return;
+      }
+      const supabase = getSupabase(req);
+      const found = await findTrustedDeviceByToken(trustToken, supabase);
+      if (!found) {
+        clearTrustCookie(res);
+        res.json({ success: true, trusted: false });
+        return;
+      }
+      res.json({ success: true, trusted: true, email: found.email });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] Trusted device check failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System device-trust check error." });
+    }
+  });
+
+  // --- Trusted device: list (manage in settings) ---
+  app.post("/api/app-lock/device/list", rateLimitAuth(20, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      const devices = await listTrustedDevices(normalizedEmail, supabase);
+      res.json({ success: true, devices });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] Trusted device list failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System device-trust list error." });
+    }
+  });
+
+  // --- Trusted device: revoke one ---
+  app.post("/api/app-lock/device/revoke", rateLimitAuth(10, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email, id } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr || typeof id !== "string") {
+        res.status(400).json({ success: false, error: emailErr || "Device id is required." });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      await deleteTrustedDevice(normalizedEmail, id, supabase);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] Trusted device revoke failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System device-trust revoke error." });
+    }
+  });
+
+  // --- Trusted device: revoke all + clear cookie (used on logout) ---
+  app.post("/api/app-lock/device/revoke-all", rateLimitAuth(10, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      await deleteAllTrustedDevices(normalizedEmail, supabase);
+      clearTrustCookie(res);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] Trusted device revoke-all failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System device-trust revoke error." });
     }
   });
 

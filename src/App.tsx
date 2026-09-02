@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import EmailLogin from './components/EmailLogin';
+import LockScreen from './components/LockScreen';
 import NotificationDrawer from './components/NotificationDrawer';
 import CashCardManagement from './components/CashCardManagement';
 import InflowsOutflows from './components/InflowsOutflows';
@@ -34,6 +35,7 @@ import { BottomNavigation } from './components/BottomNavigation';
 import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud, ensureSupabaseConfigFromBackend, refreshSubscriptionsFromBackend } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
+import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice, revokeAllDevices, AppLockStatus } from './lib/appLock';
 import { EXPENSE_COLORS, calculateNetWorth } from './utils';
 import { toMinorUnits } from './lib/money';
 import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
@@ -59,6 +61,9 @@ export default function App() {
   const [state, setState] = useState<AppState>(DEFAULT_APP_STATE);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAppLocked, setIsAppLocked] = useState(false);
+  const [isAppLockInit, setIsAppLockInit] = useState(false);
+  const [appLockStatus, setAppLockStatus] = useState<AppLockStatus | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'inflow_outflow' | 'budgets' | 'goals' | 'debts' | 'loans' | 'reports'>('dashboard');
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   
@@ -213,6 +218,47 @@ export default function App() {
     return nextState;
   };
 
+  // App Lock: decide whether this account needs the lock-screen gate.
+  // Returns true when the app-lock screen must be shown.
+  const determineAppLock = async (email: string): Promise<boolean> => {
+    try {
+      const [status, trusted] = await Promise.all([getAppLockStatus(email), checkTrustedDevice()]);
+      setAppLockStatus(status);
+      const enabled = !!status?.appLockEnabled;
+      // If app-lock is enabled and this browser is NOT a trusted device, lock it.
+      if (enabled && !trusted.trusted) {
+        setIsAppLocked(true);
+        return true;
+      }
+      setIsAppLocked(false);
+      return false;
+    } catch (err) {
+      console.warn("App-lock check failed, defaulting to no lock:", err);
+      setIsAppLocked(false);
+      return false;
+    }
+  };
+
+  // Full logout: clear stored credentials, revoke trusted-device cookie(s) for
+  // this account so a future login goes back through the app-lock gate.
+  const handleLogout = () => {
+    const email = userEmail;
+    localStorage.removeItem('auth_user_email');
+    localStorage.removeItem('auth_session_token');
+    localStorage.removeItem('auth_device_token');
+    authSession.clear();
+    resetLoadedFromCloud();
+    setState(DEFAULT_APP_STATE);
+    setIsUnlocked(false);
+    setIsAppLocked(false);
+    setIsAppLockInit(false);
+    setIsProfileOpen(false);
+    setIsSettingsOpen(false);
+    if (email) {
+      try { void revokeAllDevices(email); } catch (err) { console.warn("Could not revoke trusted devices on logout:", err); }
+    }
+  };
+
   // Verify remembered device on mount
   useEffect(() => {
     const verifyDevice = async () => {
@@ -235,6 +281,7 @@ export default function App() {
       
       if (email && token) {
         try {
+          setIsAppLockInit(true);
           const vRes = await fetch(apiUrl('/api/auth/verify-session'), {
             credentials: 'include',
             method: 'POST',
@@ -256,24 +303,51 @@ export default function App() {
               setState(prev => ({ ...prev, subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs) }));
             }
             setIsUnlocked(true);
+            await determineAppLock(email);
+            setIsAppLockInit(false);
           } else {
             console.warn("Session token expired or invalid:", vData?.error);
             localStorage.removeItem('auth_session_token');
             authSession.clear();
             setIsUnlocked(false);
+            setIsAppLocked(false);
+            setIsAppLockInit(false);
           }
         } catch (err) {
           console.warn("Fatal error verifying session token:", err);
           setIsUnlocked(false);
+          setIsAppLocked(false);
+          setIsAppLockInit(false);
         }
       } else {
         setIsUnlocked(false);
+        setIsAppLockInit(false);
       }
       setIsCheckingAuth(false);
     };
 
     verifyDevice();
   }, []);
+
+  // App Lock: auto re-lock after inactivity (default 5 minutes) while the workspace is visible.
+  useEffect(() => {
+    if (!isUnlocked || isAppLocked) return;
+    const IDLE_MS = 5 * 60 * 1000;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    const activity = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        setIsAppLocked(true);
+      }, IDLE_MS);
+    };
+    const events: (keyof WindowEventMap)[] = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'];
+    events.forEach((ev) => window.addEventListener(ev, activity, { passive: true }));
+    activity();
+    return () => {
+      events.forEach((ev) => window.removeEventListener(ev, activity));
+      if (idleTimer) clearTimeout(idleTimer);
+    };
+  }, [isUnlocked, isAppLocked]);
 
   // Scroll to the top of the page when the active tab/view changes
   useEffect(() => {
@@ -2570,13 +2644,13 @@ export default function App() {
     });
 
   // Minimal auth gate — center card with mono
-  if (isCheckingAuth) {
+  if (isCheckingAuth || isAppLockInit) {
     return (
       <div id="auth-loading-screen" className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-6">
         <div className="card p-8 text-center w-full max-w-[360px]">
           <div className="w-7 h-7 rounded-full border border-[var(--line)] border-t-[var(--ink)] animate-spin mx-auto motion-reduce:animate-none" aria-hidden />
-          <p className="eyebrow mt-4">Checking session</p>
-          <p className="mono text-[12px] text-[var(--ink-2)] mt-1.5">Verifying secure device…</p>
+          <p className="eyebrow mt-4">{isCheckingAuth ? 'Checking session' : 'Unlocking vault'}</p>
+          <p className="mono text-[12px] text-[var(--ink-2)] mt-1.5">{isCheckingAuth ? 'Verifying secure device…' : 'Checking app locks…'}</p>
         </div>
       </div>
     );
@@ -2713,12 +2787,7 @@ export default function App() {
                   <button
                     onClick={() => {
                       setIsMoreMenuOpen(false);
-                      localStorage.removeItem('auth_user_email');
-                      localStorage.removeItem('auth_session_token');
-                      localStorage.removeItem('auth_device_token');
-                      resetLoadedFromCloud();
-                      setState(DEFAULT_APP_STATE);
-                      setIsUnlocked(false);
+                      handleLogout();
                     }}
                     className="w-full text-left py-2 px-2.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-[var(--danger)] hover:text-rose-600 dark:hover:text-rose-400 rounded-xl text-xs font-semibold transition-all flex items-center gap-2.5 cursor-pointer border-t border-[var(--line)] pt-2 mt-1"
                   >
@@ -2899,14 +2968,7 @@ export default function App() {
                 updateState={updateState}
                 onOpenSettings={() => { setIsProfileOpen(false); setIsSettingsOpen(true); }}
                 onLogout={() => {
-                  localStorage.removeItem('auth_user_email');
-                  localStorage.removeItem('auth_session_token');
-                  localStorage.removeItem('auth_device_token');
-                  authSession.clear();
-                  resetLoadedFromCloud();
-                  setState(DEFAULT_APP_STATE);
-                  setIsUnlocked(false);
-                  setIsProfileOpen(false);
+                  handleLogout();
                 }}
                 onClose={() => setIsProfileOpen(false)}
               />
@@ -2942,7 +3004,28 @@ export default function App() {
               }
               setIsUnlocked(true);
               setActiveTab('dashboard');
+              setIsAppLockInit(true);
+              // Gate on app lock (unless this browser is a trusted device)
+              await determineAppLock(email);
+              setIsAppLockInit(false);
+              // Remember this device for future app-lock skips
+              if (rememberMe) {
+                try { await issueTrustedDevice(email); } catch (err) { console.warn("Could not issue trusted-device cookie:", err); }
+              }
             }}
+          />
+        )}
+
+        {/* ======================= APP-LOCK GATE ======================= */}
+        {isUnlocked && isAppLocked && (
+          <LockScreen
+            email={userEmail}
+            appLockEnabled={!!appLockStatus?.appLockEnabled}
+            pinEnabled={!!appLockStatus?.pinEnabled}
+            hasBiometric={(appLockStatus?.biometricCount || 0) > 0}
+            onUnlocked={() => setIsAppLocked(false)}
+            onSwitchAccount={() => handleLogout()}
+            onForgotPin={() => handleLogout()}
           />
         )}
 
@@ -3350,13 +3433,7 @@ export default function App() {
               isOpen={isSettingsOpen}
               onClose={() => setIsSettingsOpen(false)}
               onLogout={() => {
-                localStorage.removeItem('auth_user_email');
-                localStorage.removeItem('auth_session_token');
-                localStorage.removeItem('auth_device_token');
-                resetLoadedFromCloud();
-                setState(DEFAULT_APP_STATE);
-                setIsUnlocked(false);
-                setIsSettingsOpen(false);
+                handleLogout();
               }}
             />
 

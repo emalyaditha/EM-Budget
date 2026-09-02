@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { apiUrl, safeJson } from "../lib/api";
-import { Settings, Database, Zap, FileDown, X, Shield, Cloud, RefreshCw, Check, Copy, Eye, EyeOff, Code, ChevronDown, ChevronUp, AlertCircle, LogOut, Sun, Moon, Lock } from 'lucide-react';
+import { Settings, Database, Zap, FileDown, X, Shield, Cloud, RefreshCw, Check, Copy, Eye, EyeOff, Code, ChevronDown, ChevronUp, AlertCircle, LogOut, Sun, Moon, Lock, Fingerprint, Smartphone, KeyRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState } from '../types';
 import { getSupabaseConfig, saveSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, truncateAllDataInSupabase } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
+import {
+  getAppLockStatus,
+  setPin,
+  disablePin,
+  startBiometricRegistration,
+  removeBiometricCredential,
+  listBiometricCredentials,
+  listTrustedDevices,
+  revokeTrustedDevice,
+  revokeAllDevices,
+  isBiometricAvailable,
+} from '../lib/appLock';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -37,6 +49,31 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
   const [flutterCopied, setFlutterCopied] = useState(false);
   const [upgradeCopied, setUpgradeCopied] = useState(false);
   const [sqlScript, setSqlScript] = useState('');
+  const [appLockStatus, setAppLockStatus] = useState<{ appLockEnabled: boolean; hasPin: boolean; pinEnabled: boolean; biometricCount: number } | null>(null);
+  const [appLockBusy, setAppLockBusy] = useState(false);
+  const [appLockMsg, setAppLockMsg] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [newPin, setNewPin] = useState('');
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [deviceLabel, setDeviceLabel] = useState('');
+  const [devices, setDevices] = useState<{ id: string; label: string; lastUsed: string }[]>([]);
+  const [biometricCredIds, setBiometricCredIds] = useState<string[]>([]);
+  const [confirmRemoveBiometric, setConfirmRemoveBiometric] = useState<string | null>(null);
+
+  const refreshAppLock = async () => {
+    if (!userEmail) return;
+    const status = await getAppLockStatus(userEmail);
+    setAppLockStatus(status ? { appLockEnabled: status.appLockEnabled, hasPin: status.hasPin, pinEnabled: status.pinEnabled, biometricCount: status.biometricCount } : null);
+    const devs = await listTrustedDevices(userEmail);
+    setDevices(devs.map((d) => ({ id: d.id, label: d.userAgent.split(/[ (/]/)[0] || 'Device', lastUsed: new Date(d.lastUsedAt || d.createdAt).toLocaleDateString() })));
+    const creds = await listBiometricCredentials(userEmail);
+    setBiometricCredIds(creds.map((c) => c.credentialId));
+    try {
+      setBiometricSupported(await isBiometricAvailable());
+    } catch {
+      setBiometricSupported(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -51,6 +88,7 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
       setPurgeError(null);
       setPurgeDevOtp(null);
       fetch(apiUrl('/api/config/sql')).then((r) => safeJson(r)).then((d) => { if (d?.success) setSqlScript(d.sql); }).catch(() => {});
+      void refreshAppLock();
     }
   }, [isOpen]);
 
@@ -115,6 +153,66 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
     if (type === 'sql') { setSqlCopied(true); setTimeout(() => setSqlCopied(false), 2000); }
     else if (type === 'upgrade') { setUpgradeCopied(true); setTimeout(() => setUpgradeCopied(false), 2000); }
     else { setFlutterCopied(true); setTimeout(() => setFlutterCopied(false), 2000); }
+  };
+
+  // ================= APP LOCK =================
+  const handleSetPin = async () => {
+    const pin = newPin.replace(/\D/g, '').trim();
+    if (!/^\d{4,6}$/.test(pin)) { setPinError('PIN must be 4–6 digits.'); return; }
+    if (/^(0+|\d)\1*$/.test(pin) || pin === '1234' || pin === '0000' || pin === '4321') { setPinError('That PIN is too easy to guess. Choose a different one.'); return; }
+    setAppLockBusy(true); setPinError(null); setAppLockMsg(null);
+    const r = await setPin(userEmail, pin);
+    setAppLockBusy(false);
+    if (r.ok) { setAppLockMsg({ kind: 'success', text: 'PIN set. App lock is now active.' }); setNewPin(''); await refreshAppLock(); }
+    else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to set PIN.' });
+  };
+
+  const handleDisablePin = async () => {
+    setAppLockBusy(true); setAppLockMsg(null);
+    const r = await disablePin(userEmail);
+    setAppLockBusy(false);
+    if (r.ok) { setAppLockMsg({ kind: 'success', text: 'PIN disabled.' }); await refreshAppLock(); }
+    else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to disable PIN.' });
+  };
+
+  const handleDisableAll = async () => {
+    setAppLockBusy(true); setAppLockMsg(null);
+    const a = await disablePin(userEmail);
+    const b = await revokeAllDevices(userEmail);
+    setAppLockBusy(false);
+    if (a.ok && b.ok) { setAppLockMsg({ kind: 'success', text: 'App lock disabled and all trusted devices removed.' }); setNewPin(''); await refreshAppLock(); }
+    else setAppLockMsg({ kind: 'error', text: 'Could not fully disable app lock.' });
+  };
+
+  const handleRegisterBiometric = async () => {
+    setAppLockBusy(true); setAppLockMsg(null);
+    const label = deviceLabel.trim() || 'Biometric device';
+    const r = await startBiometricRegistration(userEmail, label);
+    setAppLockBusy(false);
+    if (r.ok) { setAppLockMsg({ kind: 'success', text: 'Biometric added. You can now unlock with this device.' }); setDeviceLabel(''); await refreshAppLock(); }
+    else setAppLockMsg({ kind: 'error', text: r.error || 'Biometric registration failed.' });
+  };
+
+  const handleRemoveBiometric = async (credentialId: string) => {
+    setAppLockBusy(true); setAppLockMsg(null);
+    let ok = true; let err = '';
+    const ids = credentialId === '__all__' ? biometricCredIds : [credentialId];
+    for (const id of ids) {
+      const r = await removeBiometricCredential(userEmail, id);
+      if (!r.ok) { ok = false; err = r.error || 'Failed to remove biometric.'; }
+    }
+    setAppLockBusy(false);
+    setConfirmRemoveBiometric(null);
+    if (ok) { setAppLockMsg({ kind: 'success', text: 'Biometric removed.' }); await refreshAppLock(); }
+    else setAppLockMsg({ kind: 'error', text: err || 'Failed to remove biometric.' });
+  };
+
+  const handleRevokeDevice = async (id: string) => {
+    setAppLockBusy(true); setAppLockMsg(null);
+    const r = await revokeTrustedDevice(userEmail, id);
+    setAppLockBusy(false);
+    if (r.ok) { setAppLockMsg({ kind: 'success', text: 'Device removed.' }); await refreshAppLock(); }
+    else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to remove device.' });
   };
 
   const flutterCode = `// Flutter Dart helper to Sync with this same Supabase Ledger!
@@ -190,6 +288,112 @@ class CloudSyncService {
                       {syncStatus === 'success' && <Check size={13} className="shrink-0 mt-0.5" />}
                       {syncStatus === 'error' && <AlertCircle size={13} className="shrink-0 mt-0.5" />}
                       <span>{syncMessage}</span>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* App Lock */}
+              <section className="space-y-3">
+                <div className="eyebrow flex items-center justify-between"><span className="inline-flex items-center gap-1.5"><Fingerprint size={11} /> App Lock</span><span className="mono text-[10px] font-normal normal-case tracking-normal px-2 py-0.5 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]">{appLockStatus?.appLockEnabled ? 'Active' : 'Off'}</span></div>
+                <div className="card-flat p-5 space-y-4">
+                  {!appLockStatus && <p className="text-[12px] text-[var(--ink-3)]">Loading app lock status…</p>}
+                  {appLockStatus && (
+                    <>
+                      <div className="flex items-start gap-2.5 text-[12px] leading-5 text-[var(--ink-2)]">
+                        <Lock size={13} className="shrink-0 mt-0.5 text-[var(--ink-3)]" />
+                        <p>App lock adds a PIN or biometric layer on top of your login, so a stolen/borrowed session still can't be read until you unlock.</p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-2 py-2.5">
+                          <p className="text-[15px] font-bold text-[var(--ink)]">{appLockStatus.pinEnabled ? 'On' : 'Off'}</p>
+                          <p className="eyebrow text-[10px] mt-0.5">PIN</p>
+                        </div>
+                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-2 py-2.5">
+                          <p className="text-[15px] font-bold text-[var(--ink)]">{appLockStatus.biometricCount}</p>
+                          <p className="eyebrow text-[10px] mt-0.5">Biometrics</p>
+                        </div>
+                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-2 py-2.5">
+                          <p className="text-[15px] font-bold text-[var(--ink)]">{devices.length}</p>
+                          <p className="eyebrow text-[10px] mt-0.5">Devices</p>
+                        </div>
+                      </div>
+
+                      <div className="ledger-rule" />
+
+                      {/* PIN setup */}
+                      <div className="space-y-2">
+                        <p className="text-[12px] font-semibold text-[var(--ink)] inline-flex items-center gap-1.5"><KeyRound size={12} /> PIN</p>
+                        {appLockStatus.hasPin ? (
+                          <button type="button" onClick={handleDisablePin} disabled={appLockBusy} className="btn-ghost w-full justify-center text-[12px] disabled:opacity-50">Disable PIN</button>
+                        ) : (
+                          <div className="space-y-2">
+                            <div>
+                              <label htmlFor="settings-pin" className="eyebrow block mb-1.5">Set a 4–6 digit PIN</label>
+                              <div className="flex gap-2">
+                                <input id="settings-pin" type="password" inputMode="numeric" maxLength={6} value={newPin} onChange={(e) => { setNewPin(e.target.value.replace(/\D/g, '')); setPinError(null); }} placeholder="••••" className="input mono text-center tracking-[0.35em] flex-1" />
+                                <button type="button" onClick={handleSetPin} disabled={appLockBusy || newPin.length < 4} className="btn-primary disabled:opacity-50">Set PIN</button>
+                              </div>
+                              {pinError && <p className="text-[11px] text-[var(--danger)] mt-1.5">{pinError}</p>}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Biometric */}
+                      <div className="space-y-2">
+                        <p className="text-[12px] font-semibold text-[var(--ink)] inline-flex items-center gap-1.5"><Fingerprint size={12} /> Biometrics</p>
+                        {appLockStatus.biometricCount > 0 ? (
+                          confirmRemoveBiometric ? (
+                            <div className="rounded-xl border border-[var(--line)] bg-[var(--danger-bg)] p-3 space-y-2">
+                              <p className="text-[11px] leading-4 text-[var(--ink-2)]">Remove all biometric unlock methods for this account?</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button type="button" onClick={() => setConfirmRemoveBiometric(null)} className="btn-ghost justify-center text-[12px]" disabled={appLockBusy}>Cancel</button>
+                                <button type="button" onClick={() => { const id = confirmRemoveBiometric === '__all__' ? (biometricCredIds[0] || '') : confirmRemoveBiometric; if (id) handleRemoveBiometric(id); }} className="btn-primary justify-center text-[12px] bg-[var(--danger)] border-[var(--danger)] hover:brightness-95 disabled:opacity-50" disabled={appLockBusy}>Remove</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => setConfirmRemoveBiometric('__all__')} disabled={appLockBusy} className="btn-ghost w-full justify-center text-[12px] text-[var(--danger)] disabled:opacity-50">Remove biometric unlock ({appLockStatus.biometricCount})</button>
+                          )
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="text-[11px] leading-4 text-[var(--ink-3)]">{biometricSupported ? 'Add fingerprint / face unlock using this device.' : 'This device does not support platform biometrics.'}</p>
+                            <div className="flex gap-2">
+                              <input value={deviceLabel} onChange={(e) => setDeviceLabel(e.target.value)} placeholder="Device label (this phone)" maxLength={60} className="input flex-1 text-[12px]" />
+                              <button type="button" onClick={handleRegisterBiometric} disabled={appLockBusy || !biometricSupported} className="btn-primary disabled:opacity-50">Add</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Trusted devices */}
+                      <div className="space-y-2">
+                        <p className="text-[12px] font-semibold text-[var(--ink)] inline-flex items-center gap-1.5"><Smartphone size={12} /> Trusted devices</p>
+                        {devices.length === 0 ? (
+                          <p className="text-[11px] leading-4 text-[var(--ink-3)]">No trusted devices. On login, tick "Remember this device" to skip the lock on this browser.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {devices.map((d) => (
+                              <div key={d.id} className="flex items-center justify-between gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-[12px]">
+                                <span className="truncate flex items-center gap-1.5"><Smartphone size={11} className="shrink-0 text-[var(--ink-3)]" />{d.label} <span className="mono text-[10px] text-[var(--ink-3)] shrink-0">{d.lastUsed}</span></span>
+                                <button type="button" onClick={() => handleRevokeDevice(d.id)} disabled={appLockBusy} className="text-[11px] text-[var(--danger)] hover:underline shrink-0 disabled:opacity-40">Remove</button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={async () => { const r = await revokeAllDevices(userEmail); if (r.ok) { setAppLockMsg({ kind: 'success', text: 'All trusted devices removed.' }); await refreshAppLock(); } }} disabled={appLockBusy} className="btn-ghost w-full justify-center text-[12px] disabled:opacity-50">Remove all</button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Disable all */}
+                      <div className="pt-3 border-t border-[var(--line)]">
+                        <button type="button" onClick={handleDisableAll} disabled={appLockBusy} className="w-full rounded-full border border-[var(--line)] bg-[var(--danger-bg)] text-[var(--danger)] hover:brightness-95 px-4 py-2.5 text-[12px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50"><Shield size={12} /> Disable app lock everywhere</button>
+                      </div>
+                    </>
+                  )}
+                  {appLockMsg && (
+                    <div className={`rounded-xl border px-3 py-2.5 flex gap-2 text-[12px] leading-5 ${appLockMsg.kind === 'success' ? 'bg-[var(--success-bg)] border-[var(--line)] text-[var(--success)]' : appLockMsg.kind === 'error' ? 'bg-[var(--danger-bg)] border-[var(--line)] text-[var(--danger)]' : 'bg-[var(--surface-2)] border-[var(--line)] text-[var(--ink-2)]'}`}>
+                      {appLockMsg.kind === 'success' ? <Check size={13} className="shrink-0 mt-0.5" /> : appLockMsg.kind === 'error' ? <AlertCircle size={13} className="shrink-0 mt-0.5" /> : <Shield size={13} className="shrink-0 mt-0.5" />}
+                      <span>{appLockMsg.text}</span>
                     </div>
                   )}
                 </div>

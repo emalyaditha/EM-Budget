@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@google/genai": "^2.14.0",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.3",
     "@supabase/supabase-js": "^2.106.2",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
