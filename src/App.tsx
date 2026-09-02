@@ -329,22 +329,24 @@ export default function App() {
     verifyDevice();
   }, []);
 
-  // App Lock: auto re-lock after inactivity (default 5 minutes) while the workspace is visible.
+  // App Lock: auto re-lock after 60 seconds of inactivity while the workspace
+  // is visible and unlocked. One shared debounced listener resets a single
+  // timer whenever the user is active. The effect returns early (and tears down
+  // the listener/timer) while the lock screen is showing, so it never re-triggers
+  // while already locked. It only runs after login/unlock, not on the login flow.
   useEffect(() => {
     if (!isUnlocked || isAppLocked) return;
-    const IDLE_MS = 5 * 60 * 1000;
+    const IDLE_MS = 60 * 1000;
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
-    const activity = () => {
+    const scheduleLock = () => {
       if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        setIsAppLocked(true);
-      }, IDLE_MS);
+      idleTimer = setTimeout(() => setIsAppLocked(true), IDLE_MS);
     };
-    const events: (keyof WindowEventMap)[] = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'];
-    events.forEach((ev) => window.addEventListener(ev, activity, { passive: true }));
-    activity();
+    const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach((ev) => window.addEventListener(ev, scheduleLock, { passive: true }));
+    scheduleLock();
     return () => {
-      events.forEach((ev) => window.removeEventListener(ev, activity));
+      events.forEach((ev) => window.removeEventListener(ev, scheduleLock));
       if (idleTimer) clearTimeout(idleTimer);
     };
   }, [isUnlocked, isAppLocked]);
@@ -3004,10 +3006,10 @@ export default function App() {
               }
               setIsUnlocked(true);
               setActiveTab('dashboard');
-              setIsAppLockInit(true);
-              // Gate on app lock (unless this browser is a trusted device)
-              await determineAppLock(email);
-              setIsAppLockInit(false);
+              // App-lock is intentionally NOT gated here: after a fresh password
+              // login the user goes straight into the app. The lock screen is
+              // shown only on reload/app-reopen (see verifyDevice mount gate) or
+              // after the 60-second idle timeout (see idle re-lock effect below).
               // Remember this device for future app-lock skips
               if (rememberMe) {
                 try { await issueTrustedDevice(email); } catch (err) { console.warn("Could not issue trusted-device cookie:", err); }

@@ -68,6 +68,7 @@ export async function disablePin(email: string): Promise<{ ok: boolean; error?: 
 
 export type PinVerifyResult = {
   ok: boolean;
+  success?: boolean;
   error?: string;
   code?: string;
   attemptsRemaining?: number;
@@ -77,7 +78,8 @@ export type PinVerifyResult = {
 export async function verifyPin(email: string, pin: string): Promise<PinVerifyResult> {
   try {
     const { resp, data } = await post<PinVerifyResult>("/api/app-lock/pin/verify", { email, pin });
-    return { ok: resp.ok && !!data.ok, ...data };
+    // Server responds with `success: true/false` (not `ok`); align the client result.
+    return { ok: resp.ok && (!!data.ok || !!data.success), ...data };
   } catch (err: any) {
     return { ok: false, error: err?.message || "Could not verify PIN." };
   }
