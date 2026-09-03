@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy } from 'react';
 import { apiUrl, safeJson } from "./lib/api";
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
@@ -16,22 +16,25 @@ import {
 import EmailLogin from './components/EmailLogin';
 import LockScreen from './components/LockScreen';
 import NotificationDrawer from './components/NotificationDrawer';
-import CashCardManagement from './components/CashCardManagement';
-import InflowsOutflows from './components/InflowsOutflows';
-import SubscriptionManagement from './components/SubscriptionManagement';
-import Dashboard from './components/Dashboard';
 import ProfileSection from './components/ProfileSection';
-import DebtTracker from './components/DebtTracker';
-import LoansTracker from './components/LoansTracker';
-import TransferFunds from './components/TransferFunds';
-import CreditCardManagement from './components/CreditCardManagement';
-import ReportsCentre from './components/ReportsCentre';
 import SettingsModal from './components/SettingsModal';
 import TransactionEditModal from './components/TransactionEditModal';
-import BudgetsSection from './components/BudgetsSection';
-import GoalsSection from './components/GoalsSection';
 import { CommandPalette } from './components/CommandPalette';
 import { BottomNavigation } from './components/BottomNavigation';
+
+// Heavy tab sections are code-split (loaded on demand) to speed up initial load.
+const BudgetsSection = lazy(() => import('./components/BudgetsSection'));
+const GoalsSection = lazy(() => import('./components/GoalsSection'));
+const CashCardManagement = lazy(() => import('./components/CashCardManagement'));
+const InflowsOutflows = lazy(() => import('./components/InflowsOutflows'));
+const SubscriptionManagement = lazy(() => import('./components/SubscriptionManagement'));
+const DebtTracker = lazy(() => import('./components/DebtTracker'));
+const LoansTracker = lazy(() => import('./components/LoansTracker'));
+const TransferFunds = lazy(() => import('./components/TransferFunds'));
+const CreditCardManagement = lazy(() => import('./components/CreditCardManagement'));
+const ReportsCentre = lazy(() => import('./components/ReportsCentre'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+import LazyTab from './components/LazyTab';
 import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud, ensureSupabaseConfigFromBackend, refreshSubscriptionsFromBackend } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
@@ -363,6 +366,21 @@ export default function App() {
       mainEl.scrollTop = 0;
     }
   }, [activeTab]);
+
+  // Warm the Dashboard (default landing tab) chunk during idle so the first
+  // view after login paints instantly instead of showing the loading skeleton.
+  useEffect(() => {
+    const warm = () => {
+      import('./components/Dashboard').catch(() => {});
+    };
+    const w = window as any;
+    if (w.requestIdleCallback) {
+      w.requestIdleCallback(warm, { timeout: 3000 });
+      return;
+    }
+    const t = window.setTimeout(warm, 200);
+    return () => window.clearTimeout(t);
+  }, []);
 
   // Synchronize state with Storage whenever it edits
   const updateState = (updater: (prev: AppState) => AppState) => {
@@ -3111,161 +3129,177 @@ export default function App() {
 
               {/* =================== CASE: TAB: DASHBOARD =================== */}
               {activeTab === 'dashboard' && (
-                <Dashboard 
-                  state={state} 
-                  userEmail={userEmail}
-                  aggregateActiveWealth={aggregateActiveWealth}
-                  totalCashAmount={totalCashAmount}
-                  totalDebitCardsAmount={totalDebitCardsAmount}
-                  totalCreditCardsAmount={totalCreditCardsAmount}
-                  totalDebtsAmount={totalDebtsAmount}
-                  totalLoansGiven={totalLoansGiven}
-                  currentMonthLabel={currentMonthLabel}
-                  currentMonthInflow={currentMonthInflow}
-                  currentMonthOutflow={currentMonthOutflow}
-                  setActiveTab={setActiveTab}
-                  setEditingTransactionId={setEditingTransactionId}
-                  onProfileClick={() => setIsProfileOpen(true)}
-                  onNotificationClick={() => setIsNotifOpen(true)}
-                  onAddIncome={handleAddIncome}
-                  onAddExpense={handleAddExpense}
-                />
+                <LazyTab>
+                  <Dashboard 
+                    state={state} 
+                    userEmail={userEmail}
+                    aggregateActiveWealth={aggregateActiveWealth}
+                    totalCashAmount={totalCashAmount}
+                    totalDebitCardsAmount={totalDebitCardsAmount}
+                    totalCreditCardsAmount={totalCreditCardsAmount}
+                    totalDebtsAmount={totalDebtsAmount}
+                    totalLoansGiven={totalLoansGiven}
+                    currentMonthLabel={currentMonthLabel}
+                    currentMonthInflow={currentMonthInflow}
+                    currentMonthOutflow={currentMonthOutflow}
+                    setActiveTab={setActiveTab}
+                    setEditingTransactionId={setEditingTransactionId}
+                    onProfileClick={() => setIsProfileOpen(true)}
+                    onNotificationClick={() => setIsNotifOpen(true)}
+                    onAddIncome={handleAddIncome}
+                    onAddExpense={handleAddExpense}
+                  />
+                </LazyTab>
               )}
 
               {/* =================== CASE: TAB: BUDGETS =================== */}
               {activeTab === 'budgets' && (
-                <BudgetsSection 
-                  budgets={computedBudgets}
-                  currency={state.currency}
-                  onUpdateBudgetLimit={handleUpdateBudgetLimit}
-                  onAddBudget={handleAddBudget}
-                  onRemoveBudget={handleRemoveBudget}
-                  onClearAllBudgets={handleClearAllBudgets}
-                />
+                <LazyTab>
+                  <BudgetsSection 
+                    budgets={computedBudgets}
+                    currency={state.currency}
+                    onUpdateBudgetLimit={handleUpdateBudgetLimit}
+                    onAddBudget={handleAddBudget}
+                    onRemoveBudget={handleRemoveBudget}
+                    onClearAllBudgets={handleClearAllBudgets}
+                  />
+                </LazyTab>
               )}
 
               {/* =================== CASE: TAB: GOALS =================== */}
               {activeTab === 'goals' && (
-                <GoalsSection 
-                  goals={state.savingsGoals || []}
-                  currency={state.currency}
-                  cashAccounts={state.cashAccounts}
-                  onAddGoal={handleAddGoal}
-                  onModifyGoalFunds={handleModifyGoalFunds}
-                  onRemoveGoal={handleRemoveGoal}
-                  onClearAllGoals={handleClearAllGoals}
-                />
+                <LazyTab>
+                  <GoalsSection 
+                    goals={state.savingsGoals || []}
+                    currency={state.currency}
+                    cashAccounts={state.cashAccounts}
+                    onAddGoal={handleAddGoal}
+                    onModifyGoalFunds={handleModifyGoalFunds}
+                    onRemoveGoal={handleRemoveGoal}
+                    onClearAllGoals={handleClearAllGoals}
+                  />
+                </LazyTab>
               )}
 
               {/* =================== CASE: TAB: ACCOUNTS =================== */}
               {activeTab === 'accounts' && (
-                <div className="space-y-6">
-                  <CashCardManagement
-                    cashAccounts={state.cashAccounts}
-                    cards={state.cards}
-                    onAddCashAccount={handleAddCashAccount}
-                    onEditCashAccount={handleEditCashAccount}
-                    onAddCard={handleAddCard}
-                    onDeleteCard={handleDeleteCard}
-                    onDeleteCashAccount={handleDeleteCashAccount}
-                    currency={state.currency}
-                    onUpdateCard={handleUpdateCard}
-                    onApplyCardCharge={handleApplyCardCharge}
-                    onDeleteCardCharge={handleDeleteCardCharge}
-                  />
-                  <TransferFunds
-                    cashAccounts={state.cashAccounts}
-                    cards={state.cards}
-                    currency={state.currency}
-                    onTransferFunds={handleTransferFunds}
-                  />
-                </div>
+                <LazyTab>
+                  <div className="space-y-6">
+                    <CashCardManagement
+                      cashAccounts={state.cashAccounts}
+                      cards={state.cards}
+                      onAddCashAccount={handleAddCashAccount}
+                      onEditCashAccount={handleEditCashAccount}
+                      onAddCard={handleAddCard}
+                      onDeleteCard={handleDeleteCard}
+                      onDeleteCashAccount={handleDeleteCashAccount}
+                      currency={state.currency}
+                      onUpdateCard={handleUpdateCard}
+                      onApplyCardCharge={handleApplyCardCharge}
+                      onDeleteCardCharge={handleDeleteCardCharge}
+                    />
+                    <TransferFunds
+                      cashAccounts={state.cashAccounts}
+                      cards={state.cards}
+                      currency={state.currency}
+                      onTransferFunds={handleTransferFunds}
+                    />
+                  </div>
+                </LazyTab>
               )}
 
               {/* =================== CASE: TAB: INFLOWS_OUTFLOWS =================== */}
               {activeTab === 'inflow_outflow' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                  <div className="col-span-1 lg:col-span-5 xl:col-span-4 w-full">
-                    <InflowsOutflows
-                      cashAccounts={state.cashAccounts}
-                      cards={state.cards}
-                      onAddIncome={handleAddIncome}
-                      onAddExpense={handleAddExpense}
-                      currency={state.currency}
-                    />
+                <LazyTab>
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    <div className="col-span-1 lg:col-span-5 xl:col-span-4 w-full">
+                      <InflowsOutflows
+                        cashAccounts={state.cashAccounts}
+                        cards={state.cards}
+                        onAddIncome={handleAddIncome}
+                        onAddExpense={handleAddExpense}
+                        currency={state.currency}
+                      />
+                    </div>
+                    <div className="col-span-1 lg:col-span-7 xl:col-span-8 w-full">
+                      <SubscriptionManagement
+                        subscriptions={state.subscriptions || []}
+                        cashAccounts={state.cashAccounts}
+                        cards={state.cards}
+                        currency={state.currency}
+                        onAddSubscription={handleAddSubscription}
+                        onDeleteSubscription={handleDeleteSubscription}
+                        onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
+                        onPaySubscription={handlePaySubscription}
+                      />
+                    </div>
                   </div>
-                  <div className="col-span-1 lg:col-span-7 xl:col-span-8 w-full">
-                    <SubscriptionManagement
-                      subscriptions={state.subscriptions || []}
-                      cashAccounts={state.cashAccounts}
-                      cards={state.cards}
-                      currency={state.currency}
-                      onAddSubscription={handleAddSubscription}
-                      onDeleteSubscription={handleDeleteSubscription}
-                      onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
-                      onPaySubscription={handlePaySubscription}
-                    />
-                  </div>
-                </div>
+                </LazyTab>
               )}
 
               {/* =================== CASE: TAB: DEBTS =================== */}
               {activeTab === 'debts' && (
-                <div className="space-y-6">
-                  <DebtTracker
-                    debts={state.debts}
-                    cashAccounts={state.cashAccounts}
-                    cards={state.cards}
-                    onAddDebt={handleAddDebt}
-                    onIncreaseDebt={handleIncreaseDebt}
-                    onMakeDebtPayment={handleMakeDebtPayment}
-                    onDeleteDebt={handleDeleteDebt}
-                    currency={state.currency}
-                  />
-                  <CreditCardManagement
-                    creditCards={state.cards.filter(c => c.cardType === 'Credit')}
-                    cashAccounts={state.cashAccounts}
-                    cards={state.cards}
-                    currency={state.currency}
-                    onPayCard={handlePayCreditCard}
-                    onAddPurchase={handleAddCreditCardPurchase}
-                    onUpdateCard={handleUpdateCard}
-                  />
-                </div>
+                <LazyTab>
+                  <div className="space-y-6">
+                    <DebtTracker
+                      debts={state.debts}
+                      cashAccounts={state.cashAccounts}
+                      cards={state.cards}
+                      onAddDebt={handleAddDebt}
+                      onIncreaseDebt={handleIncreaseDebt}
+                      onMakeDebtPayment={handleMakeDebtPayment}
+                      onDeleteDebt={handleDeleteDebt}
+                      currency={state.currency}
+                    />
+                    <CreditCardManagement
+                      creditCards={state.cards.filter(c => c.cardType === 'Credit')}
+                      cashAccounts={state.cashAccounts}
+                      cards={state.cards}
+                      currency={state.currency}
+                      onPayCard={handlePayCreditCard}
+                      onAddPurchase={handleAddCreditCardPurchase}
+                      onUpdateCard={handleUpdateCard}
+                    />
+                  </div>
+                </LazyTab>
               )}
 
               {/* =================== CASE: TAB: LOANS =================== */}
               {activeTab === 'loans' && (
-                <div className="space-y-6">
-                  <LoansTracker
-                    loans={state.loansGiven || []}
-                    cashAccounts={state.cashAccounts}
-                    cards={state.cards}
-                    onAddLoan={handleAddLoan}
-                    onAddSettlement={handleMakeLoanSettlement}
-                    onDeleteLoan={handleDeleteLoan}
-                    onIncreaseLoan={handleIncreaseLoan}
-                    currency={state.currency}
-                  />
-                </div>
+                <LazyTab>
+                  <div className="space-y-6">
+                    <LoansTracker
+                      loans={state.loansGiven || []}
+                      cashAccounts={state.cashAccounts}
+                      cards={state.cards}
+                      onAddLoan={handleAddLoan}
+                      onAddSettlement={handleMakeLoanSettlement}
+                      onDeleteLoan={handleDeleteLoan}
+                      onIncreaseLoan={handleIncreaseLoan}
+                      currency={state.currency}
+                    />
+                  </div>
+                </LazyTab>
               )}
 
               {/* =================== CASE: TAB: REPORTS =================== */}
               {activeTab === 'reports' && (
-                <ReportsCentre
-                  transactions={state.transactions}
-                  incomes={state.incomes}
-                  expenses={state.expenses}
-                  debts={state.debts}
-                  loansGiven={state.loansGiven || []}
-                  currency={state.currency}
-                  cashAccounts={state.cashAccounts}
-                  cards={state.cards}
-                  onSelectTransaction={(id) => setEditingTransactionId(id)}
-                  subscriptions={state.subscriptions || []}
-                  onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
-                  onPaySubscription={handlePaySubscription}
-                />
+                <LazyTab>
+                  <ReportsCentre
+                    transactions={state.transactions}
+                    incomes={state.incomes}
+                    expenses={state.expenses}
+                    debts={state.debts}
+                    loansGiven={state.loansGiven || []}
+                    currency={state.currency}
+                    cashAccounts={state.cashAccounts}
+                    cards={state.cards}
+                    onSelectTransaction={(id) => setEditingTransactionId(id)}
+                    subscriptions={state.subscriptions || []}
+                    onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
+                    onPaySubscription={handlePaySubscription}
+                  />
+                </LazyTab>
               )}
 
             </div>
