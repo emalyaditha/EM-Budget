@@ -890,6 +890,28 @@ export async function createApp(): Promise<express.Express> {
     next();
   });
 
+  // Lightweight same-origin guard for state-changing API requests (CSRF defense in depth).
+  // Requests without an Origin header (curl, server-to-server, native clients) pass through;
+  // browser requests must present an Origin matching the app's own origin.
+  app.use("/api", (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+      next();
+      return;
+    }
+    const origin = req.headers["origin"] as string | undefined;
+    if (!origin) {
+      next();
+      return;
+    }
+    const expected = getOrigin(req);
+    if (origin === expected) {
+      next();
+      return;
+    }
+    console.warn(`[SECURITY SUSPICIOUS ACTIVITY] Rejected cross-origin request to ${req.method} ${req.originalUrl} from origin: ${origin}`);
+    res.status(403).json({ success: false, error: "Forbidden." });
+  });
+
   // Custom rate-limiter backed strictly by database (Stateless Cloud Run autoscaling compliant)
   // Returns { allowed, retryAfterSeconds } so callers get precise retry timing.
   async function checkRateLimitInDb(key: string, limit: number, windowMs: number, supabase: any): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
@@ -997,8 +1019,10 @@ export async function createApp(): Promise<express.Express> {
   
   const rateLimitAuth = (limit: number, windowMs: number) => {
     return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-      const xff = (req.headers["x-forwarded-for"] as string) || "";
-      const ip = (xff ? xff.split(",")[0].trim() : "") || req.ip || req.socket.remoteAddress || "unknown";
+      // Use req.ip first: with `trust proxy = 1`, Express resolves the client
+      // address from the last trusted hop, so the raw leftmost X-Forwarded-For
+      // entry (which a client can spoof) is never trusted verbatim.
+      const ip = req.ip || req.socket.remoteAddress || "unknown";
       // Normalize email or use fallback IP to restrict malicious credential flooding
       const reqEmail = req.body && typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
       const key = `${ip}:${req.path}:${reqEmail}`;
@@ -1231,6 +1255,9 @@ export async function createApp(): Promise<express.Express> {
 
       const enteredHash = hashOtp(enteredOtp, normalizedEmail);
       if (!timingSafeEqualString(saved.otp, enteredHash)) {
+        // Consume the OTP on a wrong attempt so it cannot be brute-forced
+        // across multiple guesses within the valid window.
+        await deleteOtpFromDb(normalizedEmail, false, supabase);
         res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
         return;
       }
@@ -1292,7 +1319,8 @@ export async function createApp(): Promise<express.Express> {
 
       const exists = await checkAccountExists(normalizedEmail, supabase);
       if (exists) {
-        res.status(400).json({ success: false, error: "Account already exists." });
+        // Do not reveal whether an account exists (anti-enumeration).
+        res.status(400).json({ success: false, error: "Could not complete registration for this address." });
         return;
       }
 
@@ -1395,7 +1423,8 @@ export async function createApp(): Promise<express.Express> {
 
       const exists = await checkAccountExists(normalizedEmail, supabase);
       if (!exists) {
-        res.status(400).json({ success: false, error: "Account does not exist." });
+        // Do not reveal whether an account exists (anti-enumeration).
+        res.status(400).json({ success: false, error: "Could not reset the password for this address." });
         return;
       }
 
@@ -2145,6 +2174,8 @@ export async function createApp(): Promise<express.Express> {
 
       const enteredHash = hashOtp(enteredOtp, normalizedEmail);
       if (!timingSafeEqualString(saved.otp, enteredHash)) {
+        // Consume the OTP on a wrong attempt so it cannot be brute-forced.
+        await deleteOtpFromDb(normalizedEmail, true, supabase);
         res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
         return;
       }
