@@ -85,6 +85,7 @@ export async function createApp(): Promise<express.Express> {
       pinEnabled: boolean;
       failedAttempts: number;
       lockedUntil: number | null;
+      lockOnOpen?: boolean;
     }[],
     webauthnCreds: [] as {
       email: string;
@@ -467,7 +468,8 @@ export async function createApp(): Promise<express.Express> {
         pinHash: data.pin_hash || null,
         pinEnabled: !!data.pin_enabled,
         failedAttempts: Number(data.failed_attempts || 0),
-        lockedUntil: data.locked_until ? Number(data.locked_until) : null
+        lockedUntil: data.locked_until ? Number(data.locked_until) : null,
+        lockOnOpen: !!data.lock_on_open
       };
     } catch (err: any) {
       console.warn("[AppLock] getAppLock fallback:", err?.message || err);
@@ -487,7 +489,8 @@ export async function createApp(): Promise<express.Express> {
         ...(fields.pinHash !== undefined ? { pinHash: fields.pinHash } : {}),
         ...(fields.pinEnabled !== undefined ? { pinEnabled: fields.pinEnabled } : {}),
         ...(fields.failedAttempts !== undefined ? { failedAttempts: fields.failedAttempts } : {}),
-        ...(fields.lockedUntil !== undefined ? { lockedUntil: fields.lockedUntil } : {})
+        ...(fields.lockedUntil !== undefined ? { lockedUntil: fields.lockedUntil } : {}),
+        ...(fields.lockOnOpen !== undefined ? { lockOnOpen: fields.lockOnOpen } : {})
       });
       return;
     }
@@ -510,6 +513,7 @@ export async function createApp(): Promise<express.Express> {
       if (fields.pin_enabled !== undefined) rec.pinEnabled = fields.pin_enabled;
       if (fields.failed_attempts !== undefined) rec.failedAttempts = fields.failed_attempts;
       if (fields.locked_until !== undefined) rec.lockedUntil = fields.locked_until;
+      if (fields.lock_on_open !== undefined) rec.lockOnOpen = fields.lock_on_open;
     }
   }
 
@@ -1522,6 +1526,7 @@ export async function createApp(): Promise<express.Express> {
       res.json({
         success: true,
         appLockEnabled: !!lock?.pinEnabled || creds.length > 0,
+        lockOnOpen: !!lock?.lockOnOpen,
         pinEnabled: !!lock?.pinEnabled,
         hasPin: !!lock?.pinHash,
         biometricCount: creds.length,
@@ -1574,6 +1579,29 @@ export async function createApp(): Promise<express.Express> {
       res.json({ success: true });
     } catch (err: any) {
       console.error("[SECURITY LOG] App-lock PIN disable failed:", err?.message || err);
+      res.status(500).json({ success: false, error: "System app-lock service error." });
+    }
+  });
+
+  // --- PIN: always ask on open ---
+  // `lockOnOpen: true` forces the app-lock gate on every startup regardless of
+  // the browser's trusted-device status (a remembered device no longer skips it).
+  app.post("/api/app-lock/pin/always-lock", rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const { email, enabled } = req.body;
+      const emailErr = validateEmail(email);
+      if (emailErr || typeof enabled !== "boolean") {
+        res.status(400).json({ success: false, error: emailErr || "`enabled` must be a boolean." });
+        return;
+      }
+      const normalizedEmail = normalizeEmailLower(email);
+      if (!requireSession(req, res, normalizedEmail)) return;
+      const supabase = getSupabase(req);
+      await upsertAppLock(normalizedEmail, { lock_on_open: enabled, updated_at: new Date().toISOString() }, supabase);
+      console.log(`[AppLock] lock-on-open ${enabled ? "enabled" : "disabled"} for ${normalizedEmail}.`);
+      res.json({ success: true, lockOnOpen: enabled });
+    } catch (err: any) {
+      console.error("[SECURITY LOG] App-lock always-lock update failed:", err?.message || err);
       res.status(500).json({ success: false, error: "System app-lock service error." });
     }
   });

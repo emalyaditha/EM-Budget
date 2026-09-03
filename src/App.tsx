@@ -225,8 +225,10 @@ export default function App() {
       const [status, trusted] = await Promise.all([getAppLockStatus(email), checkTrustedDevice()]);
       setAppLockStatus(status);
       const enabled = !!status?.appLockEnabled;
-      // If app-lock is enabled and this browser is NOT a trusted device, lock it.
-      if (enabled && !trusted.trusted) {
+      // Always-ask mode overrides the trusted-device shortcut, so a remembered
+      // browser still has to unlock on every app open.
+      const alwaysLockOnOpen = !!status?.lockOnOpen;
+      if (enabled && (alwaysLockOnOpen || !trusted.trusted)) {
         setIsAppLocked(true);
         return true;
       }

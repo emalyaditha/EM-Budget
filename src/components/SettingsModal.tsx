@@ -21,6 +21,7 @@ import {
   getAppLockStatus,
   setPin,
   disablePin,
+  setLockOnOpen,
   startBiometricRegistration,
   removeBiometricCredential,
   listBiometricCredentials,
@@ -60,7 +61,7 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
   const [flutterCopied, setFlutterCopied] = useState(false);
   const [upgradeCopied, setUpgradeCopied] = useState(false);
   const [sqlScript, setSqlScript] = useState('');
-  const [appLockStatus, setAppLockStatus] = useState<{ appLockEnabled: boolean; hasPin: boolean; pinEnabled: boolean; biometricCount: number } | null>(null);
+  const [appLockStatus, setAppLockStatus] = useState<{ appLockEnabled: boolean; lockOnOpen: boolean; hasPin: boolean; pinEnabled: boolean; biometricCount: number } | null>(null);
   const [appLockBusy, setAppLockBusy] = useState(false);
   const [appLockMsg, setAppLockMsg] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [newPin, setNewPin] = useState('');
@@ -74,7 +75,7 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
   const refreshAppLock = async () => {
     if (!userEmail) return;
     const status = await getAppLockStatus(userEmail);
-    setAppLockStatus(status ? { appLockEnabled: status.appLockEnabled, hasPin: status.hasPin, pinEnabled: status.pinEnabled, biometricCount: status.biometricCount } : null);
+    setAppLockStatus(status ? { appLockEnabled: status.appLockEnabled, lockOnOpen: status.lockOnOpen, hasPin: status.hasPin, pinEnabled: status.pinEnabled, biometricCount: status.biometricCount } : null);
     const devs = await listTrustedDevices(userEmail);
     setDevices(devs.map((d) => ({ id: d.id, label: d.userAgent.split(/[ (/]/)[0] || 'Device', lastUsed: new Date(d.lastUsedAt || d.createdAt).toLocaleDateString() })));
     const creds = await listBiometricCredentials(userEmail);
@@ -193,6 +194,14 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
     setAppLockBusy(false);
     if (a.ok && b.ok) { setAppLockMsg({ kind: 'success', text: 'App lock disabled and all trusted devices removed.' }); setNewPin(''); await refreshAppLock(); }
     else setAppLockMsg({ kind: 'error', text: 'Could not fully disable app lock.' });
+  };
+
+  const handleSetLockOnOpen = async (enabled: boolean) => {
+    setAppLockBusy(true); setAppLockMsg(null);
+    const r = await setLockOnOpen(userEmail, enabled);
+    setAppLockBusy(false);
+    if (r.ok) { setAppLockMsg({ kind: 'success', text: enabled ? 'PIN will now be asked every time the app opens.' : 'PIN only asked on new/unknown devices.' }); await refreshAppLock(); }
+    else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to update lock preference.' });
   };
 
   const handleRegisterBiometric = async () => {
@@ -349,6 +358,28 @@ class CloudSyncService {
                             </div>
                           </div>
                         )}
+                      </div>
+
+                      {/* Always ask for PIN on open */}
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5">
+                        <div className="flex items-start gap-2.5">
+                          <Shield size={13} className="shrink-0 mt-0.5 text-[var(--ink-3)]" />
+                          <div>
+                            <p className="text-[12px] font-semibold text-[var(--ink)]">Always ask for PIN on open</p>
+                            <p className="text-[11px] leading-4 text-[var(--ink-3)] mt-0.5">Require the PIN every time the app opens, even on a remembered device.</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={appLockStatus.lockOnOpen}
+                          aria-label="Always ask for PIN on open"
+                          disabled={appLockBusy}
+                          onClick={() => handleSetLockOnOpen(!appLockStatus.lockOnOpen)}
+                          className={`relative shrink-0 w-11 h-6 rounded-full transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] ${appLockStatus.lockOnOpen ? 'bg-[var(--accent)]' : 'bg-[var(--line)]'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${appLockStatus.lockOnOpen ? 'translate-x-5' : ''}`} />
+                        </button>
                       </div>
 
                       {/* Biometric */}

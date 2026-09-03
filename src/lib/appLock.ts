@@ -13,6 +13,7 @@ const jsonHeaders = () => {
 
 export type AppLockStatus = {
   appLockEnabled: boolean;
+  lockOnOpen: boolean;
   pinEnabled: boolean;
   hasPin: boolean;
   biometricCount: number;
@@ -63,6 +64,17 @@ export async function disablePin(email: string): Promise<{ ok: boolean; error?: 
     return { ok: resp.ok && !!data?.success, error: data?.error || (resp.ok ? undefined : "Failed to disable PIN.") };
   } catch (err: any) {
     return { ok: false, error: err?.message || "Failed to disable PIN." };
+  }
+}
+
+// "Always ask for PIN on open": when enabled, the app-lock gate is required on
+// every startup regardless of this browser being a trusted device.
+export async function setLockOnOpen(email: string, enabled: boolean): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { resp, data } = await post<{ success?: boolean; error?: string }>("/api/app-lock/pin/always-lock", { email, enabled });
+    return { ok: resp.ok && !!data?.success, error: data?.error || (resp.ok ? undefined : "Failed to update lock preference.") };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Failed to update lock preference." };
   }
 }
 
