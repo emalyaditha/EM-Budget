@@ -7,6 +7,17 @@ import { getSupabaseConfig, saveSupabaseConfig, syncStateToSupabase, syncStateFr
 import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
 import {
+  exportCashAccountsCSV,
+  exportCardsCSV,
+  exportDebtsCSV,
+  exportLoansCSV,
+  exportSubscriptionsCSV,
+  exportBudgetsCSV,
+  exportGoalsCSV,
+  exportIncomesCSV,
+  exportExpensesCSV,
+} from '../utils';
+import {
   getAppLockStatus,
   setPin,
   disablePin,
@@ -465,6 +476,21 @@ class CloudSyncService {
                   <div>
                     <label htmlFor="database-config-uploader" className="eyebrow block mb-1.5">Restore from JSON</label>
                     <input type="file" id="database-config-uploader" accept=".json" onChange={handleJSONRestore} className="block w-full text-[12px] text-[var(--ink-2)] file:mr-3 file:btn-ghost file:py-1.5 file:px-3 file:text-[12px]" />
+                  </div>
+                  {/* CSV exports – one-click spreadsheet downloads per collection */}
+                  <div className="pt-3 border-t border-[var(--line)] space-y-2">
+                    <p className="eyebrow inline-flex items-center gap-1.5"><FileDown size={11} /> CSV exports (spreadsheet)</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => exportCashAccountsCSV(state.cashAccounts, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Cash accounts</button>
+                      <button onClick={() => exportCardsCSV(state.cards, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Cards</button>
+                      <button onClick={() => exportDebtsCSV(state.debts, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Debts</button>
+                      <button onClick={() => exportLoansCSV(state.loansGiven, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Loans</button>
+                      <button onClick={() => exportSubscriptionsCSV(state.subscriptions, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Subscriptions</button>
+                      <button onClick={() => exportBudgetsCSV(state.budgets || [], state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Budgets</button>
+                      <button onClick={() => exportGoalsCSV(state.savingsGoals || [], state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Goals</button>
+                      <button onClick={() => exportIncomesCSV(state.incomes, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Incomes</button>
+                      <button onClick={() => exportExpensesCSV(state.expenses, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Expenses</button>
+                    </div>
                   </div>
                   {!showPurge2FA ? (
                     <div className="pt-3 border-t border-[var(--line)] space-y-2">

@@ -1,5 +1,17 @@
-import { AppState, Transaction } from './types';
-import { escapeCsvRow } from './lib/download';
+import {
+  AppState,
+  Transaction,
+  CashAccount,
+  BankCard,
+  Debt,
+  LoanGiven,
+  Subscription,
+  Budget,
+  SavingsGoal,
+  Income,
+  Expense,
+} from './types';
+import { downloadBlob, escapeCsvRow } from './lib/download';
 
 // Local-timezone "YYYY-MM-DD" date for today. Replaces the widespread
 // `new Date().toISOString().split('T')[0]` pattern, which returns the UTC date
@@ -124,6 +136,121 @@ export function exportTransactionsToCSV(transactions: Transaction[], currency: s
   document.body.appendChild(link);
   link.click();
   link.remove();
+}
+
+// ---- Collection CSV export helpers (formula-injection sanitized) ----
+
+function exportCollectionAsCSV(filename: string, headers: string[], rows: (string | number)[][]) {
+  const csvContent = [escapeCsvRow(headers), ...rows.map(escapeCsvRow)].join('\n');
+  const stamp = new Date().toISOString().split('T')[0];
+  downloadBlob(csvContent, `${filename}_${stamp}.csv`, 'text/csv;charset=utf-8;');
+}
+
+export function exportCashAccountsCSV(accounts: CashAccount[], currency: string = 'Rs.') {
+  exportCollectionAsCSV(
+    'cash_accounts',
+    ['Account ID', 'Name', 'Balance'],
+    accounts.map(a => [a.id, a.name, `${currency} ${a.balance}`])
+  );
+}
+
+export function exportCardsCSV(cards: BankCard[], currency: string = 'Rs.') {
+  exportCollectionAsCSV(
+    'cards',
+    ['Card ID', 'Card Name', 'Bank', 'Type', 'Current Balance', 'Limit', 'Status'],
+    cards.map(c => [
+      c.id,
+      c.cardName,
+      c.bankName,
+      c.cardType,
+      `${currency} ${c.currentBalance}`,
+      c.limit != null ? `${currency} ${c.limit}` : '',
+      c.isCanceled ? 'Cancelled' : c.isFrozen ? 'Frozen' : 'Active',
+    ])
+  );
+}
+
+export function exportDebtsCSV(debts: Debt[], currency: string = 'Rs.') {
+  exportCollectionAsCSV(
+    'debts',
+    ['Debt ID', 'Source', 'Total', 'Remaining', 'Due Date', 'Status'],
+    debts.map(d => [
+      d.id,
+      d.debtSource,
+      `${currency} ${d.totalAmount}`,
+      `${currency} ${d.remainingAmount}`,
+      d.dueDate,
+      d.status || 'Active',
+    ])
+  );
+}
+
+export function exportLoansCSV(loans: LoanGiven[], currency: string = 'Rs.') {
+  exportCollectionAsCSV(
+    'loans_given',
+    ['Loan ID', 'Borrower', 'Total', 'Remaining', 'Date Given', 'Status'],
+    loans.map(l => [
+      l.id,
+      l.borrowerName,
+      `${currency} ${l.totalAmount}`,
+      `${currency} ${l.remainingAmount}`,
+      l.dateGiven,
+      l.status,
+    ])
+  );
+}
+
+export function exportSubscriptionsCSV(subs: Subscription[], currency: string = 'Rs.') {
+  exportCollectionAsCSV(
+    'subscriptions',
+    ['Plan ID', 'Name', 'Amount', 'Billing Cycle', 'Due Date', 'Status'],
+    subs.map(s => [s.id, s.name, `${currency} ${s.amount}`, s.billingCycle, s.dueDate, s.status])
+  );
+}
+
+export function exportBudgetsCSV(budgets: Budget[], currency: string = 'Rs.') {
+  exportCollectionAsCSV(
+    'budgets',
+    ['Budget ID', 'Category', 'Limit', 'Spent', 'Remaining'],
+    budgets.map(b => [
+      b.id,
+      b.category,
+      `${currency} ${b.limit}`,
+      `${currency} ${b.spent}`,
+      `${currency} ${Math.max(0, b.limit - b.spent)}`,
+    ])
+  );
+}
+
+export function exportGoalsCSV(goals: SavingsGoal[], currency: string = 'Rs.') {
+  exportCollectionAsCSV(
+    'goals',
+    ['Goal ID', 'Name', 'Target', 'Current', 'Target Date', 'Progress %'],
+    goals.map(g => [
+      g.id,
+      g.name,
+      `${currency} ${g.target}`,
+      `${currency} ${g.current}`,
+      g.targetDate,
+      g.target > 0 ? `${Math.round((g.current / g.target) * 100)}%` : '',
+    ])
+  );
+}
+
+export function exportIncomesCSV(incomes: Income[], currency: string = 'Rs.') {
+  exportCollectionAsCSV(
+    'incomes',
+    ['Income ID', 'Source', 'Category', 'Amount', 'Date'],
+    incomes.map(i => [i.id, i.source, i.category, `${currency} ${i.amount}`, i.date])
+  );
+}
+
+export function exportExpensesCSV(expenses: Expense[], currency: string = 'Rs.') {
+  exportCollectionAsCSV(
+    'expenses',
+    ['Expense ID', 'Title', 'Category', 'Amount', 'Date'],
+    expenses.map(e => [e.id, e.title, e.category, `${currency} ${e.amount}`, e.date])
+  );
 }
 
 // Standard category colors configuration

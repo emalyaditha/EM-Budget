@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCo
 import { DashboardHero } from './dashboard/DashboardHero';
 import { DashboardMetricsGrid } from './dashboard/DashboardMetricsGrid';
 import { QuickActionModal } from './dashboard/QuickActionModal';
+import { AlertsPanel } from './AlertsPanel';
 
 export function AnimatedCountUp({ value, duration = 1200, prefix = "", suffix = "" }: { value: number, duration?: number, prefix?: string, suffix?: string }) {
   const [displayValue, setDisplayValue] = useState(0);
@@ -261,6 +262,9 @@ export default function Dashboard({
 
   return (
     <div className="flex flex-col bg-[var(--bg)] text-[var(--ink)] font-sans animate-fade-in gap-6 px-4 sm:px-6 py-5 max-w-[1280px] mx-auto w-full" id="command-dashboard">
+
+      {/* Actionable alerts (budget near/over limit, bills & debts due soon, goals closing) */}
+      <AlertsPanel state={state} />
 
       {/* PIN IDENTICAL 2-col grid: left Financial report, right My goals */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
