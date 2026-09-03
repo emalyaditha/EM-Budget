@@ -108,7 +108,7 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
       <div className="gradient-card p-6 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
         <div className="flex flex-col sm:flex-row justify-between gap-4 relative z-10">
           <div><p className="eyebrow !text-white/60">Receivables</p><h2 className="text-[22px] font-bold tracking-tight mt-1 text-white">Loans given</h2><p className="text-[13px] mt-1 text-white/60">Capital lent · settlements · ledger history.</p></div>
-          <button onClick={() => setIsGivingLoan(!isGivingLoan)} className="pill pill-active self-start sm:self-center inline-flex items-center gap-1.5 !bg-white !text-black !border-white"><Plus size={13} />{isGivingLoan ? 'Close form' : 'Lend & record'}</button>
+          <button onClick={() => setIsGivingLoan(!isGivingLoan)} className="pill pill-active self-start sm:self-center inline-flex items-center gap-1.5 !bg-[var(--accent)] !text-[var(--accent-fg)] !border-[var(--accent)]"><Plus size={13} />{isGivingLoan ? 'Close form' : 'Lend & record'}</button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5 relative z-10">
           <div className="rounded-[14px] p-3 bg-white/10 border border-white/10"><p className="eyebrow !text-white/60 !text-[9px]">Outstanding</p><p className="mono text-[15px] font-bold mt-1 text-white">{currency} {totalRemainingAmount.toLocaleString()}</p></div>

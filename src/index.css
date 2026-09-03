@@ -94,4 +94,26 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--ink); 
 *:focus-visible { outline: 2px solid var(--ink); outline-offset:2px; }
 @media (prefers-reduced-motion: reduce) { * { animation-duration:0.01ms !important; } }
 .light .bg-black, .light .bg-\[\#050508\], .light .bg-\[\#08080c\], .light .bg-zinc-900, .light .bg-zinc-950 { background: var(--surface) !important; }
-.light .text-white { color: var(--ink) !important; }
+
+/* =========================================================
+   LIGHT MODE — theme-aware "gradient-card-dark" headers
+   The gradient summary headers (Debts, Credit, Subscriptions,
+   Loans, Reports, Transfer, Timeline, Cash/Credit mgmt, Audit,
+   Dashboard hero) stay dark in light mode because the dark
+   gradient variable is hard-coded for both themes. In light
+   mode we flip them to a light surface and re-theme their
+   white text/overlay utilities so nothing renders dark-on-dark.
+   ========================================================= */
+.light { --gradient-card-light: linear-gradient(180deg, #FFFFFF 0%, #F1F3F6 100%); }
+.light .gradient-card,
+.light .card-dark {
+  background: var(--gradient-card-light) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--ink) !important;
+}
+.light .gradient-card [class*="text-white"],
+.light .card-dark [class*="text-white"] { color: var(--ink) !important; }
+.light .gradient-card [class*="border-white"],
+.light .card-dark [class*="border-white"] { border-color: var(--line) !important; }
+.light .gradient-card [class*="bg-white"],
+.light .card-dark [class*="bg-white"] { background: color-mix(in srgb, var(--ink) 8%, transparent) !important; }

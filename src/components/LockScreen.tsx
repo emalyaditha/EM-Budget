@@ -190,12 +190,12 @@ export default function LockScreen({
                   )}
                 </div>
 
-                <button type="submit" disabled={pin.status === 'loading' || pin.status === 'locked'} className="btn-primary w-full justify-center disabled:opacity-50">
+                <button type="submit" disabled={pin.status === 'loading' || pin.status === 'locked'} className="btn-primary w-full justify-center inline-flex items-center gap-2 disabled:opacity-50">
                   {pin.status === 'loading' ? <RefreshCw className="animate-spin" size={14} /> : <><ShieldCheck size={14} /><span>Unlock</span></>}
                 </button>
 
                 {canUseBiometric && (
-                  <button type="button" onClick={() => switchMode('biometric')} className="btn-ghost w-full justify-center gap-2">
+                  <button type="button" onClick={() => switchMode('biometric')} className="btn-ghost w-full justify-center inline-flex items-center gap-2">
                     <Fingerprint size={14} /> Use biometrics
                   </button>
                 )}
@@ -220,12 +220,12 @@ export default function LockScreen({
                   type="button"
                   onClick={() => void attemptBiometric()}
                   disabled={biometricBusy}
-                  className="btn-primary w-full justify-center disabled:opacity-50"
+                  className="btn-primary w-full justify-center inline-flex items-center gap-2 disabled:opacity-50"
                 >
                   {biometricBusy ? <RefreshCw className="animate-spin" size={14} /> : <Fingerprint size={14} />}
                   <span>{biometricBusy ? 'Waiting for verification…' : 'Verify now'}</span>
                 </button>
-                <button type="button" onClick={() => switchMode('pin')} disabled={!canUsePin} className="btn-ghost w-full justify-center gap-2 disabled:opacity-50">
+                <button type="button" onClick={() => switchMode('pin')} disabled={!canUsePin} className="btn-ghost w-full justify-center inline-flex items-center gap-2 disabled:opacity-50">
                   Use PIN instead
                 </button>
               </motion.div>
@@ -246,7 +246,7 @@ export default function LockScreen({
               <p className="text-[12px] leading-5 text-[var(--ink-2)]">
                 App lock is not configured for this account, so you can continue straight to your vault. You can set up a PIN or biometrics anytime in <strong>Settings → App Lock</strong>.
               </p>
-              <button type="button" onClick={onUnlocked} className="btn-primary w-full justify-center">Continue to app</button>
+              <button type="button" onClick={onUnlocked} className="btn-primary w-full justify-center inline-flex items-center gap-2">Continue to app</button>
             </div>
           )}
         </div>

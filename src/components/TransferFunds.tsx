@@ -114,7 +114,7 @@ export default function TransferFunds({ cashAccounts, cards, currency, onTransfe
           <div>
             <p className="eyebrow !text-white/60">Transfer · Wise-like</p>
             <h3 className="text-[16px] font-bold tracking-tight mt-1 flex items-center gap-2 text-white">
-              <span className="w-7 h-7 rounded-full bg-white text-black grid place-items-center"><ArrowRightLeft size={13} /></span>
+              <span className="w-7 h-7 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] grid place-items-center"><ArrowRightLeft size={13} /></span>
               Transfer Capital
             </h3>
             <p className="text-[12.5px] text-white/60 mt-1">Move funds instantly between accounts — zero friction.</p>

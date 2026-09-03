@@ -591,7 +591,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                 <button
                   type="button"
                   onClick={() => setStep("enter-email")}
-                  className="btn-ghost w-full justify-center"
+                  className="btn-ghost w-full justify-center inline-flex items-center gap-2"
                 >
                   Cancel
                 </button>
@@ -686,10 +686,10 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                 <button
                   type="submit"
                   disabled={loading || rateLimitTimer > 0}
-                  className="btn-primary w-full justify-center disabled:opacity-50"
+                  className="btn-primary w-full justify-center inline-flex items-center gap-2 disabled:opacity-50"
                 >
                   {loading ? (
-                    <RefreshCw className="animate-spin mx-auto" size={14} />
+                    <RefreshCw className="animate-spin" size={14} />
                   ) : (
                     <span>
                       {step === "reset-password"

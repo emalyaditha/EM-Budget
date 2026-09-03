@@ -94,7 +94,7 @@ export default function SubscriptionManagement({ subscriptions, cashAccounts, ca
       <div className="gradient-card p-6 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
         <div className="flex flex-col sm:flex-row justify-between gap-4 relative z-10">
           <div><p className="eyebrow !text-white/60">Recurring</p><h2 className="text-[22px] font-bold tracking-tight mt-1 text-white">Subscriptions</h2><p className="text-[13px] mt-1 text-white/60">Ledger of recurring charges — status pills, due mono.</p></div>
-          <button onClick={() => { setIsAdding(!isAdding); setSelectedSubId(null); }} className="pill pill-active self-start sm:self-center inline-flex items-center gap-1.5 !bg-white !text-black !border-white"><Plus size={13} />{isAdding ? 'Close' : 'Add plan'}</button>
+          <button onClick={() => { setIsAdding(!isAdding); setSelectedSubId(null); }} className="pill pill-active self-start sm:self-center inline-flex items-center gap-1.5 !bg-[var(--accent)] !text-[var(--accent-fg)] !border-[var(--accent)]"><Plus size={13} />{isAdding ? 'Close' : 'Add plan'}</button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5 relative z-10">
           <div className="rounded-[14px] p-3 bg-white/10 border border-white/10"><p className="eyebrow !text-white/60 !text-[9px]">Active</p><p className="mono text-[18px] font-bold mt-1 text-white">{subscriptions.filter(s => s.status === 'Active').length}</p></div>

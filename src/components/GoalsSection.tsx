@@ -135,7 +135,7 @@ export default function GoalsSection({
           <button
             aria-label="Add New goal"
             onClick={() => setIsAddModalOpen(v => !v)}
-            className="w-10 h-10 rounded-full bg-[#0A0A0C] text-white grid place-items-center shrink-0 hover:scale-[1.04] active:scale-[0.98] transition-transform shadow-sm"
+            className="w-10 h-10 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] grid place-items-center shrink-0 hover:scale-[1.04] active:scale-[0.98] transition-transform shadow-sm"
           >
             <Plus size={18} strokeWidth={2.5} />
           </button>

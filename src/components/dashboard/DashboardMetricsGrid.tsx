@@ -57,7 +57,7 @@ export function DashboardMetricsGrid({
           <p className="text-[15px] font-bold tracking-tight leading-none text-[#0A0A0C]">New goal</p>
           <p className="mono text-[11px] font-medium text-[#0A0A0C]/60 mt-1">Create a new goal</p>
         </div>
-        <span className="w-9 h-9 rounded-full bg-[#0A0A0C] text-white flex items-center justify-center shrink-0">
+        <span className="w-9 h-9 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center shrink-0">
           <Plus size={16} strokeWidth={2.2} />
         </span>
       </button>
