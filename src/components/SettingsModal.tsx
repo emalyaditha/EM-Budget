@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiUrl, safeJson } from "../lib/api";
-import { Settings, Database, Zap, FileDown, X, Shield, Cloud, RefreshCw, Check, Copy, Eye, EyeOff, Code, ChevronDown, ChevronUp, AlertCircle, LogOut, Sun, Moon, Lock, Fingerprint, Smartphone, KeyRound } from 'lucide-react';
+import { Settings, Database, Zap, FileDown, X, Shield, Cloud, RefreshCw, Check, Copy, Eye, EyeOff, Code, ChevronDown, ChevronUp, AlertCircle, LogOut, Sun, Moon, Lock, Fingerprint, Smartphone, KeyRound, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState } from '../types';
 import { getSupabaseConfig, saveSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, truncateAllDataInSupabase } from '../supabase';
@@ -22,6 +22,7 @@ import {
   setPin,
   disablePin,
   setLockOnOpen,
+  setLockIdleMinutes,
   startBiometricRegistration,
   removeBiometricCredential,
   listBiometricCredentials,
@@ -71,11 +72,13 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
   const [devices, setDevices] = useState<{ id: string; label: string; lastUsed: string }[]>([]);
   const [biometricCredIds, setBiometricCredIds] = useState<string[]>([]);
   const [confirmRemoveBiometric, setConfirmRemoveBiometric] = useState<string | null>(null);
+const [idleMinutes, setIdleMinutes] = useState(1);
 
   const refreshAppLock = async () => {
     if (!userEmail) return;
     const status = await getAppLockStatus(userEmail);
     setAppLockStatus(status ? { appLockEnabled: status.appLockEnabled, lockOnOpen: status.lockOnOpen, hasPin: status.hasPin, pinEnabled: status.pinEnabled, biometricCount: status.biometricCount } : null);
+    setIdleMinutes(status?.lockIdleMinutes ?? 1);
     const devs = await listTrustedDevices(userEmail);
     setDevices(devs.map((d) => ({ id: d.id, label: d.userAgent.split(/[ (/]/)[0] || 'Device', lastUsed: new Date(d.lastUsedAt || d.createdAt).toLocaleDateString() })));
     const creds = await listBiometricCredentials(userEmail);
@@ -202,6 +205,17 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
     setAppLockBusy(false);
     if (r.ok) { setAppLockMsg({ kind: 'success', text: enabled ? 'PIN will now be asked every time the app opens.' : 'PIN only asked on new/unknown devices.' }); await refreshAppLock(); }
     else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to update lock preference.' });
+  };
+
+  const handleSaveIdleMinutes = async () => {
+    const minutes = Math.round(Number(idleMinutes) || 1);
+    const clamped = Math.min(240, Math.max(1, minutes));
+    setIdleMinutes(clamped);
+    setAppLockBusy(true); setAppLockMsg(null);
+    const r = await setLockIdleMinutes(userEmail, clamped);
+    setAppLockBusy(false);
+    if (r.ok) { setAppLockMsg({ kind: 'success', text: `App will auto-lock after ${clamped} min of inactivity.` }); await refreshAppLock(); }
+    else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to update idle-lock timeout.' });
   };
 
   const handleRegisterBiometric = async () => {
@@ -380,6 +394,33 @@ class CloudSyncService {
                         >
                           <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${appLockStatus.lockOnOpen ? 'translate-x-5' : ''}`} />
                         </button>
+                      </div>
+
+                      {/* Auto-lock idle timeout */}
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5">
+                        <div className="flex items-start gap-2.5">
+                          <Clock size={13} className="shrink-0 mt-0.5 text-[var(--ink-3)]" />
+                          <div>
+                            <p className="text-[12px] font-semibold text-[var(--ink)]">Auto-lock after inactivity</p>
+                            <p className="text-[11px] leading-4 text-[var(--ink-3)] mt-0.5">Locks the app after this many minutes of inactivity. Defaults to 1.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={240}
+                            value={idleMinutes}
+                            disabled={appLockBusy}
+                            onChange={(e) => setIdleMinutes(Number(e.target.value))}
+                            onBlur={handleSaveIdleMinutes}
+                            aria-label="Auto-lock minutes"
+                            className="input w-16 text-center text-[12px] mono"
+                          />
+                          <span className="text-[11px] text-[var(--ink-3)]">min</span>
+                          <button type="button" onClick={handleSaveIdleMinutes} disabled={appLockBusy || !idleMinutes} className="btn-ghost justify-center text-[12px] disabled:opacity-50">Save</button>
+                        </div>
                       </div>
 
                       {/* Biometric */}

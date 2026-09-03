@@ -338,11 +338,13 @@ export default function App() {
   // while already locked. It only runs after login/unlock, not on the login flow.
   useEffect(() => {
     if (!isUnlocked || isAppLocked) return;
-    const IDLE_MS = 60 * 1000;
+    // Default to 1 minute; overridable per-account in Settings -> App Lock.
+    const LOCK_MINUTES = appLockStatus?.lockIdleMinutes ?? 1;
+    const LOCK_MS = Math.max(1, LOCK_MINUTES) * 60 * 1000;
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
     const scheduleLock = () => {
       if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => setIsAppLocked(true), IDLE_MS);
+      idleTimer = setTimeout(() => setIsAppLocked(true), LOCK_MS);
     };
     const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
     events.forEach((ev) => window.addEventListener(ev, scheduleLock, { passive: true }));
@@ -351,7 +353,7 @@ export default function App() {
       events.forEach((ev) => window.removeEventListener(ev, scheduleLock));
       if (idleTimer) clearTimeout(idleTimer);
     };
-  }, [isUnlocked, isAppLocked]);
+  }, [isUnlocked, isAppLocked, appLockStatus?.lockIdleMinutes]);
 
   // Scroll to the top of the page when the active tab/view changes
   useEffect(() => {

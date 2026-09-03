@@ -14,6 +14,7 @@ const jsonHeaders = () => {
 export type AppLockStatus = {
   appLockEnabled: boolean;
   lockOnOpen: boolean;
+  lockIdleMinutes: number | null;
   pinEnabled: boolean;
   hasPin: boolean;
   biometricCount: number;
@@ -75,6 +76,17 @@ export async function setLockOnOpen(email: string, enabled: boolean): Promise<{ 
     return { ok: resp.ok && !!data?.success, error: data?.error || (resp.ok ? undefined : "Failed to update lock preference.") };
   } catch (err: any) {
     return { ok: false, error: err?.message || "Failed to update lock preference." };
+  }
+}
+
+// Idle auto-lock timeout in whole minutes. The app re-locks after this many
+// minutes of inactivity when unlocked.
+export async function setLockIdleMinutes(email: string, minutes: number): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { resp, data } = await post<{ success?: boolean; error?: string }>("/api/app-lock/pin/idle-minutes", { email, minutes });
+    return { ok: resp.ok && !!data?.success, error: data?.error || (resp.ok ? undefined : "Failed to update idle-lock timeout.") };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Failed to update idle-lock timeout." };
   }
 }
 
