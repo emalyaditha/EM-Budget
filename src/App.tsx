@@ -42,6 +42,7 @@ import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice, revokeAllDevi
 import { EXPENSE_COLORS, calculateNetWorth } from './utils';
 import { toMinorUnits } from './lib/money';
 import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
 
 // Merge locally-held subscriptions with ones freshly fetched from the backend
 // (by id), preferring the fetched values then filling in any local-only rows.
@@ -85,6 +86,10 @@ export default function App() {
   // Supabase real-time status tracker
   const [realtimeSyncStatus, setRealtimeSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error' | 'disabled'>('idle');
   const [realtimeSyncError, setRealtimeSyncError] = useState<string | null>(null);
+
+  // Offline detection
+  const { url: supabaseUrl } = getSupabaseConfig();
+  const { isOnline, isSupabaseReachable } = useOnlineStatus(supabaseUrl || undefined);
 
   // States for Unified search & filters on history
   const [searchQuery, setSearchQuery] = useState('');
@@ -445,6 +450,12 @@ export default function App() {
       return;
     }
 
+    if (!isOnline || !isSupabaseReachable) {
+      setRealtimeSyncStatus('error');
+      setRealtimeSyncError(isOnline ? 'Cloud service unreachable.' : 'No internet connection.');
+      return;
+    }
+
     setRealtimeSyncStatus('syncing');
     setRealtimeSyncError(null);
 
@@ -470,7 +481,7 @@ export default function App() {
     }, 1500);
 
     return () => clearTimeout(syncTimeout);
-  }, [state, isSettingsOpen, isUnlocked, userEmail]);
+  }, [state, isSettingsOpen, isUnlocked, userEmail, isOnline, isSupabaseReachable]);
 
   // Budgets & Savings goals action logic
   const handleUpdateBudgetLimit = (id: string, limit: number) => {
@@ -2927,8 +2938,30 @@ export default function App() {
           {/* center: sync pill */}
           <div className="hidden md:flex items-center justify-center flex-1 px-4">
             {(() => {
-              const label = realtimeSyncStatus === 'syncing' ? 'Syncing' : realtimeSyncStatus === 'synced' ? 'Synced' : realtimeSyncStatus === 'error' ? 'Sync error' : realtimeSyncStatus === 'disabled' ? 'Offline' : 'Idle';
-              const dot = realtimeSyncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : realtimeSyncStatus === 'synced' ? 'bg-[var(--success)]' : realtimeSyncStatus === 'error' ? 'bg-[var(--danger)] animate-pulse' : 'bg-[var(--ink-3)]';
+              let label: string;
+              let dot: string;
+              if (!isOnline) {
+                label = 'No internet';
+                dot = 'bg-[var(--danger)] animate-pulse';
+              } else if (!isSupabaseReachable) {
+                label = 'Cloud unreachable';
+                dot = 'bg-amber-500 animate-pulse';
+              } else if (realtimeSyncStatus === 'syncing') {
+                label = 'Syncing';
+                dot = 'bg-amber-500 animate-pulse';
+              } else if (realtimeSyncStatus === 'synced') {
+                label = 'Synced';
+                dot = 'bg-[var(--success)]';
+              } else if (realtimeSyncStatus === 'error') {
+                label = 'Sync error';
+                dot = 'bg-[var(--danger)] animate-pulse';
+              } else if (realtimeSyncStatus === 'disabled') {
+                label = 'Offline';
+                dot = 'bg-[var(--ink-3)]';
+              } else {
+                label = 'Idle';
+                dot = 'bg-[var(--ink-3)]';
+              }
               return (
                 <span className="mono text-[11px] inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]" title={realtimeSyncError || label}>
                   <span className={`w-1.5 h-1.5 rounded-full ${dot} motion-reduce:animate-none`} aria-hidden />

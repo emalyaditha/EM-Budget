@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AppState } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
 import { authSession } from './services/authSession';
-import { safeJson, fetchWithTimeout, withTimeout } from './lib/api';
+import { safeJson, fetchWithTimeout, withTimeout, retryWithBackoff } from './lib/api';
 
 const URL_STORAGE_KEY = 'cashflow_supabase_url_v1';
 const KEY_STORAGE_KEY = 'cashflow_supabase_key_v1';
@@ -473,6 +473,8 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
     return { success: true };
   }
 
+  const doPush = async (): Promise<{ success: boolean; error?: string }> => {
+
   const errorDetails: string[] = [];
 
   try {
@@ -937,6 +939,9 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
     console.error('Supabase State Push Error:', err);
     return { success: false, error: err.message || 'Database transaction error.' };
   }
+  };
+
+  return retryWithBackoff(doPush, { maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 5000 });
 }
 
 
@@ -1201,7 +1206,11 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
   }
   };
 
-  return withTimeout(doSync(), SYNC_TIMEOUT, 'syncStateFromSupabase');
+  return withTimeout(
+    retryWithBackoff(doSync, { maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 5000 }),
+    SYNC_TIMEOUT,
+    'syncStateFromSupabase',
+  );
 }
 
 
