@@ -257,7 +257,7 @@ async function getColumnsForTable(tableName: string): Promise<string[]> {
         if (tableName === 'bank_cards' && !cols.includes('is_canceled')) cols.push('is_canceled');
         if (!detectedColumnsCache) detectedColumnsCache = {};
         detectedColumnsCache[tableName] = cols;
-        console.log(`Detected database columns for ${tableName} via CSV headers:`, cols);
+        if (import.meta.env.DEV) console.log(`Detected database columns for ${tableName} via CSV headers:`, cols);
         return cols;
       }
     }
@@ -413,7 +413,7 @@ export async function updateAuthAccountName(email: string, name: string, avatarU
         throw error;
       }
     }
-    console.log(`Updated profile for ${email} in auth_accounts.`);
+    if (import.meta.env.DEV) console.log(`Updated profile for ${email} in auth_accounts.`);
   } catch(err) {
     console.warn(`Failed to update profile in auth_accounts`, err);
     throw err;
@@ -469,7 +469,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
   const currentStateString = JSON.stringify(state);
   const cacheKey = email.trim().toLowerCase();
   if (lastSyncedStatesCache[cacheKey] === currentStateString) {
-    console.log('[PERFORMANCE OPTIMIZATION] Skipping redundant syncStateToSupabase - local state unchanged.');
+    if (import.meta.env.DEV) console.log('[PERFORMANCE OPTIMIZATION] Skipping redundant syncStateToSupabase - local state unchanged.');
     return { success: true };
   }
 
@@ -640,7 +640,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       const rpcSuccess = !rpcErr && rpcRes && (rpcRes as any).success !== false;
 
       if (rpcSuccess) {
-        console.log('[TRANSACTIONAL SYNC ENGINE] Successfully synced entire ledger atomically using single-trip Postgres Transaction!');
+        if (import.meta.env.DEV) console.log('[TRANSACTIONAL SYNC ENGINE] Successfully synced entire ledger atomically using single-trip Postgres Transaction!');
         lastSyncedStatesCache[cacheKey] = currentStateString;
         // Always persist the full state JSON snapshot (including subscriptions) to
         // ledger_states.state, even though the RPC succeeded. The app falls back to
@@ -665,14 +665,14 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
     }
 
     // 3. FALLBACK BACKWARD-COMPATIBILITY: CHUNKED PARALLEL CLIENT SYNCHRONIZER
-    console.log('[SYNC] Upserting state to ledger_states...');
+    if (import.meta.env.DEV) console.log('[SYNC] Upserting state to ledger_states...');
     
     const payload = { 
         user_email: email, 
         state: sanitizedState,
         updated_at: new Date().toISOString()
     };
-    console.log('[SYNC] ledger_states payload:', payload);
+    if (import.meta.env.DEV) console.log('[SYNC] ledger_states payload:', payload);
 
     const { error: stateError } = await client
       .from('ledger_states')
@@ -682,12 +682,12 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       console.error('[SYNC] State Upsert Error:', stateError);
       throw stateError;
     }
-    console.log('[SYNC] ledger_states upsert successful.');
+    if (import.meta.env.DEV) console.log('[SYNC] ledger_states upsert successful.');
 
     // A. Sync Bank Cards
     if (cardsCols.length > 0) {
       if (recordsCards.length > 0) {
-        console.log(`[SYNC] Upserting ${recordsCards.length} cards...`);
+         if (import.meta.env.DEV) console.log(`[SYNC] Upserting ${recordsCards.length} cards...`);
         const { error: cardErr } = await client.from('bank_cards').upsert(recordsCards, { onConflict: 'id' });
         
         if (cardErr) {
@@ -743,7 +743,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
     // C. Sync Transactions
     if (txCols.length > 0) {
       if (recordsTx.length > 0) {
-        console.log(`[SYNC] Upserting ${recordsTx.length} transactions...`);
+         if (import.meta.env.DEV) console.log(`[SYNC] Upserting ${recordsTx.length} transactions...`);
         let { error: txErr } = await client.from('transactions').upsert(recordsTx, { onConflict: 'id' });
         
         if (txErr && txErr.message && txErr.message.toLowerCase().includes('could not find')) {
@@ -781,7 +781,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
     // D. Sync Debts
     if (debtsCols.length > 0) {
       if (recordsDebts.length > 0) {
-        console.log(`[SYNC] Upserting ${recordsDebts.length} debts...`);
+         if (import.meta.env.DEV) console.log(`[SYNC] Upserting ${recordsDebts.length} debts...`);
         let { error: debtsErr } = await client.from('debts').upsert(recordsDebts, { onConflict: 'id' });
         
         if (debtsErr && debtsErr.message && debtsErr.message.toLowerCase().includes('could not find')) {

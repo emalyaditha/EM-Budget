@@ -53,7 +53,7 @@ export function loadStateFromStorage(defaultState: AppState): AppState {
       (parsed.cards && parsed.cards.some((c: any) => c.id === 'card-hnb'));
 
     if (containsOldSeedData) {
-      console.log('🧹 Old test seed data detected. Resetting local database to clean state list.');
+      if (import.meta.env.DEV) console.log('🧹 Old test seed data detected. Resetting local database to clean state list.');
       localStorage.removeItem(STORAGE_KEY);
       return defaultState;
     }

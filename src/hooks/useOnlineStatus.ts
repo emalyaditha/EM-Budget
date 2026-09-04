@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface OnlineStatus {
   isOnline: boolean;
@@ -11,10 +11,17 @@ export function useOnlineStatus(supabaseUrl?: string): OnlineStatus {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSupabaseReachable, setIsSupabaseReachable] = useState(true);
   const [lastChecked, setLastChecked] = useState(Date.now());
+  const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => { if (mountedRef.current) setIsOnline(true); };
+    const handleOffline = () => { if (mountedRef.current) setIsOnline(false); };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -22,30 +29,41 @@ export function useOnlineStatus(supabaseUrl?: string): OnlineStatus {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      if (abortRef.current) abortRef.current.abort();
     };
   }, []);
 
   const checkSupabase = useCallback(async (): Promise<boolean> => {
     if (!supabaseUrl) {
-      setIsSupabaseReachable(false);
-      setLastChecked(Date.now());
+      if (mountedRef.current) {
+        setIsSupabaseReachable(false);
+        setLastChecked(Date.now());
+      }
       return false;
     }
+    // Abort any in-flight request
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timer = setTimeout(() => controller.abort(), 5000);
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 5000);
       const res = await fetch(`${supabaseUrl}/rest/v1/`, {
         method: 'HEAD',
         signal: controller.signal,
       });
       clearTimeout(timer);
       const reachable = res.ok || res.status === 401 || res.status === 403;
-      setIsSupabaseReachable(reachable);
-      setLastChecked(Date.now());
+      if (mountedRef.current) {
+        setIsSupabaseReachable(reachable);
+        setLastChecked(Date.now());
+      }
       return reachable;
     } catch {
-      setIsSupabaseReachable(false);
-      setLastChecked(Date.now());
+      clearTimeout(timer);
+      if (mountedRef.current) {
+        setIsSupabaseReachable(false);
+        setLastChecked(Date.now());
+      }
       return false;
     }
   }, [supabaseUrl]);
