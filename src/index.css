@@ -91,6 +91,8 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--ink); 
 .nav-pill { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px; display:flex; gap:4px; box-shadow: var(--shadow); }
 * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
 ::-webkit-scrollbar { width:6px; height:6px; } ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius:999px; }
+.scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
 *:focus-visible { outline: 2px solid var(--ink); outline-offset:2px; }
 @media (prefers-reduced-motion: reduce) { * { animation-duration:0.01ms !important; } }
 .light .bg-black, .light .bg-\[\#050508\], .light .bg-\[\#08080c\], .light .bg-zinc-900, .light .bg-zinc-950 { background: var(--surface) !important; }

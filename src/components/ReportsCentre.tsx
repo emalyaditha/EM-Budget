@@ -73,7 +73,7 @@ export default function ReportsCentre({ transactions, incomes, expenses, debts, 
 
   return (
     <div id="reports-centre-view" className="space-y-6">
-      <div className="card p-1.5 flex gap-1 overflow-hidden">
+      <div className="card p-1.5 flex gap-1 overflow-x-auto scrollbar-none">
         {[
           { key: 'monthly', label: 'Monthly' },
           { key: 'yearly', label: 'Annual' },
@@ -81,7 +81,7 @@ export default function ReportsCentre({ transactions, incomes, expenses, debts, 
           { key: 'debt', label: 'Debts' },
           { key: 'audit', label: 'Audit & Health' },
         ].map(item => (
-          <button key={item.key} onClick={() => setReportType(item.key as any)} className={reportType === item.key ? 'pill pill-active flex-1 !py-2 text-[12px] justify-center' : 'pill flex-1 !py-2 text-[12px] justify-center !border-transparent'}>{item.label}</button>
+          <button key={item.key} onClick={() => setReportType(item.key as any)} className={reportType === item.key ? 'pill pill-active !py-2 text-[12px] justify-center whitespace-nowrap shrink-0' : 'pill !py-2 text-[12px] justify-center !border-transparent whitespace-nowrap shrink-0'}>{item.label}</button>
         ))}
       </div>
 

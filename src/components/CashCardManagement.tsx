@@ -303,14 +303,16 @@ export default function CashCardManagement({
           {cashAccounts.length===0 ? (
             <div className="empty"><p className="text-sm font-medium">No cash accounts yet</p><p className="text-xs mt-1 text-[var(--ink-3)]">Add a wallet to start tracking.</p></div>
           ) : cashAccounts.map(account=>(
-            <div key={account.id} id={`cash-row-${account.id}`} className="flex items-center gap-3 p-3.5 rounded-[16px] border border-[var(--line)] bg-[var(--surface-2)] hover:border-[var(--line-strong)] transition-colors">
-              <div className="w-10 h-10 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] flex items-center justify-center shrink-0">
-                <Wallet size={15} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="mono text-[13px] font-bold text-[var(--ink)] truncate">{account.name}</div>
-                <div className="mono text-[15px] font-bold tabular-nums text-[var(--ink)] tracking-tight">{currency}{account.balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-                <span className="pill !py-0.5 !px-2 !text-[10px] mono mt-1">Asset drawer</span>
+            <div key={account.id} id={`cash-row-${account.id}`} className="flex flex-col gap-2.5 p-3.5 rounded-[16px] border border-[var(--line)] bg-[var(--surface-2)] hover:border-[var(--line-strong)] transition-colors sm:flex-row sm:items-center sm:gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-10 h-10 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] flex items-center justify-center shrink-0">
+                  <Wallet size={15} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="mono text-[13px] font-bold text-[var(--ink)] truncate">{account.name}</div>
+                  <div className="mono text-[15px] font-bold tabular-nums text-[var(--ink)] tracking-tight">{currency}{account.balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+                  <span className="pill !py-0.5 !px-2 !text-[10px] mono mt-1">Asset drawer</span>
+                </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <button type="button" onClick={()=>{setSelectedCashId(account.id); setActionType('deposit');}} className="pill !px-3 !py-1.5 !text-[11px] mono">+ Deposit</button>
