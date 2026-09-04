@@ -91,7 +91,7 @@ export default function SubscriptionManagement({ subscriptions, cashAccounts, ca
 
   return (
     <div className="space-y-6" id="subscription-management-section">
-      <div className="gradient-card p-6 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
+      <div className="gradient-card p-4 sm:p-6 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
         <div className="flex flex-col sm:flex-row justify-between gap-4 relative z-10">
           <div><p className="eyebrow !text-white/60">Recurring</p><h2 className="text-[22px] font-bold tracking-tight mt-1 text-white">Subscriptions</h2><p className="text-[13px] mt-1 text-white/60">Ledger of recurring charges — status pills, due mono.</p></div>
           <button onClick={() => { setIsAdding(!isAdding); setSelectedSubId(null); }} className="pill pill-active self-start sm:self-center inline-flex items-center gap-1.5 !bg-[var(--accent)] !text-[var(--accent-fg)] !border-[var(--accent)]"><Plus size={13} />{isAdding ? 'Close' : 'Add plan'}</button>
@@ -124,8 +124,8 @@ export default function SubscriptionManagement({ subscriptions, cashAccounts, ca
       {selectedSubscription && (
         <div className="card p-6 space-y-4">
           <div className="flex justify-between items-center"><p className="eyebrow inline-flex items-center gap-1"><Calendar size={12} />Settle billing</p><button onClick={() => setSelectedSubId(null)} className="btn-ghost !py-1.5 !px-3 text-[11px]">Cancel</button></div>
-          <div className="card-flat p-4 flex justify-between items-center">
-            <div><p className="eyebrow !text-[9px]">Service</p><p className="text-[13px] font-bold">{selectedSubscription.name}</p></div>
+          <div className="card-flat p-4 flex justify-between items-center gap-3">
+            <div className="min-w-0"><p className="eyebrow !text-[9px]">Service</p><p className="text-[13px] font-bold truncate">{selectedSubscription.name}</p></div>
             <div className="text-right"><p className="eyebrow !text-[9px]">Due</p><p className="mono text-[13px] font-bold">{currency}{selectedSubscription.amount.toLocaleString()}</p></div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -151,10 +151,10 @@ export default function SubscriptionManagement({ subscriptions, cashAccounts, ca
                 <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-30" />
                 <div className="flex justify-between items-start gap-3">
                   <div className="flex gap-3 items-center">
-                    <span className="w-10 h-10 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] grid place-items-center"><CreditCard size={16} /></span>
+                    <span className="w-11 h-11 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] grid place-items-center"><CreditCard size={16} /></span>
                     <div>
                       <h4 className="text-[14px] font-bold">{sub.name}</h4>
-                      <p className="mono text-[10px] mt-0.5 flex flex-wrap gap-1.5 items-center" style={{ color: 'var(--ink-3)' }}><span className="px-2 py-0.5 rounded-full" style={{ border: '1px solid var(--line)' }}>{sub.category}</span>{sub.billingCycle}{sub.instanceType && <span className="px-2 py-0.5 rounded-full" style={{ border: '1px solid var(--line)' }}>{sub.instanceType}</span>}</p>
+                      <p className="mono text-[11px] mt-0.5 flex flex-wrap gap-1.5 items-center" style={{ color: 'var(--ink-3)' }}><span className="px-2 py-0.5 rounded-full" style={{ border: '1px solid var(--line)' }}>{sub.category}</span>{sub.billingCycle}{sub.instanceType && <span className="px-2 py-0.5 rounded-full" style={{ border: '1px solid var(--line)' }}>{sub.instanceType}</span>}</p>
                     </div>
                   </div>
                   <span className="mono text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0" style={pillStyle}>{status.label}</span>
@@ -164,12 +164,12 @@ export default function SubscriptionManagement({ subscriptions, cashAccounts, ca
                 <div className="flex justify-between items-baseline"><span className="eyebrow">Amount</span><span className="mono text-[20px] font-bold">{currency}{sub.amount.toLocaleString()}</span></div>
                 <div className="grid grid-cols-2 gap-2" style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
                   {sub.status === 'Active' ? (
-                    <button type="button" onClick={() => onToggleSubscriptionStatus(sub.id, 'Active')} className="btn-ghost !py-2 text-[11px] inline-flex items-center justify-center gap-1"><Pause size={12} />Pause</button>
+                    <button type="button" onClick={() => onToggleSubscriptionStatus(sub.id, 'Active')} className="btn-ghost !py-2.5 text-[12px] inline-flex items-center justify-center gap-1"><Pause size={12} />Pause</button>
                   ) : (
-                    <button type="button" onClick={() => onToggleSubscriptionStatus(sub.id, 'Paused')} className="btn-ghost !py-2 text-[11px] inline-flex items-center justify-center gap-1"><Play size={12} />Resume</button>
+                    <button type="button" onClick={() => onToggleSubscriptionStatus(sub.id, 'Paused')} className="btn-ghost !py-2.5 text-[12px] inline-flex items-center justify-center gap-1"><Play size={12} />Resume</button>
                   )}
-                  {sub.status === 'Active' && <button type="button" onClick={() => { setSelectedSubId(selectedSubId === sub.id ? null : sub.id); if (isAdding) setIsAdding(false); }} className={selectedSubId === sub.id ? 'btn-primary !py-2 text-[11px] inline-flex items-center justify-center gap-1' : 'btn-ghost !py-2 text-[11px] inline-flex items-center justify-center gap-1'}><DollarSign size={12} />Settle</button>}
-                  <button type="button" onClick={() => handleDelete(sub.id, sub.name)} className="btn-ghost col-span-2 !py-2 text-[11px] inline-flex items-center justify-center gap-1" style={{ color: 'var(--danger)' }}><Trash2 size={12} />Delete</button>
+                  {sub.status === 'Active' && <button type="button" onClick={() => { setSelectedSubId(selectedSubId === sub.id ? null : sub.id); if (isAdding) setIsAdding(false); }} className={selectedSubId === sub.id ? 'btn-primary !py-2.5 text-[12px] inline-flex items-center justify-center gap-1' : 'btn-ghost !py-2.5 text-[12px] inline-flex items-center justify-center gap-1'}><DollarSign size={12} />Settle</button>}
+                  <button type="button" onClick={() => handleDelete(sub.id, sub.name)} className="btn-ghost col-span-2 !py-2.5 text-[12px] inline-flex items-center justify-center gap-1" style={{ color: 'var(--danger)' }}><Trash2 size={12} />Delete</button>
                 </div>
               </motion.div>
             );

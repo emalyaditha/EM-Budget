@@ -282,13 +282,13 @@ class CloudSyncService {
                   <p className="eyebrow normal-case tracking-normal text-[11px]">Vault &amp; cloud sync</p>
                 </div>
               </div>
-              <button onClick={onClose} aria-label="Close settings" className="w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]">
+              <button onClick={onClose} aria-label="Close settings" className="w-10 h-10 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]">
                 <X size={14} />
               </button>
             </div>
             <div className="ledger-rule" />
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
               {/* Cloud Sync */}
               <section className="space-y-3">
                 <div className="eyebrow flex items-center justify-between"><span className="inline-flex items-center gap-1.5"><Cloud size={11} /> Cloud sync</span><span className="mono text-[10px] font-normal normal-case tracking-normal px-2 py-0.5 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]">Flutter ready</span></div>
@@ -308,7 +308,7 @@ class CloudSyncService {
                     </div>
                     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5 flex gap-2 text-[11px] leading-4 text-[var(--ink-2)]"><Lock size={12} className="shrink-0 mt-0.5 text-[var(--ink-3)]" /><span>Connection credentials are locked to environment variables.</span></div>
                     <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input type="checkbox" id="autoSyncToggle" checked={autoSync} onChange={(e) => { const v = e.target.checked; setAutoSync(v); const cfg = getSupabaseConfig(); saveSupabaseConfig(cfg.url, cfg.key, v); }} className="w-3.5 h-3.5 rounded border-[var(--line)] bg-[var(--surface)] accent-[var(--ink)]" />
+                      <input type="checkbox" id="autoSyncToggle" checked={autoSync} onChange={(e) => { const v = e.target.checked; setAutoSync(v); const cfg = getSupabaseConfig(); saveSupabaseConfig(cfg.url, cfg.key, v); }} className="w-5 h-5 rounded border-[var(--line)] bg-[var(--surface)] accent-[var(--ink)]" />
                       <span className="text-[12px] text-[var(--ink-2)]">Auto-push local changes to cloud</span>
                     </label>
                   </div>
@@ -500,7 +500,7 @@ class CloudSyncService {
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="border-t border-[var(--line)] bg-[var(--surface-2)] p-4">
                           <p className="text-[11px] leading-4 text-[var(--ink-2)] mb-2">{row.key === 'flutter' ? 'Add supabase_flutter and use this helper.' : 'Run this in Supabase SQL Editor.'}</p>
                           <div className="relative">
-                            <pre className="mono text-[11px] leading-4 bg-[var(--surface)] border border-[var(--line)] rounded-xl p-3 overflow-x-auto max-h-[180px] text-[var(--ink-2)] whitespace-pre">{row.key === 'flutter' ? flutterCode : (sqlScript || '-- Loading SQL...' )}</pre>
+                            <pre className="mono text-[11px] leading-4 bg-[var(--surface)] border border-[var(--line)] rounded-xl p-3 overflow-x-auto max-h-[260px] text-[var(--ink-2)] whitespace-pre">{row.key === 'flutter' ? flutterCode : (sqlScript || '-- Loading SQL...' )}</pre>
                             <button onClick={() => copyToClipboard(row.key === 'flutter' ? flutterCode : sqlScript, row.key)} className="absolute right-2 top-2 w-7 h-7 rounded-full bg-[var(--surface)] border border-[var(--line)] flex items-center justify-center text-[var(--ink-2)] hover:text-[var(--ink)]" aria-label="Copy">{(row.key === 'sql' && sqlCopied) || (row.key === 'flutter' && flutterCopied) || (row.key === 'upgrade' && upgradeCopied) ? <Check size={11} /> : <Copy size={11} />}</button>
                           </div>
                         </motion.div>

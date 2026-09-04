@@ -150,13 +150,13 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
                   <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-40" />
                   <div className="flex flex-col sm:flex-row justify-between gap-3" style={{ borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
                     <div>
-                      <h3 className="text-[14px] font-bold flex items-center gap-2">{loan.borrowerName}<span className="mono text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ border: '1px solid var(--line)', background: 'var(--surface-2)' }}>{loan.status}</span></h3>
-                      <p className="mono text-[11px] mt-1 inline-flex items-center gap-1" style={{ color: 'var(--ink-2)' }}><Calendar size={11} />{loan.dateGiven} · {loan.sourceAccountName}</p>
+                      <h3 className="text-[14px] font-bold flex items-center gap-2 min-w-0"><span className="truncate">{loan.borrowerName}</span><span className="mono text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ border: '1px solid var(--line)', background: 'var(--surface-2)' }}>{loan.status}</span></h3>
+                      <p className="mono text-[11px] mt-1 flex flex-wrap gap-1 items-center min-w-0" style={{ color: 'var(--ink-2)' }}><Calendar size={11} className="shrink-0" /><span className="truncate">{loan.dateGiven} · {loan.sourceAccountName}</span></p>
                     </div>
                     <div className="flex items-center gap-1.5 self-start sm:self-center">
-                      <button onClick={() => { setIncreasingLoanId(increasingLoanId === loan.id ? null : loan.id); setIncreaseAmount(''); setIncreaseError(null); setSettlingLoanId(null); }} className="btn-ghost !py-1.5 !px-3 text-[11px] inline-flex items-center gap-1"><Plus size={11} />Lend more</button>
-                      {loan.status !== 'Settled' && <button onClick={() => { setSettlingLoanId(settlingLoanId === loan.id ? null : loan.id); setSettlementAmount(loan.remainingAmount.toString()); setSettlementError(null); setIncreasingLoanId(null); }} className="btn-primary !py-1.5 !px-3 text-[11px] inline-flex items-center gap-1"><CheckCircle2 size={11} />Receive</button>}
-                      <button onClick={() => handleDeleteLoanClick(loan.id, loan.borrowerName)} className="w-7 h-7 rounded-full grid place-items-center" style={{ border: '1px solid var(--line)' }}><Trash2 size={12} /></button>
+                      <button onClick={() => { setIncreasingLoanId(increasingLoanId === loan.id ? null : loan.id); setIncreaseAmount(''); setIncreaseError(null); setSettlingLoanId(null); }} className="btn-ghost text-[12px] inline-flex items-center gap-1"><Plus size={11} />Lend more</button>
+                      {loan.status !== 'Settled' && <button onClick={() => { setSettlingLoanId(settlingLoanId === loan.id ? null : loan.id); setSettlementAmount(loan.remainingAmount.toString()); setSettlementError(null); setIncreasingLoanId(null); }} className="btn-primary text-[12px] inline-flex items-center gap-1"><CheckCircle2 size={11} />Receive</button>}
+                      <button onClick={() => handleDeleteLoanClick(loan.id, loan.borrowerName)} className="w-10 h-10 rounded-full grid place-items-center" style={{ border: '1px solid var(--line)' }}><Trash2 size={12} /></button>
                     </div>
                   </div>
 
@@ -166,7 +166,7 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
                     <div><p className="eyebrow !text-[9px]">Progress</p><div className="flex justify-between mono text-[11px] mt-1"><span style={{ color: 'var(--ink-2)' }}>{activeProgress}% settled</span></div><div className="h-2 w-full mt-2 rounded-full bg-[var(--surface-3)] overflow-hidden"><div className="h-full mw-progress rounded-full" style={{ width: `${activeProgress}%`}} /></div></div>
                   </div>
 
-                  {loan.notes && <p className="text-[12px] italic p-3 card-flat" style={{ color: 'var(--ink-2)' }}>"{loan.notes}"</p>}
+                  {loan.notes && <p className="text-[12px] italic p-3 card-flat break-words" style={{ color: 'var(--ink-2)' }}>"{loan.notes}"</p>}
 
                   {settlingLoanId === loan.id && (
                     <form onSubmit={handleSettleSubmit} className="card-flat p-4 space-y-3">

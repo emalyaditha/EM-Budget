@@ -124,7 +124,7 @@ export default function DebtTracker({ debts, cashAccounts, cards, onAddDebt, onI
           <div className="flex flex-col items-start sm:items-end gap-1 relative z-10">
             <span className="pill !bg-white/10 !border-white/15 !text-white mono !text-[11px]">{overallClearedPercent}% repaid</span>
             <span className="mono text-[26px] font-bold tracking-tight text-white">{currency} {totalRemainingDebt.toLocaleString()}</span>
-            <span className="mono text-[11px] text-white/60">remaining · {currency}{totalOriginalDebt.toLocaleString()} original</span>
+            <span className="mono text-[11px] text-white/60 block truncate">remaining · {currency}{totalOriginalDebt.toLocaleString()} original</span>
             <div className="h-2 w-full sm:w-48 mt-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full mw-progress" style={{ width: `${overallClearedPercent}%` }} /></div>
           </div>
         </div>
@@ -138,7 +138,7 @@ export default function DebtTracker({ debts, cashAccounts, cards, onAddDebt, onI
 
       {isAddingDebt && (
         <form onSubmit={handleCreateDebt} className="card p-6 space-y-4">
-          <div className="flex justify-between items-center"><p className="eyebrow">Register liability</p><button type="button" onClick={() => { setIsAddingDebt(false); setErrors({}); setSubmitted(false); }} className="btn-ghost !py-1.5 !px-3 text-[11px]">Cancel</button></div>
+          <div className="flex justify-between items-center"><p className="eyebrow">Register liability</p><button type="button" onClick={() => { setIsAddingDebt(false); setErrors({}); setSubmitted(false); }} className="btn-ghost text-[12px]">Cancel</button></div>
           <div>
             <label className="eyebrow block mb-2">Creditor / source</label>
             <input ref={sourceInputRef} type="text" placeholder="e.g. Student Loan" value={source} onChange={e => { setSource(e.target.value); validateDebtForm(e.target.value, totalDebt, dueDate, submitted); }} className="input" />
@@ -181,9 +181,9 @@ export default function DebtTracker({ debts, cashAccounts, cards, onAddDebt, onI
                     <p className="eyebrow !text-[9px]">Remaining</p>
                     <p className="mono text-[15px] font-bold">{currency} {debt.remainingAmount.toLocaleString()}</p>
                     {deleteConfirmId === debt.id ? (
-                      <span className="inline-flex gap-1 mt-2"><button onClick={() => { onDeleteDebt(debt.id); setDeleteConfirmId(null); }} className="btn-primary !py-1 !px-3 text-[11px]">Delete</button><button onClick={() => setDeleteConfirmId(null)} className="btn-ghost !py-1 !px-3 text-[11px]">Cancel</button></span>
+                      <span className="inline-flex gap-1 mt-2"><button onClick={() => { onDeleteDebt(debt.id); setDeleteConfirmId(null); }} className="btn-primary text-[12px]">Delete</button><button onClick={() => setDeleteConfirmId(null)} className="btn-ghost text-[12px]">Cancel</button></span>
                     ) : (
-                      <button onClick={() => { setDeleteConfirmId(debt.id); setTimeout(() => setDeleteConfirmId(c => c === debt.id ? null : c), 5000); }} className="mono text-[10px] underline mt-1" style={{ color: 'var(--ink-3)' }}>Delete</button>
+                      <button onClick={() => { setDeleteConfirmId(debt.id); setTimeout(() => setDeleteConfirmId(c => c === debt.id ? null : c), 5000); }} className="mono text-[11px] underline mt-1 px-2 py-1 inline-block" style={{ color: 'var(--ink-3)' }}>Delete</button>
                     )}
                   </div>
                 </div>
@@ -211,7 +211,7 @@ export default function DebtTracker({ debts, cashAccounts, cards, onAddDebt, onI
 
                 {increasingDebtId === debt.id && (
                   <form onSubmit={handleIncreaseDebtSubmit} className="card-flat p-4 space-y-3">
-                    <div className="flex justify-between items-center"><p className="eyebrow">Increase debt</p><button type="button" onClick={() => setIncreasingDebtId(null)} className="mono text-[11px] underline" style={{ color: 'var(--ink-3)' }}>Cancel</button></div>
+                    <div className="flex justify-between items-center"><p className="eyebrow">Increase debt</p><button type="button" onClick={() => setIncreasingDebtId(null)} className="btn-ghost text-[12px]">Cancel</button></div>
                     <div><label className="eyebrow block mb-2">Receiving account</label><select value={incTargetAccountId && incTargetAccountType ? `${incTargetAccountId}:${incTargetAccountType}` : 'other'} onChange={e => { const v = e.target.value; if (v === 'other') { setIncTargetAccountId(''); setIncTargetAccountType(''); } else { const [id, type] = v.split(':'); setIncTargetAccountId(id); setIncTargetAccountType(type as 'cash' | 'card'); } }} className="input"><option value="other">Other / indirect</option><optgroup label="Cash">{cashAccounts.map(c => <option key={c.id} value={`${c.id}:cash`}>{c.name}</option>)}</optgroup><optgroup label="Cards">{cards.filter(c => !c.isCanceled).map(card => <option key={card.id} value={`${card.id}:card`}>{card.bankName}</option>)}</optgroup></select></div>
                     <div><label className="eyebrow block mb-2">Amount ({currency})</label><input type="number" placeholder="500" value={increaseAmount} required onChange={e => setIncreaseAmount(e.target.value)} className="input mono" /></div>
                     <button type="submit" className="btn-primary w-full">Update total</button>
@@ -220,7 +220,7 @@ export default function DebtTracker({ debts, cashAccounts, cards, onAddDebt, onI
 
                 {payingDebtId === debt.id && (
                   <form onSubmit={handlePayDebtSubmit} className="card-flat p-4 space-y-3">
-                    <div className="flex justify-between items-center"><p className="eyebrow inline-flex items-center gap-1"><CornerDownRight size={11} />Repay</p><button type="button" onClick={() => { setPayingDebtId(null); setPaymentError(null); }} className="mono text-[11px] underline" style={{ color: 'var(--ink-3)' }}>Cancel</button></div>
+                    <div className="flex justify-between items-center"><p className="eyebrow inline-flex items-center gap-1"><CornerDownRight size={11} />Repay</p><button type="button" onClick={() => { setPayingDebtId(null); setPaymentError(null); }} className="btn-ghost text-[12px]">Cancel</button></div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div><label className="eyebrow block mb-2">Amount ({currency})</label><input type="number" placeholder="10000" value={payAmount} required onChange={e => { setPayAmount(e.target.value); setPaymentError(null); }} className="input mono" /></div>
                       <div><label className="eyebrow block mb-2">Deduct from</label><select value={`${paySourceId}:${paySourceType}`} onChange={e => handleSelectPaymentSource(e.target.value)} className="input"><optgroup label="Cash">{cashAccounts.map(c => <option key={c.id} value={`${c.id}:cash`}>{c.name} ({currency}{c.balance.toLocaleString()})</option>)}</optgroup><optgroup label="Cards">{cards.filter(c => !c.isCanceled).map(card => <option key={card.id} value={`${card.id}:card`}>{card.bankName} ({currency}{card.currentBalance.toLocaleString()})</option>)}</optgroup></select></div>
@@ -228,7 +228,7 @@ export default function DebtTracker({ debts, cashAccounts, cards, onAddDebt, onI
                     {paySourceType === 'card' && paySourceId && (
                       <div className="card-flat !p-3 space-y-2"><label className="eyebrow block">Card charge ({currency})</label><input type="number" step="any" placeholder="0" value={payBankCharge} onChange={e => { setPayBankCharge(e.target.value); setPaymentError(null); }} className="input mono" /><p className="mono text-[11px]" style={{ color: 'var(--ink-3)' }}>Optional bank fee deducted from card balance.</p></div>
                     )}
-                    {paymentError && <p className="mono text-[11px] p-2 rounded-xl flex gap-1.5" style={{ color: 'var(--danger)', background: 'var(--danger-bg)', border: '1px solid var(--line)' }}><AlertCircle size={13} />{paymentError}</p>}
+                    {paymentError && <p className="mono text-[11px] p-2 rounded-xl flex flex-wrap gap-1.5 min-w-0 break-words" style={{ color: 'var(--danger)', background: 'var(--danger-bg)', border: '1px solid var(--line)' }}><AlertCircle size={13} className="shrink-0 mt-0.5" />{paymentError}</p>}
                     <button type="submit" className="btn-primary w-full">Process repayment</button>
                   </form>
                 )}
