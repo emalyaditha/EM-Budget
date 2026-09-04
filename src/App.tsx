@@ -3313,6 +3313,8 @@ export default function App() {
                       cashAccounts={state.cashAccounts}
                       cards={state.cards}
                       currency={state.currency}
+                      transactions={state.transactions}
+                      creditCardPurchases={state.creditCardPurchases}
                       onPayCard={handlePayCreditCard}
                       onAddPurchase={handleAddCreditCardPurchase}
                       onUpdateCard={handleUpdateCard}

@@ -24,15 +24,20 @@ export interface BankCard {
   bankName: string;
   cardType: 'Debit' | 'Credit';
   currentBalance: number;
-  limit?: number; // Added limit for credit cards
-  isLimitLocked?: boolean; // True to lock the limit
-  cardNumber?: string; // masked card number e.g. **** 4242
-  isCanceled?: boolean; // Support soft delete / cancel status
+  limit?: number;
+  isLimitLocked?: boolean;
+  cardNumber?: string;
+  isCanceled?: boolean;
   cardTheme?: string;
-  isFrozen?: boolean; // Stateful "Card Freezing" (Soft Lock)
+  isFrozen?: boolean;
   allowNegativeBalance?: boolean;
   charges?: Charge[];
-  lockedAmount?: number; // Held/locked amount of Debit Card (money locked by the bank)
+  lockedAmount?: number;
+  dueDate?: string;
+  minPayment?: number;
+  apr?: number;
+  lastPaymentDate?: string;
+  statementCloseDate?: string;
 }
 
 export interface CreditCard {
