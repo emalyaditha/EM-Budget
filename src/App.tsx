@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy } from 'react';
-import { apiUrl, safeJson } from "./lib/api";
+import { apiUrl, safeJson, fetchWithTimeout } from "./lib/api";
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
@@ -267,9 +267,18 @@ export default function App() {
   // Verify remembered device on mount
   useEffect(() => {
     const verifyDevice = async () => {
+      // Global safety net: the entire mount flow must finish within 12s.
+      // If any step hangs (backend unreachable, Supabase unreachable), we
+      // still show the login/PIN screen instead of leaving the user staring
+      // at "Checking session" indefinitely.
+      const MOUNT_TIMEOUT_MS = 12000;
+      const mountDeadline = Date.now() + MOUNT_TIMEOUT_MS;
+
+      const timeLeft = () => Math.max(0, mountDeadline - Date.now());
+
       // Load system-provided environments on mount to ensure fresh configuration matches backend
       try {
-        const confResp = await fetch(apiUrl('/api/config'), { credentials: 'include' });
+        const confResp = await fetchWithTimeout(apiUrl('/api/config'), { credentials: 'include' }, Math.min(4000, timeLeft()));
         if (confResp.ok) {
           const confData = await safeJson(confResp);
           if (confData?.supabaseUrl && confData?.supabaseKey) {
@@ -287,28 +296,43 @@ export default function App() {
       if (email && token) {
         try {
           setIsAppLockInit(true);
-          const vRes = await fetch(apiUrl('/api/auth/verify-session'), {
+          const vRes = await fetchWithTimeout(apiUrl('/api/auth/verify-session'), {
             credentials: 'include',
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, token })
-          });
+          }, Math.min(6000, timeLeft()));
           const vData = await safeJson(vRes);
           if (vData?.success) {
             authSession.setToken(token);
             authSession.setEmail(email);
             setUserEmail(email);
+
+            // Ensure Supabase config is available before sync.
             await ensureSupabaseConfigFromBackend();
-            const result = await syncStateFromSupabase(email);
+
+            // Run the three heavy async operations in parallel — they are
+            // independent of each other and all depend only on the verified
+            // session.  Each has its own timeout; the global deadline above
+            // prevents the whole block from exceeding ~12 s.
+            const syncPromise = syncStateFromSupabase(email);
+            const subsPromise = refreshSubscriptionsFromBackend(email, token);
+            const lockPromise = determineAppLock(email);
+
+            const [result, backendSubs] = await Promise.all([syncPromise, subsPromise]);
+
             if (result.success && result.state) {
               setState(migrateStateCards(result.state));
             }
-            const backendSubs = await refreshSubscriptionsFromBackend(email, token);
             if (backendSubs && backendSubs.length > 0) {
               setState(prev => ({ ...prev, subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs) }));
             }
+
+            // determineAppLock already ran in parallel — its side effects
+            // (setIsAppLocked) are safe to apply now.
+            await lockPromise;
+
             setIsUnlocked(true);
-            await determineAppLock(email);
             setIsAppLockInit(false);
           } else {
             console.warn("Session token expired or invalid:", vData?.error);

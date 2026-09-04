@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AppState } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
 import { authSession } from './services/authSession';
-import { safeJson } from './lib/api';
+import { safeJson, fetchWithTimeout, withTimeout } from './lib/api';
 
 const URL_STORAGE_KEY = 'cashflow_supabase_url_v1';
 const KEY_STORAGE_KEY = 'cashflow_supabase_key_v1';
@@ -97,7 +97,7 @@ export async function ensureSupabaseConfigFromBackend(): Promise<void> {
   if (current.url && current.key) return;
   try {
     const base = (import.meta as any).env?.VITE_API_URL || '';
-    const res = await fetch(`${base}/api/config`, { method: 'GET', headers: { Accept: 'application/json' } });
+    const res = await fetchWithTimeout(`${base}/api/config`, { method: 'GET', headers: { Accept: 'application/json' } }, 5000);
     const data = await safeJson(res);
     if (!data) return;
     const newUrl = (data.supabaseUrl || '').trim();
@@ -116,11 +116,11 @@ export async function ensureSupabaseConfigFromBackend(): Promise<void> {
 export async function refreshSubscriptionsFromBackend(email: string, token: string): Promise<any[]> {
   try {
     const base = (import.meta as any).env?.VITE_API_URL || '';
-    const res = await fetch(`${base}/api/sync/refresh-subscriptions`, {
+    const res = await fetchWithTimeout(`${base}/api/sync/refresh-subscriptions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ email }),
-    });
+    }, 8000);
     const data = await safeJson(res);
     if (data && data.success && Array.isArray(data.subscriptions)) {
       return data.subscriptions;
@@ -237,7 +237,11 @@ async function getColumnsForTable(tableName: string): Promise<string[]> {
   
   // Method A: Quick CSV header lookup to find existing database columns instantly
   try {
-    const { data, error } = await client.from(tableName).select('*').limit(0).csv();
+    const { data, error } = await withTimeout(
+      Promise.resolve(client.from(tableName).select('*').limit(0).csv()),
+      5000,
+      `csvHeader:${tableName}`,
+    );
     if (error) {
       if (error.code === '42P01' || (error.message && error.message.includes('does not exist'))) {
         console.warn(`Table ${tableName} does not exist in the remote database yet (Error 42P01: undefined table).`);
@@ -266,12 +270,12 @@ async function getColumnsForTable(tableName: string): Promise<string[]> {
   if (url && key) {
     try {
       const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-      const response = await fetch(`${cleanUrl}/rest/v1/`, {
+      const response = await fetchWithTimeout(`${cleanUrl}/rest/v1/`, {
         headers: {
           'apikey': key,
           'Authorization': `Bearer ${key}`
         }
-      });
+      }, 5000);
       if (response.ok) {
         const swagger = await safeJson(response);
         if (!swagger) return FALLBACK_COLUMNS[tableName] || [];
@@ -992,12 +996,15 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
     return { success: false, error: 'Supabase URL or Anon Key is missing or invalid.' };
   }
 
-  try {
+  const SYNC_TIMEOUT = 15000;
+
+  const doSync = async (): Promise<{ success: boolean; state?: AppState; error?: string }> => {
+    try {
     // 1. Force reconstruction of AppState from relational tables to ensure complete data sync.
     console.warn('Syncing state from relational tables...');
     
     const fetchTable = async (tableName: string) => {
-      const cols = await getColumnsForTable(tableName);
+      const cols = await withTimeout(getColumnsForTable(tableName), 5000, `getColumns:${tableName}`);
       if (!cols || cols.length === 0) {
         console.warn(`Table ${tableName} does not exist in the remote database yet, skipping query.`);
         return [];
@@ -1006,7 +1013,11 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       const userCol = cols.find(c => c.toLowerCase() === 'user_email' || c.toLowerCase() === 'useremail');
       const emailField = userCol || 'user_email'; // Default to user_email
       
-      const { data, error } = await client.from(tableName).select('*').eq(emailField, email);
+      const { data, error } = await withTimeout(
+        Promise.resolve(client.from(tableName).select('*').eq(emailField, email)),
+        5000,
+        `fetchTable:${tableName}`,
+      );
       if (error) {
         if (error.code === '42P01' || (error.message && (error.message.includes('does not exist') || error.message.includes('schema cache')))) {
           console.warn(`Table ${tableName} does not exist, skipped.`);
@@ -1028,89 +1039,84 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       fetchTable('spending_envelopes')
     ]);
 
-    // Fault-tolerant loading for subscriptions
+    // 2. Parallel fetch for remaining tables (subscriptions, profile, ledger state, loans)
     let fetchedSubs: any[] = [];
-    try {
-      const subResult = await client.from('subscriptions').select('*').eq('user_email', email);
-      if (!subResult.error && subResult.data) {
-        fetchedSubs = subResult.data;
-      } else if (subResult.error) {
-        console.warn('Subscriptions table fetch skipped or table does not exist:', subResult.error);
-      }
-    } catch (e) {
-      console.warn('Subscriptions table fetch skipped or table does not exist:', e);
-    }
-
-    // Fetch profile name and optional avatar from auth_accounts to correctly restore user profile
     let profileName = 'User';
     let profileAvatarUrl = '';
-    try {
-      const { data: authAcc } = await client.from('auth_accounts').select('*').eq('email', email).maybeSingle();
-      if (authAcc) {
-        if (authAcc.name) profileName = authAcc.name;
-        if (authAcc.avatar_url) profileAvatarUrl = authAcc.avatar_url;
-      }
-    } catch (e) {
-      console.warn('Could not load profile info from auth_accounts:', e);
-    }
-
-    // Load auxiliary state (budgets, savingsGoals, and fallback loansGiven) from ledger_states first
     let fullJsonStateStr: any = null;
     let fetchedBudgets: any[] | null = null;
     let fetchedSavingsGoals: any[] | null = null;
     let fetchedLoansGiven: any[] | null = null;
     let fetchedAvatarUrl: string | undefined = undefined;
     let hasLedgerStateRecord = false;
-    try {
-      const { data: latestStateData, error: stateErr } = await client
-        .from('ledger_states')
-        .select('state')
-        .eq('user_email', email)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
 
-      if (!stateErr && latestStateData) {
-        hasLedgerStateRecord = true;
-        if (latestStateData.state) {
-          fullJsonStateStr = typeof latestStateData.state === 'string'
-            ? JSON.parse(latestStateData.state)
-            : latestStateData.state;
-          if (fullJsonStateStr) {
-            if (fullJsonStateStr.userProfile && fullJsonStateStr.userProfile.avatarUrl) {
-              fetchedAvatarUrl = fullJsonStateStr.userProfile.avatarUrl;
-            }
-            if (Array.isArray(fullJsonStateStr.budgets)) {
-              fetchedBudgets = fullJsonStateStr.budgets;
-            } else {
-              fetchedBudgets = [];
-            }
-            if (Array.isArray(fullJsonStateStr.savingsGoals)) {
-              fetchedSavingsGoals = fullJsonStateStr.savingsGoals;
-            } else {
-              fetchedSavingsGoals = [];
-            }
-            if (Array.isArray(fullJsonStateStr.loansGiven)) {
-              fetchedLoansGiven = fullJsonStateStr.loansGiven;
-            } else {
-              fetchedLoansGiven = [];
+    const fetchSubs = async () => {
+      try {
+        const subResult = await withTimeout(
+          Promise.resolve(client.from('subscriptions').select('*').eq('user_email', email)),
+          5000, 'fetchSubscriptions',
+        );
+        if (!subResult.error && subResult.data) fetchedSubs = subResult.data;
+      } catch (e) {
+        console.warn('Subscriptions fetch skipped:', e);
+      }
+    };
+
+    const fetchProfile = async () => {
+      try {
+        const { data: authAcc } = await withTimeout(
+          Promise.resolve(client.from('auth_accounts').select('*').eq('email', email).maybeSingle()),
+          5000, 'fetchProfile',
+        );
+        if (authAcc) {
+          if (authAcc.name) profileName = authAcc.name;
+          if (authAcc.avatar_url) profileAvatarUrl = authAcc.avatar_url;
+        }
+      } catch (e) {
+        console.warn('Profile fetch skipped:', e);
+      }
+    };
+
+    const fetchLedger = async () => {
+      try {
+        const { data: latestStateData, error: stateErr } = await withTimeout(
+          Promise.resolve(client.from('ledger_states').select('state').eq('user_email', email)
+            .order('updated_at', { ascending: false }).limit(1).maybeSingle()),
+          5000, 'fetchLedgerState',
+        );
+        if (!stateErr && latestStateData) {
+          hasLedgerStateRecord = true;
+          if (latestStateData.state) {
+            fullJsonStateStr = typeof latestStateData.state === 'string'
+              ? JSON.parse(latestStateData.state) : latestStateData.state;
+            if (fullJsonStateStr) {
+              fetchedAvatarUrl = fullJsonStateStr.userProfile?.avatarUrl;
+              fetchedBudgets = Array.isArray(fullJsonStateStr.budgets) ? fullJsonStateStr.budgets : [];
+              fetchedSavingsGoals = Array.isArray(fullJsonStateStr.savingsGoals) ? fullJsonStateStr.savingsGoals : [];
+              fetchedLoansGiven = Array.isArray(fullJsonStateStr.loansGiven) ? fullJsonStateStr.loansGiven : [];
             }
           }
         }
+      } catch (e) {
+        console.warn('Ledger state fetch skipped:', e);
       }
-    } catch (e) {
-      console.warn('Could not restore auxiliary fields from ledger_states:', e);
-    }
+    };
 
-    // Load active loansGiven from the relational loans_given table first, fallback to the ledger_states list
-    try {
-      const loansResult = await client.from('loans_given').select('*').eq('user_email', email);
-      if (!loansResult.error && loansResult.data && loansResult.data.length > 0) {
-        fetchedLoansGiven = loansResult.data.map(mapDatabaseResultToState);
+    const fetchLoans = async () => {
+      try {
+        const loansResult = await withTimeout(
+          Promise.resolve(client.from('loans_given').select('*').eq('user_email', email)),
+          5000, 'fetchLoansGiven',
+        );
+        if (!loansResult.error && loansResult.data && loansResult.data.length > 0) {
+          fetchedLoansGiven = loansResult.data.map(mapDatabaseResultToState);
+        }
+      } catch (e) {
+        console.warn('Loans given fetch skipped:', e);
       }
-    } catch (e) {
-      console.warn('Could not restore loans_given from database:', e);
-    }
+    };
+
+    await Promise.all([fetchSubs(), fetchProfile(), fetchLedger(), fetchLoans()]);
 
     // Determine if the user has a real database setup (to differentiate new users from loaded empty states)
     const hasUserDatabaseRecords = hasLedgerStateRecord || 
@@ -1193,6 +1199,9 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
     console.error('Supabase State Pull Error:', err);
     return { success: false, error: err.message || 'Database transaction error.' };
   }
+  };
+
+  return withTimeout(doSync(), SYNC_TIMEOUT, 'syncStateFromSupabase');
 }
 
 

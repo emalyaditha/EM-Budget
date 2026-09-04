@@ -1,5 +1,5 @@
 import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
-import { apiUrl, safeJson } from "./api";
+import { apiUrl, safeJson, fetchWithTimeout } from "./api";
 import { getSupabaseConfig } from "../supabase";
 
 const jsonHeaders = () => {
@@ -32,7 +32,7 @@ export type TrustedDevice = {
 };
 
 async function post<T = any>(path: string, body: Record<string, unknown>): Promise<{ resp: Response; data: T }> {
-  const resp = await fetch(apiUrl(path), { method: "POST", headers: jsonHeaders(), body: JSON.stringify(body) });
+  const resp = await fetchWithTimeout(apiUrl(path), { method: "POST", headers: jsonHeaders(), body: JSON.stringify(body) });
   const data = (await safeJson(resp)) as T;
   return { resp, data };
 }

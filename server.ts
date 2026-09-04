@@ -13,6 +13,16 @@ import {
   verifyAuthenticationResponse
 } from "@simplewebauthn/server";
 
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, label = 'Operation'): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
 export async function createApp(): Promise<express.Express> {
   const app = express();
   const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -299,7 +309,10 @@ export async function createApp(): Promise<express.Express> {
       return mockDb.accounts.some(acc => acc.email === normalizedEmail);
     }
     try {
-      const { data, error } = await supabase.from('auth_accounts').select('email').eq('email', normalizedEmail).maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase.from('auth_accounts').select('email').eq('email', normalizedEmail).maybeSingle() as Promise<any>,
+        5000, 'checkAccountExists',
+      );
       if (error && error.code !== 'PGRST116') {
         console.error('Supabase error checking account:', error);
       }
@@ -461,7 +474,10 @@ export async function createApp(): Promise<express.Express> {
       return mockDb.appLocks.find(x => x.email === e) || null;
     }
     try {
-      const { data, error } = await supabase.from("app_lock_credentials").select("*").eq("user_email", e).maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase.from("app_lock_credentials").select("*").eq("user_email", e).maybeSingle() as Promise<any>,
+        5000, 'getAppLock',
+      );
       if (error) throw error;
       if (!data) return mockDb.appLocks.find(x => x.email === e) || null;
       return {
@@ -498,11 +514,14 @@ export async function createApp(): Promise<express.Express> {
       return;
     }
     try {
-      const { data, error } = await supabase
-        .from("app_lock_credentials")
-        .upsert({ user_email: e, ...fields, updated_at: new Date().toISOString() }, { onConflict: "user_email" })
-        .select("user_email")
-        .maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase
+          .from("app_lock_credentials")
+          .upsert({ user_email: e, ...fields, updated_at: new Date().toISOString() }, { onConflict: "user_email" })
+          .select("user_email")
+          .maybeSingle() as Promise<any>,
+        5000, 'upsertAppLock',
+      );
       if (error) throw error;
     } catch (err: any) {
       console.warn("[AppLock] upsertAppLock fallback:", err?.message || err);
@@ -581,7 +600,10 @@ export async function createApp(): Promise<express.Express> {
       return mockDb.webauthnCreds.filter(c => c.email === e);
     }
     try {
-      const { data, error } = await supabase.from("webauthn_credentials").select("*").eq("user_email", e).order("created_at", { ascending: true });
+      const { data, error } = await withTimeout(
+        supabase.from("webauthn_credentials").select("*").eq("user_email", e).order("created_at", { ascending: true }) as Promise<any>,
+        5000, 'listWebAuthnCredentials',
+      );
       if (error) throw error;
       const fromDb = (data || []).map((r: any) => ({
         email: r.user_email,
@@ -658,14 +680,17 @@ export async function createApp(): Promise<express.Express> {
       return { id, expiresAt };
     }
     try {
-      const { error } = await supabase.from("trusted_devices").insert({
-        id,
-        user_email: e,
-        device_token_hash: tokenHash,
-        expires_at: expiresAt,
-        last_used_at: Date.now(),
-        user_agent: (userAgent || "").slice(0, 300)
-      });
+      const { error } = await withTimeout(
+        supabase.from("trusted_devices").insert({
+          id,
+          user_email: e,
+          device_token_hash: tokenHash,
+          expires_at: expiresAt,
+          last_used_at: Date.now(),
+          user_agent: (userAgent || "").slice(0, 300)
+        }) as Promise<any>,
+        5000, 'insertTrustedDevice',
+      );
       if (error) throw error;
     } catch (err: any) {
       console.warn("[AppLock] createTrustedDevice fallback:", err?.message || err);
@@ -687,7 +712,10 @@ export async function createApp(): Promise<express.Express> {
       return { email: rec.email, expiresAt: rec.expiresAt };
     }
     try {
-      const { data, error } = await supabase.from("trusted_devices").select("*").eq("device_token_hash", tokenHash).maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase.from("trusted_devices").select("*").eq("device_token_hash", tokenHash).maybeSingle() as Promise<any>,
+        5000, 'findTrustedDevice',
+      );
       if (error) throw error;
       if (!data) {
         // Dev parity: if the table isn't provisioned upstream yet, honour the
@@ -704,12 +732,12 @@ export async function createApp(): Promise<express.Express> {
         return null;
       }
       if (data.expires_at && Date.now() > Number(data.expires_at)) {
-        await supabase.from("trusted_devices").delete().eq("id", data.id);
+        await withTimeout(supabase.from("trusted_devices").delete().eq("id", data.id) as Promise<any>, 5000, 'deleteExpiredDevice');
         return null;
       }
       // sliding inactivity window refresh (30 days from last use)
       const newExpiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
-      await supabase.from("trusted_devices").update({ last_used_at: Date.now(), expires_at: newExpiry }).eq("id", data.id);
+      await withTimeout(supabase.from("trusted_devices").update({ last_used_at: Date.now(), expires_at: newExpiry }).eq("id", data.id) as Promise<any>, 5000, 'refreshDeviceExpiry');
       return { email: data.user_email, expiresAt: newExpiry };
     } catch (err: any) {
       console.warn("[AppLock] findTrustedDeviceByToken fallback:", err?.message || err);
@@ -736,7 +764,10 @@ export async function createApp(): Promise<express.Express> {
       }));
     }
     try {
-      const { data, error } = await supabase.from("trusted_devices").select("*").eq("user_email", e).order("created_at", { ascending: false });
+      const { data, error } = await withTimeout(
+        supabase.from("trusted_devices").select("*").eq("user_email", e).order("created_at", { ascending: false }) as Promise<any>,
+        5000, 'listTrustedDevices',
+      );
       if (error) throw error;
       const fromDb = (data || []).map((r: any) => ({
         id: r.id,
