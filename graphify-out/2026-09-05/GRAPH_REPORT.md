@@ -1,16 +1,16 @@
 # Graph Report - EM-Budget  (2026-09-05)
 
 ## Corpus Check
-- 116 files · ~402,932 words
+- 116 files · ~403,111 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2559 nodes · 5434 edges · 153 communities (110 shown, 43 thin omitted)
+- 2559 nodes · 5434 edges · 152 communities (110 shown, 42 thin omitted)
 - Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 247 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `35e69fe9`
+- Built from commit: `75e46a53`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -83,7 +83,7 @@
 - encode
 - enabled
 - "node_modules/proxy-addr/index.js"
-- encode10
+- decode9
 - "node_modules/http-errors/index.js"
 - normalize5
 - "node_modules/@peculiar/utils/build/cjs/encoding/hex.js"
@@ -135,7 +135,6 @@
 - "node_modules/nodemailer/lib/well-known/index.js"
 - "node_modules/@peculiar/utils/build/cjs/bytes/concat.js"
 - decode5
-- "node_modules/iconv-lite/encodings/sbcs-codec.js"
 - "node_modules/nodemailer/lib/ses-transport/index.js"
 - "node_modules/path-to-regexp/index.js"
 - "node_modules/@peculiar/utils/build/cjs/bytes/equal.js"
@@ -188,7 +187,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (153 total, 43 thin omitted)
+## Communities (152 total, 42 thin omitted)
 
 ### Community 0 - "types.ts"
 Cohesion: 0.10
@@ -375,8 +374,8 @@ Cohesion: 0.11
 Nodes (15): "node_modules/body-parser/node_modules/debug/src/debug.js"(), disable(), enable(), enabled(), "node_modules/express/node_modules/debug/src/debug.js"(), disable(), enable(), enabled() (+7 more)
 
 ### Community 57 - "toString"
-Cohesion: 0.12
-Nodes (21): applyTransformOptsToQuery(), buildUrl(), decodeIP(), download(), encode9(), getPublicUrl(), getTcgAtTpmValues(), listBucketOptionsToQueryString() (+13 more)
+Cohesion: 0.10
+Nodes (22): applyTransformOptsToQuery(), buildUrl(), decodeIP(), download(), encode9(), getPublicUrl(), getTcgAtTpmValues(), listBucketOptionsToQueryString() (+14 more)
 
 ### Community 58 - "get"
 Cohesion: 0.07
@@ -388,7 +387,7 @@ Nodes (15): clearSessionCookie(), setSessionCookie(), write(), setHeaders(), "no
 
 ### Community 60 - ""node_modules/@peculiar/utils/build/cjs/pem/pem.js""
 Cohesion: 0.28
-Nodes (13): decode9(), "node_modules/@peculiar/utils/build/cjs/pem/pem.js"(), assertLabel2(), collectBlocks2(), decode9(), decodeFirst3(), detectNewline2(), encode10() (+5 more)
+Nodes (13): encode10(), format4(), "node_modules/@peculiar/utils/build/cjs/pem/pem.js"(), assertLabel2(), collectBlocks2(), decode9(), detectNewline2(), encode10() (+5 more)
 
 ### Community 61 - ""node_modules/tslib/tslib.es6.mjs""
 Cohesion: 0.12
@@ -438,9 +437,9 @@ Nodes (16): createDebug(), debug(), "node_modules/express/lib/express.js"(), cre
 Cohesion: 0.18
 Nodes (14): "node_modules/express/lib/request.js"(), "node_modules/forwarded/index.js"(), forwarded(), getSocketAddr(), "node_modules/proxy-addr/index.js"(), alladdrs(), compile(), compileRangeSubnets() (+6 more)
 
-### Community 74 - "encode10"
+### Community 74 - "decode9"
 Cohesion: 0.13
-Nodes (8): "node_modules/nodemailer/lib/punycode/index.js"(), map(), encode10(), "node_modules/@peculiar/utils/build/cjs/encoding/binary.js"(), format4(), "node_modules/@peculiar/utils/build/cjs/encoding/utf16.js"(), encodeMany2(), format4()
+Nodes (8): "node_modules/nodemailer/lib/punycode/index.js"(), map(), decode9(), "node_modules/@peculiar/utils/build/cjs/encoding/binary.js"(), "node_modules/@peculiar/utils/build/cjs/encoding/utf16.js"(), decodeFirst3(), find2(), findAll2()
 
 ### Community 75 - ""node_modules/http-errors/index.js""
 Cohesion: 0.22
@@ -601,14 +600,14 @@ Nodes (4): decode5(), is3(), nodeBuffer(), normalize2()
 ## Knowledge Gaps
 - **186 isolated node(s):** `RFC-2231`, `RFC-2047`, `RFC-822`, `RFC-1341`, `RFC-2822` (+181 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **43 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **42 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `"node_modules/reflect-metadata/Reflect.js"()` connect `"node_modules/reflect-metadata/Reflect.js"` to `CreateWeakMapPolyfill`, `index.js`?**
   _High betweenness centrality (0.051) - this node is a cross-community bridge._
-- **Why does `toString()` connect `toString` to `match`, `index.js`, `"node_modules/iconv-lite/encodings/sbcs-codec.js"`, `createApp`, `"node_modules/@peculiar/utils/build/cjs/bytes/buffer-source.js"`, `__importStar`, `fromASN`, `handleOperation`, `"node_modules/depd/index.js"`, `constructor`, `"node_modules/content-disposition/index.js"`, `"node_modules/object-inspect/index.js"`, `"node_modules/@supabase/auth-js/dist/main/lib/helpers.js"`, `get`, `setHeader`, `hash`, `"node_modules/asn1js/build/index.js"`, `"node_modules/dotenv/lib/main.js"`, `"node_modules/pvutils/build/utils.js"`, `then`, `encode`, `normalize5`, `"node_modules/@peculiar/utils/build/cjs/encoding/hex.js"`, `"node_modules/@supabase/auth-js/dist/main/lib/base64url.js"`, `fromString`, `"node_modules/iconv-lite/encodings/utf16.js"`, `"node_modules/iconv-lite/encodings/internal.js"`, `CreateWeakMapPolyfill`, `callback`, `"node_modules/express/lib/application.js"`, `destroy`?**
+- **Why does `toString()` connect `toString` to `match`, `index.js`, `createApp`, `"node_modules/@peculiar/utils/build/cjs/bytes/buffer-source.js"`, `__importStar`, `fromASN`, `handleOperation`, `"node_modules/depd/index.js"`, `constructor`, `"node_modules/content-disposition/index.js"`, `"node_modules/object-inspect/index.js"`, `"node_modules/@supabase/auth-js/dist/main/lib/helpers.js"`, `get`, `setHeader`, `hash`, `"node_modules/asn1js/build/index.js"`, `"node_modules/dotenv/lib/main.js"`, `"node_modules/pvutils/build/utils.js"`, `then`, `encode`, `normalize5`, `"node_modules/@peculiar/utils/build/cjs/encoding/hex.js"`, `"node_modules/@supabase/auth-js/dist/main/lib/base64url.js"`, `fromString`, `"node_modules/iconv-lite/encodings/utf16.js"`, `"node_modules/iconv-lite/encodings/internal.js"`, `CreateWeakMapPolyfill`, `callback`, `"node_modules/express/lib/application.js"`, `destroy`?**
   _High betweenness centrality (0.027) - this node is a cross-community bridge._
 - **Why does `createApp()` connect `createApp` to `test`, `append`, `index.js`, `"node_modules/express/lib/response.js"`, `debug`, `"node_modules/object-inspect/index.js"`, `toString`, `get`, `setHeader`, `hash`?**
   _High betweenness centrality (0.022) - this node is a cross-community bridge._
