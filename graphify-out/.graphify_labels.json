@@ -54,7 +54,7 @@
   "52": "\"node_modules/object-inspect/index.js\"",
   "53": "\"node_modules/@supabase/auth-js/dist/main/lib/helpers.js\"",
   "54": "parse",
-  "55": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+  "55": "\"node_modules/express/node_modules/debug/src/browser.js\"",
   "56": "enable",
   "57": "toString",
   "58": "get",
@@ -101,7 +101,7 @@
   "99": "\"node_modules/nodemailer/lib/dkim/sign.js\"",
   "100": "\"node_modules/body-parser/lib/types/json.js\"",
   "101": "__exportStar",
-  "102": "\"node_modules/express/node_modules/debug/src/browser.js\"",
+  "102": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
   "103": "\"node_modules/iconv-lite/encodings/internal.js\"",
   "104": "\"node_modules/@peculiar/utils/build/cjs/converters/registry.js\"",
   "105": "compareSync",
@@ -164,6 +164,5 @@
   "164": "typescript-eslint",
   "165": "@vitejs/plugin-react",
   "166": "vitest",
-  "167": "screenshot_ui.py",
   "168": "tesseract.js"
 }

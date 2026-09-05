@@ -1,16 +1,16 @@
 # Graph Report - EM-Budget  (2026-09-05)
 
 ## Corpus Check
-- 117 files · ~403,790 words
+- 116 files · ~403,600 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2561 nodes · 5440 edges · 167 communities (118 shown, 49 thin omitted)
+- 2560 nodes · 5440 edges · 166 communities (117 shown, 49 thin omitted)
 - Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 247 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c72e9707`
+- Built from commit: `48826114`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -64,7 +64,7 @@
 - "node_modules/object-inspect/index.js"
 - "node_modules/@supabase/auth-js/dist/main/lib/helpers.js"
 - parse
-- "node_modules/body-parser/node_modules/debug/src/browser.js"
+- "node_modules/express/node_modules/debug/src/browser.js"
 - enable
 - toString
 - get
@@ -111,7 +111,7 @@
 - "node_modules/nodemailer/lib/dkim/sign.js"
 - "node_modules/body-parser/lib/types/json.js"
 - __exportStar
-- "node_modules/express/node_modules/debug/src/browser.js"
+- "node_modules/body-parser/node_modules/debug/src/browser.js"
 - "node_modules/iconv-lite/encodings/internal.js"
 - "node_modules/@peculiar/utils/build/cjs/converters/registry.js"
 - compareSync
@@ -202,11 +202,11 @@
 ## Import Cycles
 - None detected.
 
-## Communities (167 total, 49 thin omitted)
+## Communities (166 total, 49 thin omitted)
 
 ### Community 0 - "types.ts"
-Cohesion: 0.10
-Nodes (37): DebtTracker, AuditPanel(), AuditPanelProps, CashCardListProps, CashCardManagementProps, DatePicker(), DatePickerProps, MONTH_NAMES (+29 more)
+Cohesion: 0.09
+Nodes (41): DebtTracker, LoansTracker, AuditPanel(), AuditPanelProps, CashCardListProps, CashCardManagementProps, DatePicker(), DatePickerProps (+33 more)
 
 ### Community 1 - "devDependencies"
 Cohesion: 0.07
@@ -217,12 +217,12 @@ Cohesion: 0.06
 Nodes (31): bcryptjs, dotenv, express, @google/genai, lucide-react, motion, nodemailer, dependencies (+23 more)
 
 ### Community 3 - "App.tsx"
-Cohesion: 0.07
-Nodes (41): App(), InflowsOutflows, mergeSubscriptionsList(), ReportsCentre, SubscriptionManagement, TransferFunds, BottomNavigation(), BottomNavigationProps (+33 more)
+Cohesion: 0.08
+Nodes (40): App(), InflowsOutflows, mergeSubscriptionsList(), ReportsCentre, SubscriptionManagement, TransferFunds, BottomNavigation(), BottomNavigationProps (+32 more)
 
 ### Community 4 - "supabase.ts"
-Cohesion: 0.08
-Nodes (39): AuthStep, EmailLogin(), EmailLoginProps, ReceiptScanner(), ReceiptScannerProps, apiFetch(), apiUrl(), fetchWithTimeout() (+31 more)
+Cohesion: 0.09
+Nodes (36): AuthStep, EmailLogin(), EmailLoginProps, apiFetch(), apiUrl(), fetchWithTimeout(), RetryOptions, retryWithBackoff() (+28 more)
 
 ### Community 5 - "ThemeContext.tsx"
 Cohesion: 0.15
@@ -269,8 +269,8 @@ Cohesion: 0.02
 Nodes (99): __decorate(), "node_modules/@peculiar/asn1-cms/build/cjs/attribute.js"(), "node_modules/@peculiar/asn1-cms/build/cjs/attributes/counter_signature.js"(), "node_modules/@peculiar/asn1-cms/build/cjs/attributes/signing_time.js"(), "node_modules/@peculiar/asn1-cms/build/cjs/certificate_choices.js"(), "node_modules/@peculiar/asn1-cms/build/cjs/content_info.js"(), "node_modules/@peculiar/asn1-cms/build/cjs/encapsulated_content_info.js"(), "node_modules/@peculiar/asn1-cms/build/cjs/encrypted_content_info.js"() (+91 more)
 
 ### Community 16 - "useNotifications"
-Cohesion: 0.10
-Nodes (27): CashCardManagement, LoansTracker, CashCardManagement(), InteractiveBankCard(), InteractiveBankCardProps, themeAccent(), calculateInterest(), CreditCardManagement() (+19 more)
+Cohesion: 0.09
+Nodes (27): CashCardManagement, CashCardManagement(), InteractiveBankCard(), InteractiveBankCardProps, themeAccent(), calculateInterest(), CreditCardManagement(), daysUntil() (+19 more)
 
 ### Community 17 - "EmptyState.tsx"
 Cohesion: 0.40
@@ -380,13 +380,13 @@ Nodes (14): __esDecorate(), accept(), "node_modules/@supabase/auth-js/dist/main/
 Cohesion: 0.10
 Nodes (24): format(), format3(), "node_modules/body-parser/lib/types/raw.js"(), typeChecker(), "node_modules/body-parser/lib/types/text.js"(), getCharset(), typeChecker(), "node_modules/express/lib/request.js"() (+16 more)
 
-### Community 55 - ""node_modules/body-parser/node_modules/debug/src/browser.js""
+### Community 55 - ""node_modules/express/node_modules/debug/src/browser.js""
 Cohesion: 0.10
-Nodes (7): "node_modules/body-parser/node_modules/debug/src/browser.js"(), useColors(), "node_modules/finalhandler/node_modules/debug/src/browser.js"(), useColors(), "node_modules/send/node_modules/debug/src/browser.js"(), localstorage(), useColors()
+Nodes (7): "node_modules/express/node_modules/debug/src/browser.js"(), useColors(), "node_modules/finalhandler/node_modules/debug/src/browser.js"(), useColors(), "node_modules/send/node_modules/debug/src/browser.js"(), localstorage(), useColors()
 
 ### Community 56 - "enable"
 Cohesion: 0.11
-Nodes (16): "node_modules/body-parser/node_modules/debug/src/debug.js"(), disable(), enable(), enabled(), "node_modules/express/node_modules/debug/src/debug.js"(), disable(), enable(), enabled() (+8 more)
+Nodes (15): "node_modules/body-parser/node_modules/debug/src/debug.js"(), disable(), enable(), enabled(), "node_modules/express/node_modules/debug/src/debug.js"(), disable(), enable(), enabled() (+7 more)
 
 ### Community 57 - "toString"
 Cohesion: 0.13
@@ -449,8 +449,8 @@ Cohesion: 0.15
 Nodes (15): copy(), decode(), decode8(), encode(), encode4(), encode7(), encodeCBOR(), fromUTF8String2() (+7 more)
 
 ### Community 72 - ""node_modules/express/lib/application.js""
-Cohesion: 0.15
-Nodes (21): createDebug(), debug(), "node_modules/express/lib/application.js"(), logerror(), tryRender(), "node_modules/express/lib/express.js"(), createApplication(), "node_modules/express/lib/middleware/init.js"() (+13 more)
+Cohesion: 0.16
+Nodes (22): createDebug(), debug(), "node_modules/express/lib/application.js"(), logerror(), tryRender(), "node_modules/express/lib/express.js"(), createApplication(), "node_modules/express/lib/middleware/init.js"() (+14 more)
 
 ### Community 73 - ""node_modules/proxy-addr/index.js""
 Cohesion: 0.22
@@ -663,6 +663,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **What connects `RFC-2231`, `RFC-2047`, `RFC-822` to the rest of the system?**
   _186 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `types.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.09943502824858758 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.09182692307692308 - nodes in this community are weakly interconnected._
 - **Should `devDependencies` be split into smaller, more focused modules?**
   _Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected._
