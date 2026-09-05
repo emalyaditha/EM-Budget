@@ -3,7 +3,7 @@ import { apiUrl, safeJson, fetchWithTimeout } from "./lib/api";
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
-import { exportStateAsJSON, generateUniqueId, todayLocal } from './utils';
+import { exportStateAsJSON, generateUniqueId, todayLocal, saveStateToStorage, loadStateFromStorage } from './utils';
 import { addMoney, subtractMoney, compareMoney } from './lib/money';
 import { calculateInstallmentFee, calculateMonthlyPayment, generateInstallmentSchedule } from './lib/installments';
 import { authSession } from './services/authSession';
@@ -334,6 +334,14 @@ export default function App() {
 
             if (result.success && result.state) {
               setState(migrateStateCards(result.state));
+            } else {
+              // Supabase unavailable or returned no state — fall back to the
+              // local mirror so recent offline edits are not dropped. It will
+              // be pushed up by the next successful background sync.
+              const localState = loadStateFromStorage(DEFAULT_APP_STATE);
+              if (localState.transactions.length > 0 || (localState.cashAccounts || []).length > 0) {
+                setState(migrateStateCards(localState));
+              }
             }
             if (backendSubs && backendSubs.length > 0) {
               setState(prev => ({ ...prev, subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs) }));
@@ -488,6 +496,32 @@ export default function App() {
 
     return () => clearTimeout(syncTimeout);
   }, [state, isSettingsOpen, isUnlocked, userEmail, isOnline, isSupabaseReachable]);
+
+  // Local-first durability: keep a debounced localStorage mirror of state so
+  // recent changes survive a tab close/crash even when Supabase is unreachable.
+  // On reload, Supabase is preferred (idempotent upsert by user_email); this
+  // mirror is the safety net that lets the next sync upload any offline edits.
+  useEffect(() => {
+    if (!isUnlocked) return;
+    const t = window.setTimeout(() => saveStateToStorage(state), 1500);
+    return () => window.clearTimeout(t);
+  }, [state, isUnlocked]);
+
+  // Best-effort flush on leave: persist locally AND fire one final Supabase
+  // sync so a quick close doesn't drop the latest edit. Supabase upsert is
+  // idempotent, so re-running it cannot create duplicate rows.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!isUnlocked) return;
+      saveStateToStorage(state);
+      if (userEmail && isOnline && isSupabaseReachable) {
+        void syncStateToSupabase(userEmail, state).catch(() => {});
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [state, isUnlocked, userEmail, isOnline, isSupabaseReachable]);
 
   // Budgets & Savings goals action logic
   const handleUpdateBudgetLimit = (id: string, limit: number) => {
@@ -898,11 +932,11 @@ export default function App() {
       if (debtData.accountId && debtData.accountType) {
         if (debtData.accountType === 'cash') {
           updatedCash = updatedCash.map(c =>
-            c.id === debtData.accountId ? { ...c, balance: c.balance + debtData.totalAmount } : c
+            c.id === debtData.accountId ? { ...c, balance: addMoney(c.balance, debtData.totalAmount) } : c
           );
         } else {
           updatedCards = updatedCards.map(c =>
-            c.id === debtData.accountId ? { ...c, currentBalance: c.currentBalance + debtData.totalAmount } : c
+            c.id === debtData.accountId ? { ...c, currentBalance: addMoney(c.currentBalance, debtData.totalAmount) } : c
           );
         }
 
@@ -955,11 +989,11 @@ export default function App() {
       if (debtToDelete.accountId && debtToDelete.accountType) {
         if (debtToDelete.accountType === 'cash') {
           updatedCash = updatedCash.map(c =>
-            c.id === debtToDelete.accountId ? { ...c, balance: c.balance - debtToDelete.totalAmount } : c
+            c.id === debtToDelete.accountId ? { ...c, balance: subtractMoney(c.balance, debtToDelete.totalAmount) } : c
           );
         } else {
           updatedCards = updatedCards.map(c =>
-            c.id === debtToDelete.accountId ? { ...c, currentBalance: c.currentBalance - debtToDelete.totalAmount } : c
+            c.id === debtToDelete.accountId ? { ...c, currentBalance: subtractMoney(c.currentBalance, debtToDelete.totalAmount) } : c
           );
         }
       }
@@ -969,11 +1003,11 @@ export default function App() {
         debtToDelete.payments.forEach(p => {
           if (p.paidFromType === 'cash') {
             updatedCash = updatedCash.map(c =>
-              c.id === p.paidFromId ? { ...c, balance: c.balance + p.amount } : c
+              c.id === p.paidFromId ? { ...c, balance: addMoney(c.balance, p.amount) } : c
             );
           } else {
             updatedCards = updatedCards.map(c =>
-              c.id === p.paidFromId ? { ...c, currentBalance: c.currentBalance + p.amount } : c
+              c.id === p.paidFromId ? { ...c, currentBalance: addMoney(c.currentBalance, p.amount) } : c
             );
           }
         });
@@ -1030,11 +1064,11 @@ export default function App() {
 
       if (loanData.sourceAccountType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === loanData.sourceAccountId ? { ...c, balance: c.balance - totalDeduction } : c
+          c.id === loanData.sourceAccountId ? { ...c, balance: subtractMoney(c.balance, totalDeduction) } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === loanData.sourceAccountId ? { ...c, currentBalance: c.currentBalance - totalDeduction } : c
+          c.id === loanData.sourceAccountId ? { ...c, currentBalance: subtractMoney(c.currentBalance, totalDeduction) } : c
         );
       }
 
@@ -1153,11 +1187,11 @@ export default function App() {
 
       if (receivedInType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === receivedInId ? { ...c, balance: c.balance + netCredited } : c
+          c.id === receivedInId ? { ...c, balance: addMoney(c.balance, netCredited) } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === receivedInId ? { ...c, currentBalance: c.currentBalance + netCredited } : c
+          c.id === receivedInId ? { ...c, currentBalance: addMoney(c.currentBalance, netCredited) } : c
         );
       }
 
@@ -1297,11 +1331,11 @@ export default function App() {
 
       if (loanToDelete.sourceAccountType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === loanToDelete.sourceAccountId ? { ...c, balance: c.balance + totalRefund } : c
+          c.id === loanToDelete.sourceAccountId ? { ...c, balance: addMoney(c.balance, totalRefund) } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === loanToDelete.sourceAccountId ? { ...c, currentBalance: c.currentBalance + totalRefund } : c
+          c.id === loanToDelete.sourceAccountId ? { ...c, currentBalance: addMoney(c.currentBalance, totalRefund) } : c
         );
       }
 
@@ -1311,11 +1345,11 @@ export default function App() {
           const netCredited = settlement.amount; // The settlement amount credited to the account
           if (settlement.receivedInType === 'cash') {
             updatedCash = updatedCash.map(c =>
-              c.id === settlement.receivedInId ? { ...c, balance: c.balance - netCredited } : c
+              c.id === settlement.receivedInId ? { ...c, balance: subtractMoney(c.balance, netCredited) } : c
             );
           } else {
             updatedCards = updatedCards.map(c =>
-              c.id === settlement.receivedInId ? { ...c, currentBalance: c.currentBalance - netCredited } : c
+              c.id === settlement.receivedInId ? { ...c, currentBalance: subtractMoney(c.currentBalance, netCredited) } : c
             );
           }
         }
@@ -1375,11 +1409,11 @@ export default function App() {
 
       if (sourceAccountType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === sourceAccountId ? { ...c, balance: c.balance - totalDeduction } : c
+          c.id === sourceAccountId ? { ...c, balance: subtractMoney(c.balance, totalDeduction) } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === sourceAccountId ? { ...c, currentBalance: c.currentBalance - totalDeduction } : c
+          c.id === sourceAccountId ? { ...c, currentBalance: subtractMoney(c.currentBalance, totalDeduction) } : c
         );
       }
 
@@ -1389,8 +1423,8 @@ export default function App() {
           const freshNotes = loan.notes 
             ? `${loan.notes} | Added Lent Amount: ${notes}` 
             : `Added Lent Amount: ${notes}`;
-          const newTotal = loan.totalAmount + amount;
-          const newRemaining = loan.remainingAmount + amount;
+          const newTotal = addMoney(loan.totalAmount, amount);
+          const newRemaining = addMoney(loan.remainingAmount, amount);
           const newStatus = newRemaining <= 0 ? 'Settled' : 'Partially Settled';
           return {
             ...loan,
@@ -1531,7 +1565,7 @@ export default function App() {
           const nextCharges = c.charges ? [...c.charges, charge] : [charge];
           return {
             ...c,
-            currentBalance: c.currentBalance - charge.amount,
+            currentBalance: subtractMoney(c.currentBalance, charge.amount),
             charges: nextCharges
           };
         }
@@ -1559,7 +1593,7 @@ export default function App() {
         if (c.id === cardId) {
           return {
             ...c,
-            currentBalance: c.currentBalance + chargeToDelete.amount,
+            currentBalance: addMoney(c.currentBalance, chargeToDelete.amount),
             charges: (c.charges || []).filter(ch => ch.id !== chargeId)
           };
         }
@@ -1810,7 +1844,7 @@ export default function App() {
 
   const handleAddCreditCardPurchase = (purchase: Omit<CreditCardPurchase, 'id'>) => {
     updateState(prev => {
-        const updatedCards = prev.cards.map(c => c.id === purchase.cardId ? { ...c, currentBalance: c.currentBalance - purchase.amount } : c);
+        const updatedCards = prev.cards.map(c => c.id === purchase.cardId ? { ...c, currentBalance: subtractMoney(c.currentBalance, purchase.amount) } : c);
         
         const nowIso = new Date().toISOString();
         const newTransaction: Transaction = {
@@ -1968,7 +2002,7 @@ export default function App() {
 
       const updatedCards = prev.cards.map(c =>
         c.id === installment.cardId
-          ? { ...c, currentBalance: c.currentBalance + amount }
+          ? { ...c, currentBalance: addMoney(c.currentBalance, amount) }
           : c
       );
 
@@ -2087,11 +2121,11 @@ export default function App() {
 
       if (paidFromType === 'cash') {
         updatedCash = updatedCash.map(c => 
-          c.id === paidFromId ? { ...c, balance: c.balance - totalDeduction } : c
+          c.id === paidFromId ? { ...c, balance: subtractMoney(c.balance, totalDeduction) } : c
         );
       } else {
         updatedCards = updatedCards.map(c => 
-          c.id === paidFromId ? { ...c, currentBalance: c.currentBalance - totalDeduction } : c
+          c.id === paidFromId ? { ...c, currentBalance: subtractMoney(c.currentBalance, totalDeduction) } : c
         );
       }
 
@@ -2333,11 +2367,11 @@ export default function App() {
       const reverseAmount = (amount: number, accountId: string, accountType: string, isIncome: boolean) => {
         if (accountType === 'cash') {
           updatedCash = updatedCash.map(c => 
-            c.id === accountId ? { ...c, balance: c.balance + (isIncome ? -amount : amount) } : c
+            c.id === accountId ? { ...c, balance: isIncome ? subtractMoney(c.balance, amount) : addMoney(c.balance, amount) } : c
           );
         } else if (accountType === 'card') {
           updatedCards = updatedCards.map(c => 
-            c.id === accountId ? { ...c, currentBalance: c.currentBalance + (isIncome ? -amount : amount) } : c
+            c.id === accountId ? { ...c, currentBalance: isIncome ? subtractMoney(c.currentBalance, amount) : addMoney(c.currentBalance, amount) } : c
           );
         }
       };
@@ -2348,7 +2382,7 @@ export default function App() {
       } else if (tx.type === 'expense') {
         if (tx.title.startsWith('Credit Card Purchase:')) {
           // Liability purchase: previously subtracted from balance, need to add back
-          updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: c.currentBalance + tx.amount } : c);
+          updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: addMoney(c.currentBalance, tx.amount) } : c);
           updatedCreditCardPurchases = updatedCreditCardPurchases.filter(p => p.id !== tx.referenceId);
         } else {
           updatedExpenses = updatedExpenses.filter(e => e.id !== tx.referenceId);
@@ -2357,7 +2391,7 @@ export default function App() {
       } else if (tx.type === 'credit_card_charge') {
         updatedCards = updatedCards.map(c => c.id === tx.accountId ? {
           ...c,
-          currentBalance: c.currentBalance + tx.amount,
+          currentBalance: addMoney(c.currentBalance, tx.amount),
           charges: (c.charges || []).filter(ch => ch.id !== tx.referenceId)
         } : c);
       } else if (tx.type === 'debt_payment') {
@@ -2370,14 +2404,14 @@ export default function App() {
           const cardNamePart = tx.title.replace('Credit Card Settlement:', '').trim();
           const targetCc = prev.cards.find(c => c.cardName === cardNamePart && c.cardType === 'Credit');
           if (targetCc) {
-            updatedCards = updatedCards.map(c => c.id === targetCc.id ? { ...c, currentBalance: c.currentBalance - tx.amount } : c);
+            updatedCards = updatedCards.map(c => c.id === targetCc.id ? { ...c, currentBalance: subtractMoney(c.currentBalance, tx.amount) } : c);
           }
         } else {
           if (tx.accountId && tx.accountType) reverseAmount(tx.amount, tx.accountId, tx.accountType, false);
           updatedDebts = updatedDebts.map(d => {
             const removedPayment = d.payments?.find(p => p.id === tx.referenceId);
             if (removedPayment) {
-              const nextRemaining = d.remainingAmount + Math.abs(removedPayment.amount);
+              const nextRemaining = addMoney(d.remainingAmount, Math.abs(removedPayment.amount));
               return {
                 ...d,
                 remainingAmount: nextRemaining,
@@ -2552,11 +2586,11 @@ export default function App() {
       const changeBalance = (amountAdded: number, accountId: string, accountType: string) => {
         if (accountType === 'cash') {
           updatedCash = updatedCash.map(c => 
-            c.id === accountId ? { ...c, balance: c.balance + amountAdded } : c
+            c.id === accountId ? { ...c, balance: addMoney(c.balance, amountAdded) } : c
           );
         } else if (accountType === 'card') {
           updatedCards = updatedCards.map(c => 
-            c.id === accountId ? { ...c, currentBalance: c.currentBalance + amountAdded } : c
+            c.id === accountId ? { ...c, currentBalance: addMoney(c.currentBalance, amountAdded) } : c
           );
         }
       };
@@ -2593,8 +2627,8 @@ export default function App() {
         updatedDebts = updatedDebts.map(d => {
           const removedPayment = d.payments?.find(p => p.id === tx.referenceId);
           if (removedPayment) {
-            const difference = newData.amount - tx.amount;
-            const nextRemaining = Math.max(0, d.remainingAmount - difference);
+            const difference = subtractMoney(newData.amount, tx.amount);
+            const nextRemaining = Math.max(0, subtractMoney(d.remainingAmount, difference));
             return {
               ...d,
               remainingAmount: nextRemaining,

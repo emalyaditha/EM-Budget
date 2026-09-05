@@ -405,7 +405,7 @@ export default function CashCardManagement({
             return (
               <>
                 {active.length===0 ? <div className="empty"><p className="text-sm font-medium">No active cards</p><p className="text-xs mt-1 text-[var(--ink-3)]">Add a debit or credit card.</p></div> : active.map((card,idx)=>{
-                  const isCredit=card.cardType==='Credit'; const hasNeg=card.currentBalance<0; const out=hasNeg?Math.abs(card.currentBalance):0; const lim=card.limit??0; const avail=lim+card.currentBalance; const used=lim>0?Math.max(0,lim-avail):0; const pct=lim>0?Math.min(100,(used/lim)*100):0;
+                  const isCredit=card.cardType==='Credit'; const hasNeg=card.currentBalance<0; const out=hasNeg?Math.abs(card.currentBalance):0; const lim=card.limit??0; const lockedAmt=card.lockedAmount??0; const avail=lim+card.currentBalance; const used=lim>0?Math.max(0,lim-avail):0; const pct=lim>0?Math.min(100,(used/lim)*100):0;
                   const hasDetails=isCredit||(card.lockedAmount!==undefined && card.lockedAmount>0); const isExp=!!expandedCardIds[card.id];
                   return (
                     <div key={card.id} className="space-y-2">
@@ -414,17 +414,17 @@ export default function CashCardManagement({
                       {hasDetails && (
                         <div className={`overflow-hidden transition-all duration-300 ${isExp?'max-h-[520px] opacity-100':'max-h-0 opacity-0 pointer-events-none'}`}>
                           <div className="card-flat p-4 space-y-3">
-                            {!isCredit && card.lockedAmount! >0 ? (
+                            {!isCredit && lockedAmt>0 ? (
                               <>
                                 <div className="flex justify-between items-center">
                                   <span className="eyebrow normal-case">Spendable</span>
-                                  <span className="mono text-sm font-bold text-[var(--success)]">{currency}{(card.currentBalance-card.lockedAmount!).toLocaleString(undefined,{minimumFractionDigits:2})}</span>
+                                  <span className="mono text-sm font-bold text-[var(--success)]">{currency}{(card.currentBalance-lockedAmt).toLocaleString(undefined,{minimumFractionDigits:2})}</span>
                                 </div>
-                                <div className="w-full h-1.5 bg-[var(--surface-2)] border border-[var(--line)] rounded-full overflow-hidden"><div className="h-full bg-[var(--ink)]" style={{width:`${card.currentBalance>0?Math.max(0,Math.min(100,((card.currentBalance-card.lockedAmount!)/card.currentBalance*100))):0}%`}}/></div>
+                                <div className="w-full h-1.5 bg-[var(--surface-2)] border border-[var(--line)] rounded-full overflow-hidden"><div className="h-full bg-[var(--ink)]" style={{width:`${card.currentBalance>0?Math.max(0,Math.min(100,((card.currentBalance-lockedAmt)/card.currentBalance*100))):0}%`}}/></div>
                                 <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-[var(--line)]">
                                   <div><span className="eyebrow block">Total</span><span className="mono text-xs font-bold">{currency}{card.currentBalance.toLocaleString()}</span></div>
-                                  <div className="border-x border-[var(--line)]"><span className="eyebrow block">Locked</span><span className="mono text-xs font-bold text-amber-600">{currency}{card.lockedAmount!.toLocaleString()}</span></div>
-                                  <div><span className="eyebrow block">Spendable</span><span className="mono text-xs font-bold text-[var(--success)]">{currency}{Math.max(0,card.currentBalance-card.lockedAmount!).toLocaleString()}</span></div>
+                                  <div className="border-x border-[var(--line)]"><span className="eyebrow block">Locked</span><span className="mono text-xs font-bold text-amber-600">{currency}{lockedAmt.toLocaleString()}</span></div>
+                                  <div><span className="eyebrow block">Spendable</span><span className="mono text-xs font-bold text-[var(--success)]">{currency}{Math.max(0,card.currentBalance-lockedAmt).toLocaleString()}</span></div>
                                 </div>
                               </>
                             ): null}

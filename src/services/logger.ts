@@ -56,11 +56,13 @@ class TelemetryLogger {
       level === 'INFO' ? '\x1b[32m' : '\x1b[36m';
     const logReset = '\x1b[0m';
 
-    console.log(
-      `%c[${logObj.timestamp}] [${logObj.level}] [CID: ${logObj.correlationId}] [SRC: ${logObj.source}] - ${logObj.message}`,
-      `color: ${level === 'ERROR' ? '#f87171' : level === 'WARN' ? '#fbbf24' : '#60a5fa'}; font-weight: bold; font-family: monospace;`,
-      metadata ? metadata : ''
-    );
+    if (import.meta.env.DEV) {
+      console.log(
+        `%c[${logObj.timestamp}] [${logObj.level}] [CID: ${logObj.correlationId}] [SRC: ${logObj.source}] - ${logObj.message}`,
+        `color: ${level === 'ERROR' ? '#f87171' : level === 'WARN' ? '#fbbf24' : '#60a5fa'}; font-weight: bold; font-family: monospace;`,
+        metadata ? metadata : ''
+      );
+    }
 
     // Integrated Third-Party SaaS Telemetry Proxies
     if ((window as any).Sentry) {

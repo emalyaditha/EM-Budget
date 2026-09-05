@@ -4,6 +4,7 @@ import fs from "fs";
 import nodemailer from "nodemailer";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import compression from "compression";
 import { createClient } from "@supabase/supabase-js";
 import "dotenv/config";
 import {
@@ -28,6 +29,7 @@ export async function createApp(): Promise<express.Express> {
   const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
   app.set("trust proxy", 1);
+  app.use(compression());
   app.use(express.json({ limit: "20mb" }));
   app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
@@ -2462,7 +2464,8 @@ export async function createApp(): Promise<express.Express> {
       }
       const { data: subs, error: subErr } = await supabase.from("subscriptions").select("*").eq("user_email", email);
       if (subErr) {
-        return res.status(500).json({ success: false, error: subErr.message });
+        console.error("[Sync] fetch-subscriptions error:", subErr.message);
+        return res.status(500).json({ success: false, error: "Failed to fetch subscriptions. Please try again." });
       }
       const rows: any[] = Array.isArray(subs) ? subs : [];
       const subscriptions = rows.map((r: any) => ({
@@ -2495,7 +2498,7 @@ export async function createApp(): Promise<express.Express> {
       return res.json({ success: true, subscriptions });
     } catch (e: any) {
       console.error("[Sync] refresh-subscriptions error:", e.message || e);
-      return res.status(500).json({ success: false, error: e.message || "Failed to refresh subscriptions." });
+      return res.status(500).json({ success: false, error: "Failed to refresh subscriptions." });
     }
   });
 
@@ -2632,11 +2635,12 @@ Return a JSON object matching this schema:
       res.json({ success: true, data: parsedData });
     } catch (err: any) {
       console.error("[Gemini Image Analysis Error]", err?.message || err);
-      let errMsg = err?.message || (typeof err === "string" ? err : "Failed to analyze image using Gemini.");
-      if (typeof errMsg === "string" && (errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("prepayment credits") || errMsg.includes("429"))) {
-        errMsg = "Gemini API Quota / Prepayment Credits Depleted. Please top up your billing credits in Google AI Studio or update your GEMINI_API_KEY in Settings > Secrets.";
+      const rawMsg = err?.message || (typeof err === "string" ? err : "");
+      if (typeof rawMsg === "string" && (rawMsg.includes("RESOURCE_EXHAUSTED") || rawMsg.includes("prepayment credits") || rawMsg.includes("429"))) {
+        res.status(500).json({ success: false, error: "Gemini API Quota / Prepayment Credits Depleted. Please top up your billing credits in Google AI Studio or update your GEMINI_API_KEY in Settings > Secrets." });
+        return;
       }
-      res.status(500).json({ success: false, error: errMsg });
+      res.status(500).json({ success: false, error: "Failed to analyze image. Please try again later." });
     }
   });
 
@@ -2693,7 +2697,7 @@ Return a JSON object matching this schema:
       }
     } catch (err: any) {
       console.error("[Free Server OCR Error]", err?.message || err);
-      res.status(500).json({ success: false, error: err?.message || "Failed to scan image using Server OCR." });
+      res.status(500).json({ success: false, error: "Failed to scan image. Please try again or enter text manually." });
     }
   });
 
@@ -2760,6 +2764,17 @@ export async function startServer(): Promise<express.Express> {
   return app;
 }
 
+// Guard against silent process death: log and exit on uncaught exceptions,
+// log unhandled rejections so they are never invisible to ops.
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught exception:", err);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled rejection:", reason);
+});
+
 if (!process.env.VERCEL) {
   startServer();
 }
@@ -2772,7 +2787,7 @@ const vercelHandler = async (req: any, res: any) => {
   } catch (err: any) {
     console.error("[vercelHandler] Failed to start server:", err?.message || err);
     if (res.headersSent) return;
-    res.status(500).json({ success: false, error: `Server failed to initialize: ${err?.message || "unknown"}` });
+    res.status(500).json({ success: false, error: "Server is temporarily unavailable. Please try again." });
   }
 };
 

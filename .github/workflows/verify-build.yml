@@ -27,5 +27,8 @@ jobs:
     - name: Run Syntax & Typecheck Audit
       run: npm run lint
 
+    - name: Run Test Suite
+      run: npx vitest run
+
     - name: Run Build Target Compile
       run: npm run build
