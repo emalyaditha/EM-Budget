@@ -207,6 +207,31 @@ export interface SavingsGoal {
   targetDate: string;
 }
 
+export interface CreditCardInstallment {
+  id: string;
+  cardId: string;
+  purchaseId: string;
+  originalAmount: number;
+  tenureMonths: 6 | 12 | 24 | 48;
+  processingFee: number;
+  monthlyPayment: number;
+  startDate: string;
+  status: 'active' | 'completed' | 'cancelled';
+  nextPaymentDate: string;
+  paymentsMade: number;
+}
+
+export interface CreditCardInstallmentPayment {
+  id: string;
+  installmentId: string;
+  paymentNumber: number;
+  amountDue: number;
+  amountPaid: number;
+  dueDate: string;
+  paidDate?: string;
+  status: 'pending' | 'paid' | 'overdue';
+}
+
 export interface UserProfile {
   name: string;
   email: string;
@@ -219,15 +244,17 @@ export interface AppState {
   cards: BankCard[];
   creditCards: CreditCard[];
   creditCardPurchases: CreditCardPurchase[];
+  creditCardInstallments: CreditCardInstallment[];
+  creditCardInstallmentPayments: CreditCardInstallmentPayment[];
   incomes: Income[];
   expenses: Expense[];
   debts: Debt[];
   transactions: Transaction[];
   notifications: AppNotification[];
-  subscriptions: Subscription[]; // Added subscriptions list
+  subscriptions: Subscription[];
   loansGiven: LoanGiven[];
-  budgets?: Budget[]; // Added premium feature budgets list
-  savingsGoals?: SavingsGoal[]; // Added savings goals list
+  budgets?: Budget[];
+  savingsGoals?: SavingsGoal[];
   pinCode: string;
   pinEnabled: boolean;
   currency: string;

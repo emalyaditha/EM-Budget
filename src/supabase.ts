@@ -181,7 +181,9 @@ const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
   notifications: ['id', 'user_email', 'type', 'message', 'date', 'read', 'updated_at'],
   subscriptions: ['id', 'user_email', 'name', 'amount', 'billing_cycle', 'due_date', 'category', 'status', 'payment_method_id', 'payment_method_type', 'last_paid_date', 'updated_at'],
   loans_given: ['id', 'user_email', 'borrower_name', 'total_amount', 'remaining_amount', 'date_given', 'source_account_id', 'source_account_type', 'source_account_name', 'status', 'notes', 'settlements', 'updated_at'],
-  spending_envelopes: ['id', 'user_email', 'category', 'limit', 'spent', 'icon', 'sub_breakdown', 'updated_at']
+  spending_envelopes: ['id', 'user_email', 'category', 'limit', 'spent', 'icon', 'sub_breakdown', 'updated_at'],
+  credit_card_installments: ['id', 'user_email', 'card_id', 'purchase_id', 'original_amount', 'tenure_months', 'processing_fee', 'monthly_payment', 'start_date', 'status', 'next_payment_date', 'payments_made', 'updated_at'],
+  credit_card_installment_payments: ['id', 'installment_id', 'payment_number', 'amount_due', 'amount_paid', 'due_date', 'paid_date', 'status', 'updated_at'],
 };
 
 let detectedColumnsCache: { [tableName: string]: string[] } | null = null;
@@ -929,6 +931,68 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       }
     }
 
+    // K. Sync Credit Card Installments
+    const installmentsCols = await getColumnsForTable('credit_card_installments');
+    if (installmentsCols.length > 0) {
+      const recordsInstallments = (state.creditCardInstallments || []).map(inst => mapObjectToColumns(inst, installmentsCols, email, {
+        id: inst.id,
+        card_id: inst.cardId,
+        purchase_id: inst.purchaseId,
+        original_amount: inst.originalAmount,
+        tenure_months: inst.tenureMonths,
+        processing_fee: inst.processingFee,
+        monthly_payment: inst.monthlyPayment,
+        start_date: inst.startDate,
+        status: inst.status,
+        next_payment_date: inst.nextPaymentDate || null,
+        payments_made: inst.paymentsMade,
+      }));
+      if (recordsInstallments.length > 0) {
+        const { error: instErr } = await client.from('credit_card_installments').upsert(recordsInstallments, { onConflict: 'id' });
+        if (instErr) errorDetails.push(`Installments: ${instErr.message}`);
+      }
+      const activeInstIds = (state.creditCardInstallments || []).map(i => i.id);
+      const emailField = installmentsCols.includes('user_email') ? 'user_email' : 'userEmail';
+      if (activeInstIds.length > 0) {
+        const { data: existing } = await client.from('credit_card_installments').select('id').eq(emailField, email);
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeInstIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('credit_card_installments').delete().in('id', toDelete);
+        }
+      } else {
+        await client.from('credit_card_installments').delete().eq(emailField, email);
+      }
+    }
+
+    // L. Sync Credit Card Installment Payments
+    const instPaymentsCols = await getColumnsForTable('credit_card_installment_payments');
+    if (instPaymentsCols.length > 0) {
+      const recordsInstPayments = (state.creditCardInstallmentPayments || []).map(pay => mapObjectToColumns(pay, instPaymentsCols, email, {
+        id: pay.id,
+        installment_id: pay.installmentId,
+        payment_number: pay.paymentNumber,
+        amount_due: pay.amountDue,
+        amount_paid: pay.amountPaid,
+        due_date: pay.dueDate,
+        paid_date: pay.paidDate || null,
+        status: pay.status,
+      }));
+      if (recordsInstPayments.length > 0) {
+        const { error: payErr } = await client.from('credit_card_installment_payments').upsert(recordsInstPayments, { onConflict: 'id' });
+        if (payErr) errorDetails.push(`Installment Payments: ${payErr.message}`);
+      }
+      const activePayIds = (state.creditCardInstallmentPayments || []).map(p => p.id);
+      if (activePayIds.length > 0) {
+        const { data: existing } = await client.from('credit_card_installment_payments').select('id');
+        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activePayIds.includes(id));
+        if (toDelete.length > 0) {
+          await client.from('credit_card_installment_payments').delete().in('id', toDelete);
+        }
+      } else {
+        await client.from('credit_card_installment_payments').delete();
+      }
+    }
+
     if (errorDetails.length > 0) {
       console.warn('[SYNC AUXILIARY TABLE WARNINGS] Master state saved to ledger_states successfully, but some relational tables had sync warnings:', errorDetails.join('; '));
     }
@@ -1033,7 +1097,7 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       return data || [];
     };
 
-    const [cards, cash, transactions, debts, incomes, expenses, notifications, envelopes] = await Promise.all([
+    const [cards, cash, transactions, debts, incomes, expenses, notifications, envelopes, installments, instPayments] = await Promise.all([
       fetchTable('bank_cards'),
       fetchTable('cash_accounts'),
       fetchTable('transactions'),
@@ -1041,7 +1105,9 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
       fetchTable('incomes'),
       fetchTable('expenses'),
       fetchTable('notifications'),
-      fetchTable('spending_envelopes')
+      fetchTable('spending_envelopes'),
+      fetchTable('credit_card_installments'),
+      fetchTable('credit_card_installment_payments'),
     ]);
 
     // 2. Parallel fetch for remaining tables (subscriptions, profile, ledger state, loans)
@@ -1190,6 +1256,8 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
         : (fullJsonStateStr && Array.isArray(fullJsonStateStr.savingsGoals) && fullJsonStateStr.savingsGoals.length > 0 
             ? fullJsonStateStr.savingsGoals 
             : (hasUserDatabaseRecords ? [] : DEFAULT_APP_STATE.savingsGoals)),
+      creditCardInstallments: getListField(installments, fullJsonStateStr?.creditCardInstallments),
+      creditCardInstallmentPayments: getListField(instPayments, fullJsonStateStr?.creditCardInstallmentPayments),
       pinCode: fullJsonStateStr && typeof fullJsonStateStr.pinCode === 'string' ? fullJsonStateStr.pinCode : DEFAULT_APP_STATE.pinCode,
       pinEnabled: fullJsonStateStr && typeof fullJsonStateStr.pinEnabled === 'boolean' ? fullJsonStateStr.pinEnabled : DEFAULT_APP_STATE.pinEnabled,
       currency: fullJsonStateStr && typeof fullJsonStateStr.currency === 'string' ? fullJsonStateStr.currency : DEFAULT_APP_STATE.currency,

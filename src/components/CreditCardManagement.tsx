@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { CashAccount, BankCard, CreditCardPurchase, Transaction } from '../types';
-import { CreditCard as CcIcon, Plus, CheckSquare, Lock, Unlock, Calendar, AlertTriangle, Clock, Receipt, ArrowUpRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { CashAccount, BankCard, CreditCardPurchase, Transaction, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
+import { CreditCard as CcIcon, Plus, CheckSquare, Lock, Unlock, Calendar, AlertTriangle, Clock, Receipt, ArrowUpRight, ChevronDown, ChevronUp, Repeat } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
+import InstallmentPlanModal from './InstallmentPlanModal';
+import InstallmentSchedule from './InstallmentSchedule';
 
 interface Props {
   creditCards: BankCard[];
@@ -12,9 +14,13 @@ interface Props {
   currency: string;
   transactions: Transaction[];
   creditCardPurchases: CreditCardPurchase[];
+  creditCardInstallments: CreditCardInstallment[];
+  creditCardInstallmentPayments: CreditCardInstallmentPayment[];
   onPayCard: (cardId: string, amount: number, fromId: string, fromType: 'cash' | 'card') => void;
   onAddPurchase: (purchase: Omit<CreditCardPurchase, 'id'>) => void;
   onUpdateCard: (card: BankCard) => void;
+  onCreateInstallmentPlan: (cardId: string, purchaseId: string, tenureMonths: 6 | 12 | 24 | 48) => void;
+  onPayInstallmentPayment: (installmentId: string, paymentId: string, amount: number) => void;
 }
 
 function daysUntil(dateStr: string): number {
@@ -31,7 +37,7 @@ function calculateInterest(balance: number, apr: number, days: number): number {
   return Math.abs(balance) * dailyRate * days;
 }
 
-export default function CreditCardManagement({ creditCards, cashAccounts, cards, currency, transactions, creditCardPurchases, onPayCard, onAddPurchase, onUpdateCard }: Props) {
+export default function CreditCardManagement({ creditCards, cashAccounts, cards, currency, transactions, creditCardPurchases, creditCardInstallments, creditCardInstallmentPayments, onPayCard, onAddPurchase, onUpdateCard, onCreateInstallmentPlan, onPayInstallmentPayment }: Props) {
   const { showToast } = useNotifications();
   const [payAmounts, setPayAmounts] = useState<Record<string,string>>({});
   const [paySources, setPaySources] = useState<Record<string,string>>({});
@@ -45,6 +51,8 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
   const [purchaseSubmitted, setPurchaseSubmitted] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<Record<string, boolean>>({});
+  const [installmentModalCard, setInstallmentModalCard] = useState<BankCard | null>(null);
+  const [installmentModalPurchase, setInstallmentModalPurchase] = useState<CreditCardPurchase | null>(null);
   const purchaseCardRef = React.useRef<HTMLSelectElement>(null);
   const purchaseAmountRef = React.useRef<HTMLInputElement>(null);
   const purchaseMerchantRef = React.useRef<HTMLInputElement>(null);
@@ -251,18 +259,61 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                   <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-none">
                     {cardPurchases.length === 0 ? (
                       <p className="text-[11px] text-[var(--ink-3)] text-center py-2">No purchases yet</p>
-                    ) : cardPurchases.map(p => (
-                      <div key={p.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-[var(--surface)] text-[11px]">
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-[var(--ink)] block truncate">{p.merchant}</span>
-                          {p.description && <span className="text-[var(--ink-3)] text-[10px] block truncate">{p.description}</span>}
+                    ) : cardPurchases.map(p => {
+                      const hasInstallment = creditCardInstallments.some(inst => inst.purchaseId === p.id && inst.status === 'active');
+                      return (
+                        <div key={p.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-[var(--surface)] text-[11px]">
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium text-[var(--ink)] block truncate">{p.merchant}</span>
+                            {p.description && <span className="text-[var(--ink-3)] text-[10px] block truncate">{p.description}</span>}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            {!hasInstallment && (
+                              <button
+                                onClick={() => {
+                                  setInstallmentModalCard(c);
+                                  setInstallmentModalPurchase(p);
+                                }}
+                                className="flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-[var(--line)] bg-[var(--surface)] text-[var(--ink-2)] hover:text-[var(--ink)] hover:border-[var(--ink-2)]"
+                                title="Convert to installment plan"
+                              >
+                                <Repeat size={10} /> Installment
+                              </button>
+                            )}
+                            {hasInstallment && (
+                              <span className="text-[10px] px-2 py-1 rounded bg-[var(--ink)]/5 text-[var(--ink-2)] border border-[var(--line)]">
+                                In plan
+                              </span>
+                            )}
+                            <div className="text-right">
+                              <span className="mono font-bold text-[var(--danger)]">-{currency}{p.amount.toFixed(2)}</span>
+                              <span className="block text-[10px] text-[var(--ink-3)]">{p.date}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <span className="mono font-bold text-[var(--danger)]">-{currency}{p.amount.toFixed(2)}</span>
-                          <span className="block text-[10px] text-[var(--ink-3)]">{p.date}</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Active Installment Plans */}
+                {creditCardInstallments.filter(inst => inst.cardId === c.id && inst.status === 'active').length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-[var(--line)]">
+                    <span className="eyebrow normal-case flex items-center gap-1">
+                      <Repeat size={10} /> Active Installment Plans
+                    </span>
+                    {creditCardInstallments
+                      .filter(inst => inst.cardId === c.id && inst.status === 'active')
+                      .map(inst => (
+                        <InstallmentSchedule
+                          key={inst.id}
+                          installment={inst}
+                          payments={creditCardInstallmentPayments.filter(p => p.installmentId === inst.id)}
+                          purchase={creditCardPurchases.find(p => p.id === inst.purchaseId)}
+                          currency={currency}
+                          onPayPayment={onPayInstallmentPayment}
+                        />
+                      ))}
                   </div>
                 )}
 
@@ -306,6 +357,25 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
         </div>
         <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2"><Plus size={14}/>Record purchase</button>
       </form>
+
+      {/* Installment Plan Modal */}
+      {installmentModalCard && installmentModalPurchase && (
+        <InstallmentPlanModal
+          isOpen={!!installmentModalCard && !!installmentModalPurchase}
+          onClose={() => {
+            setInstallmentModalCard(null);
+            setInstallmentModalPurchase(null);
+          }}
+          card={installmentModalCard}
+          purchase={installmentModalPurchase}
+          currency={currency}
+          onConfirm={(tenureMonths) => {
+            onCreateInstallmentPlan(installmentModalCard.id, installmentModalPurchase.id, tenureMonths);
+            setInstallmentModalCard(null);
+            setInstallmentModalPurchase(null);
+          }}
+        />
+      )}
     </div>
   );
 }

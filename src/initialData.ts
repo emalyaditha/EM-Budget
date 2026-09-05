@@ -1,9 +1,11 @@
-import { AppState, CashAccount, BankCard, CreditCard, CreditCardPurchase, Income, Expense, Debt, Transaction, AppNotification, Subscription } from './types';
+import { AppState, CashAccount, BankCard, CreditCard, CreditCardPurchase, Income, Expense, Debt, Transaction, AppNotification, Subscription, CreditCardInstallment, CreditCardInstallmentPayment } from './types';
 
 export const INITIAL_CASH_ACCOUNTS: CashAccount[] = [];
 export const INITIAL_CARDS: BankCard[] = [];
 export const INITIAL_CREDIT_CARDS: CreditCard[] = [];
 export const INITIAL_CREDIT_CARD_PURCHASES: CreditCardPurchase[] = [];
+export const INITIAL_CREDIT_CARD_INSTALLMENTS: CreditCardInstallment[] = [];
+export const INITIAL_CREDIT_CARD_INSTALLMENT_PAYMENTS: CreditCardInstallmentPayment[] = [];
 export const INITIAL_INCOMES: Income[] = [];
 export const INITIAL_EXPENSES: Expense[] = [];
 export const INITIAL_DEBTS: Debt[] = [];
@@ -17,6 +19,8 @@ export function createDefaultAppState(): AppState {
     cards: [],
     creditCards: [],
     creditCardPurchases: [],
+    creditCardInstallments: [],
+    creditCardInstallmentPayments: [],
     incomes: [],
     expenses: [],
     debts: [],

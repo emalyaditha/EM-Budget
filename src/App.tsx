@@ -5,6 +5,7 @@ import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, Ap
 import { DEFAULT_APP_STATE } from './initialData';
 import { exportStateAsJSON, generateUniqueId, todayLocal } from './utils';
 import { addMoney, subtractMoney, compareMoney } from './lib/money';
+import { calculateInstallmentFee, calculateMonthlyPayment, generateInstallmentSchedule } from './lib/installments';
 import { authSession } from './services/authSession';
 import { 
   Plus, Search, Bell, CreditCard, Wallet, LayoutDashboard, 
@@ -1881,6 +1882,115 @@ export default function App() {
       showToast('success', overpaymentMsg ? `Payment recorded! ${overpaymentMsg}` : 'Payment recorded successfully!');
   };
 
+  const handleCreateInstallmentPlan = (cardId: string, purchaseId: string, tenureMonths: 6 | 12 | 24 | 48) => {
+    const purchase = state.creditCardPurchases.find(p => p.id === purchaseId);
+    const card = state.cards.find(c => c.id === cardId);
+    if (!purchase || !card) {
+      showToast('error', 'Card or purchase not found');
+      return;
+    }
+
+    const processingFee = calculateInstallmentFee(purchase.amount, tenureMonths);
+    const monthlyPayment = calculateMonthlyPayment(purchase.amount, tenureMonths);
+    const installmentId = `inst-${Date.now()}`;
+    const startDate = todayLocal();
+    const nextPaymentDate = new Date(startDate);
+    nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+
+    const newInstallment = {
+      id: installmentId,
+      cardId,
+      purchaseId,
+      originalAmount: purchase.amount,
+      tenureMonths,
+      processingFee,
+      monthlyPayment,
+      startDate,
+      status: 'active' as const,
+      nextPaymentDate: nextPaymentDate.toISOString().split('T')[0],
+      paymentsMade: 0,
+    };
+
+    const schedulePayments = generateInstallmentSchedule(installmentId, monthlyPayment, tenureMonths, startDate);
+
+    updateState(prev => ({
+      ...prev,
+      creditCardInstallments: [...prev.creditCardInstallments, newInstallment],
+      creditCardInstallmentPayments: [
+        ...prev.creditCardInstallmentPayments,
+        ...schedulePayments.map((p: any, i: number) => ({ ...p, id: `instpay-${Date.now()}-${i}` })),
+      ],
+    }));
+
+    showToast('success', `${tenureMonths}-month installment plan created!`);
+  };
+
+  const handlePayInstallmentPayment = (installmentId: string, paymentId: string, amount: number) => {
+    updateState(prev => {
+      const installment = prev.creditCardInstallments.find(i => i.id === installmentId);
+      if (!installment) return prev;
+
+      const updatedPayments = prev.creditCardInstallmentPayments.map(p =>
+        p.id === paymentId
+          ? { ...p, amountPaid: amount, paidDate: todayLocal(), status: 'paid' as const }
+          : p
+      );
+
+      const paidCount = updatedPayments
+        .filter(p => p.installmentId === installmentId && p.status === 'paid')
+        .length;
+
+      const totalPayments = updatedPayments
+        .filter(p => p.installmentId === installmentId)
+        .length;
+
+      const isComplete = paidCount >= totalPayments;
+
+      const updatedInstallments = prev.creditCardInstallments.map(i =>
+        i.id === installmentId
+          ? {
+              ...i,
+              paymentsMade: paidCount,
+              status: (isComplete ? 'completed' : 'active') as 'completed' | 'active',
+              nextPaymentDate: isComplete
+                ? ''
+                : updatedPayments
+                    .filter(p => p.installmentId === installmentId && p.status === 'pending')
+                    .sort((a, b) => a.paymentNumber - b.paymentNumber)[0]?.dueDate || '',
+            }
+          : i
+      );
+
+      const updatedCards = prev.cards.map(c =>
+        c.id === installment.cardId
+          ? { ...c, currentBalance: c.currentBalance + amount }
+          : c
+      );
+
+      const newTransaction = {
+        id: `trans-${Date.now()}`,
+        type: 'debt_payment' as const,
+        title: `Installment Payment: ${installment.tenureMonths}-mo plan`,
+        amount,
+        date: todayLocal(),
+        category: 'Debt Repayment',
+        accountId: installment.cardId,
+        accountType: 'card' as const,
+        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      return {
+        ...prev,
+        creditCardInstallments: updatedInstallments,
+        creditCardInstallmentPayments: updatedPayments,
+        cards: updatedCards,
+        transactions: [newTransaction, ...prev.transactions],
+      };
+    });
+    showToast('success', 'Installment payment recorded!');
+  };
+
   const handleIncreaseDebt = (debtId: string, amount: number, newAccountId?: string, newAccountType?: 'cash' | 'card') => {
     updateState(prev => {
       const debt = prev.debts.find(d => d.id === debtId);
@@ -3315,9 +3425,13 @@ export default function App() {
                       currency={state.currency}
                       transactions={state.transactions}
                       creditCardPurchases={state.creditCardPurchases}
+                      creditCardInstallments={state.creditCardInstallments}
+                      creditCardInstallmentPayments={state.creditCardInstallmentPayments}
                       onPayCard={handlePayCreditCard}
                       onAddPurchase={handleAddCreditCardPurchase}
                       onUpdateCard={handleUpdateCard}
+                      onCreateInstallmentPlan={handleCreateInstallmentPlan}
+                      onPayInstallmentPayment={handlePayInstallmentPayment}
                     />
                   </div>
                 </LazyTab>

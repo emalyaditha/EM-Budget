@@ -62,6 +62,8 @@ function makeTestState(overrides?: Partial<AppState>): AppState {
     cards: [],
     creditCards: [],
     creditCardPurchases: [],
+    creditCardInstallments: [],
+    creditCardInstallmentPayments: [],
     incomes: [],
     expenses: [],
     debts: [],
