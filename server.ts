@@ -48,7 +48,10 @@ export async function createApp(): Promise<express.Express> {
     return crypto.timingSafeEqual(bufA, bufB);
   }
 
-  function generateSecureToken(email: string, durationMs = 24 * 60 * 60 * 1000): string {
+  const SESSION_TTL_SHORT = 24 * 60 * 60 * 1000;        // 24 hours (default)
+  const SESSION_TTL_LONG  = 30 * 24 * 60 * 60 * 1000;   // 30 days (rememberMe)
+
+  function generateSecureToken(email: string, durationMs = SESSION_TTL_SHORT): string {
     const payload = {
       email: email.trim().toLowerCase(),
       expiresAt: Date.now() + durationMs
@@ -872,9 +875,9 @@ export async function createApp(): Promise<express.Express> {
     });
     return out;
   }
-  function setSessionCookie(res, token) {
+  function setSessionCookie(res, token, maxAgeSeconds = 86400) {
     const secure = IS_PRODUCTION ? "; Secure" : "";
-    res.setHeader("Set-Cookie", `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${secure}`);
+    res.setHeader("Set-Cookie", `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${secure}`);
   }
   function clearSessionCookie(res) {
     const secure = IS_PRODUCTION ? "; Secure" : "";
@@ -1329,7 +1332,7 @@ export async function createApp(): Promise<express.Express> {
   // 2b. Register Route
   app.post("/api/auth/register", rateLimitAuth(5, 60 * 1000), async (req: express.Request, res: express.Response) => {
     try {
-      const { email, password, otp } = req.body;
+      const { email, password, otp, rememberMe } = req.body;
       const emailErr = validateEmail(email);
       const passwordErr = validatePassword(password);
       const otpErr = validateOtp(otp);
@@ -1375,8 +1378,9 @@ export async function createApp(): Promise<express.Express> {
       const deviceToken = crypto.randomUUID();
       await saveDeviceToken(deviceToken, supabase, normalizedEmail);
 
-      const _regToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _regToken);
+      const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
+      const _regToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+      setSessionCookie(res, _regToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
       res.json({
         success: true,
         token: _regToken,
@@ -1391,7 +1395,7 @@ export async function createApp(): Promise<express.Express> {
   // 2c. Login Password Route
   app.post("/api/auth/login-password", rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
     try {
-      const { email, password } = req.body;
+      const { email, password, rememberMe } = req.body;
       const emailErr = validateEmail(email);
       const passwordErr = validatePassword(password);
       if (emailErr || passwordErr) {
@@ -1417,8 +1421,9 @@ export async function createApp(): Promise<express.Express> {
       const deviceToken = crypto.randomUUID();
       await saveDeviceToken(deviceToken, supabase, normalizedEmail);
 
-      const _loginToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _loginToken);
+      const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
+      const _loginToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+      setSessionCookie(res, _loginToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
       res.json({
         success: true,
         token: _loginToken,
@@ -1433,7 +1438,7 @@ export async function createApp(): Promise<express.Express> {
   // 2d. Reset Password Route
   app.post("/api/auth/reset-password", rateLimitAuth(5, 60 * 1000), async (req: express.Request, res: express.Response) => {
     try {
-      const { email, password, otp } = req.body;
+      const { email, password, otp, rememberMe } = req.body;
       const emailErr = validateEmail(email);
       const passwordErr = validatePassword(password);
       const otpErr = validateOtp(otp);
@@ -1479,8 +1484,9 @@ export async function createApp(): Promise<express.Express> {
       const deviceToken = crypto.randomUUID();
       await saveDeviceToken(deviceToken, supabase, normalizedEmail);
 
-      const _resetToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _resetToken);
+      const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
+      const _resetToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+      setSessionCookie(res, _resetToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
       res.json({
         success: true,
         token: _resetToken,
@@ -2277,7 +2283,7 @@ export async function createApp(): Promise<express.Express> {
   // Verify secure session token route
   app.post("/api/auth/verify-session", rateLimitAuth(30, 60 * 1000), async (req: express.Request, res: express.Response) => {
     try {
-      const { email } = req.body;
+      const { email, rememberMe } = req.body;
       let token = req.body.token;
       if (!token || typeof token !== "string") token = getTokenFromRequest(req);
       if (!token || typeof token !== "string") {
@@ -2301,7 +2307,16 @@ export async function createApp(): Promise<express.Express> {
         res.json({ success: false, error: "Account no longer exists." });
         return;
       }
-      res.json({ success: true });
+
+      // Token rotation: when rememberMe is true, issue a fresh token with
+      // 30-day TTL so the session slides forward on every app open.
+      if (rememberMe) {
+        const newToken = generateSecureToken(normalizedEmail, SESSION_TTL_LONG);
+        setSessionCookie(res, newToken, 30 * 24 * 60 * 60);
+        res.json({ success: true, token: newToken });
+      } else {
+        res.json({ success: true });
+      }
     } catch (err: any) {
       console.error("[SECURITY LOG] Verify Session Token failed:", err.message || err);
       res.status(500).json({ success: false, error: "Internal session validation error." });

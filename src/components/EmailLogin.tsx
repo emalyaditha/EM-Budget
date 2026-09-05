@@ -247,7 +247,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
       const resp = await fetch(apiUrl("/api/auth/login-password"), {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: email.trim(), password, rememberMe }),
       });
       const data = await safeJson(resp);
       if (resp.status === 429 && data?.retryAfter) {
@@ -305,6 +305,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
           email: email.trim(),
           password,
           otp: otpValue.trim(),
+          rememberMe,
         }),
       });
       const data = await safeJson(resp);

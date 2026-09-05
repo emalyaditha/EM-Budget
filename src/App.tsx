@@ -257,6 +257,7 @@ export default function App() {
     localStorage.removeItem('auth_user_email');
     localStorage.removeItem('auth_session_token');
     localStorage.removeItem('auth_device_token');
+    localStorage.removeItem('auth_remember_me');
     authSession.clear();
     resetLoadedFromCloud();
     setState(DEFAULT_APP_STATE);
@@ -298,6 +299,7 @@ export default function App() {
 
       const email = localStorage.getItem('auth_user_email');
       const token = localStorage.getItem('auth_session_token');
+      const rememberMe = localStorage.getItem('auth_remember_me') === 'true';
       
       if (email && token) {
         try {
@@ -306,12 +308,15 @@ export default function App() {
             credentials: 'include',
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, token })
+            body: JSON.stringify({ email, token, rememberMe })
           }, Math.min(6000, timeLeft()));
           const vData = await safeJson(vRes);
           if (vData?.success) {
-            authSession.setToken(token);
+            // If the server rotated the token (rememberMe flow), persist the new one
+            const activeToken = vData.token || token;
+            authSession.setToken(activeToken);
             authSession.setEmail(email);
+            localStorage.setItem('auth_session_token', activeToken);
             setUserEmail(email);
 
             // Ensure Supabase config is available before sync.
@@ -3175,6 +3180,7 @@ export default function App() {
               authSession.setEmail(email);
               localStorage.setItem('auth_user_email', email);
               localStorage.setItem('auth_session_token', token);
+              localStorage.setItem('auth_remember_me', rememberMe ? 'true' : 'false');
               if (rememberMe && deviceToken) {
                 localStorage.setItem('auth_device_token', deviceToken);
                 authSession.setDeviceToken(deviceToken);
