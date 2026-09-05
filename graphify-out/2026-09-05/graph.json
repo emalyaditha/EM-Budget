@@ -108,6 +108,19 @@
       "norm_label": "inflowsoutflowsprops"
     },
     {
+      "label": "LoansTrackerProps",
+      "file_type": "code",
+      "source_file": "src/components/LoansTracker.tsx",
+      "source_location": "L8",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "src_components_loanstracker_loanstrackerprops",
+      "community": 0,
+      "community_name": "types.ts",
+      "norm_label": "loanstrackerprops"
+    },
+    {
       "label": "ReportsCentreProps",
       "file_type": "code",
       "source_file": "src/components/ReportsCentre.tsx",
@@ -277,6 +290,19 @@
       "norm_label": "income"
     },
     {
+      "label": "LoanGiven",
+      "file_type": "code",
+      "source_file": "src/types.ts",
+      "source_location": "L161",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "src_types_loangiven",
+      "community": 0,
+      "community_name": "types.ts",
+      "norm_label": "loangiven"
+    },
+    {
       "label": "Subscription",
       "file_type": "code",
       "source_file": "src/types.ts",
@@ -407,19 +433,6 @@
       "norm_label": "interactivebankcardprops"
     },
     {
-      "label": "LoansTrackerProps",
-      "file_type": "code",
-      "source_file": "src/components/LoansTracker.tsx",
-      "source_location": "L8",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "src_components_loanstracker_loanstrackerprops",
-      "community": 16,
-      "community_name": "useNotifications",
-      "norm_label": "loanstrackerprops"
-    },
-    {
       "label": "ProfileSectionProps",
       "file_type": "code",
       "source_file": "src/components/ProfileSection.tsx",
@@ -431,6 +444,19 @@
       "community": 16,
       "community_name": "useNotifications",
       "norm_label": "profilesectionprops"
+    },
+    {
+      "label": "ReceiptScannerProps",
+      "file_type": "code",
+      "source_file": "src/components/ReceiptScanner.tsx",
+      "source_location": "L11",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "src_components_receiptscanner_receiptscannerprops",
+      "community": 16,
+      "community_name": "useNotifications",
+      "norm_label": "receiptscannerprops"
     },
     {
       "label": "ConfirmOptions",
@@ -498,17 +524,17 @@
       "norm_label": "charge"
     },
     {
-      "label": "LoanGiven",
+      "label": "ScannedTransaction",
       "file_type": "code",
-      "source_file": "src/types.ts",
-      "source_location": "L161",
+      "source_file": "src/utils/freeOcrParser.ts",
+      "source_location": "L1",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "src_types_loangiven",
+      "id": "src_utils_freeocrparser_scannedtransaction",
       "community": 16,
       "community_name": "useNotifications",
-      "norm_label": "loangiven"
+      "norm_label": "scannedtransaction"
     },
     {
       "label": "ButtonProps",
@@ -953,19 +979,6 @@
       "norm_label": "emailloginprops"
     },
     {
-      "label": "ReceiptScannerProps",
-      "file_type": "code",
-      "source_file": "src/components/ReceiptScanner.tsx",
-      "source_location": "L11",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "src_components_receiptscanner_receiptscannerprops",
-      "community": 4,
-      "community_name": "supabase.ts",
-      "norm_label": "receiptscannerprops"
-    },
-    {
       "label": "RetryOptions",
       "file_type": "code",
       "source_file": "src/lib/api.ts",
@@ -977,19 +990,6 @@
       "community": 4,
       "community_name": "supabase.ts",
       "norm_label": "retryoptions"
-    },
-    {
-      "label": "ScannedTransaction",
-      "file_type": "code",
-      "source_file": "src/utils/freeOcrParser.ts",
-      "source_location": "L1",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "src_utils_freeocrparser_scannedtransaction",
-      "community": 4,
-      "community_name": "supabase.ts",
-      "norm_label": "scannedtransaction"
     },
     {
       "label": "ErrorBoundary",
@@ -1388,6 +1388,18 @@
       "community": 0,
       "community_name": "types.ts",
       "norm_label": "debttracker()"
+    },
+    {
+      "label": "LoansTracker()",
+      "file_type": "code",
+      "source_file": "src/components/LoansTracker.tsx",
+      "source_location": "L19",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "src_components_loanstracker_loanstracker",
+      "community": 0,
+      "community_name": "types.ts",
+      "norm_label": "loanstracker()"
     },
     {
       "label": "TransactionTimeline()",
@@ -2146,87 +2158,87 @@
       "norm_label": "\"node_modules/tsyringe/dist/cjs/index.js\"()"
     },
     {
-      "label": "\"node_modules/express/node_modules/debug/src/browser.js\"()",
+      "label": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L18231",
+      "source_location": "L1129",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js",
+      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js",
       "community": 102,
-      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
-      "norm_label": "\"node_modules/express/node_modules/debug/src/browser.js\"()"
+      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "norm_label": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"()"
     },
     {
       "label": "formatArgs()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L18264",
+      "source_location": "L1162",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_formatargs",
+      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_formatargs",
       "community": 102,
-      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
       "norm_label": "formatargs()"
     },
     {
       "label": "load()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L18294",
+      "source_location": "L1192",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_load",
+      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_load",
       "community": 102,
-      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
       "norm_label": "load()"
     },
     {
       "label": "localstorage()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L18306",
+      "source_location": "L1204",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_localstorage",
+      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_localstorage",
       "community": 102,
-      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
       "norm_label": "localstorage()"
     },
     {
       "label": "log2()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L18281",
+      "source_location": "L1179",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_log2",
+      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_log2",
       "community": 102,
-      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
       "norm_label": "log2()"
     },
     {
       "label": "save()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L18284",
+      "source_location": "L1182",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_save",
+      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_save",
       "community": 102,
-      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
       "norm_label": "save()"
     },
     {
       "label": "useColors()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L18247",
+      "source_location": "L1145",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_usecolors",
+      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_usecolors",
       "community": 102,
-      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
       "norm_label": "usecolors()"
     },
     {
@@ -8818,18 +8830,6 @@
       "norm_label": "inflowsoutflows()"
     },
     {
-      "label": "LoansTracker()",
-      "file_type": "code",
-      "source_file": "src/components/LoansTracker.tsx",
-      "source_location": "L19",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "src_components_loanstracker_loanstracker",
-      "community": 16,
-      "community_name": "useNotifications",
-      "norm_label": "loanstracker()"
-    },
-    {
       "label": "ProfileSection()",
       "file_type": "code",
       "source_file": "src/components/ProfileSection.tsx",
@@ -8840,6 +8840,18 @@
       "community": 16,
       "community_name": "useNotifications",
       "norm_label": "profilesection()"
+    },
+    {
+      "label": "ReceiptScanner()",
+      "file_type": "code",
+      "source_file": "src/components/ReceiptScanner.tsx",
+      "source_location": "L24",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "src_components_receiptscanner_receiptscanner",
+      "community": 16,
+      "community_name": "useNotifications",
+      "norm_label": "receiptscanner()"
     },
     {
       "label": "SubscriptionManagement()",
@@ -8900,6 +8912,18 @@
       "community": 16,
       "community_name": "useNotifications",
       "norm_label": "updateauthaccountname()"
+    },
+    {
+      "label": "parseReceiptText()",
+      "file_type": "code",
+      "source_file": "src/utils/freeOcrParser.ts",
+      "source_location": "L15",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "src_utils_freeocrparser_parsereceipttext",
+      "community": 16,
+      "community_name": "useNotifications",
+      "norm_label": "parsereceipttext()"
     },
     {
       "label": "todayLocal()",
@@ -14122,18 +14146,6 @@
       "norm_label": "emaillogin()"
     },
     {
-      "label": "ReceiptScanner()",
-      "file_type": "code",
-      "source_file": "src/components/ReceiptScanner.tsx",
-      "source_location": "L24",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "src_components_receiptscanner_receiptscanner",
-      "community": 4,
-      "community_name": "supabase.ts",
-      "norm_label": "receiptscanner()"
-    },
-    {
       "label": "apiFetch()",
       "file_type": "code",
       "source_file": "src/lib/api.ts",
@@ -14552,18 +14564,6 @@
       "community": 4,
       "community_name": "supabase.ts",
       "norm_label": "truncatealldatainsupabase()"
-    },
-    {
-      "label": "parseReceiptText()",
-      "file_type": "code",
-      "source_file": "src/utils/freeOcrParser.ts",
-      "source_location": "L15",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "src_utils_freeocrparser_parsereceipttext",
-      "community": 4,
-      "community_name": "supabase.ts",
-      "norm_label": "parsereceipttext()"
     },
     {
       "label": "cache()",
@@ -18874,87 +18874,87 @@
       "norm_label": "parse3()"
     },
     {
-      "label": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"()",
+      "label": "\"node_modules/express/node_modules/debug/src/browser.js\"()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L1129",
+      "source_location": "L18231",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js",
+      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
-      "norm_label": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"()"
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
+      "norm_label": "\"node_modules/express/node_modules/debug/src/browser.js\"()"
     },
     {
       "label": "formatArgs()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L1162",
+      "source_location": "L18264",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_formatargs",
+      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_formatargs",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "formatargs()"
     },
     {
       "label": "load()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L1192",
+      "source_location": "L18294",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_load",
+      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_load",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "load()"
     },
     {
       "label": "localstorage()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L1204",
+      "source_location": "L18306",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_localstorage",
+      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_localstorage",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "localstorage()"
     },
     {
       "label": "log2()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L1179",
+      "source_location": "L18281",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_log2",
+      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_log2",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "log2()"
     },
     {
       "label": "save()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L1182",
+      "source_location": "L18284",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_save",
+      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_save",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "save()"
     },
     {
       "label": "useColors()",
       "file_type": "code",
       "source_file": "api/index.js",
-      "source_location": "L1145",
+      "source_location": "L18247",
       "_callable": true,
       "_origin": "ast",
-      "id": "api_index_node_modules_body_parser_node_modules_debug_src_browser_js_usecolors",
+      "id": "api_index_node_modules_express_node_modules_debug_src_browser_js_usecolors",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "usecolors()"
     },
     {
@@ -18966,7 +18966,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_finalhandler_node_modules_debug_src_browser_js",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "\"node_modules/finalhandler/node_modules/debug/src/browser.js\"()"
     },
     {
@@ -18978,7 +18978,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_finalhandler_node_modules_debug_src_browser_js_formatargs",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "formatargs()"
     },
     {
@@ -18990,7 +18990,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_finalhandler_node_modules_debug_src_browser_js_load",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "load()"
     },
     {
@@ -19002,7 +19002,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_finalhandler_node_modules_debug_src_browser_js_localstorage",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "localstorage()"
     },
     {
@@ -19014,7 +19014,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_finalhandler_node_modules_debug_src_browser_js_log2",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "log2()"
     },
     {
@@ -19026,7 +19026,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_finalhandler_node_modules_debug_src_browser_js_save",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "save()"
     },
     {
@@ -19038,7 +19038,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_finalhandler_node_modules_debug_src_browser_js_usecolors",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "usecolors()"
     },
     {
@@ -19050,7 +19050,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_send_node_modules_debug_src_browser_js",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "\"node_modules/send/node_modules/debug/src/browser.js\"()"
     },
     {
@@ -19062,7 +19062,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_send_node_modules_debug_src_browser_js_formatargs",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "formatargs()"
     },
     {
@@ -19074,7 +19074,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_send_node_modules_debug_src_browser_js_load",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "load()"
     },
     {
@@ -19086,7 +19086,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_send_node_modules_debug_src_browser_js_localstorage",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "localstorage()"
     },
     {
@@ -19098,7 +19098,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_send_node_modules_debug_src_browser_js_log2",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "log2()"
     },
     {
@@ -19110,7 +19110,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_send_node_modules_debug_src_browser_js_save",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "save()"
     },
     {
@@ -19122,7 +19122,7 @@
       "_origin": "ast",
       "id": "api_index_node_modules_send_node_modules_debug_src_browser_js_usecolors",
       "community": 55,
-      "community_name": "\"node_modules/body-parser/node_modules/debug/src/browser.js\"",
+      "community_name": "\"node_modules/express/node_modules/debug/src/browser.js\"",
       "norm_label": "usecolors()"
     },
     {
@@ -19340,18 +19340,6 @@
       "community": 56,
       "community_name": "enable",
       "norm_label": "selectcolor()"
-    },
-    {
-      "label": "\"node_modules/send/node_modules/debug/src/debug.js\"()",
-      "file_type": "code",
-      "source_file": "api/index.js",
-      "source_location": "L19692",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "api_index_node_modules_send_node_modules_debug_src_debug_js",
-      "community": 56,
-      "community_name": "enable",
-      "norm_label": "\"node_modules/send/node_modules/debug/src/debug.js\"()"
     },
     {
       "label": "disable()",
@@ -24094,6 +24082,18 @@
       "norm_label": "merge()"
     },
     {
+      "label": "\"node_modules/send/node_modules/debug/src/debug.js\"()",
+      "file_type": "code",
+      "source_file": "api/index.js",
+      "source_location": "L19692",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "api_index_node_modules_send_node_modules_debug_src_debug_js",
+      "community": 72,
+      "community_name": "\"node_modules/express/lib/application.js\"",
+      "norm_label": "\"node_modules/send/node_modules/debug/src/debug.js\"()"
+    },
+    {
       "label": "coerce()",
       "file_type": "code",
       "source_file": "api/index.js",
@@ -26973,6 +26973,17 @@
       "norm_label": "debttracker"
     },
     {
+      "label": "LoansTracker",
+      "file_type": "code",
+      "source_file": "src/App.tsx",
+      "source_location": "L33",
+      "_origin": "ast",
+      "id": "src_app_loanstracker",
+      "community": 0,
+      "community_name": "types.ts",
+      "norm_label": "loanstracker"
+    },
+    {
       "label": "AuditPanel.tsx",
       "file_type": "code",
       "source_file": "src/components/AuditPanel.tsx",
@@ -27059,6 +27070,17 @@
       "community": 0,
       "community_name": "types.ts",
       "norm_label": "inflowsoutflows.tsx"
+    },
+    {
+      "label": "LoansTracker.tsx",
+      "file_type": "code",
+      "source_file": "src/components/LoansTracker.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_components_loanstracker",
+      "community": 0,
+      "community_name": "types.ts",
+      "norm_label": "loanstracker.tsx"
     },
     {
       "label": "ReportsCentre.tsx",
@@ -28252,17 +28274,6 @@
       "norm_label": "cashcardmanagement"
     },
     {
-      "label": "LoansTracker",
-      "file_type": "code",
-      "source_file": "src/App.tsx",
-      "source_location": "L33",
-      "_origin": "ast",
-      "id": "src_app_loanstracker",
-      "community": 16,
-      "community_name": "useNotifications",
-      "norm_label": "loanstracker"
-    },
-    {
       "label": "CashCardManagement.tsx",
       "file_type": "code",
       "source_file": "src/components/CashCardManagement.tsx",
@@ -28274,17 +28285,6 @@
       "norm_label": "cashcardmanagement.tsx"
     },
     {
-      "label": "LoansTracker.tsx",
-      "file_type": "code",
-      "source_file": "src/components/LoansTracker.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "src_components_loanstracker",
-      "community": 16,
-      "community_name": "useNotifications",
-      "norm_label": "loanstracker.tsx"
-    },
-    {
       "label": "ProfileSection.tsx",
       "file_type": "code",
       "source_file": "src/components/ProfileSection.tsx",
@@ -28294,6 +28294,17 @@
       "community": 16,
       "community_name": "useNotifications",
       "norm_label": "profilesection.tsx"
+    },
+    {
+      "label": "ReceiptScanner.tsx",
+      "file_type": "code",
+      "source_file": "src/components/ReceiptScanner.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_components_receiptscanner",
+      "community": 16,
+      "community_name": "useNotifications",
+      "norm_label": "receiptscanner.tsx"
     },
     {
       "label": "NotificationContext.tsx",
@@ -28316,6 +28327,28 @@
       "community": 16,
       "community_name": "useNotifications",
       "norm_label": "notificationcontext"
+    },
+    {
+      "label": "ocr-parser.test.ts",
+      "file_type": "code",
+      "source_file": "src/ocr-parser.test.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_ocr_parser_test",
+      "community": 16,
+      "community_name": "useNotifications",
+      "norm_label": "ocr-parser.test.ts"
+    },
+    {
+      "label": "freeOcrParser.ts",
+      "file_type": "code",
+      "source_file": "src/utils/freeOcrParser.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_utils_freeocrparser",
+      "community": 16,
+      "community_name": "useNotifications",
+      "norm_label": "freeocrparser.ts"
     },
     {
       "label": "@testing-library/react",
@@ -28470,17 +28503,6 @@
       "community": 166,
       "community_name": "vitest",
       "norm_label": "vitest"
-    },
-    {
-      "label": "screenshot_ui.py",
-      "file_type": "code",
-      "source_file": "screenshot_ui.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "screenshot_ui",
-      "community": 167,
-      "community_name": "screenshot_ui.py",
-      "norm_label": "screenshot_ui.py"
     },
     {
       "label": "tesseract.js",
@@ -29342,28 +29364,6 @@
       "norm_label": "money.ts"
     },
     {
-      "label": "services/authSession.ts",
-      "file_type": "code",
-      "source_file": "src/services/authSession.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "src_services_authsession",
-      "community": 3,
-      "community_name": "App.tsx",
-      "norm_label": "services/authsession.ts"
-    },
-    {
-      "label": "authSession",
-      "file_type": "code",
-      "source_file": "src/services/authSession.ts",
-      "source_location": "L5",
-      "_origin": "ast",
-      "id": "src_services_authsession_authsession",
-      "community": 3,
-      "community_name": "App.tsx",
-      "norm_label": "authsession"
-    },
-    {
       "label": "EXPENSE_COLORS",
       "file_type": "code",
       "source_file": "src/utils.ts",
@@ -29661,17 +29661,6 @@
       "norm_label": "emaillogin.tsx"
     },
     {
-      "label": "ReceiptScanner.tsx",
-      "file_type": "code",
-      "source_file": "src/components/ReceiptScanner.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "src_components_receiptscanner",
-      "community": 4,
-      "community_name": "supabase.ts",
-      "norm_label": "receiptscanner.tsx"
-    },
-    {
       "label": "api.ts",
       "file_type": "code",
       "source_file": "src/lib/api.ts",
@@ -29705,15 +29694,26 @@
       "norm_label": "lib/authsession.ts"
     },
     {
-      "label": "ocr-parser.test.ts",
+      "label": "services/authSession.ts",
       "file_type": "code",
-      "source_file": "src/ocr-parser.test.ts",
+      "source_file": "src/services/authSession.ts",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "src_ocr_parser_test",
+      "id": "src_services_authsession",
       "community": 4,
       "community_name": "supabase.ts",
-      "norm_label": "ocr-parser.test.ts"
+      "norm_label": "services/authsession.ts"
+    },
+    {
+      "label": "authSession",
+      "file_type": "code",
+      "source_file": "src/services/authSession.ts",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "src_services_authsession_authsession",
+      "community": 4,
+      "community_name": "supabase.ts",
+      "norm_label": "authsession"
     },
     {
       "label": "supabase.ts",
@@ -29780,17 +29780,6 @@
       "community": 4,
       "community_name": "supabase.ts",
       "norm_label": "{ mockcreateclient, createchain }"
-    },
-    {
-      "label": "freeOcrParser.ts",
-      "file_type": "code",
-      "source_file": "src/utils/freeOcrParser.ts",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "src_utils_freeocrparser",
-      "community": 4,
-      "community_name": "supabase.ts",
-      "norm_label": "freeocrparser.ts"
     },
     {
       "label": "ErrorBoundary.tsx",
@@ -55927,7 +55916,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/components/CreditCardManagement.tsx",
-      "source_location": "L135",
+      "source_location": "L136",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_components_creditcardmanagement_creditcardmanagement",
@@ -55939,7 +55928,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/components/CreditCardManagement.tsx",
-      "source_location": "L138",
+      "source_location": "L139",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_components_creditcardmanagement_creditcardmanagement",
@@ -93682,5 +93671,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "c72e9707bf41d3e6de0e43fb2da0fbd5304448d3"
+  "built_at_commit": "488261141043022c5bbc2667f34782bd189c4e88"
 }
