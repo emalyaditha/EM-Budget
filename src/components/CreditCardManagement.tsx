@@ -108,8 +108,9 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
   };
 
   const getCardPayments = (cardId: string) => {
+    const card = creditCards.find(c => c.id === cardId);
     return transactions
-      .filter(t => t.type === 'expense' && t.referenceId?.startsWith('ccpay-') && t.targetAccountId === cardId)
+      .filter(t => t.type === 'debt_payment' && !!card && t.title === `Credit Card Settlement: ${card.cardName}`)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
