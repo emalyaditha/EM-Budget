@@ -123,6 +123,11 @@ export async function createApp(): Promise<express.Express> {
       expiresAt: number;
       lastUsedAt: number;
       userAgent?: string;
+    }[],
+    loginAttempts: [] as {
+      email: string;
+      failed: number;
+      lockedUntil: number | null;
     }[]
   };
 
@@ -540,6 +545,65 @@ export async function createApp(): Promise<express.Express> {
       if (fields.locked_until !== undefined) rec.lockedUntil = fields.locked_until;
       if (fields.lock_on_open !== undefined) rec.lockOnOpen = fields.lock_on_open;
       if (fields.lock_idle_minutes !== undefined) rec.lockIdleMinutes = fields.lock_idle_minutes != null ? Number(fields.lock_idle_minutes) : null;
+    }
+  }
+
+  // --- login_attempts (password-login brute-force lockout) ---
+  async function getLoginState(email: string, supabase: any): Promise<{ email: string; failed: number; lockedUntil: number | null } | null> {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      const found = mockDb.loginAttempts.find(x => x.email === e);
+      return found || null;
+    }
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from("login_attempts").select("*").eq("email", e).maybeSingle() as Promise<any>,
+        5000, 'getLoginState',
+      );
+      if (error) throw error;
+      if (!data) return mockDb.loginAttempts.find(x => x.email === e) || null;
+      return {
+        email: data.email,
+        failed: Number(data.failed_attempts || 0),
+        lockedUntil: data.locked_until != null ? Number(data.locked_until) : null
+      };
+    } catch (err: any) {
+      console.warn("[LoginLockout] getLoginState fallback:", err?.message || err);
+      return mockDb.loginAttempts.find(x => x.email === e) || null;
+    }
+  }
+
+  async function upsertLoginState(email: string, fields: { failed?: number; lockedUntil?: number | null }, supabase: any) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      let rec = mockDb.loginAttempts.find(x => x.email === e);
+      if (!rec) {
+        rec = { email: e, failed: 0, lockedUntil: null };
+        mockDb.loginAttempts.push(rec);
+      }
+      if (fields.failed !== undefined) rec.failed = fields.failed;
+      if (fields.lockedUntil !== undefined) rec.lockedUntil = fields.lockedUntil;
+      return;
+    }
+    try {
+      const payload: any = { email: e };
+      if (fields.failed !== undefined) payload.failed_attempts = fields.failed;
+      if (fields.lockedUntil !== undefined) payload.locked_until = fields.lockedUntil;
+      payload.updated_at = new Date().toISOString();
+      const { error } = await withTimeout(
+        supabase.from("login_attempts").upsert(payload, { onConflict: "email" }) as Promise<any>,
+        5000, 'upsertLoginState',
+      );
+      if (error) throw error;
+    } catch (err: any) {
+      console.warn("[LoginLockout] upsertLoginState fallback:", err?.message || err);
+      let rec = mockDb.loginAttempts.find(x => x.email === e);
+      if (!rec) {
+        rec = { email: e, failed: 0, lockedUntil: null };
+        mockDb.loginAttempts.push(rec);
+      }
+      if (fields.failed !== undefined) rec.failed = fields.failed;
+      if (fields.lockedUntil !== undefined) rec.lockedUntil = fields.lockedUntil;
     }
   }
 
@@ -1119,9 +1183,16 @@ export async function createApp(): Promise<express.Express> {
     res.json({ status: "ok", mode: process.env.NODE_ENV || "development" });
   });
 
-  // Diagnostics: reports which backend env vars are present (never leaks secret values)
-  app.get("/api/diagnostics", (req, res) => {
-    const has = (k: string) => !!process.env[k];
+// Diagnostics: reports which backend env vars are present (never leaks secret values).
+    // Requires a valid session token — reveals infrastructure surface, so it must not be anonymous.
+    app.get("/api/diagnostics", rateLimitAuth(10, 60 * 1000), (req, res) => {
+      const token = getTokenFromRequest(req);
+      const decoded = token ? verifySecureToken(token) : null;
+      if (!decoded) {
+        res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
+        return;
+      }
+      const has = (k: string) => !!process.env[k];
     res.json({
       status: "ok",
       env: {
@@ -1412,11 +1483,41 @@ export async function createApp(): Promise<express.Express> {
         return;
       }
 
+      // Account-level lockout: reject locked accounts before any work.
+      const loginState = await getLoginState(normalizedEmail, supabase);
+      if (loginState?.lockedUntil && Date.now() < loginState.lockedUntil) {
+        const remaining = Math.ceil((loginState.lockedUntil - Date.now()) / 1000);
+        res.status(429).json({ success: false, error: `Too many attempts. Account locked for ${remaining}s.`, code: "ACCOUNT_LOCKED", retryAfter: remaining });
+        return;
+      }
+
       const isMatch = await bcrypt.compare(password, user.passwordHash);
       if (!isMatch) {
-         res.status(401).json({ success: false, error: "Invalid email or password." });
-         return;
+        // Account-level lockout: 5 failed attempts triggers a doubling
+        // cooldown (60s, then 120s, 240s, ...) regardless of client IP.
+        const loginState = await getLoginState(normalizedEmail, supabase);
+        const failed = (loginState?.failed || 0) + 1;
+        let lockedUntil: number | null = null;
+        let retryAfter = 0;
+        if (failed >= 5) {
+          const lockCount = Math.min(Math.ceil((failed - 4) / 1), 8);
+          const seconds = 60 * Math.pow(2, lockCount - 1);
+          lockedUntil = Date.now() + seconds * 1000;
+          retryAfter = seconds;
+        }
+        await upsertLoginState(normalizedEmail, { failed, lockedUntil }, supabase);
+        res.status(401).json({
+          success: false,
+          error: retryAfter ? `Too many attempts. Account locked for ${retryAfter}s.` : "Invalid email or password.",
+          code: "BAD_CREDENTIALS",
+          attemptsRemaining: Math.max(0, 5 - failed),
+          retryAfter
+        });
+        return;
       }
+
+      // Successful login: reset the failure counter.
+      await upsertLoginState(normalizedEmail, { failed: 0, lockedUntil: null }, supabase);
 
       const deviceToken = crypto.randomUUID();
       await saveDeviceToken(deviceToken, supabase, normalizedEmail);
@@ -1424,6 +1525,11 @@ export async function createApp(): Promise<express.Express> {
       const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
       const _loginToken = generateSecureToken(normalizedEmail, sessionTtlMs);
       setSessionCookie(res, _loginToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
+      // The token is returned in the body (not only in the httpOnly cookie)
+      // on purpose: the client needs it to sign its DIRECT-to-Supabase sync
+      // requests (x-session-token header against supabase.co), where an
+      // httpOnly cookie scoped to this origin cannot reach. The cookie covers
+      // same-origin API calls; RLS governs anything the token can reach.
       res.json({
         success: true,
         token: _loginToken,
@@ -2323,13 +2429,14 @@ export async function createApp(): Promise<express.Express> {
     }
   });
 
-  // Config endpoint - URL is public, anon key only to authenticated callers (session token required)
+  // Config endpoint — intentionally public. The Supabase URL and anon key are
+// PUBLIC by design (baked into every frontend build), and all actual data is
+// protected by RLS, so returning them here lets any device self-configure
+// without exposing anything sensitive. Do NOT add auth here: the boot flow
+// (ensureSupabaseConfigFromBackend) fetches this before a session exists.
   app.get("/api/config", rateLimitAuth(30, 60 * 1000), (req: express.Request, res: express.Response) => {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
-    // The anon key is a PUBLIC key (VITE_ prefix = safe to expose to the client),
-    // so return it unconditionally. This lets any device self-configure Supabase
-    // from the backend instead of relying on build-time env or per-device localStorage.
     res.json({
       supabaseUrl,
       supabaseKey: supabaseKey.startsWith("eyJ") ? supabaseKey : ""

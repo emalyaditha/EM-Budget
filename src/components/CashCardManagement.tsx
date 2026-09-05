@@ -70,7 +70,7 @@ function InteractiveBankCard({
           <div className="w-9 h-9 rounded-full border border-[var(--line)] bg-[var(--surface-2)] flex items-center justify-center text-[var(--ink-2)]">
             <Snowflake size={16} />
           </div>
-          <span className="eyebrow mt-2">TEMP FROZEN</span>
+          <span className="eyebrow mt-2">Temporarily Frozen</span>
           <button
             onClick={(e)=>{e.stopPropagation(); onUpdateCard({ ...card, isFrozen:false }); showToast('success', `${card.cardName} unfrozen.`);}}
             className="btn-ghost mt-3 !py-1.5 !text-xs flex items-center gap-1.5"

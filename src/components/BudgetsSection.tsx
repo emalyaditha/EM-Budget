@@ -109,7 +109,7 @@ export default function BudgetsSection({
               className="btn-ghost !py-1.5 !px-3 text-[11px] shrink-0"
               style={showClearConfirm ? { borderColor: 'var(--danger)', color: 'var(--danger)', background: 'var(--danger-bg)' } : undefined}
             >
-              <span className="inline-flex items-center gap-1"><Trash2 size={11} />{showClearConfirm ? 'Confirm' : 'Limpiar'}</span>
+              <span className="inline-flex items-center gap-1"><Trash2 size={11} />{showClearConfirm ? 'Confirm' : 'Clear All'}</span>
             </button>
           )}
         </div>

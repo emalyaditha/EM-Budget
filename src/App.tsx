@@ -169,7 +169,7 @@ export default function App() {
     if (nextState.cards) {
       nextState.cards = nextState.cards.map(card => {
         if (card.cardType === 'Credit' && card.currentBalance > 0) {
-          console.log(`MIGRATION: Auto-healing credit card "${card.cardName}" with positive balance ${card.currentBalance} to negative balance ${-card.currentBalance}`);
+          if (import.meta.env.DEV) console.log(`MIGRATION: Auto-healing credit card "${card.cardName}" with positive balance ${card.currentBalance} to negative balance ${-card.currentBalance}`);
           return {
             ...card,
             currentBalance: -card.currentBalance
@@ -474,7 +474,7 @@ export default function App() {
             setRealtimeSyncStatus('error');
             setRealtimeSyncError(res.error || 'Failed to sync check RLS/Table');
           } else {
-            console.log('Real-time Supabase Auto-sync success!');
+            if (import.meta.env.DEV) console.log('Real-time Supabase Auto-sync success!');
             setRealtimeSyncStatus('synced');
             setRealtimeSyncError(null);
           }
@@ -3660,9 +3660,9 @@ export default function App() {
 
       </main>
 
-      {editingTransactionId && (
+      {editingTransactionId && state.transactions.some(t => t.id === editingTransactionId) && (
         <TransactionEditModal
-          transaction={state.transactions.find(t => t.id === editingTransactionId) || null}
+          transaction={state.transactions.find(t => t.id === editingTransactionId)!}
           cashAccounts={state.cashAccounts}
           cards={state.cards}
           onClose={() => setEditingTransactionId(null)}
@@ -3719,8 +3719,26 @@ export default function App() {
       {/* 3. WORKSPACE FOOTER CORE STATUS */}
         <footer className="bg-[var(--surface)] border-t border-[var(--line)] px-6 py-3.5 z-10 flex flex-col md:flex-row justify-between items-center text-[11px] text-[var(--ink-2)] mono gap-3">
         <div className="flex items-center gap-2">
-          <CircleDot size={12} className="text-emerald-400 animate-pulse" />
-          <span>Local database mirror synchronized fully.</span>
+          <CircleDot
+            size={12}
+            className={
+              !isOnline ? 'text-[var(--danger)] animate-pulse'
+              : !isSupabaseReachable ? 'text-amber-500 animate-pulse'
+              : realtimeSyncStatus === 'syncing' ? 'text-amber-500 animate-pulse'
+              : realtimeSyncStatus === 'synced' ? 'text-emerald-400'
+              : realtimeSyncStatus === 'error' ? 'text-[var(--danger)] animate-pulse'
+              : 'text-[var(--ink-3)]'
+            }
+          />
+          <span title={realtimeSyncError || undefined}>
+            {!isOnline ? 'Offline — no internet connection.'
+              : !isSupabaseReachable ? 'Online — cloud unreachable.'
+              : realtimeSyncStatus === 'syncing' ? 'Syncing with cloud…'
+              : realtimeSyncStatus === 'synced' ? 'Local database mirror synchronized fully.'
+              : realtimeSyncStatus === 'error' ? `Sync error — ${realtimeSyncError || 'will retry'}.`
+              : realtimeSyncStatus === 'disabled' ? 'Offline — auto-sync disabled.'
+              : 'Ready to sync.'}
+          </span>
         </div>
         <div className="flex gap-4">
           <span>© 2026 — Designed & Developed by <a href="https://emalyaditha.com/" target="_blank" rel="noopener noreferrer" className="text-[var(--ink)] hover:underline transition-colors">Emal Yaditha</a>. All rights reserved.</span>
