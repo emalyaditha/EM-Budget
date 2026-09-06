@@ -6,6 +6,7 @@ import { DEFAULT_APP_STATE } from './initialData';
 import { exportStateAsJSON, generateUniqueId, todayLocal, saveStateToStorage, loadStateFromStorage } from './utils';
 import { addMoney, subtractMoney, compareMoney } from './lib/money';
 import { calculateInstallmentFee, calculateMonthlyPayment, generateInstallmentSchedule, isCardEligibleForInstallment } from './lib/installments';
+import { maybeRollCard } from './lib/creditCards';
 import { authSession } from './services/authSession';
 import { 
   Plus, Search, Bell, Wallet, LayoutDashboard, 
@@ -1940,6 +1941,8 @@ export default function App() {
         return;
       }
       let overpaymentMsg = '';
+      const rollSourceCard = state.cards.find(c => c.id === cardId);
+      const rollResult = rollSourceCard ? maybeRollCard(rollSourceCard, state.transactions, amount) : {};
       updateState(prev => {
           const updatedCash = prev.cashAccounts.map(c => 
             (fromType === 'cash' && c.id === fromId) ? { ...c, balance: subtractMoney(c.balance, amount) } : c
@@ -1957,7 +1960,7 @@ export default function App() {
                 }
                 cBal = addMoney(cBal, amount); // We paid off this card
             }
-            return { ...c, currentBalance: cBal, lastPaymentDate: c.id === cardId ? todayLocal() : c.lastPaymentDate };
+            return { ...c, currentBalance: cBal, lastPaymentDate: c.id === cardId ? todayLocal() : c.lastPaymentDate, ...(c.id === cardId ? rollResult : {}) };
           });
           
           const targetCard = prev.cards.find(c => c.id === cardId);
@@ -1984,7 +1987,15 @@ export default function App() {
               transactions: [newTransaction, ...prev.transactions]
           };
       });
-      showToast('success', overpaymentMsg ? `Payment recorded! ${overpaymentMsg}` : 'Payment recorded successfully!');
+      if (overpaymentMsg) {
+        showToast('success', `Payment recorded! ${overpaymentMsg}`);
+      } else if ('dueDate' in rollResult && rollResult.dueDate === undefined) {
+        showToast('success', 'Card fully settled — no further minimum due.');
+      } else if (rollResult.dueDate) {
+        showToast('success', `Payment recorded! Minimum satisfied — next payment due ${rollResult.dueDate}.`);
+      } else {
+        showToast('success', 'Payment recorded successfully!');
+      }
   };
 
   const handleCreateInstallmentPlan = (cardId: string, purchaseId: string, tenureMonths: 6 | 12 | 24 | 48) => {

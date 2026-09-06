@@ -483,6 +483,10 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       if (cardsCols.includes('is_limit_locked')) mapped.is_limit_locked = card.isLimitLocked !== undefined ? Boolean(card.isLimitLocked) : true;
       if (cardsCols.includes('is_frozen')) mapped.is_frozen = card.isFrozen !== undefined ? Boolean(card.isFrozen) : false;
       if (cardsCols.includes('locked_amount')) mapped.locked_amount = card.lockedAmount !== undefined ? card.lockedAmount : null;
+      if (cardsCols.includes('due_date')) mapped.due_date = card.dueDate !== undefined ? card.dueDate : null;
+      if (cardsCols.includes('min_payment')) mapped.min_payment = card.minPayment !== undefined ? card.minPayment : null;
+      if (cardsCols.includes('apr')) mapped.apr = card.apr !== undefined ? card.apr : null;
+      if (cardsCols.includes('last_payment_date')) mapped.last_payment_date = card.lastPaymentDate !== undefined ? card.lastPaymentDate : null;
       return mapped;
     });
 
