@@ -1957,7 +1957,7 @@ export default function App() {
                 }
                 cBal = addMoney(cBal, amount); // We paid off this card
             }
-            return { ...c, currentBalance: cBal };
+            return { ...c, currentBalance: cBal, lastPaymentDate: c.id === cardId ? todayLocal() : c.lastPaymentDate };
           });
           
           const targetCard = prev.cards.find(c => c.id === cardId);

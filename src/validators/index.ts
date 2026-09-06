@@ -60,7 +60,12 @@ export const BankCardSchema = z.object({
   cardNumber: z.string().regex(/^(\*\*\*\* \d{4}|[•*]{4} [•*]{4} [•*]{4} \d{4}|\d{16})$/, 'Card number must be 16 digits or masked standard (**** 1234)').optional(),
   isCanceled: z.boolean().optional().default(false),
   cardTheme: z.string().optional().default('obsidian'),
-  isFrozen: z.boolean().optional().default(false)
+  isFrozen: z.boolean().optional().default(false),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/, 'Invalid due date (must be YYYY-MM-DD)').optional(),
+  minPayment: z.number().finite().nonnegative('Minimum payment cannot be negative').optional(),
+  apr: z.number().finite().nonnegative('APR cannot be negative').optional(),
+  lastPaymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/, 'Invalid last payment date (must be YYYY-MM-DD)').optional(),
+  statementCloseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/, 'Invalid statement close date (must be YYYY-MM-DD)').optional()
 });
 
 // 3. Transaction Schema
