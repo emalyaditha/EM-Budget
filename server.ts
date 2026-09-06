@@ -3264,7 +3264,7 @@ const vercelHandler = async (req: any, res: any) => {
   } catch (err: any) {
     console.error('[vercelHandler] Failed to start server:', err?.message || err);
     if (res.headersSent) return;
-    res.status(500).json({ success: false, error: `Server is temporarily unavailable. Please try again. [boot: ${err?.message || err}]` });
+    res.status(500).json({ success: false, error: 'Server is temporarily unavailable. Please try again.' });
   }
 };
 
