@@ -122,21 +122,9 @@ export function DashboardHero({
           <p className="eyebrow !text-[10px]">Liquid cash</p>
         </div>
 
-        {/* Liquid cash composition: cash wallets + debit cards, and net worth for context */}
-        <div className="grid grid-cols-3 w-full max-w-[340px] gap-2">
-          <div className="rounded-[12px] border border-[var(--line)] bg-[var(--surface)] px-2 py-2 text-center space-y-0.5">
-            <p className="eyebrow !text-[8px]">Cash</p>
-            <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
-              {currency}{totalCashAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </p>
-          </div>
-          <div className="rounded-[12px] border border-[var(--line)] bg-[var(--surface)] px-2 py-2 text-center space-y-0.5">
-            <p className="eyebrow !text-[8px]">Debit cards</p>
-            <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
-              {currency}{totalDebitCardsAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </p>
-          </div>
-          <div className="rounded-[12px] border border-[var(--line)] bg-[var(--surface)] px-2 py-2 text-center space-y-0.5">
+        {/* Net worth for context beside the Liquid cash headline */}
+        <div className="flex items-center justify-center gap-2 w-full max-w-[280px]">
+          <div className="rounded-[12px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-center space-y-0.5 flex-1">
             <p className="eyebrow !text-[8px]">Net worth</p>
             <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
               {currency}{aggregateActiveWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}

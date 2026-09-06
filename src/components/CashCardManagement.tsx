@@ -10,7 +10,7 @@ interface CashCardManagementProps {
   cards: BankCard[];
   onAddCashAccount: (name: string, balance: number) => void;
   onEditCashAccount: (id: string, newBalance: number) => void;
-  onAddCard: (card: Omit<BankCard, 'id'>) => void;
+  onAddCard: (card: Omit<BankCard, 'id'>) => boolean;
   onDeleteCard: (id: string) => void;
   onDeleteCashAccount: (id: string) => void;
   currency: string;
@@ -235,7 +235,8 @@ export default function CashCardManagement({
     if(!ok){ if(!cardName.trim()) cardNameInputRef.current?.focus(); else if(!bankName.trim()) bankNameInputRef.current?.focus(); else if(!cardBalance) cardBalanceInputRef.current?.focus(); else cardNumberInputRef.current?.focus(); showToast('error','Fix card errors.'); return; }
     const bal=parseFloat(cardBalance)||0; const lim=cardType==='Credit'?parseFloat(cardLimit)||0:undefined;
     let clean=cardNumber.replace(/\s+/g,''); if(clean.length>0){ clean = clean.length>4 ? `•••• •••• •••• ${clean.slice(-4)}` : `•••• •••• •••• ${clean}`; } else clean=`•••• •••• •••• ${Math.floor(1000+Math.random()*9000)}`;
-    onAddCard({ cardName:cardName.trim(), bankName:bankName.trim(), cardType, currentBalance: cardType==='Credit'?-Math.abs(bal):bal, limit:lim, cardNumber:clean, cardTheme, lockedAmount: cardType==='Debit'?parseFloat(cardLockedAmount)||0:undefined });
+    const cardSaved = onAddCard({ cardName:cardName.trim(), bankName:bankName.trim(), cardType, currentBalance: cardType==='Credit'?-Math.abs(bal):bal, limit:lim, cardNumber:clean, cardTheme, lockedAmount: cardType==='Debit'?parseFloat(cardLockedAmount)||0:undefined });
+    if (!cardSaved) { showToast('error','Card was not saved. Please review the entered details.'); return; }
     setCardName(''); setBankName(''); setCardBalance(''); setCardLimit('50000'); setCardNumber(''); setCardLockedAmount(''); setCardSubmitted(false); setCardErrors({}); setIsAddingCard(false); showToast('success','Card added.');
   };
   const validateEditCard=(name:string,numStr:string)=>{

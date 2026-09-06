@@ -57,7 +57,7 @@ export const BankCardSchema = z.object({
   currentBalance: z.number().finite(),
   limit: z.number().finite().nonnegative('Limit must be greater than or equal to 0').optional(),
   isLimitLocked: z.boolean().optional().default(true),
-  cardNumber: z.string().regex(/^(\*\*\*\* \d{4}|\d{16})$/, 'Card number must be 16 digits or masked standard (**** 1234)').optional(),
+  cardNumber: z.string().regex(/^(\*\*\*\* \d{4}|[•*]{4} [•*]{4} [•*]{4} \d{4}|\d{16})$/, 'Card number must be 16 digits or masked standard (**** 1234)').optional(),
   isCanceled: z.boolean().optional().default(false),
   cardTheme: z.string().optional().default('obsidian'),
   isFrozen: z.boolean().optional().default(false)

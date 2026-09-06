@@ -2477,7 +2477,7 @@ export default function App() {
     });
   };
 
-  const handleAddCard = (newCardData: Omit<BankCard, 'id'>) => {
+  const handleAddCard = (newCardData: Omit<BankCard, 'id'>): boolean => {
     const rawCard: BankCard = {
       ...newCardData,
       id: generateUniqueId('card'),
@@ -2485,12 +2485,13 @@ export default function App() {
     const validation = validateData(BankCardSchema, rawCard);
     if (!validation.success) {
       showToast(validation.error, 'error');
-      return;
+      return false;
     }
     updateState(prev => ({
       ...prev,
       cards: [...prev.cards, validation.data],
     }));
+    return true;
   };
 
   const handleDeleteCard = async (idToDelete: string) => {
