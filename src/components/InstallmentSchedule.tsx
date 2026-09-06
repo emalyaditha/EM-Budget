@@ -1,19 +1,23 @@
 import React from 'react';
 import { CreditCardInstallment, CreditCardInstallmentPayment, CreditCardPurchase } from '../types';
 import { getInstallmentProgress } from '../lib/installments';
-import { Calendar, Check, Clock, AlertTriangle, ChevronDown, ChevronUp, Pause } from 'lucide-react';
+import { Calendar, Check, Clock, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Props {
   installment: CreditCardInstallment;
   payments: CreditCardInstallmentPayment[];
   purchase?: CreditCardPurchase;
   currency: string;
-  onPayPayment: (installmentId: string, paymentId: string, amount: number) => void;
+  cashAccounts: { id: string; name: string; balance: number }[];
+  cards: { id: string; bankName?: string; cardName?: string; currentBalance: number; isCanceled?: boolean }[];
+  onPayPayment: (installmentId: string, paymentId: string, amount: number, paidFromId: string, paidFromType: 'cash' | 'card', bankCharge?: number) => void;
 }
 
-export default function InstallmentSchedule({ installment, payments, purchase, currency, onPayPayment }: Props) {
+export default function InstallmentSchedule({ installment, payments, purchase, currency, cashAccounts, cards, onPayPayment }: Props) {
   const progress = getInstallmentProgress(installment, payments);
   const [expanded, setExpanded] = React.useState(false);
+  const [paySourceId, setPaySourceId] = React.useState('');
+  const [paySourceType, setPaySourceType] = React.useState<'cash' | 'card'>('cash');
 
   const nextPending = payments
     .filter(p => p.status === 'pending')
@@ -21,6 +25,27 @@ export default function InstallmentSchedule({ installment, payments, purchase, c
 
   const isCompleted = installment.status === 'completed';
   const isCancelled = installment.status === 'cancelled';
+
+  React.useEffect(() => {
+    if (!paySourceId) {
+      if (cashAccounts.length > 0) {
+        setPaySourceId(cashAccounts[0].id);
+        setPaySourceType('cash');
+      } else if (cards.some(c => !c.isCanceled)) {
+        const first = cards.find(c => !c.isCanceled);
+        if (first) {
+          setPaySourceId(first.id);
+          setPaySourceType('card');
+        }
+      }
+    }
+  }, [cashAccounts, cards, paySourceId]);
+
+  const handleSelectPaymentSource = (value: string) => {
+    const [id, type] = value.split(':');
+    setPaySourceId(id);
+    setPaySourceType(type as 'cash' | 'card');
+  };
 
   return (
     <div className="p-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] space-y-2">
@@ -87,12 +112,40 @@ export default function InstallmentSchedule({ installment, payments, purchase, c
             <span className="mono text-[10px] font-bold text-[var(--ink)]">{nextPending.dueDate}</span>
           </div>
           <button
-            onClick={() => onPayPayment(installment.id, nextPending.id, nextPending.amountDue)}
+            onClick={() => paySourceId && onPayPayment(installment.id, nextPending.id, nextPending.amountDue, paySourceId, paySourceType)}
             className="btn-primary !text-[10px] !py-1 !px-2"
+            disabled={!paySourceId}
           >
             Pay {currency}{nextPending.amountDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </button>
         </div>
+      )}
+
+      {/* Pay-from source selection */}
+      {!isCompleted && !isCancelled && nextPending && (
+        <select
+          value={paySourceId ? `${paySourceId}:${paySourceType}` : ''}
+          onChange={e => handleSelectPaymentSource(e.target.value)}
+          className="input !text-[10px]"
+        >
+          <option value="" disabled>
+            Pay from…
+          </option>
+          <optgroup label="Cash">
+            {cashAccounts.map(acc => (
+              <option key={acc.id} value={`${acc.id}:cash`}>
+                {acc.name} ({currency}{acc.balance.toLocaleString()})
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Cards">
+            {cards.filter(c => !c.isCanceled).map(card => (
+              <option key={card.id} value={`${card.id}:card`}>
+                {card.bankName || card.cardName} ({currency}{card.currentBalance.toLocaleString()})
+              </option>
+            ))}
+          </optgroup>
+        </select>
       )}
 
       {/* Expand/Collapse Schedule */}

@@ -94,6 +94,8 @@ export function generateUniqueId(prefix = ''): string {
 // Download state as backup JSON file
 export function exportStateAsJSON(state: AppState, userEmail?: string) {
   // Strip sensitive security PIN from exports
+  // Pin deliberately excluded from the sanitized export payload.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { pinCode, ...sanitizedState } = state;
   const payload = {
     version: "EM_BUDGET_SECURE_EX_V1",

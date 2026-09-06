@@ -105,14 +105,9 @@ const [idleMinutes, setIdleMinutes] = useState(1);
       fetch(apiUrl('/api/config/sql')).then((r) => safeJson(r)).then((d) => { if (d?.success) setSqlScript(d.sql); }).catch(() => {});
       void refreshAppLock();
     }
+    // refreshAppLock is a stable hook callback; modal open is the intended refresh trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-
-  const handleSaveCredentials = () => {
-    saveSupabaseConfig(supabaseUrl.trim(), supabaseKey.trim(), autoSync);
-    setSyncStatus('success');
-    setSyncMessage('Credentials saved.');
-    setTimeout(() => setSyncMessage(null), 3000);
-  };
 
   const handlePushSync = async () => {
     saveSupabaseConfig(supabaseUrl.trim(), supabaseKey.trim(), autoSync);

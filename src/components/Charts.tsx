@@ -49,7 +49,7 @@ export function TrendAnalysisChart({ data, currency }: { data: { date: string; v
       <div className="flex justify-between mono text-[10px] mt-3" style={{ color: 'var(--ink-3)' }}>
         {data.map((d, idx) => {
           let label = d.date;
-          try { const dateObj = new Date(d.date); if (!isNaN(dateObj.getTime())) label = `${dateObj.getDate()} ${dateObj.toLocaleString('default', { month: 'short' })}`; } catch (_e) { /* ignore invalid date */ }
+          try { const dateObj = new Date(d.date); if (!isNaN(dateObj.getTime())) label = `${dateObj.getDate()} ${dateObj.toLocaleString('default', { month: 'short' })}`; } catch { /* ignore invalid date */ }
           return (<span key={idx} title={d.date}>{label}</span>);
         })}
       </div>
@@ -77,11 +77,6 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
   );
 }
 
-function getMonoShade(idx: number, total: number): string {
-  const alpha = 0.18 + (idx / Math.max(1, total - 1)) * 0.75;
-  return `color-mix(in srgb, var(--ink) ${Math.round(alpha * 100)}%, transparent)`;
-}
-
 const PASTEL_PALETTE = ['bar-pink','bar-mint','bar-yellow','bar-lavender','bar-blue'] as const;
 function pastelClass(idx: number) { return PASTEL_PALETTE[idx % PASTEL_PALETTE.length]; }
 function hexForPastel(cls: string): string {
@@ -89,7 +84,7 @@ function hexForPastel(cls: string): string {
   return map[cls] || '#0A0A0A';
 }
 
-export function CategorySpreadAnalysis({ categories, currency = 'Rs.', layout = 'auto' }: { categories: CategorySum[]; currency?: string; layout?: 'auto' | 'vertical' | 'horizontal' }) {
+export function CategorySpreadAnalysis({ categories, currency = 'Rs.', layout: _layout = 'auto' }: { categories: CategorySum[]; currency?: string; layout?: 'auto' | 'vertical' | 'horizontal' }) {
   if (categories.length === 0) {
     return (
       <div className="card p-6 text-center min-h-[180px] grid place-items-center">

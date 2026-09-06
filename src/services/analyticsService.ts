@@ -1,4 +1,4 @@
-import { Transaction, CategoryExpense, Subscription } from '../types';
+import { Transaction, Subscription } from '../types';
 
 export const analyticsService = {
   getExpensesByCategory: (transactions: Transaction[]) => {

@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getSupabaseConfig } from "../supabase";
-import { useNotifications } from "../context/NotificationContext";
 
 interface EmailLoginProps {
   onUnlocked: (
@@ -34,7 +33,6 @@ type AuthStep =
   | "reset-password";
 
 export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
-  const { showToast } = useNotifications();
   const [step, setStep] = useState<AuthStep>("enter-email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

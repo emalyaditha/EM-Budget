@@ -135,7 +135,7 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
         } else if (resData?.error) {
           throw new Error(resData.error);
         }
-      } catch (srvErr: any) {
+      } catch {
         setIsAnalyzing(false); setStatusMessage('');
         const msg = 'Server OCR is unavailable. Please use a clearer photo or enter the details manually.';
         setError(msg); showToast('error', msg);

@@ -51,3 +51,11 @@ using (public.verify_system_signature(nullif(current_setting('request.headers', 
 drop policy if exists "Secure system access on auth_device_tokens" on public.auth_device_tokens;
 create policy "Secure system access on auth_device_tokens" on public.auth_device_tokens for all
 using (public.verify_system_signature(nullif(current_setting('request.headers', true), '')::json));
+
+-- 5. Device-token lookup indexes (the columns these index became available here,
+--    so the indexes were moved out of 20260829_add_missing_indexes.sql to keep
+--    fresh-clone replay order-independent). Idempotent for existing databases.
+create index if not exists idx_device_tokens_hashed
+  on public.auth_device_tokens (hashed_email);
+create index if not exists idx_device_tokens_expires
+  on public.auth_device_tokens (expires_at);

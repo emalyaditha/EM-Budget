@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, ShieldCheck, Fingerprint, AlertCircle, RefreshCw, ArrowLeft, KeyRound } from 'lucide-react';
+import { Lock, ShieldCheck, Fingerprint, AlertCircle, RefreshCw, KeyRound } from 'lucide-react';
 import {
   verifyPin,
   biometricUnlock,
@@ -89,6 +89,8 @@ export default function LockScreen({
 
   useEffect(() => {
     return () => {
+      // Cleanup runs once on unmount and reads refs at teardown time by design.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (lockoutTimerRef.current) clearTimeout(lockoutTimerRef.current);
       if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
     };

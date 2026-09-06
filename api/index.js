@@ -20014,14 +20014,14 @@ var require_etag = __commonJS({
   "node_modules/etag/index.js"(exports2, module2) {
     "use strict";
     module2.exports = etag;
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     var Stats = require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto3.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto4.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -22914,11 +22914,11 @@ var require_request = __commonJS({
 // node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "node_modules/cookie-signature/index.js"(exports2) {
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     exports2.sign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto3.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto4.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports2.unsign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -22927,7 +22927,7 @@ var require_cookie_signature = __commonJS({
       return sha12(mac) == sha12(val) ? str : false;
     };
     function sha12(str) {
-      return crypto3.createHash("sha1").update(str).digest("hex");
+      return crypto4.createHash("sha1").update(str).digest("hex");
     }
   }
 });
@@ -28763,7 +28763,7 @@ var require_le_unix = __commonJS({
 var require_mime_node = __commonJS({
   "node_modules/nodemailer/lib/mime-node/index.js"(exports2, module2) {
     "use strict";
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     var fs2 = require("fs");
     var punycode = require_punycode();
     var { PassThrough } = require("stream");
@@ -28786,7 +28786,7 @@ var require_mime_node = __commonJS({
       constructor(contentType, options) {
         this.nodeCounter = 0;
         options = options || {};
-        this.baseBoundary = options.baseBoundary || crypto3.randomBytes(8).toString("hex");
+        this.baseBoundary = options.baseBoundary || crypto4.randomBytes(8).toString("hex");
         this.boundaryPrefix = options.boundaryPrefix || "--_NmP";
         this.disableFileAccess = !!options.disableFileAccess;
         this.disableUrlAccess = !!options.disableUrlAccess;
@@ -29810,8 +29810,8 @@ var require_mime_node = __commonJS({
       _generateMessageId() {
         return "<" + [2, 2, 2, 6].reduce(
           // crux to generate UUID-like random strings
-          (prev, len) => prev + "-" + crypto3.randomBytes(len).toString("hex"),
-          crypto3.randomBytes(4).toString("hex")
+          (prev, len) => prev + "-" + crypto4.randomBytes(len).toString("hex"),
+          crypto4.randomBytes(4).toString("hex")
         ) + "@" + // try to use the domain of the FROM address or fallback to server hostname
         (this.getEnvelope().from || this.hostname || "localhost").split("@").pop() + ">";
       }
@@ -30441,14 +30441,14 @@ var require_relaxed_body = __commonJS({
   "node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports2, module2) {
     "use strict";
     var { Transform } = require("stream");
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     var RelaxedBody = class extends Transform {
       constructor(options) {
         super();
         options = options || {};
         this.chunkBuffer = [];
         this.chunkBufferLen = 0;
-        this.bodyHash = crypto3.createHash(options.hashAlgo || "sha256");
+        this.bodyHash = crypto4.createHash(options.hashAlgo || "sha256");
         this.remainder = "";
         this.byteLength = 0;
         this.debug = options.debug;
@@ -30551,7 +30551,7 @@ var require_sign2 = __commonJS({
     "use strict";
     var punycode = require_punycode();
     var mimeFuncs = require_mime_funcs();
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     module2.exports = (headers, hashAlgo, bodyHash, options) => {
       options = options || {};
       const defaultFieldNames = "From:Sender:Reply-To:Subject:Date:Message-ID:To:Cc:MIME-Version:Content-Type:Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive";
@@ -30559,7 +30559,7 @@ var require_sign2 = __commonJS({
       const canonicalizedHeaderData = relaxedHeaders(headers, fieldNames, options.skipFields);
       const dkimHeader = generateDKIMHeader(options.domainName, options.keySelector, canonicalizedHeaderData.fieldNames, hashAlgo, bodyHash);
       canonicalizedHeaderData.headers += "dkim-signature:" + relaxedHeaderLine(dkimHeader);
-      const signer = crypto3.createSign(("rsa-" + hashAlgo).toUpperCase());
+      const signer = crypto4.createSign(("rsa-" + hashAlgo).toUpperCase());
       signer.update(canonicalizedHeaderData.headers);
       let signature;
       try {
@@ -30629,7 +30629,7 @@ var require_dkim = __commonJS({
     var { PassThrough } = require("stream");
     var fs2 = require("fs");
     var path2 = require("path");
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     var { copyOwnKeys } = require_objects();
     var DKIM_ALGO = "sha256";
     var MAX_MESSAGE_SIZE = 2 * 1024 * 1024;
@@ -30643,7 +30643,7 @@ var require_dkim = __commonJS({
         this.chunks = [];
         this.chunklen = 0;
         this.readPos = 0;
-        this.cachePath = this.cacheDir ? path2.join(this.cacheDir, "message." + Date.now() + "-" + crypto3.randomBytes(14).toString("hex")) : false;
+        this.cachePath = this.cacheDir ? path2.join(this.cacheDir, "message." + Date.now() + "-" + crypto4.randomBytes(14).toString("hex")) : false;
         this.cache = false;
         this.headers = false;
         this.bodyHash = false;
@@ -31198,7 +31198,7 @@ var require_mailer = __commonJS({
     var MailMessage = require_mail_message();
     var net = require("net");
     var dns = require("dns");
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     var Mail = class extends EventEmitter {
       constructor(transporter, options, defaults) {
         super();
@@ -31541,7 +31541,7 @@ var require_mailer = __commonJS({
             html = (html || "").toString().replace(
               /(<img\b[^<>]{0,1024} src\s{0,20}=[\s"']{0,20})(data:([^;]+);[^"'>\s]+)/gi,
               (match, prefix, dataUri, mimeType) => {
-                const cid = crypto3.randomBytes(10).toString("hex") + "@localhost";
+                const cid = crypto4.randomBytes(10).toString("hex") + "@localhost";
                 if (!mail.data.attachments) {
                   mail.data.attachments = [];
                 }
@@ -31668,7 +31668,7 @@ var require_smtp_connection = __commonJS({
     var net = require("net");
     var tls = require("tls");
     var os = require("os");
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     var DataStream = require_data_stream();
     var { PassThrough } = require("stream");
     var shared = require_shared();
@@ -31688,7 +31688,7 @@ var require_smtp_connection = __commonJS({
     var SMTPConnection = class extends EventEmitter {
       constructor(options) {
         super(options);
-        this.id = crypto3.randomBytes(8).toString("base64").replace(/\W/g, "");
+        this.id = crypto4.randomBytes(8).toString("base64").replace(/\W/g, "");
         this.stage = "init";
         this.options = options || {};
         this.secureConnection = !!this.options.secure;
@@ -32873,7 +32873,7 @@ var require_smtp_connection = __commonJS({
           );
         }
         const base64decoded = Buffer.from(challengeMatch[1], "base64").toString("ascii");
-        const hmacMD5 = crypto3.createHmac("md5", this._auth.credentials.pass);
+        const hmacMD5 = crypto4.createHmac("md5", this._auth.credentials.pass);
         hmacMD5.update(base64decoded);
         const prepended = this._auth.credentials.user + " " + hmacMD5.digest("hex");
         this._responseActions.push((str2) => {
@@ -33166,7 +33166,7 @@ var require_xoauth2 = __commonJS({
     "use strict";
     var { Stream } = require("stream");
     var nmfetch = require_fetch();
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     var shared = require_shared();
     var errors = require_errors();
     var XOAuth2 = class extends Stream {
@@ -33512,7 +33512,7 @@ var require_xoauth2 = __commonJS({
        */
       jwtSignRS256(payload) {
         payload = ['{"alg":"RS256","typ":"JWT"}', JSON.stringify(payload)].map((val) => this.toBase64URL(val)).join(".");
-        const signature = crypto3.createSign("RSA-SHA256").update(payload).sign(this.options.privateKey);
+        const signature = crypto4.createSign("RSA-SHA256").update(payload).sign(this.options.privateKey);
         return payload + "." + this.toBase64URL(signature);
       }
     };
@@ -35959,6 +35959,1234 @@ var require_nodemailer = __commonJS({
       }
       return false;
     };
+  }
+});
+
+// node_modules/compression/node_modules/negotiator/lib/charset.js
+var require_charset2 = __commonJS({
+  "node_modules/compression/node_modules/negotiator/lib/charset.js"(exports2, module2) {
+    "use strict";
+    module2.exports = preferredCharsets;
+    module2.exports.preferredCharsets = preferredCharsets;
+    var simpleCharsetRegExp = /^\s*([^\s;]+)\s*(?:;(.*))?$/;
+    function parseAcceptCharset(accept) {
+      var accepts = accept.split(",");
+      for (var i = 0, j = 0; i < accepts.length; i++) {
+        var charset = parseCharset(accepts[i].trim(), i);
+        if (charset) {
+          accepts[j++] = charset;
+        }
+      }
+      accepts.length = j;
+      return accepts;
+    }
+    function parseCharset(str, i) {
+      var match = simpleCharsetRegExp.exec(str);
+      if (!match) return null;
+      var charset = match[1];
+      var q = 1;
+      if (match[2]) {
+        var params = match[2].split(";");
+        for (var j = 0; j < params.length; j++) {
+          var p = params[j].trim().split("=");
+          if (p[0] === "q") {
+            q = parseFloat(p[1]);
+            break;
+          }
+        }
+      }
+      return {
+        charset,
+        q,
+        i
+      };
+    }
+    function getCharsetPriority(charset, accepted, index) {
+      var priority = { o: -1, q: 0, s: 0 };
+      for (var i = 0; i < accepted.length; i++) {
+        var spec = specify(charset, accepted[i], index);
+        if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
+          priority = spec;
+        }
+      }
+      return priority;
+    }
+    function specify(charset, spec, index) {
+      var s = 0;
+      if (spec.charset.toLowerCase() === charset.toLowerCase()) {
+        s |= 1;
+      } else if (spec.charset !== "*") {
+        return null;
+      }
+      return {
+        i: index,
+        o: spec.i,
+        q: spec.q,
+        s
+      };
+    }
+    function preferredCharsets(accept, provided) {
+      var accepts = parseAcceptCharset(accept === void 0 ? "*" : accept || "");
+      if (!provided) {
+        return accepts.filter(isQuality).sort(compareSpecs).map(getFullCharset);
+      }
+      var priorities = provided.map(function getPriority(type, index) {
+        return getCharsetPriority(type, accepts, index);
+      });
+      return priorities.filter(isQuality).sort(compareSpecs).map(function getCharset(priority) {
+        return provided[priorities.indexOf(priority)];
+      });
+    }
+    function compareSpecs(a, b) {
+      return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i || 0;
+    }
+    function getFullCharset(spec) {
+      return spec.charset;
+    }
+    function isQuality(spec) {
+      return spec.q > 0;
+    }
+  }
+});
+
+// node_modules/compression/node_modules/negotiator/lib/encoding.js
+var require_encoding2 = __commonJS({
+  "node_modules/compression/node_modules/negotiator/lib/encoding.js"(exports2, module2) {
+    "use strict";
+    module2.exports = preferredEncodings;
+    module2.exports.preferredEncodings = preferredEncodings;
+    var simpleEncodingRegExp = /^\s*([^\s;]+)\s*(?:;(.*))?$/;
+    function parseAcceptEncoding(accept) {
+      var accepts = accept.split(",");
+      var hasIdentity = false;
+      var minQuality = 1;
+      for (var i = 0, j = 0; i < accepts.length; i++) {
+        var encoding = parseEncoding(accepts[i].trim(), i);
+        if (encoding) {
+          accepts[j++] = encoding;
+          hasIdentity = hasIdentity || specify("identity", encoding);
+          minQuality = Math.min(minQuality, encoding.q || 1);
+        }
+      }
+      if (!hasIdentity) {
+        accepts[j++] = {
+          encoding: "identity",
+          q: minQuality,
+          i
+        };
+      }
+      accepts.length = j;
+      return accepts;
+    }
+    function parseEncoding(str, i) {
+      var match = simpleEncodingRegExp.exec(str);
+      if (!match) return null;
+      var encoding = match[1];
+      var q = 1;
+      if (match[2]) {
+        var params = match[2].split(";");
+        for (var j = 0; j < params.length; j++) {
+          var p = params[j].trim().split("=");
+          if (p[0] === "q") {
+            q = parseFloat(p[1]);
+            break;
+          }
+        }
+      }
+      return {
+        encoding,
+        q,
+        i
+      };
+    }
+    function getEncodingPriority(encoding, accepted, index) {
+      var priority = { encoding, o: -1, q: 0, s: 0 };
+      for (var i = 0; i < accepted.length; i++) {
+        var spec = specify(encoding, accepted[i], index);
+        if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
+          priority = spec;
+        }
+      }
+      return priority;
+    }
+    function specify(encoding, spec, index) {
+      var s = 0;
+      if (spec.encoding.toLowerCase() === encoding.toLowerCase()) {
+        s |= 1;
+      } else if (spec.encoding !== "*") {
+        return null;
+      }
+      return {
+        encoding,
+        i: index,
+        o: spec.i,
+        q: spec.q,
+        s
+      };
+    }
+    function preferredEncodings(accept, provided, preferred) {
+      var accepts = parseAcceptEncoding(accept || "");
+      var comparator = preferred ? function comparator2(a, b) {
+        if (a.q !== b.q) {
+          return b.q - a.q;
+        }
+        var aPreferred = preferred.indexOf(a.encoding);
+        var bPreferred = preferred.indexOf(b.encoding);
+        if (aPreferred === -1 && bPreferred === -1) {
+          return b.s - a.s || a.o - b.o || a.i - b.i;
+        }
+        if (aPreferred !== -1 && bPreferred !== -1) {
+          return aPreferred - bPreferred;
+        }
+        return aPreferred === -1 ? 1 : -1;
+      } : compareSpecs;
+      if (!provided) {
+        return accepts.filter(isQuality).sort(comparator).map(getFullEncoding);
+      }
+      var priorities = provided.map(function getPriority(type, index) {
+        return getEncodingPriority(type, accepts, index);
+      });
+      return priorities.filter(isQuality).sort(comparator).map(function getEncoding(priority) {
+        return provided[priorities.indexOf(priority)];
+      });
+    }
+    function compareSpecs(a, b) {
+      return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i;
+    }
+    function getFullEncoding(spec) {
+      return spec.encoding;
+    }
+    function isQuality(spec) {
+      return spec.q > 0;
+    }
+  }
+});
+
+// node_modules/compression/node_modules/negotiator/lib/language.js
+var require_language2 = __commonJS({
+  "node_modules/compression/node_modules/negotiator/lib/language.js"(exports2, module2) {
+    "use strict";
+    module2.exports = preferredLanguages;
+    module2.exports.preferredLanguages = preferredLanguages;
+    var simpleLanguageRegExp = /^\s*([^\s\-;]+)(?:-([^\s;]+))?\s*(?:;(.*))?$/;
+    function parseAcceptLanguage(accept) {
+      var accepts = accept.split(",");
+      for (var i = 0, j = 0; i < accepts.length; i++) {
+        var language = parseLanguage(accepts[i].trim(), i);
+        if (language) {
+          accepts[j++] = language;
+        }
+      }
+      accepts.length = j;
+      return accepts;
+    }
+    function parseLanguage(str, i) {
+      var match = simpleLanguageRegExp.exec(str);
+      if (!match) return null;
+      var prefix = match[1];
+      var suffix = match[2];
+      var full = prefix;
+      if (suffix) full += "-" + suffix;
+      var q = 1;
+      if (match[3]) {
+        var params = match[3].split(";");
+        for (var j = 0; j < params.length; j++) {
+          var p = params[j].split("=");
+          if (p[0] === "q") q = parseFloat(p[1]);
+        }
+      }
+      return {
+        prefix,
+        suffix,
+        q,
+        i,
+        full
+      };
+    }
+    function getLanguagePriority(language, accepted, index) {
+      var priority = { o: -1, q: 0, s: 0 };
+      for (var i = 0; i < accepted.length; i++) {
+        var spec = specify(language, accepted[i], index);
+        if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
+          priority = spec;
+        }
+      }
+      return priority;
+    }
+    function specify(language, spec, index) {
+      var p = parseLanguage(language);
+      if (!p) return null;
+      var s = 0;
+      if (spec.full.toLowerCase() === p.full.toLowerCase()) {
+        s |= 4;
+      } else if (spec.prefix.toLowerCase() === p.full.toLowerCase()) {
+        s |= 2;
+      } else if (spec.full.toLowerCase() === p.prefix.toLowerCase()) {
+        s |= 1;
+      } else if (spec.full !== "*") {
+        return null;
+      }
+      return {
+        i: index,
+        o: spec.i,
+        q: spec.q,
+        s
+      };
+    }
+    function preferredLanguages(accept, provided) {
+      var accepts = parseAcceptLanguage(accept === void 0 ? "*" : accept || "");
+      if (!provided) {
+        return accepts.filter(isQuality).sort(compareSpecs).map(getFullLanguage);
+      }
+      var priorities = provided.map(function getPriority(type, index) {
+        return getLanguagePriority(type, accepts, index);
+      });
+      return priorities.filter(isQuality).sort(compareSpecs).map(function getLanguage(priority) {
+        return provided[priorities.indexOf(priority)];
+      });
+    }
+    function compareSpecs(a, b) {
+      return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i || 0;
+    }
+    function getFullLanguage(spec) {
+      return spec.full;
+    }
+    function isQuality(spec) {
+      return spec.q > 0;
+    }
+  }
+});
+
+// node_modules/compression/node_modules/negotiator/lib/mediaType.js
+var require_mediaType2 = __commonJS({
+  "node_modules/compression/node_modules/negotiator/lib/mediaType.js"(exports2, module2) {
+    "use strict";
+    module2.exports = preferredMediaTypes;
+    module2.exports.preferredMediaTypes = preferredMediaTypes;
+    var simpleMediaTypeRegExp = /^\s*([^\s\/;]+)\/([^;\s]+)\s*(?:;(.*))?$/;
+    function parseAccept(accept) {
+      var accepts = splitMediaTypes(accept);
+      for (var i = 0, j = 0; i < accepts.length; i++) {
+        var mediaType = parseMediaType(accepts[i].trim(), i);
+        if (mediaType) {
+          accepts[j++] = mediaType;
+        }
+      }
+      accepts.length = j;
+      return accepts;
+    }
+    function parseMediaType(str, i) {
+      var match = simpleMediaTypeRegExp.exec(str);
+      if (!match) return null;
+      var params = /* @__PURE__ */ Object.create(null);
+      var q = 1;
+      var subtype = match[2];
+      var type = match[1];
+      if (match[3]) {
+        var kvps = splitParameters(match[3]).map(splitKeyValuePair);
+        for (var j = 0; j < kvps.length; j++) {
+          var pair = kvps[j];
+          var key = pair[0].toLowerCase();
+          var val = pair[1];
+          var value = val && val[0] === '"' && val[val.length - 1] === '"' ? val.slice(1, -1) : val;
+          if (key === "q") {
+            q = parseFloat(value);
+            break;
+          }
+          params[key] = value;
+        }
+      }
+      return {
+        type,
+        subtype,
+        params,
+        q,
+        i
+      };
+    }
+    function getMediaTypePriority(type, accepted, index) {
+      var priority = { o: -1, q: 0, s: 0 };
+      for (var i = 0; i < accepted.length; i++) {
+        var spec = specify(type, accepted[i], index);
+        if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
+          priority = spec;
+        }
+      }
+      return priority;
+    }
+    function specify(type, spec, index) {
+      var p = parseMediaType(type);
+      var s = 0;
+      if (!p) {
+        return null;
+      }
+      if (spec.type.toLowerCase() == p.type.toLowerCase()) {
+        s |= 4;
+      } else if (spec.type != "*") {
+        return null;
+      }
+      if (spec.subtype.toLowerCase() == p.subtype.toLowerCase()) {
+        s |= 2;
+      } else if (spec.subtype != "*") {
+        return null;
+      }
+      var keys = Object.keys(spec.params);
+      if (keys.length > 0) {
+        if (keys.every(function(k) {
+          return spec.params[k] == "*" || (spec.params[k] || "").toLowerCase() == (p.params[k] || "").toLowerCase();
+        })) {
+          s |= 1;
+        } else {
+          return null;
+        }
+      }
+      return {
+        i: index,
+        o: spec.i,
+        q: spec.q,
+        s
+      };
+    }
+    function preferredMediaTypes(accept, provided) {
+      var accepts = parseAccept(accept === void 0 ? "*/*" : accept || "");
+      if (!provided) {
+        return accepts.filter(isQuality).sort(compareSpecs).map(getFullType);
+      }
+      var priorities = provided.map(function getPriority(type, index) {
+        return getMediaTypePriority(type, accepts, index);
+      });
+      return priorities.filter(isQuality).sort(compareSpecs).map(function getType(priority) {
+        return provided[priorities.indexOf(priority)];
+      });
+    }
+    function compareSpecs(a, b) {
+      return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i || 0;
+    }
+    function getFullType(spec) {
+      return spec.type + "/" + spec.subtype;
+    }
+    function isQuality(spec) {
+      return spec.q > 0;
+    }
+    function quoteCount(string) {
+      var count = 0;
+      var index = 0;
+      while ((index = string.indexOf('"', index)) !== -1) {
+        count++;
+        index++;
+      }
+      return count;
+    }
+    function splitKeyValuePair(str) {
+      var index = str.indexOf("=");
+      var key;
+      var val;
+      if (index === -1) {
+        key = str;
+      } else {
+        key = str.slice(0, index);
+        val = str.slice(index + 1);
+      }
+      return [key, val];
+    }
+    function splitMediaTypes(accept) {
+      var accepts = accept.split(",");
+      for (var i = 1, j = 0; i < accepts.length; i++) {
+        if (quoteCount(accepts[j]) % 2 == 0) {
+          accepts[++j] = accepts[i];
+        } else {
+          accepts[j] += "," + accepts[i];
+        }
+      }
+      accepts.length = j + 1;
+      return accepts;
+    }
+    function splitParameters(str) {
+      var parameters = str.split(";");
+      for (var i = 1, j = 0; i < parameters.length; i++) {
+        if (quoteCount(parameters[j]) % 2 == 0) {
+          parameters[++j] = parameters[i];
+        } else {
+          parameters[j] += ";" + parameters[i];
+        }
+      }
+      parameters.length = j + 1;
+      for (var i = 0; i < parameters.length; i++) {
+        parameters[i] = parameters[i].trim();
+      }
+      return parameters;
+    }
+  }
+});
+
+// node_modules/compression/node_modules/negotiator/index.js
+var require_negotiator2 = __commonJS({
+  "node_modules/compression/node_modules/negotiator/index.js"(exports2, module2) {
+    "use strict";
+    var preferredCharsets = require_charset2();
+    var preferredEncodings = require_encoding2();
+    var preferredLanguages = require_language2();
+    var preferredMediaTypes = require_mediaType2();
+    module2.exports = Negotiator;
+    module2.exports.Negotiator = Negotiator;
+    function Negotiator(request) {
+      if (!(this instanceof Negotiator)) {
+        return new Negotiator(request);
+      }
+      this.request = request;
+    }
+    Negotiator.prototype.charset = function charset(available) {
+      var set = this.charsets(available);
+      return set && set[0];
+    };
+    Negotiator.prototype.charsets = function charsets(available) {
+      return preferredCharsets(this.request.headers["accept-charset"], available);
+    };
+    Negotiator.prototype.encoding = function encoding(available, preferred) {
+      var set = this.encodings(available, preferred);
+      return set && set[0];
+    };
+    Negotiator.prototype.encodings = function encodings(available, preferred) {
+      return preferredEncodings(this.request.headers["accept-encoding"], available, preferred);
+    };
+    Negotiator.prototype.language = function language(available) {
+      var set = this.languages(available);
+      return set && set[0];
+    };
+    Negotiator.prototype.languages = function languages(available) {
+      return preferredLanguages(this.request.headers["accept-language"], available);
+    };
+    Negotiator.prototype.mediaType = function mediaType(available) {
+      var set = this.mediaTypes(available);
+      return set && set[0];
+    };
+    Negotiator.prototype.mediaTypes = function mediaTypes(available) {
+      return preferredMediaTypes(this.request.headers.accept, available);
+    };
+    Negotiator.prototype.preferredCharset = Negotiator.prototype.charset;
+    Negotiator.prototype.preferredCharsets = Negotiator.prototype.charsets;
+    Negotiator.prototype.preferredEncoding = Negotiator.prototype.encoding;
+    Negotiator.prototype.preferredEncodings = Negotiator.prototype.encodings;
+    Negotiator.prototype.preferredLanguage = Negotiator.prototype.language;
+    Negotiator.prototype.preferredLanguages = Negotiator.prototype.languages;
+    Negotiator.prototype.preferredMediaType = Negotiator.prototype.mediaType;
+    Negotiator.prototype.preferredMediaTypes = Negotiator.prototype.mediaTypes;
+  }
+});
+
+// node_modules/compressible/index.js
+var require_compressible = __commonJS({
+  "node_modules/compressible/index.js"(exports2, module2) {
+    "use strict";
+    var db = require_mime_db();
+    var COMPRESSIBLE_TYPE_REGEXP = /^text\/|\+(?:json|text|xml)$/i;
+    var EXTRACT_TYPE_REGEXP = /^\s*([^;\s]*)(?:;|\s|$)/;
+    module2.exports = compressible;
+    function compressible(type) {
+      if (!type || typeof type !== "string") {
+        return false;
+      }
+      var match = EXTRACT_TYPE_REGEXP.exec(type);
+      var mime = match && match[1].toLowerCase();
+      var data = db[mime];
+      if (data && data.compressible !== void 0) {
+        return data.compressible;
+      }
+      return COMPRESSIBLE_TYPE_REGEXP.test(mime) || void 0;
+    }
+  }
+});
+
+// node_modules/compression/node_modules/ms/index.js
+var require_ms6 = __commonJS({
+  "node_modules/compression/node_modules/ms/index.js"(exports2, module2) {
+    var s = 1e3;
+    var m = s * 60;
+    var h = m * 60;
+    var d = h * 24;
+    var y = d * 365.25;
+    module2.exports = function(val, options) {
+      options = options || {};
+      var type = typeof val;
+      if (type === "string" && val.length > 0) {
+        return parse4(val);
+      } else if (type === "number" && isNaN(val) === false) {
+        return options.long ? fmtLong(val) : fmtShort(val);
+      }
+      throw new Error(
+        "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
+      );
+    };
+    function parse4(str) {
+      str = String(str);
+      if (str.length > 100) {
+        return;
+      }
+      var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(
+        str
+      );
+      if (!match) {
+        return;
+      }
+      var n = parseFloat(match[1]);
+      var type = (match[2] || "ms").toLowerCase();
+      switch (type) {
+        case "years":
+        case "year":
+        case "yrs":
+        case "yr":
+        case "y":
+          return n * y;
+        case "days":
+        case "day":
+        case "d":
+          return n * d;
+        case "hours":
+        case "hour":
+        case "hrs":
+        case "hr":
+        case "h":
+          return n * h;
+        case "minutes":
+        case "minute":
+        case "mins":
+        case "min":
+        case "m":
+          return n * m;
+        case "seconds":
+        case "second":
+        case "secs":
+        case "sec":
+        case "s":
+          return n * s;
+        case "milliseconds":
+        case "millisecond":
+        case "msecs":
+        case "msec":
+        case "ms":
+          return n;
+        default:
+          return void 0;
+      }
+    }
+    function fmtShort(ms) {
+      if (ms >= d) {
+        return Math.round(ms / d) + "d";
+      }
+      if (ms >= h) {
+        return Math.round(ms / h) + "h";
+      }
+      if (ms >= m) {
+        return Math.round(ms / m) + "m";
+      }
+      if (ms >= s) {
+        return Math.round(ms / s) + "s";
+      }
+      return ms + "ms";
+    }
+    function fmtLong(ms) {
+      return plural(ms, d, "day") || plural(ms, h, "hour") || plural(ms, m, "minute") || plural(ms, s, "second") || ms + " ms";
+    }
+    function plural(ms, n, name) {
+      if (ms < n) {
+        return;
+      }
+      if (ms < n * 1.5) {
+        return Math.floor(ms / n) + " " + name;
+      }
+      return Math.ceil(ms / n) + " " + name + "s";
+    }
+  }
+});
+
+// node_modules/compression/node_modules/debug/src/debug.js
+var require_debug5 = __commonJS({
+  "node_modules/compression/node_modules/debug/src/debug.js"(exports2, module2) {
+    exports2 = module2.exports = createDebug.debug = createDebug["default"] = createDebug;
+    exports2.coerce = coerce;
+    exports2.disable = disable;
+    exports2.enable = enable;
+    exports2.enabled = enabled;
+    exports2.humanize = require_ms6();
+    exports2.names = [];
+    exports2.skips = [];
+    exports2.formatters = {};
+    var prevTime;
+    function selectColor(namespace) {
+      var hash2 = 0, i;
+      for (i in namespace) {
+        hash2 = (hash2 << 5) - hash2 + namespace.charCodeAt(i);
+        hash2 |= 0;
+      }
+      return exports2.colors[Math.abs(hash2) % exports2.colors.length];
+    }
+    function createDebug(namespace) {
+      function debug() {
+        if (!debug.enabled) return;
+        var self2 = debug;
+        var curr = +/* @__PURE__ */ new Date();
+        var ms = curr - (prevTime || curr);
+        self2.diff = ms;
+        self2.prev = prevTime;
+        self2.curr = curr;
+        prevTime = curr;
+        var args = new Array(arguments.length);
+        for (var i = 0; i < args.length; i++) {
+          args[i] = arguments[i];
+        }
+        args[0] = exports2.coerce(args[0]);
+        if ("string" !== typeof args[0]) {
+          args.unshift("%O");
+        }
+        var index = 0;
+        args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format4) {
+          if (match === "%%") return match;
+          index++;
+          var formatter = exports2.formatters[format4];
+          if ("function" === typeof formatter) {
+            var val = args[index];
+            match = formatter.call(self2, val);
+            args.splice(index, 1);
+            index--;
+          }
+          return match;
+        });
+        exports2.formatArgs.call(self2, args);
+        var logFn = debug.log || exports2.log || console.log.bind(console);
+        logFn.apply(self2, args);
+      }
+      debug.namespace = namespace;
+      debug.enabled = exports2.enabled(namespace);
+      debug.useColors = exports2.useColors();
+      debug.color = selectColor(namespace);
+      if ("function" === typeof exports2.init) {
+        exports2.init(debug);
+      }
+      return debug;
+    }
+    function enable(namespaces) {
+      exports2.save(namespaces);
+      exports2.names = [];
+      exports2.skips = [];
+      var split = (typeof namespaces === "string" ? namespaces : "").split(/[\s,]+/);
+      var len = split.length;
+      for (var i = 0; i < len; i++) {
+        if (!split[i]) continue;
+        namespaces = split[i].replace(/\*/g, ".*?");
+        if (namespaces[0] === "-") {
+          exports2.skips.push(new RegExp("^" + namespaces.substr(1) + "$"));
+        } else {
+          exports2.names.push(new RegExp("^" + namespaces + "$"));
+        }
+      }
+    }
+    function disable() {
+      exports2.enable("");
+    }
+    function enabled(name) {
+      var i, len;
+      for (i = 0, len = exports2.skips.length; i < len; i++) {
+        if (exports2.skips[i].test(name)) {
+          return false;
+        }
+      }
+      for (i = 0, len = exports2.names.length; i < len; i++) {
+        if (exports2.names[i].test(name)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    function coerce(val) {
+      if (val instanceof Error) return val.stack || val.message;
+      return val;
+    }
+  }
+});
+
+// node_modules/compression/node_modules/debug/src/browser.js
+var require_browser5 = __commonJS({
+  "node_modules/compression/node_modules/debug/src/browser.js"(exports2, module2) {
+    exports2 = module2.exports = require_debug5();
+    exports2.log = log2;
+    exports2.formatArgs = formatArgs;
+    exports2.save = save;
+    exports2.load = load;
+    exports2.useColors = useColors;
+    exports2.storage = "undefined" != typeof chrome && "undefined" != typeof chrome.storage ? chrome.storage.local : localstorage();
+    exports2.colors = [
+      "lightseagreen",
+      "forestgreen",
+      "goldenrod",
+      "dodgerblue",
+      "darkorchid",
+      "crimson"
+    ];
+    function useColors() {
+      if (typeof window !== "undefined" && window.process && window.process.type === "renderer") {
+        return true;
+      }
+      return typeof document !== "undefined" && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance || // is firebug? http://stackoverflow.com/a/398120/376773
+      typeof window !== "undefined" && window.console && (window.console.firebug || window.console.exception && window.console.table) || // is firefox >= v31?
+      // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+      typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31 || // double check webkit in userAgent just in case we are in a worker
+      typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
+    }
+    exports2.formatters.j = function(v) {
+      try {
+        return JSON.stringify(v);
+      } catch (err) {
+        return "[UnexpectedJSONParseError]: " + err.message;
+      }
+    };
+    function formatArgs(args) {
+      var useColors2 = this.useColors;
+      args[0] = (useColors2 ? "%c" : "") + this.namespace + (useColors2 ? " %c" : " ") + args[0] + (useColors2 ? "%c " : " ") + "+" + exports2.humanize(this.diff);
+      if (!useColors2) return;
+      var c = "color: " + this.color;
+      args.splice(1, 0, c, "color: inherit");
+      var index = 0;
+      var lastC = 0;
+      args[0].replace(/%[a-zA-Z%]/g, function(match) {
+        if ("%%" === match) return;
+        index++;
+        if ("%c" === match) {
+          lastC = index;
+        }
+      });
+      args.splice(lastC, 0, c);
+    }
+    function log2() {
+      return "object" === typeof console && console.log && Function.prototype.apply.call(console.log, console, arguments);
+    }
+    function save(namespaces) {
+      try {
+        if (null == namespaces) {
+          exports2.storage.removeItem("debug");
+        } else {
+          exports2.storage.debug = namespaces;
+        }
+      } catch (e) {
+      }
+    }
+    function load() {
+      var r;
+      try {
+        r = exports2.storage.debug;
+      } catch (e) {
+      }
+      if (!r && typeof process !== "undefined" && "env" in process) {
+        r = process.env.DEBUG;
+      }
+      return r;
+    }
+    exports2.enable(load());
+    function localstorage() {
+      try {
+        return window.localStorage;
+      } catch (e) {
+      }
+    }
+  }
+});
+
+// node_modules/compression/node_modules/debug/src/node.js
+var require_node5 = __commonJS({
+  "node_modules/compression/node_modules/debug/src/node.js"(exports2, module2) {
+    var tty = require("tty");
+    var util = require("util");
+    exports2 = module2.exports = require_debug5();
+    exports2.init = init;
+    exports2.log = log2;
+    exports2.formatArgs = formatArgs;
+    exports2.save = save;
+    exports2.load = load;
+    exports2.useColors = useColors;
+    exports2.colors = [6, 2, 3, 4, 5, 1];
+    exports2.inspectOpts = Object.keys(process.env).filter(function(key) {
+      return /^debug_/i.test(key);
+    }).reduce(function(obj, key) {
+      var prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, function(_, k) {
+        return k.toUpperCase();
+      });
+      var val = process.env[key];
+      if (/^(yes|on|true|enabled)$/i.test(val)) val = true;
+      else if (/^(no|off|false|disabled)$/i.test(val)) val = false;
+      else if (val === "null") val = null;
+      else val = Number(val);
+      obj[prop] = val;
+      return obj;
+    }, {});
+    var fd = parseInt(process.env.DEBUG_FD, 10) || 2;
+    if (1 !== fd && 2 !== fd) {
+      util.deprecate(function() {
+      }, "except for stderr(2) and stdout(1), any other usage of DEBUG_FD is deprecated. Override debug.log if you want to use a different log function (https://git.io/debug_fd)")();
+    }
+    var stream = 1 === fd ? process.stdout : 2 === fd ? process.stderr : createWritableStdioStream(fd);
+    function useColors() {
+      return "colors" in exports2.inspectOpts ? Boolean(exports2.inspectOpts.colors) : tty.isatty(fd);
+    }
+    exports2.formatters.o = function(v) {
+      this.inspectOpts.colors = this.useColors;
+      return util.inspect(v, this.inspectOpts).split("\n").map(function(str) {
+        return str.trim();
+      }).join(" ");
+    };
+    exports2.formatters.O = function(v) {
+      this.inspectOpts.colors = this.useColors;
+      return util.inspect(v, this.inspectOpts);
+    };
+    function formatArgs(args) {
+      var name = this.namespace;
+      var useColors2 = this.useColors;
+      if (useColors2) {
+        var c = this.color;
+        var prefix = "  \x1B[3" + c + ";1m" + name + " \x1B[0m";
+        args[0] = prefix + args[0].split("\n").join("\n" + prefix);
+        args.push("\x1B[3" + c + "m+" + exports2.humanize(this.diff) + "\x1B[0m");
+      } else {
+        args[0] = (/* @__PURE__ */ new Date()).toUTCString() + " " + name + " " + args[0];
+      }
+    }
+    function log2() {
+      return stream.write(util.format.apply(util, arguments) + "\n");
+    }
+    function save(namespaces) {
+      if (null == namespaces) {
+        delete process.env.DEBUG;
+      } else {
+        process.env.DEBUG = namespaces;
+      }
+    }
+    function load() {
+      return process.env.DEBUG;
+    }
+    function createWritableStdioStream(fd2) {
+      var stream2;
+      var tty_wrap = process.binding("tty_wrap");
+      switch (tty_wrap.guessHandleType(fd2)) {
+        case "TTY":
+          stream2 = new tty.WriteStream(fd2);
+          stream2._type = "tty";
+          if (stream2._handle && stream2._handle.unref) {
+            stream2._handle.unref();
+          }
+          break;
+        case "FILE":
+          var fs2 = require("fs");
+          stream2 = new fs2.SyncWriteStream(fd2, { autoClose: false });
+          stream2._type = "fs";
+          break;
+        case "PIPE":
+        case "TCP":
+          var net = require("net");
+          stream2 = new net.Socket({
+            fd: fd2,
+            readable: false,
+            writable: true
+          });
+          stream2.readable = false;
+          stream2.read = null;
+          stream2._type = "pipe";
+          if (stream2._handle && stream2._handle.unref) {
+            stream2._handle.unref();
+          }
+          break;
+        default:
+          throw new Error("Implement me. Unknown stream file type!");
+      }
+      stream2.fd = fd2;
+      stream2._isStdio = true;
+      return stream2;
+    }
+    function init(debug) {
+      debug.inspectOpts = {};
+      var keys = Object.keys(exports2.inspectOpts);
+      for (var i = 0; i < keys.length; i++) {
+        debug.inspectOpts[keys[i]] = exports2.inspectOpts[keys[i]];
+      }
+    }
+    exports2.enable(load());
+  }
+});
+
+// node_modules/compression/node_modules/debug/src/index.js
+var require_src5 = __commonJS({
+  "node_modules/compression/node_modules/debug/src/index.js"(exports2, module2) {
+    if (typeof process !== "undefined" && process.type === "renderer") {
+      module2.exports = require_browser5();
+    } else {
+      module2.exports = require_node5();
+    }
+  }
+});
+
+// node_modules/on-headers/index.js
+var require_on_headers = __commonJS({
+  "node_modules/on-headers/index.js"(exports2, module2) {
+    "use strict";
+    module2.exports = onHeaders;
+    var http = require("http");
+    var isAppendHeaderSupported = typeof http.ServerResponse.prototype.appendHeader === "function";
+    var set1dArray = isAppendHeaderSupported ? set1dArrayWithAppend : set1dArrayWithSet;
+    function createWriteHead(prevWriteHead, listener) {
+      var fired = false;
+      return function writeHead(statusCode) {
+        var args = setWriteHeadHeaders.apply(this, arguments);
+        if (!fired) {
+          fired = true;
+          listener.call(this);
+          if (typeof args[0] === "number" && this.statusCode !== args[0]) {
+            args[0] = this.statusCode;
+            args.length = 1;
+          }
+        }
+        return prevWriteHead.apply(this, args);
+      };
+    }
+    function onHeaders(res, listener) {
+      if (!res) {
+        throw new TypeError("argument res is required");
+      }
+      if (typeof listener !== "function") {
+        throw new TypeError("argument listener must be a function");
+      }
+      res.writeHead = createWriteHead(res.writeHead, listener);
+    }
+    function setHeadersFromArray(res, headers) {
+      if (headers.length && Array.isArray(headers[0])) {
+        set2dArray(res, headers);
+      } else {
+        if (headers.length % 2 !== 0) {
+          throw new TypeError("headers array is malformed");
+        }
+        set1dArray(res, headers);
+      }
+    }
+    function setHeadersFromObject(res, headers) {
+      var keys = Object.keys(headers);
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (k) res.setHeader(k, headers[k]);
+      }
+    }
+    function setWriteHeadHeaders(statusCode) {
+      var length = arguments.length;
+      var headerIndex = length > 1 && typeof arguments[1] === "string" ? 2 : 1;
+      var headers = length >= headerIndex + 1 ? arguments[headerIndex] : void 0;
+      this.statusCode = statusCode;
+      if (Array.isArray(headers)) {
+        setHeadersFromArray(this, headers);
+      } else if (headers) {
+        setHeadersFromObject(this, headers);
+      }
+      var args = new Array(Math.min(length, headerIndex));
+      for (var i = 0; i < args.length; i++) {
+        args[i] = arguments[i];
+      }
+      return args;
+    }
+    function set2dArray(res, headers) {
+      var key;
+      for (var i = 0; i < headers.length; i++) {
+        key = headers[i][0];
+        if (key) {
+          res.setHeader(key, headers[i][1]);
+        }
+      }
+    }
+    function set1dArrayWithAppend(res, headers) {
+      for (var i = 0; i < headers.length; i += 2) {
+        res.removeHeader(headers[i]);
+      }
+      var key;
+      for (var j = 0; j < headers.length; j += 2) {
+        key = headers[j];
+        if (key) {
+          res.appendHeader(key, headers[j + 1]);
+        }
+      }
+    }
+    function set1dArrayWithSet(res, headers) {
+      var key;
+      for (var i = 0; i < headers.length; i += 2) {
+        key = headers[i];
+        if (key) {
+          res.setHeader(key, headers[i + 1]);
+        }
+      }
+    }
+  }
+});
+
+// node_modules/compression/index.js
+var require_compression = __commonJS({
+  "node_modules/compression/index.js"(exports2, module2) {
+    "use strict";
+    var Negotiator = require_negotiator2();
+    var Buffer2 = require_safe_buffer().Buffer;
+    var bytes = require_bytes();
+    var compressible = require_compressible();
+    var debug = require_src5()("compression");
+    var onHeaders = require_on_headers();
+    var vary = require_vary();
+    var zlib = require("zlib");
+    module2.exports = compression2;
+    module2.exports.filter = shouldCompress;
+    var hasBrotliSupport = "createBrotliCompress" in zlib;
+    var cacheControlNoTransformRegExp = /(?:^|,)\s*?no-transform\s*?(?:,|$)/;
+    var SUPPORTED_ENCODING = hasBrotliSupport ? ["br", "gzip", "deflate", "identity"] : ["gzip", "deflate", "identity"];
+    var PREFERRED_ENCODING = hasBrotliSupport ? ["br", "gzip"] : ["gzip"];
+    var encodingSupported = ["gzip", "deflate", "identity", "br"];
+    function compression2(options) {
+      var opts = options || {};
+      var optsBrotli = {};
+      if (hasBrotliSupport) {
+        Object.assign(optsBrotli, opts.brotli);
+        var brotliParams = {};
+        brotliParams[zlib.constants.BROTLI_PARAM_QUALITY] = 4;
+        optsBrotli.params = Object.assign(brotliParams, optsBrotli.params);
+      }
+      var filter = opts.filter || shouldCompress;
+      var threshold = bytes.parse(opts.threshold);
+      var enforceEncoding = opts.enforceEncoding || "identity";
+      if (threshold == null) {
+        threshold = 1024;
+      }
+      return function compression3(req, res, next) {
+        var ended = false;
+        var length;
+        var listeners = [];
+        var stream;
+        var _end = res.end;
+        var _on = res.on;
+        var _write = res.write;
+        res.flush = function flush() {
+          if (stream) {
+            stream.flush();
+          }
+        };
+        res.write = function write(chunk, encoding) {
+          if (ended) {
+            return false;
+          }
+          if (!headersSent(res)) {
+            this.writeHead(this.statusCode);
+          }
+          return stream ? stream.write(toBuffer2(chunk, encoding)) : _write.call(this, chunk, encoding);
+        };
+        res.end = function end(chunk, encoding) {
+          if (ended) {
+            return false;
+          }
+          if (!headersSent(res)) {
+            if (!this.getHeader("Content-Length")) {
+              length = chunkLength(chunk, encoding);
+            }
+            this.writeHead(this.statusCode);
+          }
+          if (!stream) {
+            return _end.call(this, chunk, encoding);
+          }
+          ended = true;
+          return chunk ? stream.end(toBuffer2(chunk, encoding)) : stream.end();
+        };
+        res.on = function on(type, listener) {
+          if (!listeners || type !== "drain") {
+            return _on.call(this, type, listener);
+          }
+          if (stream) {
+            return stream.on(type, listener);
+          }
+          listeners.push([type, listener]);
+          return this;
+        };
+        function nocompress(msg) {
+          debug("no compression: %s", msg);
+          addListeners(res, _on, listeners);
+          listeners = null;
+        }
+        onHeaders(res, function onResponseHeaders() {
+          if (!filter(req, res)) {
+            nocompress("filtered");
+            return;
+          }
+          if (!shouldTransform(req, res)) {
+            nocompress("no transform");
+            return;
+          }
+          vary(res, "Accept-Encoding");
+          if (Number(res.getHeader("Content-Length")) < threshold || length < threshold) {
+            nocompress("size below threshold");
+            return;
+          }
+          var encoding = res.getHeader("Content-Encoding") || "identity";
+          if (encoding !== "identity") {
+            nocompress("already encoded");
+            return;
+          }
+          if (req.method === "HEAD") {
+            nocompress("HEAD request");
+            return;
+          }
+          var negotiator = new Negotiator(req);
+          var method = negotiator.encoding(SUPPORTED_ENCODING, PREFERRED_ENCODING);
+          if (!req.headers["accept-encoding"] && encodingSupported.indexOf(enforceEncoding) !== -1) {
+            method = enforceEncoding;
+          }
+          if (!method || method === "identity") {
+            nocompress("not acceptable");
+            return;
+          }
+          debug("%s compression", method);
+          stream = method === "gzip" ? zlib.createGzip(opts) : method === "br" ? zlib.createBrotliCompress(optsBrotli) : zlib.createDeflate(opts);
+          addListeners(stream, stream.on, listeners);
+          res.setHeader("Content-Encoding", method);
+          res.removeHeader("Content-Length");
+          stream.on("data", function onStreamData(chunk) {
+            if (_write.call(res, chunk) === false) {
+              stream.pause();
+            }
+          });
+          stream.on("end", function onStreamEnd() {
+            _end.call(res);
+          });
+          _on.call(res, "drain", function onResponseDrain() {
+            stream.resume();
+          });
+        });
+        next();
+      };
+    }
+    function addListeners(stream, on, listeners) {
+      for (var i = 0; i < listeners.length; i++) {
+        on.apply(stream, listeners[i]);
+      }
+    }
+    function chunkLength(chunk, encoding) {
+      if (!chunk) {
+        return 0;
+      }
+      return Buffer2.isBuffer(chunk) ? chunk.length : Buffer2.byteLength(chunk, encoding);
+    }
+    function shouldCompress(req, res) {
+      var type = res.getHeader("Content-Type");
+      if (type === void 0 || !compressible(type)) {
+        debug("%s not compressible", type);
+        return false;
+      }
+      return true;
+    }
+    function shouldTransform(req, res) {
+      var cacheControl = res.getHeader("Cache-Control");
+      return !cacheControl || !cacheControlNoTransformRegExp.test(cacheControl);
+    }
+    function toBuffer2(chunk, encoding) {
+      return Buffer2.isBuffer(chunk) ? chunk : Buffer2.from(chunk, encoding);
+    }
+    function headersSent(res) {
+      return typeof res.headersSent !== "boolean" ? Boolean(res._header) : res.headersSent;
+    }
   }
 });
 
@@ -49158,7 +50386,7 @@ var require_main4 = __commonJS({
     var fs2 = require("fs");
     var path2 = require("path");
     var os = require("os");
-    var crypto3 = require("crypto");
+    var crypto4 = require("crypto");
     var TIPS = [
       "\u25C8 encrypted .env [www.dotenvx.com]",
       "\u25C8 secrets for agents [www.dotenvx.com]",
@@ -49402,7 +50630,7 @@ var require_main4 = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto3.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto4.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error) {
@@ -55274,7 +56502,7 @@ var require_base64url2 = __commonJS({
 });
 
 // node_modules/@peculiar/utils/build/cjs/encoding/index.js
-var require_encoding2 = __commonJS({
+var require_encoding3 = __commonJS({
   "node_modules/@peculiar/utils/build/cjs/encoding/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -55667,7 +56895,7 @@ var require_defaults = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.defaultConverterRegistry = exports2.defaultConverters = exports2.utf16leConverter = exports2.utf16beConverter = exports2.utf8Converter = exports2.base64urlConverter = exports2.base64Converter = exports2.hexConverter = exports2.binaryConverter = exports2.pemConverter = void 0;
-    var index_js_1 = require_encoding2();
+    var index_js_1 = require_encoding3();
     var index_js_2 = require_pem2();
     var index_js_3 = require_pem2();
     Object.defineProperty(exports2, "pemConverter", { enumerable: true, get: function() {
@@ -55748,7 +56976,7 @@ var require_convert = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.convert = void 0;
     var index_js_1 = require_bytes2();
-    var index_js_2 = require_encoding2();
+    var index_js_2 = require_encoding3();
     var defaults_js_1 = require_defaults();
     function encode10(name, data, ...args) {
       return defaults_js_1.defaultConverterRegistry.encode(name, data, ...args);
@@ -56053,7 +57281,7 @@ var require_cjs = __commonJS({
     var tslib_1 = (init_tslib_es6(), __toCommonJS(tslib_es6_exports));
     tslib_1.__exportStar(require_bytes2(), exports2);
     exports2.bytes = tslib_1.__importStar(require_bytes2());
-    tslib_1.__exportStar(require_encoding2(), exports2);
+    tslib_1.__exportStar(require_encoding3(), exports2);
     tslib_1.__exportStar(require_pem2(), exports2);
     tslib_1.__exportStar(require_converters(), exports2);
     tslib_1.__exportStar(require_legacy(), exports2);
@@ -57233,7 +58461,7 @@ var require_ip_converter = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.IpConverter = void 0;
-    var encoding_1 = require_encoding2();
+    var encoding_1 = require_encoding3();
     var IpConverter2 = class {
       static isIPv4(ip) {
         return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
@@ -57414,7 +58642,7 @@ var require_name = __commonJS({
     exports2.Name = exports2.RDNSequence = exports2.RelativeDistinguishedName = exports2.AttributeTypeAndValue = exports2.AttributeValue = exports2.DirectoryString = void 0;
     var tslib_1 = (init_tslib_es6(), __toCommonJS(tslib_es6_exports));
     var asn1_schema_1 = require_cjs2();
-    var encoding_1 = require_encoding2();
+    var encoding_1 = require_encoding3();
     var DirectoryString3 = class DirectoryString {
       teletexString;
       printableString;
@@ -64996,11 +66224,11 @@ var require_x509_cjs = __commonJS({
         return this.items[Symbol.iterator]();
       }
       get(key = _CryptoProvider.DEFAULT) {
-        const crypto3 = this.items.get(key.toLowerCase());
-        if (!crypto3) {
+        const crypto4 = this.items.get(key.toLowerCase());
+        if (!crypto4) {
           throw new Error(`Cannot get Crypto by name '${key}'`);
         }
-        return crypto3;
+        return crypto4;
       }
       set(key, value) {
         if (typeof key === "string") {
@@ -65228,15 +66456,15 @@ var require_x509_cjs = __commonJS({
       }
       async getThumbprint(...args) {
         var _a2;
-        let crypto3;
+        let crypto4;
         let algorithm = "SHA-1";
         if (args.length >= 1 && !((_a2 = args[0]) === null || _a2 === void 0 ? void 0 : _a2.subtle)) {
           algorithm = args[0] || algorithm;
-          crypto3 = args[1] || cryptoProvider.get();
+          crypto4 = args[1] || cryptoProvider.get();
         } else {
-          crypto3 = args[0] || cryptoProvider.get();
+          crypto4 = args[0] || cryptoProvider.get();
         }
-        return await crypto3.subtle.digest(algorithm, this.toArrayBuffer());
+        return await crypto4.subtle.digest(algorithm, this.toArrayBuffer());
       }
     };
     var ERR_GN_CONSTRUCTOR = "Cannot initialize GeneralName from ASN.1 data.";
@@ -65637,14 +66865,14 @@ var require_x509_cjs = __commonJS({
       }
     };
     var PublicKey = class _PublicKey extends PemData {
-      static async create(data, crypto3 = cryptoProvider.get()) {
+      static async create(data, crypto4 = cryptoProvider.get()) {
         if (data instanceof _PublicKey) {
           return data;
         } else if (CryptoProvider.isCryptoKey(data)) {
           if (data.type !== "public") {
             throw new TypeError("Public key is required");
           }
-          const spki = await crypto3.subtle.exportKey("spki", data);
+          const spki = await crypto4.subtle.exportKey("spki", data);
           return new _PublicKey(spki);
         } else if (data.publicKey) {
           return data.publicKey;
@@ -65663,7 +66891,7 @@ var require_x509_cjs = __commonJS({
         this.tag = PemConverter.PublicKeyTag;
       }
       async export(...args) {
-        let crypto3;
+        let crypto4;
         let keyUsages = ["verify"];
         let algorithm = {
           hash: "SHA-256",
@@ -65672,16 +66900,16 @@ var require_x509_cjs = __commonJS({
         if (args.length > 1) {
           algorithm = args[0] || algorithm;
           keyUsages = args[1] || keyUsages;
-          crypto3 = args[2] || cryptoProvider.get();
+          crypto4 = args[2] || cryptoProvider.get();
         } else {
-          crypto3 = args[0] || cryptoProvider.get();
+          crypto4 = args[0] || cryptoProvider.get();
         }
         let raw = this.rawData;
         const asnSpki = asn1Schema.AsnConvert.parse(this.rawData, asn1X509.SubjectPublicKeyInfo);
         if (asnSpki.algorithm.algorithm === asn1Rsa.id_RSASSA_PSS) {
           raw = convertSpkiToRsaPkcs1(asnSpki, raw);
         }
-        return crypto3.subtle.importKey("spki", raw, algorithm, true, keyUsages);
+        return crypto4.subtle.importKey("spki", raw, algorithm, true, keyUsages);
       }
       onInit(asn) {
         const algProv = tsyringe.container.resolve(diAlgorithmProvider);
@@ -65698,34 +66926,34 @@ var require_x509_cjs = __commonJS({
       }
       async getThumbprint(...args) {
         var _a2;
-        let crypto3;
+        let crypto4;
         let algorithm = "SHA-1";
         if (args.length >= 1 && !((_a2 = args[0]) === null || _a2 === void 0 ? void 0 : _a2.subtle)) {
           algorithm = args[0] || algorithm;
-          crypto3 = args[1] || cryptoProvider.get();
+          crypto4 = args[1] || cryptoProvider.get();
         } else {
-          crypto3 = args[0] || cryptoProvider.get();
+          crypto4 = args[0] || cryptoProvider.get();
         }
-        return await crypto3.subtle.digest(algorithm, this.rawData);
+        return await crypto4.subtle.digest(algorithm, this.rawData);
       }
       async getKeyIdentifier(...args) {
-        let crypto3;
+        let crypto4;
         let algorithm = "SHA-1";
         if (args.length === 1) {
           if (typeof args[0] === "string") {
             algorithm = args[0];
-            crypto3 = cryptoProvider.get();
+            crypto4 = cryptoProvider.get();
           } else {
-            crypto3 = args[0];
+            crypto4 = args[0];
           }
         } else if (args.length === 2) {
           algorithm = args[0];
-          crypto3 = args[1];
+          crypto4 = args[1];
         } else {
-          crypto3 = cryptoProvider.get();
+          crypto4 = cryptoProvider.get();
         }
         const asn = asn1Schema.AsnConvert.parse(this.rawData, asn1X509.SubjectPublicKeyInfo);
-        return await crypto3.subtle.digest(algorithm, asn.subjectPublicKey);
+        return await crypto4.subtle.digest(algorithm, asn.subjectPublicKey);
       }
       toTextObject() {
         const obj = this.toTextObjectEmpty();
@@ -65751,12 +66979,12 @@ var require_x509_cjs = __commonJS({
       return raw;
     }
     var AuthorityKeyIdentifierExtension2 = class _AuthorityKeyIdentifierExtension extends Extension2 {
-      static async create(param, critical = false, crypto3 = cryptoProvider.get()) {
+      static async create(param, critical = false, crypto4 = cryptoProvider.get()) {
         if ("name" in param && "serialNumber" in param) {
           return new _AuthorityKeyIdentifierExtension(param, critical);
         }
-        const key = await PublicKey.create(param, crypto3);
-        const id = await key.getKeyIdentifier(crypto3);
+        const key = await PublicKey.create(param, crypto4);
+        const id = await key.getKeyIdentifier(crypto4);
         return new _AuthorityKeyIdentifierExtension(pvtsutils.Convert.ToHex(id), critical);
       }
       constructor(...args) {
@@ -65894,9 +67122,9 @@ var require_x509_cjs = __commonJS({
     };
     KeyUsagesExtension.NAME = "Key Usages";
     var SubjectKeyIdentifierExtension2 = class _SubjectKeyIdentifierExtension extends Extension2 {
-      static async create(publicKey, critical = false, crypto3 = cryptoProvider.get()) {
-        const key = await PublicKey.create(publicKey, crypto3);
-        const id = await key.getKeyIdentifier(crypto3);
+      static async create(publicKey, critical = false, crypto4 = cryptoProvider.get()) {
+        const key = await PublicKey.create(publicKey, crypto4);
+        const id = await key.getKeyIdentifier(crypto4);
         return new _SubjectKeyIdentifierExtension(pvtsutils.Convert.ToHex(id), critical);
       }
       constructor(...args) {
@@ -66634,12 +67862,12 @@ var require_x509_cjs = __commonJS({
       getExtensions(type) {
         return this.extensions.filter((o) => o.type === type);
       }
-      async verify(crypto3 = cryptoProvider.get()) {
+      async verify(crypto4 = cryptoProvider.get()) {
         const algorithm = {
           ...this.publicKey.algorithm,
           ...this.signatureAlgorithm
         };
-        const publicKey = await this.publicKey.export(algorithm, ["verify"], crypto3);
+        const publicKey = await this.publicKey.export(algorithm, ["verify"], crypto4);
         const signatureFormatters = tsyringe.container.resolveAll(diAsnSignatureFormatter).reverse();
         let signature = null;
         for (const signatureFormatter of signatureFormatters) {
@@ -66651,7 +67879,7 @@ var require_x509_cjs = __commonJS({
         if (!signature) {
           throw Error("Cannot convert WebCrypto signature value to ASN.1 format");
         }
-        const ok = await crypto3.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
+        const ok = await crypto4.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
         return ok;
       }
       toTextObject() {
@@ -66682,14 +67910,14 @@ var require_x509_cjs = __commonJS({
     _Pkcs10CertificateRequest_tbs = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_subjectName = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_subject = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_signatureAlgorithm = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_signature = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_publicKey = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_attributes = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_extensions = /* @__PURE__ */ new WeakMap();
     Pkcs10CertificateRequest.NAME = "PKCS#10 Certificate Request";
     var Pkcs10CertificateRequestGenerator = class {
-      static async create(params, crypto3 = cryptoProvider.get()) {
+      static async create(params, crypto4 = cryptoProvider.get()) {
         if (!params.keys.privateKey) {
           throw new Error("Bad field 'keys' in 'params' argument. 'privateKey' is empty");
         }
         if (!params.keys.publicKey) {
           throw new Error("Bad field 'keys' in 'params' argument. 'publicKey' is empty");
         }
-        const spki = await crypto3.subtle.exportKey("spki", params.keys.publicKey);
+        const spki = await crypto4.subtle.exportKey("spki", params.keys.publicKey);
         const asnReq = new asn1Csr.CertificationRequest({
           certificationRequestInfo: new asn1Csr.CertificationRequestInfo({ subjectPKInfo: asn1Schema.AsnConvert.parse(spki, asn1X509.SubjectPublicKeyInfo) })
         });
@@ -66718,7 +67946,7 @@ var require_x509_cjs = __commonJS({
         const algProv = tsyringe.container.resolve(diAlgorithmProvider);
         asnReq.signatureAlgorithm = algProv.toAsnAlgorithm(signingAlgorithm);
         const tbs = asn1Schema.AsnConvert.serialize(asnReq.certificationRequestInfo);
-        const signature = await crypto3.subtle.sign(signingAlgorithm, params.keys.privateKey, tbs);
+        const signature = await crypto4.subtle.sign(signingAlgorithm, params.keys.privateKey, tbs);
         const signatureFormatters = tsyringe.container.resolveAll(diAsnSignatureFormatter).reverse();
         let asnSignature = null;
         for (const signatureFormatter of signatureFormatters) {
@@ -66878,7 +68106,7 @@ var require_x509_cjs = __commonJS({
           }
         });
       }
-      async verify(params = {}, crypto3 = cryptoProvider.get()) {
+      async verify(params = {}, crypto4 = cryptoProvider.get()) {
         let keyAlgorithm;
         let publicKey;
         const paramsKey = params.publicKey;
@@ -66888,26 +68116,26 @@ var require_x509_cjs = __commonJS({
               ...this.publicKey.algorithm,
               ...this.signatureAlgorithm
             };
-            publicKey = await this.publicKey.export(keyAlgorithm, ["verify"], crypto3);
+            publicKey = await this.publicKey.export(keyAlgorithm, ["verify"], crypto4);
           } else if ("publicKey" in paramsKey) {
             keyAlgorithm = {
               ...paramsKey.publicKey.algorithm,
               ...this.signatureAlgorithm
             };
-            publicKey = await paramsKey.publicKey.export(keyAlgorithm, ["verify"], crypto3);
+            publicKey = await paramsKey.publicKey.export(keyAlgorithm, ["verify"], crypto4);
           } else if (paramsKey instanceof PublicKey) {
             keyAlgorithm = {
               ...paramsKey.algorithm,
               ...this.signatureAlgorithm
             };
-            publicKey = await paramsKey.export(keyAlgorithm, ["verify"], crypto3);
+            publicKey = await paramsKey.export(keyAlgorithm, ["verify"], crypto4);
           } else if (pvtsutils.BufferSourceConverter.isBufferSource(paramsKey)) {
             const key = new PublicKey(paramsKey);
             keyAlgorithm = {
               ...key.algorithm,
               ...this.signatureAlgorithm
             };
-            publicKey = await key.export(keyAlgorithm, ["verify"], crypto3);
+            publicKey = await key.export(keyAlgorithm, ["verify"], crypto4);
           } else {
             keyAlgorithm = {
               ...paramsKey.algorithm,
@@ -66929,7 +68157,7 @@ var require_x509_cjs = __commonJS({
         if (!signature) {
           throw Error("Cannot convert ASN.1 signature value to WebCrypto format");
         }
-        const ok = await crypto3.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
+        const ok = await crypto4.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
         if (params.signatureOnly) {
           return ok;
         } else {
@@ -66939,21 +68167,21 @@ var require_x509_cjs = __commonJS({
         }
       }
       async getThumbprint(...args) {
-        let crypto3;
+        let crypto4;
         let algorithm = "SHA-1";
         if (args[0]) {
           if (!args[0].subtle) {
             algorithm = args[0] || algorithm;
-            crypto3 = args[1];
+            crypto4 = args[1];
           } else {
-            crypto3 = args[0];
+            crypto4 = args[0];
           }
         }
-        crypto3 !== null && crypto3 !== void 0 ? crypto3 : crypto3 = cryptoProvider.get();
-        return await crypto3.subtle.digest(algorithm, this.rawData);
+        crypto4 !== null && crypto4 !== void 0 ? crypto4 : crypto4 = cryptoProvider.get();
+        return await crypto4.subtle.digest(algorithm, this.rawData);
       }
-      async isSelfSigned(crypto3 = cryptoProvider.get()) {
-        return this.subject === this.issuer && await this.verify({ signatureOnly: true }, crypto3);
+      async isSelfSigned(crypto4 = cryptoProvider.get()) {
+        return this.subject === this.issuer && await this.verify({ signatureOnly: true }, crypto4);
       }
       toTextObject() {
         const obj = this.toTextObjectEmpty();
@@ -67083,13 +68311,13 @@ var require_x509_cjs = __commonJS({
           this.certificates = params.certificates;
         }
       }
-      async build(cert, crypto3 = cryptoProvider.get()) {
+      async build(cert, crypto4 = cryptoProvider.get()) {
         const chain = new X509Certificates(cert);
         let current = cert;
-        while (current = await this.findIssuer(current, crypto3)) {
-          const thumbprint = await current.getThumbprint(crypto3);
+        while (current = await this.findIssuer(current, crypto4)) {
+          const thumbprint = await current.getThumbprint(crypto4);
           for (const item of chain) {
-            const thumbprint2 = await item.getThumbprint(crypto3);
+            const thumbprint2 = await item.getThumbprint(crypto4);
             if (pvtsutils.isEqual(thumbprint, thumbprint2)) {
               throw new Error("Cannot build a certificate chain. Circular dependency.");
             }
@@ -67098,8 +68326,8 @@ var require_x509_cjs = __commonJS({
         }
         return chain;
       }
-      async findIssuer(cert, crypto3 = cryptoProvider.get()) {
-        if (!await cert.isSelfSigned(crypto3)) {
+      async findIssuer(cert, crypto4 = cryptoProvider.get()) {
+        if (!await cert.isSelfSigned(crypto4)) {
           const akiExt = cert.getExtension(asn1X509__namespace.id_ce_authorityKeyIdentifier);
           for (const item of this.certificates) {
             if (item.subject !== cert.issuer) {
@@ -67123,11 +68351,11 @@ var require_x509_cjs = __commonJS({
                 ...item.publicKey.algorithm,
                 ...cert.signatureAlgorithm
               };
-              const publicKey = await item.publicKey.export(algorithm, ["verify"], crypto3);
+              const publicKey = await item.publicKey.export(algorithm, ["verify"], crypto4);
               const ok = await cert.verify({
                 publicKey,
                 signatureOnly: true
-              }, crypto3);
+              }, crypto4);
               if (!ok) {
                 continue;
               }
@@ -67140,11 +68368,11 @@ var require_x509_cjs = __commonJS({
         return null;
       }
     };
-    function generateCertificateSerialNumber(input, crypto3 = cryptoProvider.get()) {
+    function generateCertificateSerialNumber(input, crypto4 = cryptoProvider.get()) {
       const inputView = pvtsutils.BufferSourceConverter.toUint8Array(pvtsutils.Convert.FromHex(input || ""));
       let serialNumber = inputView && inputView.length && inputView.some((o) => o > 0) ? new Uint8Array(inputView) : void 0;
       if (!serialNumber) {
-        serialNumber = crypto3.getRandomValues(new Uint8Array(16));
+        serialNumber = crypto4.getRandomValues(new Uint8Array(16));
       }
       let firstNonZero = 0;
       while (firstNonZero < serialNumber.length - 1 && serialNumber[firstNonZero] === 0) {
@@ -67160,7 +68388,7 @@ var require_x509_cjs = __commonJS({
       return serialNumber.buffer;
     }
     var X509CertificateGenerator = class {
-      static async createSelfSigned(params, crypto3 = cryptoProvider.get()) {
+      static async createSelfSigned(params, crypto4 = cryptoProvider.get()) {
         if (!params.keys.privateKey) {
           throw new Error("Bad field 'keys' in 'params' argument. 'privateKey' is empty");
         }
@@ -67177,9 +68405,9 @@ var require_x509_cjs = __commonJS({
           signingKey: params.keys.privateKey,
           signingAlgorithm: params.signingAlgorithm,
           extensions: params.extensions
-        }, crypto3);
+        }, crypto4);
       }
-      static async create(params, crypto3 = cryptoProvider.get()) {
+      static async create(params, crypto4 = cryptoProvider.get()) {
         var _a2;
         let spki;
         if (params.publicKey instanceof PublicKey) {
@@ -67189,9 +68417,9 @@ var require_x509_cjs = __commonJS({
         } else if (pvtsutils.BufferSourceConverter.isBufferSource(params.publicKey)) {
           spki = params.publicKey;
         } else {
-          spki = await crypto3.subtle.exportKey("spki", params.publicKey);
+          spki = await crypto4.subtle.exportKey("spki", params.publicKey);
         }
-        const serialNumber = generateCertificateSerialNumber(params.serialNumber, crypto3);
+        const serialNumber = generateCertificateSerialNumber(params.serialNumber, crypto4);
         const notBefore = params.notBefore || /* @__PURE__ */ new Date();
         const notAfter = params.notAfter || new Date(notBefore.getTime() + 31536e6);
         const asnX509 = new asn1X509__namespace.Certificate({
@@ -67226,7 +68454,7 @@ var require_x509_cjs = __commonJS({
         const algProv = tsyringe.container.resolve(diAlgorithmProvider);
         asnX509.tbsCertificate.signature = asnX509.signatureAlgorithm = algProv.toAsnAlgorithm(signatureAlgorithm);
         const tbs = asn1Schema.AsnConvert.serialize(asnX509.tbsCertificate);
-        const signatureValue = "signingKey" in params ? await crypto3.subtle.sign(signatureAlgorithm, params.signingKey, tbs) : params.signature;
+        const signatureValue = "signingKey" in params ? await crypto4.subtle.sign(signatureAlgorithm, params.signingKey, tbs) : params.signature;
         const signatureFormatters = tsyringe.container.resolveAll(diAsnSignatureFormatter).reverse();
         let asnSignature = null;
         for (const signatureFormatter of signatureFormatters) {
@@ -67447,7 +68675,7 @@ var require_x509_cjs = __commonJS({
           }
         });
       }
-      async verify(params, crypto3 = cryptoProvider.get()) {
+      async verify(params, crypto4 = cryptoProvider.get()) {
         if (!this.certListSignatureAlgorithm.isEqual(this.tbsCertListSignatureAlgorithm)) {
           throw new Error("algorithm identifier in the sequence tbsCertList and CertificateList mismatch");
         }
@@ -67488,21 +68716,21 @@ var require_x509_cjs = __commonJS({
         if (!signature) {
           throw Error("Cannot convert ASN.1 signature value to WebCrypto format");
         }
-        return await crypto3.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
+        return await crypto4.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
       }
       async getThumbprint(...args) {
-        let crypto3;
+        let crypto4;
         let algorithm = "SHA-1";
         if (args[0]) {
           if (!args[0].subtle) {
             algorithm = args[0] || algorithm;
-            crypto3 = args[1];
+            crypto4 = args[1];
           } else {
-            crypto3 = args[0];
+            crypto4 = args[0];
           }
         }
-        crypto3 !== null && crypto3 !== void 0 ? crypto3 : crypto3 = cryptoProvider.get();
-        return await crypto3.subtle.digest(algorithm, this.rawData);
+        crypto4 !== null && crypto4 !== void 0 ? crypto4 : crypto4 = cryptoProvider.get();
+        return await crypto4.subtle.digest(algorithm, this.rawData);
       }
       findRevoked(certOrSerialNumber) {
         const serialNumber = typeof certOrSerialNumber === "string" ? certOrSerialNumber : certOrSerialNumber.serialNumber;
@@ -67517,7 +68745,7 @@ var require_x509_cjs = __commonJS({
     };
     _X509Crl_tbs = /* @__PURE__ */ new WeakMap(), _X509Crl_signatureAlgorithm = /* @__PURE__ */ new WeakMap(), _X509Crl_issuerName = /* @__PURE__ */ new WeakMap(), _X509Crl_thisUpdate = /* @__PURE__ */ new WeakMap(), _X509Crl_nextUpdate = /* @__PURE__ */ new WeakMap(), _X509Crl_entries = /* @__PURE__ */ new WeakMap(), _X509Crl_extensions = /* @__PURE__ */ new WeakMap();
     var X509CrlGenerator = class {
-      static async create(params, crypto3 = cryptoProvider.get()) {
+      static async create(params, crypto4 = cryptoProvider.get()) {
         var _a2;
         const name = params.issuer instanceof Name3 ? params.issuer : new Name3(params.issuer);
         const asnX509Crl = new asn1X509__namespace.CertificateList({
@@ -67584,7 +68812,7 @@ var require_x509_cjs = __commonJS({
         const algProv = tsyringe.container.resolve(diAlgorithmProvider);
         asnX509Crl.tbsCertList.signature = asnX509Crl.signatureAlgorithm = algProv.toAsnAlgorithm(signingAlgorithm);
         const tbs = asn1Schema.AsnConvert.serialize(asnX509Crl.tbsCertList);
-        const signature = await crypto3.subtle.sign(signingAlgorithm, params.signingKey, tbs);
+        const signature = await crypto4.subtle.sign(signingAlgorithm, params.signingKey, tbs);
         const signatureFormatters = tsyringe.container.resolveAll(diAsnSignatureFormatter).reverse();
         let asnSignature = null;
         for (const signatureFormatter of signatureFormatters) {
@@ -69415,7 +70643,8 @@ var bcryptjs_default = {
 };
 
 // server.ts
-var import_crypto2 = __toESM(require("crypto"), 1);
+var import_crypto3 = __toESM(require("crypto"), 1);
+var import_compression = __toESM(require_compression(), 1);
 
 // node_modules/@supabase/supabase-js/dist/index.mjs
 var dist_exports = {};
@@ -86540,34 +87769,103 @@ async function verifyAuthenticationResponse(options) {
   return toReturn;
 }
 
+// api-src/log.ts
+var import_crypto2 = __toESM(require("crypto"), 1);
+function newRequestId(incoming) {
+  if (typeof incoming === "string" && incoming.length > 0 && incoming.length <= 128) {
+    return incoming;
+  }
+  return import_crypto2.default.randomUUID();
+}
+
 // server.ts
+function withTimeout(promise, ms, label = "Operation") {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (val) => {
+        clearTimeout(timer);
+        resolve(val);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
 async function createApp() {
   const app = (0, import_express.default)();
   const IS_PRODUCTION = process.env.NODE_ENV === "production";
   app.set("trust proxy", 1);
+  app.use((0, import_compression.default)());
   app.use(import_express.default.json({ limit: "20mb" }));
   app.use(import_express.default.urlencoded({ limit: "20mb", extended: true }));
+  const SERVER_STARTED_AT = Date.now();
+  app.use((req, res, next) => {
+    const requestId = newRequestId(req.headers["x-request-id"]);
+    res.locals.requestId = requestId;
+    res.setHeader("x-request-id", requestId);
+    next();
+  });
+  app.use((req, res, next) => {
+    const startedAt = process.hrtime.bigint();
+    res.on("finish", () => {
+      const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+      const email = res.locals.actingEmail || void 0;
+      const level = res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info";
+      const entry = {
+        ts: (/* @__PURE__ */ new Date()).toISOString(),
+        level,
+        event: "http.request",
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        durationMs: Math.round(durationMs * 10) / 10,
+        requestId: res.locals.requestId,
+        ...email ? { email } : {}
+      };
+      const line = JSON.stringify(entry);
+      if (level === "error") console.error(line);
+      else if (level === "warn") console.warn(line);
+      else console.log(line);
+    });
+    next();
+  });
   const SESSION_SECRET = process.env.SESSION_SECRET;
   if (!SESSION_SECRET) {
     if (process.env.VERCEL) {
       throw new Error("SESSION_SECRET environment variable is missing.");
     }
-    console.error("\u274C CRITICAL SECURITY ERROR: The SESSION_SECRET environment variable is missing! The server cannot start without a secure SESSION_SECRET.");
+    console.error(
+      "\u274C CRITICAL SECURITY ERROR: The SESSION_SECRET environment variable is missing! The server cannot start without a secure SESSION_SECRET."
+    );
+    process.exit(1);
+  }
+  if (IS_PRODUCTION && !process.env.APP_ORIGIN) {
+    if (process.env.VERCEL) {
+      throw new Error("APP_ORIGIN environment variable is missing in production.");
+    }
+    console.error(
+      "\u274C CRITICAL SECURITY ERROR: The APP_ORIGIN environment variable is missing! The server cannot start in production without APP_ORIGIN (same-origin/WebAuthn checks would be disabled)."
+    );
     process.exit(1);
   }
   function timingSafeEqualString(a, b) {
     const bufA = Buffer.from(a);
     const bufB = Buffer.from(b);
     if (bufA.length !== bufB.length) return false;
-    return import_crypto2.default.timingSafeEqual(bufA, bufB);
+    return import_crypto3.default.timingSafeEqual(bufA, bufB);
   }
-  function generateSecureToken(email, durationMs = 24 * 60 * 60 * 1e3) {
+  const SESSION_TTL_SHORT = 24 * 60 * 60 * 1e3;
+  const SESSION_TTL_LONG = 30 * 24 * 60 * 60 * 1e3;
+  function generateSecureToken(email, durationMs = SESSION_TTL_SHORT) {
     const payload = {
       email: email.trim().toLowerCase(),
       expiresAt: Date.now() + durationMs
     };
     const payloadStr = Buffer.from(JSON.stringify(payload)).toString("base64url");
-    const signature = import_crypto2.default.createHmac("sha256", SESSION_SECRET).update(payloadStr).digest("hex");
+    const signature = import_crypto3.default.createHmac("sha256", SESSION_SECRET).update(payloadStr).digest("hex");
     return `${payloadStr}.${signature}`;
   }
   function verifySecureToken(token) {
@@ -86575,7 +87873,7 @@ async function createApp() {
     const parts = token.split(".");
     if (parts.length !== 2) return null;
     const [payloadStr, signature] = parts;
-    const expectedSignature = import_crypto2.default.createHmac("sha256", SESSION_SECRET).update(payloadStr).digest("hex");
+    const expectedSignature = import_crypto3.default.createHmac("sha256", SESSION_SECRET).update(payloadStr).digest("hex");
     if (!timingSafeEqualString(signature, expectedSignature)) {
       return null;
     }
@@ -86600,11 +87898,12 @@ async function createApp() {
     appLocks: [],
     webauthnCreds: [],
     webauthnChallenges: [],
-    trustedDevices: []
+    trustedDevices: [],
+    loginAttempts: []
   };
   function hashOtp(otp, email) {
     const normalizedEmail = email.trim().toLowerCase();
-    return import_crypto2.default.createHash("sha256").update(`${otp}:${normalizedEmail}`).digest("hex");
+    return import_crypto3.default.createHash("sha256").update(`${otp}:${normalizedEmail}`).digest("hex");
   }
   async function storeOtpInDb(email, otp, expiresAt, isDeleteOtp = false, supabase) {
     const normalizedEmail = email.trim().toLowerCase();
@@ -86707,12 +88006,22 @@ async function createApp() {
       timestamp: Date.now()
     };
     const payloadStr = Buffer.from(JSON.stringify(payload)).toString("base64url");
-    const signature = import_crypto2.default.createHmac("sha256", SESSION_SECRET).update(payloadStr).digest("hex");
+    const signature = import_crypto3.default.createHmac("sha256", SESSION_SECRET).update(payloadStr).digest("hex");
     return `${payloadStr}.${signature}`;
   }
   const getSupabase = (req) => {
     let url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
-    let key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "").trim();
+    const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+    let key = serviceKey;
+    if (!key) {
+      if (IS_PRODUCTION) {
+        console.error(
+          "[Supabase Error] SUPABASE_SERVICE_ROLE_KEY is required in production. Refusing to run with the public anon key as the server role."
+        );
+        throw new Error("SUPABASE_SERVICE_ROLE_KEY is required in production.");
+      }
+      key = (process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "").trim();
+    }
     if (url.startsWith("eyJ") && (key.startsWith("http://") || key.startsWith("https://"))) {
       const temp = url;
       url = key;
@@ -86758,7 +88067,11 @@ async function createApp() {
       return mockDb.accounts.some((acc) => acc.email === normalizedEmail);
     }
     try {
-      const { data, error } = await supabase.from("auth_accounts").select("email").eq("email", normalizedEmail).maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase.from("auth_accounts").select("email").eq("email", normalizedEmail).maybeSingle(),
+        5e3,
+        "checkAccountExists"
+      );
       if (error && error.code !== "PGRST116") {
         console.error("Supabase error checking account:", error);
       }
@@ -86806,11 +88119,14 @@ async function createApp() {
       return;
     }
     try {
-      const { error } = await supabase.from("auth_accounts").upsert({
-        email: normalizedEmail,
-        password_hash: acc.passwordHash,
-        created_at: new Date(acc.createdAt).toISOString()
-      }, { onConflict: "email" });
+      const { error } = await supabase.from("auth_accounts").upsert(
+        {
+          email: normalizedEmail,
+          password_hash: acc.passwordHash,
+          created_at: new Date(acc.createdAt).toISOString()
+        },
+        { onConflict: "email" }
+      );
       if (error) {
         console.error("Error saving account to Supabase:", error);
         throw error;
@@ -86829,8 +88145,8 @@ async function createApp() {
   async function saveDeviceToken(token, supabase, email) {
     if (!token) return;
     const normalizedEmail = (email || "").trim().toLowerCase();
-    const hashedEmail = normalizedEmail ? import_crypto2.default.createHash("sha256").update(normalizedEmail).digest("hex") : "";
-    const hashedToken = import_crypto2.default.createHash("sha256").update(token).digest("hex");
+    const hashedEmail = normalizedEmail ? import_crypto3.default.createHash("sha256").update(normalizedEmail).digest("hex") : "";
+    const hashedToken = import_crypto3.default.createHash("sha256").update(token).digest("hex");
     const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1e3;
     if (!supabase) {
       mockDb.deviceTokens.add(hashedToken + ":" + hashedEmail);
@@ -86852,8 +88168,8 @@ async function createApp() {
   async function verifyDeviceToken(token, supabase, email) {
     if (!token) return false;
     const normalizedEmail = (email || "").trim().toLowerCase();
-    const hashedEmail = normalizedEmail ? import_crypto2.default.createHash("sha256").update(normalizedEmail).digest("hex") : null;
-    const hashedToken = import_crypto2.default.createHash("sha256").update(token).digest("hex");
+    const hashedEmail = normalizedEmail ? import_crypto3.default.createHash("sha256").update(normalizedEmail).digest("hex") : null;
+    const hashedToken = import_crypto3.default.createHash("sha256").update(token).digest("hex");
     if (!supabase) {
       if (hashedEmail) return mockDb.deviceTokens.has(hashedToken + ":" + hashedEmail);
       for (const k of mockDb.deviceTokens) if (k.startsWith(hashedToken + ":")) return true;
@@ -86904,7 +88220,11 @@ async function createApp() {
       return mockDb.appLocks.find((x) => x.email === e) || null;
     }
     try {
-      const { data, error } = await supabase.from("app_lock_credentials").select("*").eq("user_email", e).maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase.from("app_lock_credentials").select("*").eq("user_email", e).maybeSingle(),
+        5e3,
+        "getAppLock"
+      );
       if (error) throw error;
       if (!data) return mockDb.appLocks.find((x) => x.email === e) || null;
       return {
@@ -86912,7 +88232,9 @@ async function createApp() {
         pinHash: data.pin_hash || null,
         pinEnabled: !!data.pin_enabled,
         failedAttempts: Number(data.failed_attempts || 0),
-        lockedUntil: data.locked_until ? Number(data.locked_until) : null
+        lockedUntil: data.locked_until ? Number(data.locked_until) : null,
+        lockOnOpen: !!data.lock_on_open,
+        lockIdleMinutes: data.lock_idle_minutes != null ? Number(data.lock_idle_minutes) : null
       };
     } catch (err) {
       console.warn("[AppLock] getAppLock fallback:", err?.message || err);
@@ -86931,12 +88253,18 @@ async function createApp() {
         ...fields.pinHash !== void 0 ? { pinHash: fields.pinHash } : {},
         ...fields.pinEnabled !== void 0 ? { pinEnabled: fields.pinEnabled } : {},
         ...fields.failedAttempts !== void 0 ? { failedAttempts: fields.failedAttempts } : {},
-        ...fields.lockedUntil !== void 0 ? { lockedUntil: fields.lockedUntil } : {}
+        ...fields.lockedUntil !== void 0 ? { lockedUntil: fields.lockedUntil } : {},
+        ...fields.lockOnOpen !== void 0 ? { lockOnOpen: fields.lockOnOpen } : {},
+        ...fields.lockIdleMinutes !== void 0 ? { lockIdleMinutes: fields.lockIdleMinutes } : {}
       });
       return;
     }
     try {
-      const { data, error } = await supabase.from("app_lock_credentials").upsert({ user_email: e, ...fields, updated_at: (/* @__PURE__ */ new Date()).toISOString() }, { onConflict: "user_email" }).select("user_email").maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase.from("app_lock_credentials").upsert({ user_email: e, ...fields, updated_at: (/* @__PURE__ */ new Date()).toISOString() }, { onConflict: "user_email" }).select("user_email").maybeSingle(),
+        5e3,
+        "upsertAppLock"
+      );
       if (error) throw error;
     } catch (err) {
       console.warn("[AppLock] upsertAppLock fallback:", err?.message || err);
@@ -86949,11 +88277,72 @@ async function createApp() {
       if (fields.pin_enabled !== void 0) rec.pinEnabled = fields.pin_enabled;
       if (fields.failed_attempts !== void 0) rec.failedAttempts = fields.failed_attempts;
       if (fields.locked_until !== void 0) rec.lockedUntil = fields.locked_until;
+      if (fields.lock_on_open !== void 0) rec.lockOnOpen = fields.lock_on_open;
+      if (fields.lock_idle_minutes !== void 0)
+        rec.lockIdleMinutes = fields.lock_idle_minutes != null ? Number(fields.lock_idle_minutes) : null;
+    }
+  }
+  async function getLoginState(email, supabase) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      const found = mockDb.loginAttempts.find((x) => x.email === e);
+      return found || null;
+    }
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from("login_attempts").select("*").eq("email", e).maybeSingle(),
+        5e3,
+        "getLoginState"
+      );
+      if (error) throw error;
+      if (!data) return mockDb.loginAttempts.find((x) => x.email === e) || null;
+      return {
+        email: data.email,
+        failed: Number(data.failed_attempts || 0),
+        lockedUntil: data.locked_until != null ? Number(data.locked_until) : null
+      };
+    } catch (err) {
+      console.warn("[LoginLockout] getLoginState fallback:", err?.message || err);
+      return mockDb.loginAttempts.find((x) => x.email === e) || null;
+    }
+  }
+  async function upsertLoginState(email, fields, supabase) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      let rec = mockDb.loginAttempts.find((x) => x.email === e);
+      if (!rec) {
+        rec = { email: e, failed: 0, lockedUntil: null };
+        mockDb.loginAttempts.push(rec);
+      }
+      if (fields.failed !== void 0) rec.failed = fields.failed;
+      if (fields.lockedUntil !== void 0) rec.lockedUntil = fields.lockedUntil;
+      return;
+    }
+    try {
+      const payload = { email: e };
+      if (fields.failed !== void 0) payload.failed_attempts = fields.failed;
+      if (fields.lockedUntil !== void 0) payload.locked_until = fields.lockedUntil;
+      payload.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+      const { error } = await withTimeout(
+        supabase.from("login_attempts").upsert(payload, { onConflict: "email" }),
+        5e3,
+        "upsertLoginState"
+      );
+      if (error) throw error;
+    } catch (err) {
+      console.warn("[LoginLockout] upsertLoginState fallback:", err?.message || err);
+      let rec = mockDb.loginAttempts.find((x) => x.email === e);
+      if (!rec) {
+        rec = { email: e, failed: 0, lockedUntil: null };
+        mockDb.loginAttempts.push(rec);
+      }
+      if (fields.failed !== void 0) rec.failed = fields.failed;
+      if (fields.lockedUntil !== void 0) rec.lockedUntil = fields.lockedUntil;
     }
   }
   async function storeWebAuthnChallenge(email, challenge, purpose, supabase) {
     const e = normalizeEmailLower(email);
-    const id = import_crypto2.default.randomUUID();
+    const id = import_crypto3.default.randomUUID();
     const expiresAt = Date.now() + 10 * 60 * 1e3;
     if (!supabase) {
       mockDb.webauthnChallenges.push({ id, email: e, challenge, purpose, expiresAt });
@@ -87001,7 +88390,11 @@ async function createApp() {
       return mockDb.webauthnCreds.filter((c) => c.email === e);
     }
     try {
-      const { data, error } = await supabase.from("webauthn_credentials").select("*").eq("user_email", e).order("created_at", { ascending: true });
+      const { data, error } = await withTimeout(
+        supabase.from("webauthn_credentials").select("*").eq("user_email", e).order("created_at", { ascending: true }),
+        5e3,
+        "listWebAuthnCredentials"
+      );
       if (error) throw error;
       const fromDb = (data || []).map((r) => ({
         email: r.user_email,
@@ -87032,7 +88425,13 @@ async function createApp() {
     const e = normalizeEmailLower(email);
     const publicKeyB64 = publicKeyToBase64url(cred.publicKey);
     if (!supabase) {
-      mockDb.webauthnCreds.push({ email: e, credentialId: cred.credentialId, publicKey: publicKeyB64, signCount: cred.signCount || 0, deviceLabel });
+      mockDb.webauthnCreds.push({
+        email: e,
+        credentialId: cred.credentialId,
+        publicKey: publicKeyB64,
+        signCount: cred.signCount || 0,
+        deviceLabel
+      });
       return;
     }
     try {
@@ -87047,7 +88446,13 @@ async function createApp() {
       if (error) throw error;
     } catch (err) {
       console.warn("[AppLock] saveWebAuthnCredential fallback:", err?.message || err);
-      mockDb.webauthnCreds.push({ email: e, credentialId: cred.credentialId, publicKey: publicKeyB64, signCount: cred.signCount || 0, deviceLabel });
+      mockDb.webauthnCreds.push({
+        email: e,
+        credentialId: cred.credentialId,
+        publicKey: publicKeyB64,
+        signCount: cred.signCount || 0,
+        deviceLabel
+      });
     }
   }
   async function deleteWebAuthnCredential(email, credentialId, supabase) {
@@ -87066,32 +88471,52 @@ async function createApp() {
   }
   async function createTrustedDevice(email, token, userAgent, supabase) {
     const e = normalizeEmailLower(email);
-    const tokenHash = import_crypto2.default.createHash("sha256").update(token).digest("hex");
+    const tokenHash = import_crypto3.default.createHash("sha256").update(token).digest("hex");
     const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1e3;
-    const id = import_crypto2.default.randomUUID();
+    const id = import_crypto3.default.randomUUID();
     if (!supabase) {
-      mockDb.trustedDevices.push({ id, email: e, tokenHash, createdAt: Date.now(), expiresAt, lastUsedAt: Date.now(), userAgent });
+      mockDb.trustedDevices.push({
+        id,
+        email: e,
+        tokenHash,
+        createdAt: Date.now(),
+        expiresAt,
+        lastUsedAt: Date.now(),
+        userAgent
+      });
       return { id, expiresAt };
     }
     try {
-      const { error } = await supabase.from("trusted_devices").insert({
-        id,
-        user_email: e,
-        device_token_hash: tokenHash,
-        expires_at: expiresAt,
-        last_used_at: Date.now(),
-        user_agent: (userAgent || "").slice(0, 300)
-      });
+      const { error } = await withTimeout(
+        supabase.from("trusted_devices").insert({
+          id,
+          user_email: e,
+          device_token_hash: tokenHash,
+          expires_at: expiresAt,
+          last_used_at: Date.now(),
+          user_agent: (userAgent || "").slice(0, 300)
+        }),
+        5e3,
+        "insertTrustedDevice"
+      );
       if (error) throw error;
     } catch (err) {
       console.warn("[AppLock] createTrustedDevice fallback:", err?.message || err);
-      mockDb.trustedDevices.push({ id, email: e, tokenHash, createdAt: Date.now(), expiresAt, lastUsedAt: Date.now(), userAgent });
+      mockDb.trustedDevices.push({
+        id,
+        email: e,
+        tokenHash,
+        createdAt: Date.now(),
+        expiresAt,
+        lastUsedAt: Date.now(),
+        userAgent
+      });
     }
     return { id, expiresAt };
   }
   async function findTrustedDeviceByToken(token, supabase) {
     if (!token) return null;
-    const tokenHash = import_crypto2.default.createHash("sha256").update(token).digest("hex");
+    const tokenHash = import_crypto3.default.createHash("sha256").update(token).digest("hex");
     if (!supabase) {
       const rec = mockDb.trustedDevices.find((d) => d.tokenHash === tokenHash);
       if (!rec) return null;
@@ -87102,7 +88527,11 @@ async function createApp() {
       return { email: rec.email, expiresAt: rec.expiresAt };
     }
     try {
-      const { data, error } = await supabase.from("trusted_devices").select("*").eq("device_token_hash", tokenHash).maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase.from("trusted_devices").select("*").eq("device_token_hash", tokenHash).maybeSingle(),
+        5e3,
+        "findTrustedDevice"
+      );
       if (error) throw error;
       if (!data) {
         const rec = mockDb.trustedDevices.find((d) => d.tokenHash === tokenHash);
@@ -87117,11 +88546,19 @@ async function createApp() {
         return null;
       }
       if (data.expires_at && Date.now() > Number(data.expires_at)) {
-        await supabase.from("trusted_devices").delete().eq("id", data.id);
+        await withTimeout(
+          supabase.from("trusted_devices").delete().eq("id", data.id),
+          5e3,
+          "deleteExpiredDevice"
+        );
         return null;
       }
       const newExpiry = Date.now() + 30 * 24 * 60 * 60 * 1e3;
-      await supabase.from("trusted_devices").update({ last_used_at: Date.now(), expires_at: newExpiry }).eq("id", data.id);
+      await withTimeout(
+        supabase.from("trusted_devices").update({ last_used_at: Date.now(), expires_at: newExpiry }).eq("id", data.id),
+        5e3,
+        "refreshDeviceExpiry"
+      );
       return { email: data.user_email, expiresAt: newExpiry };
     } catch (err) {
       console.warn("[AppLock] findTrustedDeviceByToken fallback:", err?.message || err);
@@ -87147,7 +88584,11 @@ async function createApp() {
       }));
     }
     try {
-      const { data, error } = await supabase.from("trusted_devices").select("*").eq("user_email", e).order("created_at", { ascending: false });
+      const { data, error } = await withTimeout(
+        supabase.from("trusted_devices").select("*").eq("user_email", e).order("created_at", { ascending: false }),
+        5e3,
+        "listTrustedDevices"
+      );
       if (error) throw error;
       const fromDb = (data || []).map((r) => ({
         id: r.id,
@@ -87167,7 +88608,13 @@ async function createApp() {
       return [...fromDb, ...fromMock.filter((d) => !seen.has(d.id))];
     } catch (err) {
       console.warn("[AppLock] listTrustedDevices fallback:", err?.message || err);
-      return mockDb.trustedDevices.filter((d) => d.email === e).map((d) => ({ id: d.id, createdAt: d.createdAt, lastUsedAt: d.lastUsedAt, expiresAt: d.expiresAt, userAgent: d.userAgent || "" }));
+      return mockDb.trustedDevices.filter((d) => d.email === e).map((d) => ({
+        id: d.id,
+        createdAt: d.createdAt,
+        lastUsedAt: d.lastUsedAt,
+        expiresAt: d.expiresAt,
+        userAgent: d.userAgent || ""
+      }));
     }
   }
   async function deleteTrustedDevice(email, id, supabase) {
@@ -87227,6 +88674,7 @@ async function createApp() {
       res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
       return false;
     }
+    res.locals.actingEmail = decoded.email;
     return true;
   }
   function parseCookies(req) {
@@ -87241,9 +88689,12 @@ async function createApp() {
     });
     return out;
   }
-  function setSessionCookie(res, token) {
+  function setSessionCookie(res, token, maxAgeSeconds = 86400) {
     const secure = IS_PRODUCTION ? "; Secure" : "";
-    res.setHeader("Set-Cookie", `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${secure}`);
+    res.setHeader(
+      "Set-Cookie",
+      `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${secure}`
+    );
   }
   function clearSessionCookie(res) {
     const secure = IS_PRODUCTION ? "; Secure" : "";
@@ -87251,7 +88702,10 @@ async function createApp() {
   }
   function setTrustCookie(res, token) {
     const secure = IS_PRODUCTION ? "; Secure" : "";
-    res.append("Set-Cookie", `app_lock_trust=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${30 * 24 * 60 * 60}${secure}`);
+    res.append(
+      "Set-Cookie",
+      `app_lock_trust=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${30 * 24 * 60 * 60}${secure}`
+    );
   }
   function clearTrustCookie(res) {
     const secure = IS_PRODUCTION ? "; Secure" : "";
@@ -87280,6 +88734,26 @@ async function createApp() {
       return;
     }
     next();
+  });
+  app.use("/api", (req, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+      next();
+      return;
+    }
+    const origin = req.headers["origin"];
+    if (!origin) {
+      next();
+      return;
+    }
+    const expected = getOrigin(req);
+    if (origin === expected) {
+      next();
+      return;
+    }
+    console.warn(
+      `[SECURITY SUSPICIOUS ACTIVITY] Rejected cross-origin request to ${req.method} ${req.originalUrl} from origin: ${origin}`
+    );
+    res.status(403).json({ success: false, error: "Forbidden." });
   });
   async function checkRateLimitInDb(key, limit, windowMs, supabase) {
     const now = Date.now();
@@ -87369,8 +88843,7 @@ async function createApp() {
   }
   const rateLimitAuth = (limit, windowMs) => {
     return async (req, res, next) => {
-      const xff = req.headers["x-forwarded-for"] || "";
-      const ip = (xff ? xff.split(",")[0].trim() : "") || req.ip || req.socket.remoteAddress || "unknown";
+      const ip = req.ip || req.socket.remoteAddress || "unknown";
       const reqEmail = req.body && typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
       const key = `${ip}:${req.path}:${reqEmail}`;
       const supabase = getSupabase(req);
@@ -87378,7 +88851,9 @@ async function createApp() {
       if (allowed) {
         next();
       } else {
-        console.warn(`[SECURITY SUSPICIOUS ACTIVITY] Rate limit exceeded on route ${req.path} for target key segment: ${key}`);
+        console.warn(
+          `[SECURITY SUSPICIOUS ACTIVITY] Rate limit exceeded on route ${req.path} for target key segment: ${key}`
+        );
         res.setHeader("Retry-After", String(retryAfterSeconds));
         res.status(429).json({
           success: false,
@@ -87414,7 +88889,22 @@ async function createApp() {
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", mode: process.env.NODE_ENV || "development" });
   });
-  app.get("/api/diagnostics", (req, res) => {
+  app.get("/healthz", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json({
+      status: "ok",
+      upSince: new Date(SERVER_STARTED_AT).toISOString(),
+      uptimeSec: Math.round(process.uptime()),
+      env: process.env.NODE_ENV || "development"
+    });
+  });
+  app.get("/api/diagnostics", rateLimitAuth(60, 60 * 1e3), (req, res) => {
+    const token = getTokenFromRequest(req);
+    const decoded = token ? verifySecureToken(token) : null;
+    if (!decoded) {
+      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
+      return;
+    }
     const has = (k) => !!process.env[k];
     res.json({
       status: "ok",
@@ -87431,23 +88921,27 @@ async function createApp() {
       }
     });
   });
-  app.post("/api/auth/check-email", rateLimitAuth(20, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
+  app.post(
+    "/api/auth/check-email",
+    rateLimitAuth(20, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const supabase = getSupabase(req);
+        const exists = await checkAccountExists(normalizedEmail, supabase);
+        res.json({ success: true, exists });
+      } catch (err) {
+        console.error("[SECURITY LOG] Check-email operation failed:", err.message || err);
+        res.status(500).json({ success: false, error: "System authentication service error. Please try again later." });
       }
-      const normalizedEmail = email.trim().toLowerCase();
-      const supabase = getSupabase(req);
-      const exists = await checkAccountExists(normalizedEmail, supabase);
-      res.json({ success: true, exists });
-    } catch (err) {
-      console.error("[SECURITY LOG] Check-email operation failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System authentication service error. Please try again later." });
     }
-  });
+  );
   app.post("/api/auth/send-otp", rateLimitAuth(8, 60 * 1e3), async (req, res) => {
     try {
       const { email } = req.body;
@@ -87457,7 +88951,7 @@ async function createApp() {
         return;
       }
       const normalizedEmail = email.trim().toLowerCase();
-      const otp = import_crypto2.default.randomInt(1e5, 1e6).toString();
+      const otp = import_crypto3.default.randomInt(1e5, 1e6).toString();
       const expiresAt = Date.now() + 5 * 60 * 1e3;
       await storeOtpInDb(normalizedEmail, otp, expiresAt, false, getSupabase(req));
       console.log(`
@@ -87519,7 +89013,7 @@ async function createApp() {
         errorDetails = "SMTP server is not configured in environment variables.";
       }
       if (!emailSent) {
-        if (IS_PRODUCTION) {
+        if (IS_PRODUCTION || !(process.env.DEV_OTP_RESPONSE === "true")) {
           res.status(500).json({
             success: false,
             error: "Failed to dispatch verification email. Please try again later."
@@ -87530,7 +89024,7 @@ async function createApp() {
           success: true,
           emailSent: false,
           devOtp: otp,
-          info: "Dev mode: SMTP is not configured, showing passcode in developer bypass."
+          info: "Dev mode: SMTP is not configured, showing passcode in developer bypass (DEV_OTP_RESPONSE=true)."
         });
         return;
       }
@@ -87543,55 +89037,60 @@ async function createApp() {
       res.status(500).json({ success: false, error: "System secure transmission error. Please request later." });
     }
   });
-  app.post("/api/auth/verify-otp", rateLimitAuth(10, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, otp, forRegistrationOrReset } = req.body;
-      const emailErr = validateEmail(email);
-      const otpErr = validateOtp(otp);
-      if (emailErr || otpErr) {
-        res.status(400).json({ success: false, error: emailErr || otpErr });
-        return;
-      }
-      const normalizedEmail = email.trim().toLowerCase();
-      const enteredOtp = otp.trim();
-      const supabase = getSupabase(req);
-      const saved = await getOtpFromDb(normalizedEmail, false, supabase);
-      if (!saved) {
-        res.status(401).json({ success: false, error: "No active verification passcode found. Please request a new code." });
-        return;
-      }
-      if (Date.now() > saved.expiresAt) {
+  app.post(
+    "/api/auth/verify-otp",
+    rateLimitAuth(10, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, otp, forRegistrationOrReset } = req.body;
+        const emailErr = validateEmail(email);
+        const otpErr = validateOtp(otp);
+        if (emailErr || otpErr) {
+          res.status(400).json({ success: false, error: emailErr || otpErr });
+          return;
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const enteredOtp = otp.trim();
+        const supabase = getSupabase(req);
+        const saved = await getOtpFromDb(normalizedEmail, false, supabase);
+        if (!saved) {
+          res.status(401).json({ success: false, error: "No active verification passcode found. Please request a new code." });
+          return;
+        }
+        if (Date.now() > saved.expiresAt) {
+          await deleteOtpFromDb(normalizedEmail, false, supabase);
+          res.status(401).json({ success: false, error: "The passcode has expired. Please request a new code." });
+          return;
+        }
+        const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+        if (!timingSafeEqualString(saved.otp, enteredHash)) {
+          await deleteOtpFromDb(normalizedEmail, false, supabase);
+          res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
+          return;
+        }
+        if (forRegistrationOrReset) {
+          res.json({ success: true });
+          return;
+        }
+        const deviceToken = import_crypto3.default.randomUUID();
+        await saveDeviceToken(deviceToken, supabase, normalizedEmail);
         await deleteOtpFromDb(normalizedEmail, false, supabase);
-        res.status(401).json({ success: false, error: "The passcode has expired. Please request a new code." });
-        return;
+        const _sessionToken = generateSecureToken(normalizedEmail);
+        setSessionCookie(res, _sessionToken);
+        res.json({
+          success: true,
+          token: _sessionToken,
+          deviceToken
+        });
+      } catch (err) {
+        console.error("[SECURITY LOG] Verify OTP failed:", err.message || err);
+        res.status(500).json({ success: false, error: "System authentication service error." });
       }
-      const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-      if (!timingSafeEqualString(saved.otp, enteredHash)) {
-        res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
-        return;
-      }
-      if (forRegistrationOrReset) {
-        res.json({ success: true });
-        return;
-      }
-      const deviceToken = import_crypto2.default.randomUUID();
-      await saveDeviceToken(deviceToken, supabase, normalizedEmail);
-      await deleteOtpFromDb(normalizedEmail, false, supabase);
-      const _sessionToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _sessionToken);
-      res.json({
-        success: true,
-        token: _sessionToken,
-        deviceToken
-      });
-    } catch (err) {
-      console.error("[SECURITY LOG] Verify OTP failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System authentication service error." });
     }
-  });
+  );
   app.post("/api/auth/register", rateLimitAuth(5, 60 * 1e3), async (req, res) => {
     try {
-      const { email, password, otp } = req.body;
+      const { email, password, otp, rememberMe } = req.body;
       const emailErr = validateEmail(email);
       const passwordErr = validatePassword(password);
       const otpErr = validateOtp(otp);
@@ -87615,20 +89114,24 @@ async function createApp() {
       }
       const exists = await checkAccountExists(normalizedEmail, supabase);
       if (exists) {
-        res.status(400).json({ success: false, error: "Account already exists." });
+        res.status(400).json({ success: false, error: "Could not complete registration for this address." });
         return;
       }
       const salt = await bcryptjs_default.genSalt(10);
       const passwordHash = await bcryptjs_default.hash(password, salt);
-      await saveAccount({
-        email: normalizedEmail,
-        passwordHash,
-        createdAt: Date.now()
-      }, supabase);
-      const deviceToken = import_crypto2.default.randomUUID();
+      await saveAccount(
+        {
+          email: normalizedEmail,
+          passwordHash,
+          createdAt: Date.now()
+        },
+        supabase
+      );
+      const deviceToken = import_crypto3.default.randomUUID();
       await saveDeviceToken(deviceToken, supabase, normalizedEmail);
-      const _regToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _regToken);
+      const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
+      const _regToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+      setSessionCookie(res, _regToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
       res.json({
         success: true,
         token: _regToken,
@@ -87639,118 +89142,169 @@ async function createApp() {
       res.status(500).json({ success: false, error: "System registration service error." });
     }
   });
-  app.post("/api/auth/login-password", rateLimitAuth(8, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, password } = req.body;
-      const emailErr = validateEmail(email);
-      const passwordErr = validatePassword(password);
-      if (emailErr || passwordErr) {
-        res.status(400).json({ success: false, error: emailErr || passwordErr });
-        return;
+  app.post(
+    "/api/auth/login-password",
+    rateLimitAuth(8, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, password, rememberMe } = req.body;
+        const emailErr = validateEmail(email);
+        const passwordErr = validatePassword(password);
+        if (emailErr || passwordErr) {
+          res.status(400).json({ success: false, error: emailErr || passwordErr });
+          return;
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const supabase = getSupabase(req);
+        const user = await getAccountByEmail(normalizedEmail, supabase);
+        if (!user) {
+          res.status(401).json({ success: false, error: "Invalid email or password." });
+          return;
+        }
+        const loginState = await getLoginState(normalizedEmail, supabase);
+        if (loginState?.lockedUntil && Date.now() < loginState.lockedUntil) {
+          const remaining = Math.ceil((loginState.lockedUntil - Date.now()) / 1e3);
+          res.status(429).json({
+            success: false,
+            error: `Too many attempts. Account locked for ${remaining}s.`,
+            code: "ACCOUNT_LOCKED",
+            retryAfter: remaining
+          });
+          return;
+        }
+        const isMatch = await bcryptjs_default.compare(password, user.passwordHash);
+        if (!isMatch) {
+          const loginState2 = await getLoginState(normalizedEmail, supabase);
+          const failed = (loginState2?.failed || 0) + 1;
+          let lockedUntil = null;
+          let retryAfter = 0;
+          if (failed >= 5) {
+            const lockCount = Math.min(Math.ceil((failed - 4) / 1), 8);
+            const seconds = 60 * Math.pow(2, lockCount - 1);
+            lockedUntil = Date.now() + seconds * 1e3;
+            retryAfter = seconds;
+          }
+          await upsertLoginState(normalizedEmail, { failed, lockedUntil }, supabase);
+          res.status(401).json({
+            success: false,
+            error: retryAfter ? `Too many attempts. Account locked for ${retryAfter}s.` : "Invalid email or password.",
+            code: "BAD_CREDENTIALS",
+            attemptsRemaining: Math.max(0, 5 - failed),
+            retryAfter
+          });
+          return;
+        }
+        await upsertLoginState(normalizedEmail, { failed: 0, lockedUntil: null }, supabase);
+        const deviceToken = import_crypto3.default.randomUUID();
+        await saveDeviceToken(deviceToken, supabase, normalizedEmail);
+        const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
+        const _loginToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+        setSessionCookie(res, _loginToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
+        res.json({
+          success: true,
+          token: _loginToken,
+          deviceToken
+        });
+      } catch (err) {
+        console.error("[SECURITY LOG] Login-password operation failed:", err.message || err);
+        res.status(500).json({ success: false, error: "System authentication service error." });
       }
-      const normalizedEmail = email.trim().toLowerCase();
-      const supabase = getSupabase(req);
-      const user = await getAccountByEmail(normalizedEmail, supabase);
-      if (!user) {
-        res.status(401).json({ success: false, error: "Invalid email or password." });
-        return;
-      }
-      const isMatch = await bcryptjs_default.compare(password, user.passwordHash);
-      if (!isMatch) {
-        res.status(401).json({ success: false, error: "Invalid email or password." });
-        return;
-      }
-      const deviceToken = import_crypto2.default.randomUUID();
-      await saveDeviceToken(deviceToken, supabase, normalizedEmail);
-      const _loginToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _loginToken);
-      res.json({
-        success: true,
-        token: _loginToken,
-        deviceToken
-      });
-    } catch (err) {
-      console.error("[SECURITY LOG] Login-password operation failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System authentication service error." });
     }
-  });
-  app.post("/api/auth/reset-password", rateLimitAuth(5, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, password, otp } = req.body;
-      const emailErr = validateEmail(email);
-      const passwordErr = validatePassword(password);
-      const otpErr = validateOtp(otp);
-      if (emailErr || passwordErr || otpErr) {
-        res.status(400).json({ success: false, error: emailErr || passwordErr || otpErr });
-        return;
+  );
+  app.post(
+    "/api/auth/reset-password",
+    rateLimitAuth(5, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, password, otp, rememberMe } = req.body;
+        const emailErr = validateEmail(email);
+        const passwordErr = validatePassword(password);
+        const otpErr = validateOtp(otp);
+        if (emailErr || passwordErr || otpErr) {
+          res.status(400).json({ success: false, error: emailErr || passwordErr || otpErr });
+          return;
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const supabase = getSupabase(req);
+        const enteredOtp = otp.trim();
+        let isValidOtp = false;
+        const saved = await getOtpFromDb(normalizedEmail, false, supabase);
+        const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+        if (saved && timingSafeEqualString(saved.otp, enteredHash) && Date.now() <= saved.expiresAt) {
+          isValidOtp = true;
+          await deleteOtpFromDb(normalizedEmail, false, supabase);
+        }
+        if (!isValidOtp) {
+          res.status(401).json({ success: false, error: "Invalid or expired OTP." });
+          return;
+        }
+        const exists = await checkAccountExists(normalizedEmail, supabase);
+        if (!exists) {
+          res.status(400).json({ success: false, error: "Could not reset the password for this address." });
+          return;
+        }
+        const salt = await bcryptjs_default.genSalt(10);
+        const passwordHash = await bcryptjs_default.hash(password, salt);
+        await saveAccount(
+          {
+            email: normalizedEmail,
+            passwordHash,
+            createdAt: Date.now()
+          },
+          supabase
+        );
+        const deviceToken = import_crypto3.default.randomUUID();
+        await saveDeviceToken(deviceToken, supabase, normalizedEmail);
+        const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
+        const _resetToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+        setSessionCookie(res, _resetToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
+        res.json({
+          success: true,
+          token: _resetToken,
+          deviceToken
+        });
+      } catch (err) {
+        console.error("[SECURITY LOG] Reset-password operation failed:", err.message || err);
+        res.status(500).json({ success: false, error: "System password reset service error." });
       }
-      const normalizedEmail = email.trim().toLowerCase();
-      const supabase = getSupabase(req);
-      const enteredOtp = otp.trim();
-      let isValidOtp = false;
-      const saved = await getOtpFromDb(normalizedEmail, false, supabase);
-      const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-      if (saved && timingSafeEqualString(saved.otp, enteredHash) && Date.now() <= saved.expiresAt) {
-        isValidOtp = true;
-        await deleteOtpFromDb(normalizedEmail, false, supabase);
-      }
-      if (!isValidOtp) {
-        res.status(401).json({ success: false, error: "Invalid or expired OTP." });
-        return;
-      }
-      const exists = await checkAccountExists(normalizedEmail, supabase);
-      if (!exists) {
-        res.status(400).json({ success: false, error: "Account does not exist." });
-        return;
-      }
-      const salt = await bcryptjs_default.genSalt(10);
-      const passwordHash = await bcryptjs_default.hash(password, salt);
-      await saveAccount({
-        email: normalizedEmail,
-        passwordHash,
-        createdAt: Date.now()
-      }, supabase);
-      const deviceToken = import_crypto2.default.randomUUID();
-      await saveDeviceToken(deviceToken, supabase, normalizedEmail);
-      const _resetToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _resetToken);
-      res.json({
-        success: true,
-        token: _resetToken,
-        deviceToken
-      });
-    } catch (err) {
-      console.error("[SECURITY LOG] Reset-password operation failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System password reset service error." });
     }
-  });
-  app.post("/api/auth/verify-device", rateLimitAuth(25, 60 * 1e3), async (req, res) => {
-    try {
-      const { deviceToken, email } = req.body;
-      if (!deviceToken || typeof deviceToken !== "string" || deviceToken.length > 200) {
-        res.json({ success: false, error: "No valid device token provided" });
-        return;
+  );
+  app.post(
+    "/api/auth/verify-device",
+    rateLimitAuth(25, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { deviceToken, email } = req.body;
+        if (!deviceToken || typeof deviceToken !== "string" || deviceToken.length > 200) {
+          res.json({ success: false, error: "No valid device token provided" });
+          return;
+        }
+        const isValid = await verifyDeviceToken(
+          deviceToken,
+          getSupabase(req),
+          typeof email === "string" ? email : void 0
+        );
+        res.json({ success: isValid });
+      } catch (err) {
+        console.error("[SECURITY LOG] Device verification error:", err.message || err);
+        res.status(500).json({ success: false, error: "Internal verification error" });
       }
-      const isValid = await verifyDeviceToken(deviceToken, getSupabase(req), typeof email === "string" ? email : void 0);
-      res.json({ success: isValid });
-    } catch (err) {
-      console.error("[SECURITY LOG] Device verification error:", err.message || err);
-      res.status(500).json({ success: false, error: "Internal verification error" });
     }
-  });
+  );
   const WEBAUTHN_RP_ID = process.env.WEB_AUTHN_RP_ID || "";
   const appLockRPRouter = import_express.default.Router();
   function getRPID(req) {
     return WEBAUTHN_RP_ID || (req.headers.host || "localhost").split(":")[0];
   }
   function getOrigin(req) {
+    if (IS_PRODUCTION) return process.env.APP_ORIGIN || "";
     if (process.env.APP_ORIGIN) return process.env.APP_ORIGIN;
     const proto = req.headers["x-forwarded-proto"] || (req.secure || req.headers.host?.includes("localhost") ? "https" : "http");
     if ((req.headers.host || "").includes("localhost") && !process.env.VERCEL) return `http://${req.headers.host}`;
     return `${proto}://${req.headers.host}`;
   }
   function userIDBytes(email) {
-    const buf = import_crypto2.default.createHash("sha256").update(normalizeEmailLower(email)).digest();
+    const buf = import_crypto3.default.createHash("sha256").update(normalizeEmailLower(email)).digest();
     return new Uint8Array(buf);
   }
   function publicKeyToBase64url(key) {
@@ -87762,508 +89316,644 @@ async function createApp() {
     const buf = Buffer.from(key, "base64url");
     return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
   }
-  app.post("/api/app-lock/status", rateLimitAuth(30, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
-      }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      const lock = await getAppLock(normalizedEmail, supabase);
-      const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
-      res.json({
-        success: true,
-        appLockEnabled: !!lock?.pinEnabled || creds.length > 0,
-        pinEnabled: !!lock?.pinEnabled,
-        hasPin: !!lock?.pinHash,
-        biometricCount: creds.length,
-        failedAttempts: lock?.failedAttempts || 0,
-        lockedUntil: lock?.lockedUntil || null,
-        webauthnRpid: getRPID(req)
-      });
-    } catch (err) {
-      console.error("[AppLock] status error:", err?.message || err);
-      res.status(500).json({ success: false, error: "System app-lock status error." });
-    }
-  });
-  app.post("/api/app-lock/pin/set", rateLimitAuth(8, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, pin } = req.body;
-      const emailErr = validateEmail(email);
-      const pinErr = validatePin(pin);
-      if (emailErr || pinErr) {
-        res.status(400).json({ success: false, error: emailErr || pinErr });
-        return;
-      }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      const pinHash = await bcryptjs_default.hash(String(pin), 12);
-      await upsertAppLock(normalizedEmail, { pin_hash: pinHash, pin_enabled: true, failed_attempts: 0, locked_until: null }, supabase);
-      console.log(`[AppLock] PIN set for ${normalizedEmail} (hash only, PIN never stored).`);
-      res.json({ success: true });
-    } catch (err) {
-      console.error("[SECURITY LOG] App-lock PIN set failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System app-lock service error." });
-    }
-  });
-  app.post("/api/app-lock/pin/disable", rateLimitAuth(8, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
-      }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      await upsertAppLock(normalizedEmail, { pin_hash: null, pin_enabled: false, failed_attempts: 0, locked_until: null }, supabase);
-      res.json({ success: true });
-    } catch (err) {
-      console.error("[SECURITY LOG] App-lock PIN disable failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System app-lock service error." });
-    }
-  });
-  app.post("/api/app-lock/pin/verify", rateLimitAuth(30, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, pin } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr || typeof pin !== "string") {
-        res.status(400).json({ success: false, error: emailErr || "PIN is required." });
-        return;
-      }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      let lock = await getAppLock(normalizedEmail, supabase);
-      if (!lock || !lock.pinHash) {
-        traceAppLockEvent(normalizedEmail, "pin_verify_no_pin");
-        res.json({ success: false, error: "No PIN is configured for app lock.", code: "NO_PIN" });
-        return;
-      }
-      const now = Date.now();
-      if (lock.lockedUntil && now < lock.lockedUntil) {
-        const remaining = Math.ceil((lock.lockedUntil - now) / 1e3);
-        res.json({ success: false, error: `Too many attempts. Locked for ${remaining}s.`, code: "LOCKED", retryAfter: remaining });
-        return;
-      }
-      const isMatch = await bcryptjs_default.compare(String(pin), lock.pinHash);
-      if (isMatch) {
-        await upsertAppLock(normalizedEmail, { failed_attempts: 0, locked_until: null }, supabase);
-        res.json({ success: true });
-        return;
-      }
-      const failed = (lock.failedAttempts || 0) + 1;
-      let lockedUntil = null;
-      let retryAfter = 0;
-      if (failed >= 5) {
-        const lockCount = Math.min(Math.ceil((failed - 4) / 1), 8);
-        const seconds = 60 * Math.pow(2, lockCount - 1);
-        lockedUntil = now + seconds * 1e3;
-        retryAfter = seconds;
-      }
-      traceAppLockEvent(normalizedEmail, "pin_verify_failed");
-      await upsertAppLock(normalizedEmail, { failed_attempts: failed, locked_until: lockedUntil }, supabase);
-      res.json({
-        success: false,
-        error: retryAfter ? `Too many attempts. Locked for ${retryAfter}s.` : `Incorrect PIN. ${5 - failed} attempt${5 - failed === 1 ? "" : "s"} remaining.`,
-        code: "BAD_PIN",
-        attemptsRemaining: Math.max(0, 5 - failed),
-        retryAfter
-      });
-    } catch (err) {
-      console.error("[SECURITY LOG] App-lock PIN verify failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System app-lock verification error." });
-    }
-  });
-  app.post("/api/app-lock/pin/reset", rateLimitAuth(5, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
-      }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      await upsertAppLock(normalizedEmail, { pin_hash: null, pin_enabled: false, failed_attempts: 0, locked_until: null }, supabase);
-      traceAppLockEvent(normalizedEmail, "pin_reset");
-      res.json({ success: true });
-    } catch (err) {
-      console.error("[SECURITY LOG] App-lock PIN reset failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System app-lock reset error." });
-    }
-  });
-  app.post("/api/app-lock/webauthn/register-options", rateLimitAuth(8, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, deviceLabel } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
-      }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
-      const rpID = getRPID(req);
-      const rpName = process.env.APP_NAME || "EM Budget";
-      const options = await generateRegistrationOptions({
-        rpName,
-        rpID,
-        userName: normalizedEmail,
-        userDisplayName: normalizedEmail,
-        userID: userIDBytes(normalizedEmail),
-        attestationType: "none",
-        excludeCredentials: creds.map((c) => ({ id: c.credentialId, transports: c.transports })).slice(0, 16),
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          userVerification: "required",
-          residentKey: "preferred"
-        }
-      });
-      const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, "registration", supabase);
-      res.json({ success: true, stateId, options });
-    } catch (err) {
-      console.error("[SECURITY LOG] WebAuthn register-options failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "WebAuthn registration could not start." });
-    }
-  });
-  app.post("/api/app-lock/webauthn/register-verify", rateLimitAuth(8, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, stateId, credential, deviceLabel } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
-      }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      const challenge = await consumeWebAuthnChallenge(stateId, normalizedEmail, "registration", supabase);
-      if (!challenge) {
-        res.status(400).json({ success: false, error: "Registration challenge expired. Please try again." });
-        return;
-      }
-      const expectedOrigin = getOrigin(req);
-      const rpID = getRPID(req);
-      let verification;
+  app.post(
+    "/api/app-lock/status",
+    rateLimitAuth(30, 60 * 1e3),
+    async (req, res) => {
       try {
-        verification = await verifyRegistrationResponse({
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const lock = await getAppLock(normalizedEmail, supabase);
+        const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+        res.json({
+          success: true,
+          appLockEnabled: !!lock?.pinEnabled || creds.length > 0,
+          lockOnOpen: !!lock?.lockOnOpen,
+          lockIdleMinutes: lock?.lockIdleMinutes ?? null,
+          pinEnabled: !!lock?.pinEnabled,
+          hasPin: !!lock?.pinHash,
+          biometricCount: creds.length,
+          failedAttempts: lock?.failedAttempts || 0,
+          lockedUntil: lock?.lockedUntil || null,
+          webauthnRpid: getRPID(req)
+        });
+      } catch (err) {
+        console.error("[AppLock] status error:", err?.message || err);
+        res.status(500).json({ success: false, error: "System app-lock status error." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/pin/set",
+    rateLimitAuth(8, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, pin } = req.body;
+        const emailErr = validateEmail(email);
+        const pinErr = validatePin(pin);
+        if (emailErr || pinErr) {
+          res.status(400).json({ success: false, error: emailErr || pinErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const pinHash = await bcryptjs_default.hash(String(pin), 12);
+        await upsertAppLock(
+          normalizedEmail,
+          { pin_hash: pinHash, pin_enabled: true, failed_attempts: 0, locked_until: null },
+          supabase
+        );
+        console.log(`[AppLock] PIN set for ${normalizedEmail} (hash only, PIN never stored).`);
+        res.json({ success: true });
+      } catch (err) {
+        console.error("[SECURITY LOG] App-lock PIN set failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System app-lock service error." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/pin/disable",
+    rateLimitAuth(8, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await upsertAppLock(
+          normalizedEmail,
+          { pin_hash: null, pin_enabled: false, failed_attempts: 0, locked_until: null },
+          supabase
+        );
+        res.json({ success: true });
+      } catch (err) {
+        console.error("[SECURITY LOG] App-lock PIN disable failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System app-lock service error." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/pin/always-lock",
+    rateLimitAuth(8, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, enabled } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof enabled !== "boolean") {
+          res.status(400).json({ success: false, error: emailErr || "`enabled` must be a boolean." });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await upsertAppLock(normalizedEmail, { lock_on_open: enabled, updated_at: (/* @__PURE__ */ new Date()).toISOString() }, supabase);
+        console.log(`[AppLock] lock-on-open ${enabled ? "enabled" : "disabled"} for ${normalizedEmail}.`);
+        res.json({ success: true, lockOnOpen: enabled });
+      } catch (err) {
+        console.error("[SECURITY LOG] App-lock always-lock update failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System app-lock service error." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/pin/idle-minutes",
+    rateLimitAuth(8, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, minutes } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof minutes !== "number" || !Number.isFinite(minutes) || minutes < 1 || minutes > 240) {
+          res.status(400).json({ success: false, error: emailErr || "`minutes` must be a number between 1 and 240." });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await upsertAppLock(
+          normalizedEmail,
+          { lock_idle_minutes: Math.round(minutes), updated_at: (/* @__PURE__ */ new Date()).toISOString() },
+          supabase
+        );
+        console.log(`[AppLock] idle-lock timeout set to ${Math.round(minutes)} min for ${normalizedEmail}.`);
+        res.json({ success: true, minutes: Math.round(minutes) });
+      } catch (err) {
+        console.error("[SECURITY LOG] App-lock idle-minutes update failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System app-lock service error." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/pin/verify",
+    rateLimitAuth(30, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, pin } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof pin !== "string") {
+          res.status(400).json({ success: false, error: emailErr || "PIN is required." });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        let lock = await getAppLock(normalizedEmail, supabase);
+        if (!lock || !lock.pinHash) {
+          traceAppLockEvent(normalizedEmail, "pin_verify_no_pin");
+          res.json({ success: false, error: "No PIN is configured for app lock.", code: "NO_PIN" });
+          return;
+        }
+        const now = Date.now();
+        if (lock.lockedUntil && now < lock.lockedUntil) {
+          const remaining = Math.ceil((lock.lockedUntil - now) / 1e3);
+          res.json({
+            success: false,
+            error: `Too many attempts. Locked for ${remaining}s.`,
+            code: "LOCKED",
+            retryAfter: remaining
+          });
+          return;
+        }
+        const isMatch = await bcryptjs_default.compare(String(pin), lock.pinHash);
+        if (isMatch) {
+          await upsertAppLock(normalizedEmail, { failed_attempts: 0, locked_until: null }, supabase);
+          res.json({ success: true });
+          return;
+        }
+        const failed = (lock.failedAttempts || 0) + 1;
+        let lockedUntil = null;
+        let retryAfter = 0;
+        if (failed >= 5) {
+          const lockCount = Math.min(Math.ceil((failed - 4) / 1), 8);
+          const seconds = 60 * Math.pow(2, lockCount - 1);
+          lockedUntil = now + seconds * 1e3;
+          retryAfter = seconds;
+        }
+        traceAppLockEvent(normalizedEmail, "pin_verify_failed");
+        await upsertAppLock(normalizedEmail, { failed_attempts: failed, locked_until: lockedUntil }, supabase);
+        res.json({
+          success: false,
+          error: retryAfter ? `Too many attempts. Locked for ${retryAfter}s.` : `Incorrect PIN. ${5 - failed} attempt${5 - failed === 1 ? "" : "s"} remaining.`,
+          code: "BAD_PIN",
+          attemptsRemaining: Math.max(0, 5 - failed),
+          retryAfter
+        });
+      } catch (err) {
+        console.error("[SECURITY LOG] App-lock PIN verify failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System app-lock verification error." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/pin/reset",
+    rateLimitAuth(5, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await upsertAppLock(
+          normalizedEmail,
+          { pin_hash: null, pin_enabled: false, failed_attempts: 0, locked_until: null },
+          supabase
+        );
+        traceAppLockEvent(normalizedEmail, "pin_reset");
+        res.json({ success: true });
+      } catch (err) {
+        console.error("[SECURITY LOG] App-lock PIN reset failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System app-lock reset error." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/webauthn/register-options",
+    rateLimitAuth(8, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, deviceLabel } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+        const rpID = getRPID(req);
+        const rpName = process.env.APP_NAME || "EM Budget";
+        const options = await generateRegistrationOptions({
+          rpName,
+          rpID,
+          userName: normalizedEmail,
+          userDisplayName: normalizedEmail,
+          userID: userIDBytes(normalizedEmail),
+          attestationType: "none",
+          excludeCredentials: creds.map((c) => ({ id: c.credentialId, transports: c.transports })).slice(0, 16),
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            userVerification: "required",
+            residentKey: "preferred"
+          }
+        });
+        const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, "registration", supabase);
+        res.json({ success: true, stateId, options });
+      } catch (err) {
+        console.error("[SECURITY LOG] WebAuthn register-options failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "WebAuthn registration could not start." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/webauthn/register-verify",
+    rateLimitAuth(8, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, stateId, credential, deviceLabel } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const challenge = await consumeWebAuthnChallenge(stateId, normalizedEmail, "registration", supabase);
+        if (!challenge) {
+          res.status(400).json({ success: false, error: "Registration challenge expired. Please try again." });
+          return;
+        }
+        const expectedOrigin = getOrigin(req);
+        const rpID = getRPID(req);
+        let verification;
+        try {
+          verification = await verifyRegistrationResponse({
+            response: credential,
+            expectedChallenge: challenge,
+            expectedOrigin,
+            expectedRPID: rpID,
+            requireUserVerification: true
+          });
+        } catch (verr) {
+          console.error("[SECURITY LOG] WebAuthn registration verification error:", verr?.message || verr);
+          res.status(400).json({ success: false, error: "Biometric registration could not be verified." });
+          return;
+        }
+        if (!verification.verified || !verification.registrationInfo) {
+          res.status(400).json({ success: false, error: "Biometric registration was rejected." });
+          return;
+        }
+        const regInfo = verification.registrationInfo;
+        await saveWebAuthnCredential(
+          normalizedEmail,
+          {
+            credentialId: regInfo.credential.id,
+            publicKey: regInfo.credential.publicKey,
+            transports: regInfo.credential.transports || credential && credential.response && credential.response.transports || [],
+            signCount: typeof regInfo.credential.counter === "number" ? regInfo.credential.counter : 0
+          },
+          typeof deviceLabel === "string" && deviceLabel.trim() ? deviceLabel.trim().slice(0, 60) : "Biometric device",
+          supabase
+        );
+        traceAppLockEvent(normalizedEmail, "webauthn_registered");
+        res.json({ success: true, credentialId: regInfo.credential.id });
+      } catch (err) {
+        console.error("[SECURITY LOG] WebAuthn register-verify failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System WebAuthn registration error." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/webauthn/authentication-options",
+    rateLimitAuth(30, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+        if (creds.length === 0) {
+          res.json({ success: false, error: "No biometric credentials configured.", code: "NO_CREDS" });
+          return;
+        }
+        const rpID = getRPID(req);
+        const options = await generateAuthenticationOptions({
+          rpID,
+          allowCredentials: creds.map((c) => ({ id: c.credentialId, transports: c.transports })),
+          userVerification: "required"
+        });
+        const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, "authentication", supabase);
+        res.json({ success: true, stateId, options });
+      } catch (err) {
+        console.error("[SECURITY LOG] WebAuthn authentication-options failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "Biometric unlock could not start." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/webauthn/authentication-verify",
+    rateLimitAuth(30, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, stateId, credential } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const challenge = await consumeWebAuthnChallenge(stateId, normalizedEmail, "authentication", supabase);
+        if (!challenge) {
+          res.status(400).json({ success: false, error: "Biometric challenge expired. Please try again." });
+          return;
+        }
+        const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+        const rawId = credential?.rawId || credential?.id || "";
+        const stored = creds.find((c) => c.credentialId === rawId);
+        if (!stored) {
+          res.json({ success: false, error: "Biometric credential not recognized." });
+          return;
+        }
+        const verification = await verifyAuthenticationResponse({
           response: credential,
           expectedChallenge: challenge,
-          expectedOrigin,
-          expectedRPID: rpID,
+          expectedOrigin: getOrigin(req),
+          expectedRPID: getRPID(req),
+          credential: {
+            id: stored.credentialId,
+            publicKey: publicKeyFromBase64url(stored.publicKey),
+            counter: stored.signCount || 0,
+            transports: stored.transports || []
+          },
           requireUserVerification: true
         });
-      } catch (verr) {
-        console.error("[SECURITY LOG] WebAuthn registration verification error:", verr?.message || verr);
-        res.status(400).json({ success: false, error: "Biometric registration could not be verified." });
-        return;
+        if (!verification.verified || !verification.authenticationInfo) {
+          traceAppLockEvent(normalizedEmail, "webauthn_unlock_failed");
+          res.json({ success: false, error: "Biometric unlock was rejected." });
+          return;
+        }
+        const newCounter = verification.authenticationInfo.newCounter;
+        await updateWebAuthnCredentialCounter(normalizedEmail, stored.credentialId, newCounter, supabase);
+        traceAppLockEvent(normalizedEmail, "webauthn_unlock_success");
+        res.json({ success: true });
+      } catch (err) {
+        console.error("[SECURITY LOG] WebAuthn authentication-verify failed:", err?.message || err);
+        res.json({ success: false, error: "Biometric unlock could not be verified." });
       }
-      if (!verification.verified || !verification.registrationInfo) {
-        res.status(400).json({ success: false, error: "Biometric registration was rejected." });
-        return;
-      }
-      const regInfo = verification.registrationInfo;
-      await saveWebAuthnCredential(
-        normalizedEmail,
-        {
-          credentialId: regInfo.credential.id,
-          publicKey: regInfo.credential.publicKey,
-          transports: regInfo.credential.transports || credential && credential.response && credential.response.transports || [],
-          signCount: typeof regInfo.credential.counter === "number" ? regInfo.credential.counter : 0
-        },
-        typeof deviceLabel === "string" && deviceLabel.trim() ? deviceLabel.trim().slice(0, 60) : "Biometric device",
-        supabase
-      );
-      traceAppLockEvent(normalizedEmail, "webauthn_registered");
-      res.json({ success: true, credentialId: regInfo.credential.id });
-    } catch (err) {
-      console.error("[SECURITY LOG] WebAuthn register-verify failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System WebAuthn registration error." });
     }
-  });
-  app.post("/api/app-lock/webauthn/authentication-options", rateLimitAuth(30, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
+  );
+  app.post(
+    "/api/app-lock/webauthn/remove",
+    rateLimitAuth(8, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, credentialId } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof credentialId !== "string") {
+          res.status(400).json({ success: false, error: emailErr || "credentialId is required." });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await deleteWebAuthnCredential(normalizedEmail, credentialId, supabase);
+        res.json({ success: true });
+      } catch (err) {
+        console.error("[SECURITY LOG] WebAuthn remove failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System WebAuthn removal error." });
       }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
-      if (creds.length === 0) {
-        res.json({ success: false, error: "No biometric credentials configured.", code: "NO_CREDS" });
-        return;
-      }
-      const rpID = getRPID(req);
-      const options = await generateAuthenticationOptions({
-        rpID,
-        allowCredentials: creds.map((c) => ({ id: c.credentialId, transports: c.transports })),
-        userVerification: "required"
-      });
-      const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, "authentication", supabase);
-      res.json({ success: true, stateId, options });
-    } catch (err) {
-      console.error("[SECURITY LOG] WebAuthn authentication-options failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "Biometric unlock could not start." });
     }
-  });
-  app.post("/api/app-lock/webauthn/authentication-verify", rateLimitAuth(30, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, stateId, credential } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
+  );
+  app.post(
+    "/api/app-lock/webauthn/list",
+    rateLimitAuth(20, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+        res.json({
+          success: true,
+          credentials: creds.map((c) => ({
+            credentialId: c.credentialId,
+            deviceLabel: c.deviceLabel || "Biometric device",
+            createdAt: c.createdAt ? Number(new Date(c.createdAt).getTime()) : 0
+          }))
+        });
+      } catch (err) {
+        console.error("[SECURITY LOG] WebAuthn list failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System WebAuthn list error." });
       }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      const challenge = await consumeWebAuthnChallenge(stateId, normalizedEmail, "authentication", supabase);
-      if (!challenge) {
-        res.status(400).json({ success: false, error: "Biometric challenge expired. Please try again." });
-        return;
-      }
-      const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
-      const rawId = credential?.rawId || credential?.id || "";
-      const stored = creds.find((c) => c.credentialId === rawId);
-      if (!stored) {
-        res.json({ success: false, error: "Biometric credential not recognized." });
-        return;
-      }
-      const verification = await verifyAuthenticationResponse({
-        response: credential,
-        expectedChallenge: challenge,
-        expectedOrigin: getOrigin(req),
-        expectedRPID: getRPID(req),
-        credential: {
-          id: stored.credentialId,
-          publicKey: publicKeyFromBase64url(stored.publicKey),
-          counter: stored.signCount || 0,
-          transports: stored.transports || []
-        },
-        requireUserVerification: true
-      });
-      if (!verification.verified || !verification.authenticationInfo) {
-        traceAppLockEvent(normalizedEmail, "webauthn_unlock_failed");
-        res.json({ success: false, error: "Biometric unlock was rejected." });
-        return;
-      }
-      const newCounter = verification.authenticationInfo.newCounter;
-      await updateWebAuthnCredentialCounter(normalizedEmail, stored.credentialId, newCounter, supabase);
-      traceAppLockEvent(normalizedEmail, "webauthn_unlock_success");
-      res.json({ success: true });
-    } catch (err) {
-      console.error("[SECURITY LOG] WebAuthn authentication-verify failed:", err?.message || err);
-      res.json({ success: false, error: "Biometric unlock could not be verified." });
     }
-  });
-  app.post("/api/app-lock/webauthn/remove", rateLimitAuth(8, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, credentialId } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr || typeof credentialId !== "string") {
-        res.status(400).json({ success: false, error: emailErr || "credentialId is required." });
-        return;
+  );
+  app.post(
+    "/api/app-lock/device/issue",
+    rateLimitAuth(10, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const rawToken = import_crypto3.default.randomBytes(32).toString("base64url");
+        const ua = req.headers["user-agent"] || "";
+        await createTrustedDevice(normalizedEmail, rawToken, ua, supabase);
+        setTrustCookie(res, rawToken);
+        res.json({ success: true, expiresInDays: 30 });
+      } catch (err) {
+        console.error("[SECURITY LOG] Trusted device issue failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System device-trust error." });
       }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      await deleteWebAuthnCredential(normalizedEmail, credentialId, supabase);
-      res.json({ success: true });
-    } catch (err) {
-      console.error("[SECURITY LOG] WebAuthn remove failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System WebAuthn removal error." });
     }
-  });
-  app.post("/api/app-lock/webauthn/list", rateLimitAuth(20, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
+  );
+  app.post(
+    "/api/app-lock/device/check",
+    rateLimitAuth(20, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const cookies = parseCookies(req);
+        const trustToken = cookies.app_lock_trust;
+        if (!trustToken) {
+          res.json({ success: false, trusted: false });
+          return;
+        }
+        const supabase = getSupabase(req);
+        const found = await findTrustedDeviceByToken(trustToken, supabase);
+        if (!found) {
+          clearTrustCookie(res);
+          res.json({ success: true, trusted: false });
+          return;
+        }
+        res.json({ success: true, trusted: true, email: found.email });
+      } catch (err) {
+        console.error("[SECURITY LOG] Trusted device check failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System device-trust check error." });
       }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
-      res.json({
-        success: true,
-        credentials: creds.map((c) => ({
-          credentialId: c.credentialId,
-          deviceLabel: c.deviceLabel || "Biometric device",
-          createdAt: c.createdAt ? Number(new Date(c.createdAt).getTime()) : 0
-        }))
-      });
-    } catch (err) {
-      console.error("[SECURITY LOG] WebAuthn list failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System WebAuthn list error." });
     }
-  });
-  app.post("/api/app-lock/device/issue", rateLimitAuth(10, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
+  );
+  app.post(
+    "/api/app-lock/device/list",
+    rateLimitAuth(20, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const devices = await listTrustedDevices(normalizedEmail, supabase);
+        res.json({ success: true, devices });
+      } catch (err) {
+        console.error("[SECURITY LOG] Trusted device list failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System device-trust list error." });
       }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      const rawToken = import_crypto2.default.randomBytes(32).toString("base64url");
-      const ua = req.headers["user-agent"] || "";
-      await createTrustedDevice(normalizedEmail, rawToken, ua, supabase);
-      setTrustCookie(res, rawToken);
-      res.json({ success: true, expiresInDays: 30 });
-    } catch (err) {
-      console.error("[SECURITY LOG] Trusted device issue failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System device-trust error." });
     }
-  });
-  app.post("/api/app-lock/device/check", rateLimitAuth(20, 60 * 1e3), async (req, res) => {
-    try {
-      const cookies = parseCookies(req);
-      const trustToken = cookies.app_lock_trust;
-      if (!trustToken) {
-        res.json({ success: false, trusted: false });
-        return;
+  );
+  app.post(
+    "/api/app-lock/device/revoke",
+    rateLimitAuth(10, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, id } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof id !== "string") {
+          res.status(400).json({ success: false, error: emailErr || "Device id is required." });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await deleteTrustedDevice(normalizedEmail, id, supabase);
+        res.json({ success: true });
+      } catch (err) {
+        console.error("[SECURITY LOG] Trusted device revoke failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System device-trust revoke error." });
       }
-      const supabase = getSupabase(req);
-      const found = await findTrustedDeviceByToken(trustToken, supabase);
-      if (!found) {
+    }
+  );
+  app.post(
+    "/api/app-lock/device/revoke-all",
+    rateLimitAuth(10, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await deleteAllTrustedDevices(normalizedEmail, supabase);
         clearTrustCookie(res);
-        res.json({ success: true, trusted: false });
-        return;
+        res.json({ success: true });
+      } catch (err) {
+        console.error("[SECURITY LOG] Trusted device revoke-all failed:", err?.message || err);
+        res.status(500).json({ success: false, error: "System device-trust revoke error." });
       }
-      res.json({ success: true, trusted: true, email: found.email });
-    } catch (err) {
-      console.error("[SECURITY LOG] Trusted device check failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System device-trust check error." });
     }
-  });
-  app.post("/api/app-lock/device/list", rateLimitAuth(20, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
-      }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      const devices = await listTrustedDevices(normalizedEmail, supabase);
-      res.json({ success: true, devices });
-    } catch (err) {
-      console.error("[SECURITY LOG] Trusted device list failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System device-trust list error." });
-    }
-  });
-  app.post("/api/app-lock/device/revoke", rateLimitAuth(10, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, id } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr || typeof id !== "string") {
-        res.status(400).json({ success: false, error: emailErr || "Device id is required." });
-        return;
-      }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      await deleteTrustedDevice(normalizedEmail, id, supabase);
-      res.json({ success: true });
-    } catch (err) {
-      console.error("[SECURITY LOG] Trusted device revoke failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System device-trust revoke error." });
-    }
-  });
-  app.post("/api/app-lock/device/revoke-all", rateLimitAuth(10, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
-      }
-      const normalizedEmail = normalizeEmailLower(email);
-      if (!requireSession(req, res, normalizedEmail)) return;
-      const supabase = getSupabase(req);
-      await deleteAllTrustedDevices(normalizedEmail, supabase);
-      clearTrustCookie(res);
-      res.json({ success: true });
-    } catch (err) {
-      console.error("[SECURITY LOG] Trusted device revoke-all failed:", err?.message || err);
-      res.status(500).json({ success: false, error: "System device-trust revoke error." });
-    }
-  });
-  app.post("/api/auth/send-delete-otp", rateLimitAuth(3, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
-      }
-      const normalizedEmail = email.trim().toLowerCase();
-      const token = getTokenFromRequest(req);
-      if (!token) {
-        res.status(401).json({ success: false, error: "Access token is missing or malformed." });
-        return;
-      }
-      const decoded = verifySecureToken(token);
-      if (!decoded || decoded.email !== normalizedEmail) {
-        res.status(401).json({ success: false, error: "Access token is invalid or expired." });
-        return;
-      }
-      const otp = import_crypto2.default.randomInt(1e5, 1e6).toString();
-      const expiresAt = Date.now() + 5 * 60 * 1e3;
-      const supabase = getSupabase(req);
-      await storeOtpInDb(normalizedEmail, otp, expiresAt, true, supabase);
-      console.log(`
+  );
+  app.post(
+    "/api/auth/send-delete-otp",
+    rateLimitAuth(3, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const token = getTokenFromRequest(req);
+        if (!token) {
+          res.status(401).json({ success: false, error: "Access token is missing or malformed." });
+          return;
+        }
+        const decoded = verifySecureToken(token);
+        if (!decoded || decoded.email !== normalizedEmail) {
+          res.status(401).json({ success: false, error: "Access token is invalid or expired." });
+          return;
+        }
+        const otp = import_crypto3.default.randomInt(1e5, 1e6).toString();
+        const expiresAt = Date.now() + 5 * 60 * 1e3;
+        const supabase = getSupabase(req);
+        await storeOtpInDb(normalizedEmail, otp, expiresAt, true, supabase);
+        console.log(`
 ======================================================`);
-      console.log(`\u26A0\uFE0F NEW DELETION 2FA OTP GENERATED FOR: ${normalizedEmail}`);
-      console.log(`\u{1F510} PASSCODE: [ ****** ]`);
-      console.log(`\u23F0 EXPIRE: 5 Minutes`);
-      console.log(`======================================================
+        console.log(`\u26A0\uFE0F NEW DELETION 2FA OTP GENERATED FOR: ${normalizedEmail}`);
+        console.log(`\u{1F510} PASSCODE: [ ****** ]`);
+        console.log(`\u23F0 EXPIRE: 5 Minutes`);
+        console.log(`======================================================
 `);
-      const smtpHost = process.env.SMTP_HOST;
-      const smtpPort = process.env.SMTP_PORT;
-      const smtpUser = process.env.SMTP_USER;
-      const smtpPass = process.env.SMTP_PASS;
-      const smtpFrom = process.env.SMTP_FROM;
-      let emailSent = false;
-      let errorDetails = "";
-      if (smtpHost && smtpUser && smtpPass) {
-        try {
-          const transporter = import_nodemailer.default.createTransport({
-            host: smtpHost,
-            port: smtpPort ? parseInt(smtpPort, 10) : 587,
-            secure: smtpPort === "465",
-            auth: {
-              user: smtpUser,
-              pass: smtpPass
-            }
-          });
-          const fromAddress = smtpFrom || `Secure Vault <${smtpUser}>`;
-          await transporter.sendMail({
-            from: fromAddress,
-            to: normalizedEmail,
-            subject: "\u26A0\uFE0F CRITICAL: Confirm Ledger Deletion Code - EM Budget",
-            text: `Confirm your database deletion with passcode: ${otp}. This code expires in 5 minutes. If you did not request this, secure your account!`,
-            html: `
+        const smtpHost = process.env.SMTP_HOST;
+        const smtpPort = process.env.SMTP_PORT;
+        const smtpUser = process.env.SMTP_USER;
+        const smtpPass = process.env.SMTP_PASS;
+        const smtpFrom = process.env.SMTP_FROM;
+        let emailSent = false;
+        let errorDetails = "";
+        if (smtpHost && smtpUser && smtpPass) {
+          try {
+            const transporter = import_nodemailer.default.createTransport({
+              host: smtpHost,
+              port: smtpPort ? parseInt(smtpPort, 10) : 587,
+              secure: smtpPort === "465",
+              auth: {
+                user: smtpUser,
+                pass: smtpPass
+              }
+            });
+            const fromAddress = smtpFrom || `Secure Vault <${smtpUser}>`;
+            await transporter.sendMail({
+              from: fromAddress,
+              to: normalizedEmail,
+              subject: "\u26A0\uFE0F CRITICAL: Confirm Ledger Deletion Code - EM Budget",
+              text: `Confirm your database deletion with passcode: ${otp}. This code expires in 5 minutes. If you did not request this, secure your account!`,
+              html: `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: auto; padding: 30px; border: 1px solid #dc2626; border-radius: 16px; background: #0c0c0e; color: #ffffff; box-shadow: 0 4px 25px rgba(220, 38, 38, 0.25);">
                 <div style="text-align: center; margin-bottom: 20px;">
                   <span style="font-size: 32px;">\u26A0\uFE0F</span>
@@ -88283,116 +89973,132 @@ async function createApp() {
                 </p>
               </div>
             `
-          });
-          emailSent = true;
-          console.log(`\u{1F4E7} Deletion passcode email sent successfully to ${normalizedEmail}`);
-        } catch (mailError) {
-          console.error("[SECURITY LOG] Deletion SMTP Transmission Failed:", mailError.message || mailError);
-          errorDetails = "SMTP deletion dispatch failure.";
+            });
+            emailSent = true;
+            console.log(`\u{1F4E7} Deletion passcode email sent successfully to ${normalizedEmail}`);
+          } catch (mailError) {
+            console.error("[SECURITY LOG] Deletion SMTP Transmission Failed:", mailError.message || mailError);
+            errorDetails = "SMTP deletion dispatch failure.";
+          }
+        } else {
+          errorDetails = "SMTP server is not configured in environment variables.";
         }
-      } else {
-        errorDetails = "SMTP server is not configured in environment variables.";
-      }
-      if (!emailSent) {
-        if (IS_PRODUCTION) {
-          res.status(500).json({
-            success: false,
-            error: "Failed to dispatch deletion passcode email. Please try again later."
+        if (!emailSent) {
+          if (IS_PRODUCTION) {
+            res.status(500).json({
+              success: false,
+              error: "Failed to dispatch deletion passcode email. Please try again later."
+            });
+            return;
+          }
+          res.json({
+            success: true,
+            emailSent: false,
+            devOtp: otp,
+            info: "Dev mode: SMTP is not configured, showing deletion passcode in developer bypass."
           });
           return;
         }
         res.json({
           success: true,
-          emailSent: false,
-          devOtp: otp,
-          info: "Dev mode: SMTP is not configured, showing deletion passcode in developer bypass."
+          emailSent: true
         });
-        return;
+      } catch (err) {
+        console.error("[SECURITY LOG] Deletion OTP Send failed:", err.message || err);
+        res.status(500).json({ success: false, error: "System secure transmission error." });
       }
-      res.json({
-        success: true,
-        emailSent: true
-      });
-    } catch (err) {
-      console.error("[SECURITY LOG] Deletion OTP Send failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System secure transmission error." });
     }
-  });
-  app.post("/api/auth/verify-delete-otp", rateLimitAuth(5, 60 * 1e3), async (req, res) => {
-    try {
-      const { email, otp } = req.body;
-      const emailErr = validateEmail(email);
-      const otpErr = validateOtp(otp);
-      if (emailErr || otpErr) {
-        res.status(400).json({ success: false, error: emailErr || otpErr });
-        return;
-      }
-      const normalizedEmail = email.trim().toLowerCase();
-      const token2 = getTokenFromRequest(req);
-      if (!token2) {
-        res.status(401).json({ success: false, error: "Access token is missing or malformed." });
-        return;
-      }
-      const decoded2 = verifySecureToken(token2);
-      if (!decoded2 || decoded2.email !== normalizedEmail) {
-        res.status(401).json({ success: false, error: "Access token is invalid or expired." });
-        return;
-      }
-      const enteredOtp = otp.trim();
-      const supabase = getSupabase(req);
-      const saved = await getOtpFromDb(normalizedEmail, true, supabase);
-      if (!saved) {
-        res.status(401).json({ success: false, error: "No active deletion passcode found. Please request a new code." });
-        return;
-      }
-      if (Date.now() > saved.expiresAt) {
+  );
+  app.post(
+    "/api/auth/verify-delete-otp",
+    rateLimitAuth(5, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, otp } = req.body;
+        const emailErr = validateEmail(email);
+        const otpErr = validateOtp(otp);
+        if (emailErr || otpErr) {
+          res.status(400).json({ success: false, error: emailErr || otpErr });
+          return;
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const token2 = getTokenFromRequest(req);
+        if (!token2) {
+          res.status(401).json({ success: false, error: "Access token is missing or malformed." });
+          return;
+        }
+        const decoded2 = verifySecureToken(token2);
+        if (!decoded2 || decoded2.email !== normalizedEmail) {
+          res.status(401).json({ success: false, error: "Access token is invalid or expired." });
+          return;
+        }
+        const enteredOtp = otp.trim();
+        const supabase = getSupabase(req);
+        const saved = await getOtpFromDb(normalizedEmail, true, supabase);
+        if (!saved) {
+          res.status(401).json({ success: false, error: "No active deletion passcode found. Please request a new code." });
+          return;
+        }
+        if (Date.now() > saved.expiresAt) {
+          await deleteOtpFromDb(normalizedEmail, true, supabase);
+          res.status(401).json({ success: false, error: "Passcode has expired. Please request a new code." });
+          return;
+        }
+        const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+        if (!timingSafeEqualString(saved.otp, enteredHash)) {
+          await deleteOtpFromDb(normalizedEmail, true, supabase);
+          res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
+          return;
+        }
         await deleteOtpFromDb(normalizedEmail, true, supabase);
-        res.status(401).json({ success: false, error: "Passcode has expired. Please request a new code." });
-        return;
+        res.json({ success: true });
+      } catch (err) {
+        console.error("[SECURITY LOG] Verify Deletion OTP failed:", err.message || err);
+        res.status(500).json({ success: false, error: "System authentication service error." });
       }
-      const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-      if (!timingSafeEqualString(saved.otp, enteredHash)) {
-        res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
-        return;
-      }
-      await deleteOtpFromDb(normalizedEmail, true, supabase);
-      res.json({ success: true });
-    } catch (err) {
-      console.error("[SECURITY LOG] Verify Deletion OTP failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System authentication service error." });
     }
-  });
-  app.post("/api/auth/verify-session", rateLimitAuth(30, 60 * 1e3), async (req, res) => {
-    try {
-      const { email } = req.body;
-      let token = req.body.token;
-      if (!token || typeof token !== "string") token = getTokenFromRequest(req);
-      if (!token || typeof token !== "string") {
-        res.json({ success: false, error: "Empty token" });
-        return;
+  );
+  app.post(
+    "/api/auth/verify-session",
+    rateLimitAuth(30, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, rememberMe } = req.body;
+        let token = req.body.token;
+        if (!token || typeof token !== "string") token = getTokenFromRequest(req);
+        if (!token || typeof token !== "string") {
+          res.json({ success: false, error: "Empty token" });
+          return;
+        }
+        if (!email || typeof email !== "string") {
+          res.status(400).json({ success: false, error: "Email is required." });
+          return;
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const decoded = verifySecureToken(token);
+        if (!decoded || decoded.email !== normalizedEmail) {
+          res.json({ success: false, error: "Session token is invalid or expired." });
+          return;
+        }
+        const supabase = getSupabase(req);
+        const accountExists = await checkAccountExists(normalizedEmail, supabase);
+        if (!accountExists) {
+          res.json({ success: false, error: "Account no longer exists." });
+          return;
+        }
+        if (rememberMe) {
+          const newToken = generateSecureToken(normalizedEmail, SESSION_TTL_LONG);
+          setSessionCookie(res, newToken, 30 * 24 * 60 * 60);
+          res.json({ success: true, token: newToken });
+        } else {
+          res.json({ success: true });
+        }
+      } catch (err) {
+        console.error("[SECURITY LOG] Verify Session Token failed:", err.message || err);
+        res.status(500).json({ success: false, error: "Internal session validation error." });
       }
-      if (!email || typeof email !== "string") {
-        res.status(400).json({ success: false, error: "Email is required." });
-        return;
-      }
-      const normalizedEmail = email.trim().toLowerCase();
-      const decoded = verifySecureToken(token);
-      if (!decoded || decoded.email !== normalizedEmail) {
-        res.json({ success: false, error: "Session token is invalid or expired." });
-        return;
-      }
-      const supabase = getSupabase(req);
-      const accountExists = await checkAccountExists(normalizedEmail, supabase);
-      if (!accountExists) {
-        res.json({ success: false, error: "Account no longer exists." });
-        return;
-      }
-      res.json({ success: true });
-    } catch (err) {
-      console.error("[SECURITY LOG] Verify Session Token failed:", err.message || err);
-      res.status(500).json({ success: false, error: "Internal session validation error." });
     }
-  });
+  );
   app.get("/api/config", rateLimitAuth(30, 60 * 1e3), (req, res) => {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
@@ -88401,55 +90107,60 @@ async function createApp() {
       supabaseKey: supabaseKey.startsWith("eyJ") ? supabaseKey : ""
     });
   });
-  app.post("/api/sync/refresh-subscriptions", rateLimitAuth(20, 60 * 1e3), async (req, res) => {
-    const token = getTokenFromRequest(req);
-    const session = token ? verifySecureToken(token) : null;
-    if (!session || !session.email) {
-      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
-      return;
+  app.post(
+    "/api/sync/refresh-subscriptions",
+    rateLimitAuth(20, 60 * 1e3),
+    async (req, res) => {
+      const token = getTokenFromRequest(req);
+      const session = token ? verifySecureToken(token) : null;
+      if (!session || !session.email) {
+        res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
+        return;
+      }
+      const email = session.email;
+      try {
+        const supabase = getSupabase(req);
+        if (!supabase) {
+          return res.status(500).json({ success: false, error: "Supabase not configured." });
+        }
+        const { data: subs, error: subErr } = await supabase.from("subscriptions").select("*").eq("user_email", email);
+        if (subErr) {
+          console.error("[Sync] fetch-subscriptions error:", subErr.message);
+          return res.status(500).json({ success: false, error: "Failed to fetch subscriptions. Please try again." });
+        }
+        const rows = Array.isArray(subs) ? subs : [];
+        const subscriptions = rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          amount: r.amount,
+          billingCycle: r.billing_cycle,
+          dueDate: r.due_date,
+          category: r.category,
+          status: r.status,
+          instanceType: r.instance_type || void 0,
+          paymentMethodId: r.payment_method_id || void 0,
+          paymentMethodType: r.payment_method_type || void 0,
+          lastPaidDate: r.last_paid_date || void 0,
+          updated_at: r.updated_at,
+          updatedAt: r.updated_at
+        }));
+        const { data: lsData } = await supabase.from("ledger_states").select("state").eq("user_email", email).limit(1).maybeSingle();
+        let stateJson = {};
+        if (lsData && lsData.state) {
+          stateJson = typeof lsData.state === "string" ? JSON.parse(lsData.state) : lsData.state;
+        }
+        stateJson.subscriptions = subscriptions;
+        await supabase.from("ledger_states").upsert(
+          { user_email: email, state: stateJson, updated_at: (/* @__PURE__ */ new Date()).toISOString() },
+          { onConflict: "user_email" }
+        );
+        return res.json({ success: true, subscriptions });
+      } catch (e) {
+        console.error("[Sync] refresh-subscriptions error:", e.message || e);
+        return res.status(500).json({ success: false, error: "Failed to refresh subscriptions." });
+      }
     }
-    const email = session.email;
-    try {
-      const supabase = getSupabase(req);
-      if (!supabase) {
-        return res.status(500).json({ success: false, error: "Supabase not configured." });
-      }
-      const { data: subs, error: subErr } = await supabase.from("subscriptions").select("*").eq("user_email", email);
-      if (subErr) {
-        return res.status(500).json({ success: false, error: subErr.message });
-      }
-      const rows = Array.isArray(subs) ? subs : [];
-      const subscriptions = rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        amount: r.amount,
-        billingCycle: r.billing_cycle,
-        dueDate: r.due_date,
-        category: r.category,
-        status: r.status,
-        instanceType: r.instance_type || void 0,
-        paymentMethodId: r.payment_method_id || void 0,
-        paymentMethodType: r.payment_method_type || void 0,
-        lastPaidDate: r.last_paid_date || void 0,
-        updated_at: r.updated_at,
-        updatedAt: r.updated_at
-      }));
-      const { data: lsData } = await supabase.from("ledger_states").select("state").eq("user_email", email).limit(1).maybeSingle();
-      let stateJson = {};
-      if (lsData && lsData.state) {
-        stateJson = typeof lsData.state === "string" ? JSON.parse(lsData.state) : lsData.state;
-      }
-      stateJson.subscriptions = subscriptions;
-      await supabase.from("ledger_states").upsert(
-        { user_email: email, state: stateJson, updated_at: (/* @__PURE__ */ new Date()).toISOString() },
-        { onConflict: "user_email" }
-      );
-      return res.json({ success: true, subscriptions });
-    } catch (e) {
-      console.error("[Sync] refresh-subscriptions error:", e.message || e);
-      return res.status(500).json({ success: false, error: e.message || "Failed to refresh subscriptions." });
-    }
-  });
+  );
   app.get("/api/config/sql", rateLimitAuth(10, 60 * 1e3), (req, res) => {
     const token = getTokenFromRequest(req);
     if (!verifySecureToken(token)) {
@@ -88465,62 +90176,66 @@ async function createApp() {
       res.status(500).json({ success: false, error: "Failed to load SQL migration script." });
     }
   });
-  app.post("/api/gemini/analyze-image", import_express.default.json({ limit: "2mb" }), rateLimitAuth(10, 60 * 1e3), async (req, res) => {
-    const _authToken = getTokenFromRequest(req);
-    if (!verifySecureToken(_authToken)) {
-      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
-      return;
-    }
-    try {
-      const { image, mimeType } = req.body;
-      if (!image) {
-        res.status(400).json({ success: false, error: "Image data is required." });
+  app.post(
+    "/api/gemini/analyze-image",
+    import_express.default.json({ limit: "2mb" }),
+    rateLimitAuth(10, 60 * 1e3),
+    async (req, res) => {
+      const _authToken = getTokenFromRequest(req);
+      if (!verifySecureToken(_authToken)) {
+        res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
         return;
       }
-      const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
-      if (mimeType && typeof mimeType === "string" && !ALLOWED_MIMES.includes(mimeType.toLowerCase())) {
-        res.status(400).json({ success: false, error: `Invalid mimeType. Allowed: ${ALLOWED_MIMES.join(", ")}` });
-        return;
-      }
-      let _sizeCheck = image;
-      if (typeof _sizeCheck === "string" && _sizeCheck.includes(";base64,")) {
-        _sizeCheck = _sizeCheck.split(";base64,").pop() || "";
-      }
-      const MAX_BYTES = 2 * 1024 * 1024;
-      const b64Len = typeof _sizeCheck === "string" ? _sizeCheck.length : 0;
-      const padding = typeof _sizeCheck === "string" && _sizeCheck.endsWith("==") ? 2 : _sizeCheck.endsWith("=") ? 1 : 0;
-      const approxBytes = Math.ceil(b64Len * 3 / 4) - padding;
-      if (approxBytes > MAX_BYTES || b64Len > 28e5) {
-        res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
-        return;
-      }
-      if (typeof image === "string" && image.length > 28e5) {
-        res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
-        return;
-      }
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        res.status(400).json({
-          success: false,
-          error: "Gemini API Key is not configured. Please supply a valid GEMINI_API_KEY inside Settings > Secrets."
-        });
-        return;
-      }
-      const { GoogleGenAI } = await import("@google/genai");
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: {
-          headers: {
-            "User-Agent": "aistudio-build"
-          }
+      try {
+        const { image, mimeType } = req.body;
+        if (!image) {
+          res.status(400).json({ success: false, error: "Image data is required." });
+          return;
         }
-      });
-      let base64Data = image;
-      if (base64Data.includes(";base64,")) {
-        base64Data = base64Data.split(";base64,").pop() || "";
-      }
-      const resolvedMimeType = mimeType || "image/jpeg";
-      const prompt = `Analyze this receipt, invoice, bill, or financial document. You must extract transaction details and categorize it accurately.
+        const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
+        if (mimeType && typeof mimeType === "string" && !ALLOWED_MIMES.includes(mimeType.toLowerCase())) {
+          res.status(400).json({ success: false, error: `Invalid mimeType. Allowed: ${ALLOWED_MIMES.join(", ")}` });
+          return;
+        }
+        let _sizeCheck = image;
+        if (typeof _sizeCheck === "string" && _sizeCheck.includes(";base64,")) {
+          _sizeCheck = _sizeCheck.split(";base64,").pop() || "";
+        }
+        const MAX_BYTES = 2 * 1024 * 1024;
+        const b64Len = typeof _sizeCheck === "string" ? _sizeCheck.length : 0;
+        const padding = typeof _sizeCheck === "string" && _sizeCheck.endsWith("==") ? 2 : _sizeCheck.endsWith("=") ? 1 : 0;
+        const approxBytes = Math.ceil(b64Len * 3 / 4) - padding;
+        if (approxBytes > MAX_BYTES || b64Len > 28e5) {
+          res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
+          return;
+        }
+        if (typeof image === "string" && image.length > 28e5) {
+          res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
+          return;
+        }
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+          res.status(400).json({
+            success: false,
+            error: "Gemini API Key is not configured. Please supply a valid GEMINI_API_KEY inside Settings > Secrets."
+          });
+          return;
+        }
+        const { GoogleGenAI } = await import("@google/genai");
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: {
+            headers: {
+              "User-Agent": "aistudio-build"
+            }
+          }
+        });
+        let base64Data = image;
+        if (base64Data.includes(";base64,")) {
+          base64Data = base64Data.split(";base64,").pop() || "";
+        }
+        const resolvedMimeType = mimeType || "image/jpeg";
+        const prompt = `Analyze this receipt, invoice, bill, or financial document. You must extract transaction details and categorize it accurately.
 
 Map the category to one of the following exact categories:
 - For income: 'Salary', 'Freelance', 'Business', 'Bonus', 'Commission', 'Loan Settle', 'Other'
@@ -88541,88 +90256,101 @@ Return a JSON object matching this schema:
   "description": string,
   "bankCharge": number (optional, default 0)
 }`;
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: [
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: resolvedMimeType
-            }
-          },
-          { text: prompt }
-        ],
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.1
+        const response = await ai.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: [
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: resolvedMimeType
+              }
+            },
+            { text: prompt }
+          ],
+          config: {
+            responseMimeType: "application/json",
+            temperature: 0.1
+          }
+        });
+        const text = response.text;
+        if (!text) {
+          throw new Error("Empty response from Gemini Model.");
         }
-      });
-      const text = response.text;
-      if (!text) {
-        throw new Error("Empty response from Gemini Model.");
+        const parsedData = JSON.parse(text);
+        res.json({ success: true, data: parsedData });
+      } catch (err) {
+        console.error("[Gemini Image Analysis Error]", err?.message || err);
+        const rawMsg = err?.message || (typeof err === "string" ? err : "");
+        if (typeof rawMsg === "string" && (rawMsg.includes("RESOURCE_EXHAUSTED") || rawMsg.includes("prepayment credits") || rawMsg.includes("429"))) {
+          res.status(500).json({
+            success: false,
+            error: "Gemini API Quota / Prepayment Credits Depleted. Please top up your billing credits in Google AI Studio or update your GEMINI_API_KEY in Settings > Secrets."
+          });
+          return;
+        }
+        res.status(500).json({ success: false, error: "Failed to analyze image. Please try again later." });
       }
-      const parsedData = JSON.parse(text);
-      res.json({ success: true, data: parsedData });
-    } catch (err) {
-      console.error("[Gemini Image Analysis Error]", err?.message || err);
-      let errMsg = err?.message || (typeof err === "string" ? err : "Failed to analyze image using Gemini.");
-      if (typeof errMsg === "string" && (errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("prepayment credits") || errMsg.includes("429"))) {
-        errMsg = "Gemini API Quota / Prepayment Credits Depleted. Please top up your billing credits in Google AI Studio or update your GEMINI_API_KEY in Settings > Secrets.";
-      }
-      res.status(500).json({ success: false, error: errMsg });
     }
-  });
-  app.post("/api/ocr/free-scan", import_express.default.json({ limit: "2mb" }), rateLimitAuth(10, 60 * 1e3), async (req, res) => {
-    const _authToken2 = getTokenFromRequest(req);
-    if (!verifySecureToken(_authToken2)) {
-      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
-      return;
-    }
-    try {
-      const { image, mimeType: _ocrMime } = req.body;
-      if (!image) {
-        return res.status(400).json({ success: false, error: "Image payload is required." });
+  );
+  app.post(
+    "/api/ocr/free-scan",
+    import_express.default.json({ limit: "2mb" }),
+    rateLimitAuth(10, 60 * 1e3),
+    async (req, res) => {
+      const _authToken2 = getTokenFromRequest(req);
+      if (!verifySecureToken(_authToken2)) {
+        res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
+        return;
       }
-      const ALLOWED_MIMES_OCR = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
-      if (_ocrMime && typeof _ocrMime === "string" && !ALLOWED_MIMES_OCR.includes(_ocrMime.toLowerCase())) {
-        return res.status(400).json({ success: false, error: `Invalid mimeType. Allowed: ${ALLOWED_MIMES_OCR.join(", ")}` });
-      }
-      let _sizeCheckOcr = image;
-      if (typeof _sizeCheckOcr === "string" && _sizeCheckOcr.includes(";base64,")) {
-        _sizeCheckOcr = _sizeCheckOcr.split(";base64,").pop() || "";
-      }
-      const MAX_BYTES_OCR = 2 * 1024 * 1024;
-      const b64LenOcr = typeof _sizeCheckOcr === "string" ? _sizeCheckOcr.length : 0;
-      const paddingOcr = typeof _sizeCheckOcr === "string" && _sizeCheckOcr.endsWith("==") ? 2 : _sizeCheckOcr.endsWith("=") ? 1 : 0;
-      const approxBytesOcr = Math.ceil(b64LenOcr * 3 / 4) - paddingOcr;
-      if (approxBytesOcr > MAX_BYTES_OCR || b64LenOcr > 28e5) {
-        return res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
-      }
-      if (typeof image === "string" && image.length > 28e5) {
-        return res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
-      }
-      let base64Data = image;
-      if (base64Data.includes(";base64,")) {
-        base64Data = base64Data.split(";base64,").pop() || "";
-      }
-      const imgBuffer = Buffer.from(base64Data, "base64");
-      const { createWorker } = await import("tesseract.js");
-      const worker = await createWorker("eng");
       try {
-        const ret = await worker.recognize(imgBuffer);
-        const extractedText = ret?.data?.text || "";
-        if (!extractedText.trim()) {
-          return res.status(422).json({ success: false, error: "No legible text found in image. Try a clearer photo or enter manually." });
+        const { image, mimeType: _ocrMime } = req.body;
+        if (!image) {
+          return res.status(400).json({ success: false, error: "Image payload is required." });
         }
-        res.json({ success: true, text: extractedText });
-      } finally {
-        await worker.terminate();
+        const ALLOWED_MIMES_OCR = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
+        if (_ocrMime && typeof _ocrMime === "string" && !ALLOWED_MIMES_OCR.includes(_ocrMime.toLowerCase())) {
+          return res.status(400).json({ success: false, error: `Invalid mimeType. Allowed: ${ALLOWED_MIMES_OCR.join(", ")}` });
+        }
+        let _sizeCheckOcr = image;
+        if (typeof _sizeCheckOcr === "string" && _sizeCheckOcr.includes(";base64,")) {
+          _sizeCheckOcr = _sizeCheckOcr.split(";base64,").pop() || "";
+        }
+        const MAX_BYTES_OCR = 2 * 1024 * 1024;
+        const b64LenOcr = typeof _sizeCheckOcr === "string" ? _sizeCheckOcr.length : 0;
+        const paddingOcr = typeof _sizeCheckOcr === "string" && _sizeCheckOcr.endsWith("==") ? 2 : _sizeCheckOcr.endsWith("=") ? 1 : 0;
+        const approxBytesOcr = Math.ceil(b64LenOcr * 3 / 4) - paddingOcr;
+        if (approxBytesOcr > MAX_BYTES_OCR || b64LenOcr > 28e5) {
+          return res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
+        }
+        if (typeof image === "string" && image.length > 28e5) {
+          return res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
+        }
+        let base64Data = image;
+        if (base64Data.includes(";base64,")) {
+          base64Data = base64Data.split(";base64,").pop() || "";
+        }
+        const imgBuffer = Buffer.from(base64Data, "base64");
+        const { createWorker } = await import("tesseract.js");
+        const worker = await createWorker("eng");
+        try {
+          const ret = await worker.recognize(imgBuffer);
+          const extractedText = ret?.data?.text || "";
+          if (!extractedText.trim()) {
+            return res.status(422).json({
+              success: false,
+              error: "No legible text found in image. Try a clearer photo or enter manually."
+            });
+          }
+          res.json({ success: true, text: extractedText });
+        } finally {
+          await worker.terminate();
+        }
+      } catch (err) {
+        console.error("[Free Server OCR Error]", err?.message || err);
+        res.status(500).json({ success: false, error: "Failed to scan image. Please try again or enter text manually." });
       }
-    } catch (err) {
-      console.error("[Free Server OCR Error]", err?.message || err);
-      res.status(500).json({ success: false, error: err?.message || "Failed to scan image using Server OCR." });
     }
-  });
+  );
   if (!process.env.VERCEL) {
     if (process.env.NODE_ENV !== "production") {
       try {
@@ -88659,6 +90387,38 @@ Return a JSON object matching this schema:
   return app;
 }
 var cachedApp = null;
+var vaultSeedStarted = false;
+async function seedVaultSessionSecret() {
+  const sessionSecret = process.env.SESSION_SECRET;
+  const url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  if (!sessionSecret) return;
+  if (!url.startsWith("http")) return;
+  if (!key) {
+    console.warn("[Vault] Skipping session_secret seed: SUPABASE_SERVICE_ROLE_KEY not configured.");
+    return;
+  }
+  try {
+    const supabase = createClient(url, key);
+    const { error } = await withTimeout(
+      supabase.from("vault").upsert({ key: "session_secret", value: sessionSecret }),
+      8e3,
+      "Vault seed"
+    );
+    if (error) {
+      console.error("[Vault] Failed to seed session_secret:", error?.message || error);
+    } else {
+      console.log("[Vault] session_secret synced from SESSION_SECRET.");
+    }
+  } catch (err) {
+    console.error("[Vault] session_secret seed error:", err?.message || err);
+  }
+}
+function ensureVaultSeed() {
+  if (vaultSeedStarted) return;
+  vaultSeedStarted = true;
+  seedVaultSessionSecret();
+}
 async function getApp() {
   if (cachedApp) return cachedApp;
   cachedApp = await createApp();
@@ -88666,6 +90426,7 @@ async function getApp() {
 }
 async function startServer() {
   const app = await getApp();
+  ensureVaultSeed();
   if (!process.env.VERCEL) {
     const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
     app.listen(PORT, "0.0.0.0", () => {
@@ -88674,17 +90435,25 @@ async function startServer() {
   }
   return app;
 }
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught exception:", err);
+  process.exit(1);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled rejection:", reason);
+});
 if (!process.env.VERCEL) {
   startServer();
 }
 var vercelHandler = async (req, res) => {
   try {
+    ensureVaultSeed();
     const app = await getApp();
     return app(req, res);
   } catch (err) {
     console.error("[vercelHandler] Failed to start server:", err?.message || err);
     if (res.headersSent) return;
-    res.status(500).json({ success: false, error: `Server failed to initialize: ${err?.message || "unknown"}` });
+    res.status(500).json({ success: false, error: "Server is temporarily unavailable. Please try again." });
   }
 };
 var server_default = vercelHandler;
@@ -88960,6 +90729,7 @@ express/lib/response.js:
    *)
 
 negotiator/index.js:
+negotiator/index.js:
   (*!
    * negotiator
    * Copyright(c) 2012 Federico Romero
@@ -88997,6 +90767,32 @@ serve-static/index.js:
    * Copyright(c) 2010 Sencha Inc.
    * Copyright(c) 2011 TJ Holowaychuk
    * Copyright(c) 2014-2016 Douglas Christopher Wilson
+   * MIT Licensed
+   *)
+
+compressible/index.js:
+  (*!
+   * compressible
+   * Copyright(c) 2013 Jonathan Ong
+   * Copyright(c) 2014 Jeremiah Senkpiel
+   * Copyright(c) 2015 Douglas Christopher Wilson
+   * MIT Licensed
+   *)
+
+on-headers/index.js:
+  (*!
+   * on-headers
+   * Copyright(c) 2014 Douglas Christopher Wilson
+   * MIT Licensed
+   *)
+
+compression/index.js:
+  (*!
+   * compression
+   * Copyright(c) 2010 Sencha Inc.
+   * Copyright(c) 2011 TJ Holowaychuk
+   * Copyright(c) 2014 Jonathan Ong
+   * Copyright(c) 2014-2015 Douglas Christopher Wilson
    * MIT Licensed
    *)
 

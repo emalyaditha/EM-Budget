@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
 import { BankCard, CreditCardPurchase } from '../types';
-import { formatFeeBreakdown, SAMPATH_ESP_FEES } from '../lib/installments';
+import { formatFeeBreakdown } from '../lib/installments';
 import { Calendar, CreditCard, AlertTriangle, Check, Info } from 'lucide-react';
 
 interface Props {

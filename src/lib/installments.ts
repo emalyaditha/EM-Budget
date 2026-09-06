@@ -20,19 +20,32 @@ export function generateInstallmentSchedule(
   installmentId: string,
   monthlyPayment: number,
   tenureMonths: number,
-  startDate: string
+  startDate: string,
+  originalAmount?: number
 ): Omit<CreditCardInstallmentPayment, 'id'>[] {
   const payments: Omit<CreditCardInstallmentPayment, 'id'>[] = [];
   const start = new Date(startDate);
+
+  const baseCents = Math.round(monthlyPayment * 100);
+  // An equal monthlyPayment rounded to cents usually does not tile the principal
+  // exactly (e.g. 10000 / 12 -> 833.33 x 12 = 9999.96). The final installment
+  // absorbs the rounding remainder so payments sum to exactly the principal.
+  const targetTotalCents = Math.round((originalAmount ?? monthlyPayment * tenureMonths) * 100);
 
   for (let i = 1; i <= tenureMonths; i++) {
     const dueDate = new Date(start);
     dueDate.setMonth(dueDate.getMonth() + i);
 
+    let amountDueCents = baseCents;
+    if (i === tenureMonths) {
+      const absorbed = targetTotalCents - baseCents * (tenureMonths - 1);
+      if (absorbed > 0) amountDueCents = absorbed;
+    }
+
     payments.push({
       installmentId,
       paymentNumber: i,
-      amountDue: monthlyPayment,
+      amountDue: amountDueCents / 100,
       amountPaid: 0,
       dueDate: dueDate.toISOString().split('T')[0],
       status: 'pending',

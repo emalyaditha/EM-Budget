@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Transaction, Subscription, Debt, CashAccount, BankCard } from '../types';
 import { 
-  ShieldCheck, AlertTriangle, CheckCircle2, XCircle, RotateCw, 
-  Clock, Coins, ShieldAlert, CheckSquare, Settings, Landmark,
-  Calendar, Check, ChevronDown, Eye, AlertCircle, HelpCircle
+  ShieldCheck, AlertTriangle, CheckCircle2, XCircle, 
+  Clock, Coins, ShieldAlert, CheckSquare, Landmark,
+  Check, AlertCircle
 } from 'lucide-react';
 import { compareMoney } from '../lib/money';
 import { todayLocal } from '../utils';

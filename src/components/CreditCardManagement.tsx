@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { CashAccount, BankCard, CreditCardPurchase, Transaction, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
 import { CreditCard as CcIcon, Plus, CheckSquare, Lock, Unlock, Calendar, AlertTriangle, Clock, Receipt, ArrowUpRight, ChevronDown, ChevronUp, Repeat } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
@@ -20,7 +20,7 @@ interface Props {
   onAddPurchase: (purchase: Omit<CreditCardPurchase, 'id'>) => void;
   onUpdateCard: (card: BankCard) => void;
   onCreateInstallmentPlan: (cardId: string, purchaseId: string, tenureMonths: 6 | 12 | 24 | 48) => void;
-  onPayInstallmentPayment: (installmentId: string, paymentId: string, amount: number) => void;
+  onPayInstallmentPayment: (installmentId: string, paymentId: string, amount: number, paidFromId: string, paidFromType: 'cash' | 'card', bankCharge?: number) => void;
 }
 
 function daysUntil(dateStr: string): number {
@@ -49,7 +49,6 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
   const [purDate, setPurDate] = useState(()=> todayLocal());
   const [purchaseErrors, setPurchaseErrors] = useState<Record<string,string>>({});
   const [purchaseSubmitted, setPurchaseSubmitted] = useState(false);
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<Record<string, boolean>>({});
   const [installmentModalCard, setInstallmentModalCard] = useState<BankCard | null>(null);
   const [installmentModalPurchase, setInstallmentModalPurchase] = useState<CreditCardPurchase | null>(null);
@@ -139,7 +138,6 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
             const monthlyInterest = calculateInterest(c.currentBalance, c.apr || 0, 30);
             const cardPurchases = getCardPurchases(c.id);
             const cardPayments = getCardPayments(c.id);
-            const isExpanded = expandedCard === c.id;
 
             return (
               <div key={c.id} className="card p-4 space-y-3 !shadow-none border border-white/10 bg-white/[0.06]">
@@ -312,6 +310,8 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                           payments={creditCardInstallmentPayments.filter(p => p.installmentId === inst.id)}
                           purchase={creditCardPurchases.find(p => p.id === inst.purchaseId)}
                           currency={currency}
+                          cashAccounts={cashAccounts}
+                          cards={cards}
                           onPayPayment={onPayInstallmentPayment}
                         />
                       ))}

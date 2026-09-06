@@ -11,6 +11,13 @@ const AUTO_SYNC_KEY = 'cashflow_supabase_auto_sync_v1';
 // Synchronized states cache to prevent redundant pushes
 let lastSyncedStatesCache: { [email: string]: string } = {};
 
+// Per-email serialized sync chains. The transactional sync RPC performs a
+// per-user delete-all + mirror re-insert, so two in-flight syncs can clobber
+// each other when an older one completes after a newer one (last-writer-wins by
+// network timing, not edit order). Chaining guarantees syncs run in initiation
+// order and the newest state is always the last committed.
+const syncChains: { [email: string]: Promise<unknown> } = {};
+
 export function clearSyncedStatesCache() {
   lastSyncedStatesCache = {};
 }
@@ -188,45 +195,6 @@ const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
 
 let detectedColumnsCache: { [tableName: string]: string[] } | null = null;
 
-function toCamelCase(str: string): string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
-function toSnakeCase(str: string): string {
-  return str.replace(/([A-Z])/g, '_$1').toLowerCase();
-}
-
-/**
- * Intelligent helper to identify if an error originates from a column missing in the remote DB schema.
- * Supports PostgREST missing column cache errors and standard Postgres relation errors.
- */
-function extractMissingColumn(errorMsg: string, tableName: string): string | null {
-  if (!errorMsg) return null;
-  
-  // Pattern 1: Could not find the 'column_name' column of 'table_name' in the schema cache
-  const cacheRegex = new RegExp(`Could not find the '([^']+)' column of '${tableName}'`, 'i');
-  let match = errorMsg.match(cacheRegex);
-  if (match && match[1]) {
-    return match[1];
-  }
-  
-  // Pattern 2: column "column_name" of relation "table_name" does not exist
-  const postgresRegex = new RegExp(`column "([^"]+)" of relation "${tableName}" does not exist`, 'i');
-  match = errorMsg.match(postgresRegex);
-  if (match && match[1]) {
-    return match[1];
-  }
-
-  // Pattern 3: column "column_name" does not exist
-  const genericRegex = /column "([^"]+)" does not exist/i;
-  match = genericRegex.exec(errorMsg);
-  if (match && match[1]) {
-    return match[1];
-  }
-
-  return null;
-}
-
 /**
  * Automatically inspects empty table metadata via Supabase/PostgREST OpenAPI or CSV headers to find exactly what columns exist
  */
@@ -386,7 +354,7 @@ export async function forceCancelCardInSupabase(email: string, cardId: string): 
   const client = getSupabaseClient();
   if (!client) return;
   try {
-    const { data, error } = await client.from('bank_cards').update({ is_canceled: true }).eq('user_email', email).eq('id', cardId).select();
+    const { error } = await client.from('bank_cards').update({ is_canceled: true }).eq('user_email', email).eq('id', cardId).select();
     if (error) {
       console.warn(`Supabase explicit cancel update failed:`, error);
     }
@@ -443,7 +411,7 @@ export async function truncateAllDataInSupabase(email: string): Promise<{ succes
       const { error } = await client.from(table).delete().eq(emailCol, email);
       if (error && error.message.includes(`column "${emailCol}" does not exist`)) {
         const fallbackCol = emailCol === 'userEmail' ? 'user_email' : 'userEmail';
-        const { error: err2 } = await client.from(table).delete().eq(fallbackCol, email);
+        await client.from(table).delete().eq(fallbackCol, email);
       }
     }
     return { success: true };
@@ -620,6 +588,33 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       settlements: loan.settlements || []
     }));
 
+    const installmentsCols = await getColumnsForTable('credit_card_installments');
+    const recordsInstallments = (state.creditCardInstallments || []).map(inst => mapObjectToColumns(inst, installmentsCols, email, {
+      id: inst.id,
+      card_id: inst.cardId,
+      purchase_id: inst.purchaseId,
+      original_amount: inst.originalAmount,
+      tenure_months: inst.tenureMonths,
+      processing_fee: inst.processingFee,
+      monthly_payment: inst.monthlyPayment,
+      start_date: inst.startDate,
+      status: inst.status,
+      next_payment_date: inst.nextPaymentDate || null,
+      payments_made: inst.paymentsMade,
+    }));
+
+    const instPaymentsCols = await getColumnsForTable('credit_card_installment_payments');
+    const recordsInstPayments = (state.creditCardInstallmentPayments || []).map(pay => mapObjectToColumns(pay, instPaymentsCols, email, {
+      id: pay.id,
+      installment_id: pay.installmentId,
+      payment_number: pay.paymentNumber,
+      amount_due: pay.amountDue,
+      amount_paid: pay.amountPaid,
+      due_date: pay.dueDate,
+      paid_date: pay.paidDate || null,
+      status: pay.status,
+    }));
+
     const sanitizedState = { ...state, pinCode: '' };
 
     // 2. ATTEMPT TRANSACTIONAL SINGLE-TRIP RPC
@@ -636,7 +631,9 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
         p_notifications: recordsNotifications,
         p_subscriptions: recordsSubscriptions,
         p_loans_given: recordsLoans,
-        p_spending_envelopes: recordsSpendingEnvelopes
+        p_spending_envelopes: recordsSpendingEnvelopes,
+        p_installments: recordsInstallments,
+        p_installment_payments: recordsInstPayments
       });
 
       const rpcSuccess = !rpcErr && rpcRes && (rpcRes as any).success !== false;
@@ -932,21 +929,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
     }
 
     // K. Sync Credit Card Installments
-    const installmentsCols = await getColumnsForTable('credit_card_installments');
     if (installmentsCols.length > 0) {
-      const recordsInstallments = (state.creditCardInstallments || []).map(inst => mapObjectToColumns(inst, installmentsCols, email, {
-        id: inst.id,
-        card_id: inst.cardId,
-        purchase_id: inst.purchaseId,
-        original_amount: inst.originalAmount,
-        tenure_months: inst.tenureMonths,
-        processing_fee: inst.processingFee,
-        monthly_payment: inst.monthlyPayment,
-        start_date: inst.startDate,
-        status: inst.status,
-        next_payment_date: inst.nextPaymentDate || null,
-        payments_made: inst.paymentsMade,
-      }));
       if (recordsInstallments.length > 0) {
         const { error: instErr } = await client.from('credit_card_installments').upsert(recordsInstallments, { onConflict: 'id' });
         if (instErr) errorDetails.push(`Installments: ${instErr.message}`);
@@ -965,31 +948,21 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
     }
 
     // L. Sync Credit Card Installment Payments
-    const instPaymentsCols = await getColumnsForTable('credit_card_installment_payments');
     if (instPaymentsCols.length > 0) {
-      const recordsInstPayments = (state.creditCardInstallmentPayments || []).map(pay => mapObjectToColumns(pay, instPaymentsCols, email, {
-        id: pay.id,
-        installment_id: pay.installmentId,
-        payment_number: pay.paymentNumber,
-        amount_due: pay.amountDue,
-        amount_paid: pay.amountPaid,
-        due_date: pay.dueDate,
-        paid_date: pay.paidDate || null,
-        status: pay.status,
-      }));
       if (recordsInstPayments.length > 0) {
         const { error: payErr } = await client.from('credit_card_installment_payments').upsert(recordsInstPayments, { onConflict: 'id' });
         if (payErr) errorDetails.push(`Installment Payments: ${payErr.message}`);
       }
       const activePayIds = (state.creditCardInstallmentPayments || []).map(p => p.id);
+      const emailField = instPaymentsCols.includes('user_email') ? 'user_email' : 'userEmail';
       if (activePayIds.length > 0) {
-        const { data: existing } = await client.from('credit_card_installment_payments').select('id');
+        const { data: existing } = await client.from('credit_card_installment_payments').select('id').eq(emailField, email);
         const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activePayIds.includes(id));
         if (toDelete.length > 0) {
           await client.from('credit_card_installment_payments').delete().in('id', toDelete);
         }
       } else {
-        await client.from('credit_card_installment_payments').delete();
+        await client.from('credit_card_installment_payments').delete().eq(emailField, email);
       }
     }
 
@@ -1005,7 +978,17 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
   }
   };
 
-  return retryWithBackoff(doPush, { maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 5000 });
+  // Serialize per-email: run this push only after any previously-started push
+  // for the same account has settled, so the most recent state wins and an
+  // older in-flight sync can never clobber a newer one.
+  const run = (syncChains[cacheKey] ?? Promise.resolve())
+    .then(() => retryWithBackoff(doPush, { maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 5000 }));
+  // The chain must never be poisoned by a rejected prior sync.
+  syncChains[cacheKey] = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
 }
 
 

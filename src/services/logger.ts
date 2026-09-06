@@ -1,6 +1,4 @@
 // Structured Logger for Enterprise Telemetry
-import { createClient } from "@supabase/supabase-js";
-
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
 
 export interface LogEntry {
@@ -48,13 +46,6 @@ class TelemetryLogger {
       metadata,
       userEmail
     };
-
-    // Format output beautifully for the container logs inside Cloud Run or development web inspectors
-    const logColor = 
-      level === 'ERROR' || level === 'FATAL' ? '\x1b[31m' :
-      level === 'WARN' ? '\x1b[33m' :
-      level === 'INFO' ? '\x1b[32m' : '\x1b[36m';
-    const logReset = '\x1b[0m';
 
     if (import.meta.env.DEV) {
       console.log(

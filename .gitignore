@@ -5,11 +5,22 @@ coverage/
 .DS_Store
 *.log
 server.err
+server.out
 bun.lock
 start-dev.ps1
 .env*
 !.env.example
 screenshot_ui.py
+
+# Playwright artifacts
+test-results/
+playwright-report/
+
+# Graphify knowledge graph output
+graphify-out/
+
+# DB backup dumps
+backups/
 
 # Vercel serverless build output
 api/index.js.map

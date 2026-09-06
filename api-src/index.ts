@@ -1,3 +1,3 @@
-import vercelHandler, { handler } from "../server";
+import vercelHandler, { handler } from '../server';
 export default vercelHandler;
 export { handler };

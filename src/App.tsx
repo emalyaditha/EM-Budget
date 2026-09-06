@@ -1,17 +1,17 @@
 import React, { useState, useEffect, lazy } from 'react';
 import { apiUrl, safeJson, fetchWithTimeout } from "./lib/api";
 import { motion, AnimatePresence } from 'motion/react';
-import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
+import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
 import { exportStateAsJSON, generateUniqueId, todayLocal, saveStateToStorage, loadStateFromStorage } from './utils';
 import { addMoney, subtractMoney, compareMoney } from './lib/money';
-import { calculateInstallmentFee, calculateMonthlyPayment, generateInstallmentSchedule } from './lib/installments';
+import { calculateInstallmentFee, calculateMonthlyPayment, generateInstallmentSchedule, isCardEligibleForInstallment } from './lib/installments';
 import { authSession } from './services/authSession';
 import { 
-  Plus, Search, Bell, CreditCard, Wallet, LayoutDashboard, 
-  TrendingUp, User, Lock, Unlock, Settings, RefreshCw, 
+  Plus, Search, Bell, Wallet, LayoutDashboard, 
+  TrendingUp, User, Settings, 
   ArrowUpRight, CircleDot, CheckSquare, Zap, 
-  Cloud, CloudOff, Sun, Moon, LogOut, MoreHorizontal
+  CloudOff, Sun, Moon, LogOut, MoreHorizontal
 } from 'lucide-react';
 
 import EmailLogin from './components/EmailLogin';
@@ -40,7 +40,7 @@ import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCan
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice, revokeAllDevices, AppLockStatus } from './lib/appLock';
-import { EXPENSE_COLORS, calculateNetWorth } from './utils';
+import { calculateNetWorth } from './utils';
 import { toMinorUnits } from './lib/money';
 import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
@@ -59,8 +59,57 @@ function mergeSubscriptionsList(local: Subscription[], fetched: Subscription[]):
   return Array.from(byId.values());
 }
 
+const LEDGER_COLLECTION_FIELDS = [
+  'cashAccounts',
+  'cards',
+  'creditCards',
+  'creditCardPurchases',
+  'incomes',
+  'expenses',
+  'debts',
+  'transactions',
+  'notifications',
+  'subscriptions',
+  'loansGiven',
+  'budgets',
+  'savingsGoals',
+  'creditCardInstallments',
+  'creditCardInstallmentPayments',
+] as const;
+
+// Sanitize an imported ledger collection: keep only records that are plain
+// objects carrying a non-empty string id. Anything else is dropped so malformed
+// backups cannot poison the ledger or the cloud push that follows an import.
+function validateMoneyAmount(amount: number): boolean {
+  return typeof amount === 'number' && Number.isFinite(amount) && amount > 0;
+}
+
+function validateOptionalCharge(charge: number): boolean {
+  return typeof charge === 'number' && Number.isFinite(charge) && charge >= 0;
+}
+
+function sanitizeImportedList(value: unknown): { records: any[]; dropped: number } {
+  if (!Array.isArray(value)) return { records: [], dropped: 1 };
+  const records: any[] = [];
+  let dropped = 0;
+  for (const item of value) {
+    if (
+      item !== null &&
+      typeof item === 'object' &&
+      !Array.isArray(item) &&
+      typeof (item as any).id === 'string' &&
+      (item as any).id.trim() !== ''
+    ) {
+      records.push(item);
+    } else {
+      dropped++;
+    }
+  }
+  return { records, dropped };
+}
+
 export default function App() {
-  const { showConfirm, showToast } = useNotifications();
+  const { showToast } = useNotifications();
   const { theme, toggleTheme } = useTheme();
   // 1. Core State
   const [state, setState] = useState<AppState>(DEFAULT_APP_STATE);
@@ -74,8 +123,6 @@ export default function App() {
   
   // Modals & Panels Toggles
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [newPinCode, setNewPinCode] = useState('');
-  const [showConfigPanel, setShowConfigPanel] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -91,11 +138,6 @@ export default function App() {
   // Offline detection
   const { url: supabaseUrl } = getSupabaseConfig();
   const { isOnline, isSupabaseReachable } = useOnlineStatus(supabaseUrl || undefined);
-
-  // States for Unified search & filters on history
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterAccount, setFilterAccount] = useState<string>('all');
 
   const reconcileSubscriptionsWithTransactions = (subscriptions: Subscription[], transactions: Transaction[]): Subscription[] => {
     if (!subscriptions || !transactions) return subscriptions || [];
@@ -375,6 +417,8 @@ export default function App() {
     };
 
     verifyDevice();
+    // This gate runs once per mount to verify the device, not to migrate state — omitting migrateStateCards is intended.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // App Lock: auto re-lock after 60 seconds of inactivity while the workspace
@@ -512,7 +556,7 @@ export default function App() {
   // idempotent, so re-running it cannot create duplicate rows.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const handler = (e: BeforeUnloadEvent) => {
+    const handler = (_e: BeforeUnloadEvent) => {
       if (!isUnlocked) return;
       saveStateToStorage(state);
       if (userEmail && isOnline && isSupabaseReachable) {
@@ -644,6 +688,10 @@ export default function App() {
     targetAccountId: string,
     targetType: 'cash' | 'card'
   ) => {
+    if (!validateMoneyAmount(amount)) {
+      showToast('error', 'Income amount must be a positive number.');
+      return;
+    }
     const incomeId = generateUniqueId('inc');
     const transactionId = generateUniqueId('trans');
 
@@ -746,6 +794,10 @@ export default function App() {
     paymentMethodType: 'cash' | 'card',
     bankCharge: number = 0
   ) => {
+    if (!validateMoneyAmount(amount) || !validateOptionalCharge(bankCharge)) {
+      showToast('error', 'Expense amount must be a positive number and charges cannot be negative.');
+      return;
+    }
     const expenseId = generateUniqueId('exp');
     const transactionId = generateUniqueId('trans');
 
@@ -792,7 +844,6 @@ export default function App() {
       const newAlertNotifications: AppNotification[] = [];
 
       const totalDeductionCents = toMinorUnits(amount) + toMinorUnits(bankCharge);
-      const totalDeduction = totalDeductionCents / 100;
 
       if (paymentMethodType === 'cash') {
         updatedCash = updatedCash.map(c => {
@@ -906,6 +957,10 @@ export default function App() {
 
   // Rule: Debt Registered
   const handleAddDebt = (debtData: Omit<Debt, 'id' | 'payments' | 'remainingAmount'>) => {
+    if (!validateMoneyAmount(debtData.totalAmount)) {
+      showToast('error', 'Debt amount must be a positive number.');
+      return;
+    }
     const debtId = `debt-${Date.now()}`;
     const nowIso = new Date().toISOString();
     const newDebt: Debt = {
@@ -1043,6 +1098,10 @@ export default function App() {
     loanData: Omit<LoanGiven, 'id' | 'remainingAmount' | 'status' | 'settlements'>,
     bankCharge: number = 0
   ) => {
+    if (!validateMoneyAmount(loanData.totalAmount) || !validateOptionalCharge(bankCharge)) {
+      showToast('error', 'Loan amount must be a positive number and charges cannot be negative.');
+      return;
+    }
     const loanId = `loan_given_${Date.now()}`;
     const nowIso = new Date().toISOString();
     const newLoan: LoanGiven = {
@@ -1170,6 +1229,10 @@ export default function App() {
     receivedInName: string,
     bankCharge: number = 0
   ) => {
+    if (!validateMoneyAmount(amount) || !validateOptionalCharge(bankCharge) || bankCharge > amount) {
+      showToast('Settlement amount must be a positive number and charges cannot exceed the amount.', 'error');
+      return;
+    }
     const settlementId = `setl_${Date.now()}`;
     const settlementDate = todayLocal();
     const nowIso = new Date().toISOString();
@@ -1528,13 +1591,6 @@ export default function App() {
     });
   };
 
-  const handleAddCreditCard = (card: Omit<DbCreditCard, 'id'>) => {
-      updateState(prev => ({
-          ...prev,
-          creditCards: [...prev.creditCards, { ...card, id: `cc-${Date.now()}` } as DbCreditCard]
-      }));
-  };
-
   const handleUpdateCard = (updatedCard: BankCard) => {
     updateState(prev => ({
       ...prev,
@@ -1687,7 +1743,6 @@ export default function App() {
       const newAlertNotifications: AppNotification[] = [];
 
       const totalDeductionCents = toMinorUnits(sub.amount) + toMinorUnits(bankCharge);
-      const totalDeduction = totalDeductionCents / 100;
 
       let accountName = '';
       if (accountType === 'cash') {
@@ -1875,6 +1930,10 @@ export default function App() {
         showToast('Cannot pay a credit card using the same card as source.', 'error');
         return;
       }
+      if (!validateMoneyAmount(amount)) {
+        showToast('Payment amount must be a positive number.', 'error');
+        return;
+      }
       let overpaymentMsg = '';
       updateState(prev => {
           const updatedCash = prev.cashAccounts.map(c => 
@@ -1907,6 +1966,8 @@ export default function App() {
             category: 'Debt Repayment',
             accountId: fromId,
             accountType: fromType,
+            targetAccountId: targetCard?.id || cardId,
+            targetAccountType: 'card',
             updated_at: nowIso,
             updatedAt: nowIso,
           };
@@ -1926,6 +1987,12 @@ export default function App() {
     const card = state.cards.find(c => c.id === cardId);
     if (!purchase || !card) {
       showToast('error', 'Card or purchase not found');
+      return;
+    }
+
+    const eligibility = isCardEligibleForInstallment(card, purchase.amount);
+    if (!eligibility.eligible) {
+      showToast(eligibility.reason || 'Card is not eligible for installment plans', 'error');
       return;
     }
 
@@ -1950,24 +2017,83 @@ export default function App() {
       paymentsMade: 0,
     };
 
-    const schedulePayments = generateInstallmentSchedule(installmentId, monthlyPayment, tenureMonths, startDate);
+    const schedulePayments = generateInstallmentSchedule(installmentId, monthlyPayment, tenureMonths, startDate, purchase.amount);
 
-    updateState(prev => ({
-      ...prev,
-      creditCardInstallments: [...prev.creditCardInstallments, newInstallment],
-      creditCardInstallmentPayments: [
-        ...prev.creditCardInstallmentPayments,
-        ...schedulePayments.map((p: any, i: number) => ({ ...p, id: `instpay-${Date.now()}-${i}` })),
-      ],
-    }));
+    updateState(prev => {
+      const nowIso = new Date().toISOString();
+      const newExpenses = [...prev.expenses];
+      const newTransactions: Transaction[] = [];
+
+      if (processingFee > 0) {
+        const feeExpenseId = `exp-inst-fee-${Date.now()}`;
+        const feeTransactionId = `trans-inst-fee-${Date.now()}`;
+
+        const feeExpense: Expense = {
+          id: feeExpenseId,
+          title: `Installment Processing Fee`,
+          description: `Bank processing fee for ${tenureMonths}-month installment plan`,
+          amount: processingFee,
+          date: todayLocal(),
+          category: 'Bank Charges & Interest',
+          paymentMethodId: cardId,
+          paymentMethodType: 'card',
+          updated_at: nowIso,
+          updatedAt: nowIso,
+        };
+
+        const feeTransaction: Transaction = {
+          id: feeTransactionId,
+          type: 'expense',
+          title: `Installment Processing Fee`,
+          amount: processingFee,
+          date: todayLocal(),
+          category: 'Bank Charges & Interest',
+          accountId: cardId,
+          accountType: 'card',
+          referenceId: feeExpenseId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
+        };
+
+        newExpenses.push(feeExpense);
+        newTransactions.push(feeTransaction);
+      }
+
+      return {
+        ...prev,
+        cards: prev.cards.map(c =>
+          c.id === cardId ? { ...c, currentBalance: subtractMoney(c.currentBalance, processingFee) } : c
+        ),
+        creditCardInstallments: [...prev.creditCardInstallments, newInstallment],
+        creditCardInstallmentPayments: [
+          ...prev.creditCardInstallmentPayments,
+          ...schedulePayments.map((p: any, i: number) => ({ ...p, id: `instpay-${Date.now()}-${i}` })),
+        ],
+        transactions: [...newTransactions, ...prev.transactions],
+        expenses: newExpenses,
+      };
+    });
 
     showToast('success', `${tenureMonths}-month installment plan created!`);
   };
 
-  const handlePayInstallmentPayment = (installmentId: string, paymentId: string, amount: number) => {
+  const handlePayInstallmentPayment = (
+    installmentId: string,
+    paymentId: string,
+    amount: number,
+    paidFromId: string,
+    paidFromType: 'cash' | 'card',
+    bankCharge: number = 0
+  ) => {
+    if (!validateMoneyAmount(amount) || !validateOptionalCharge(bankCharge)) {
+      showToast('Installment payment amount must be a positive number and charges cannot be negative.', 'error');
+      return;
+    }
     updateState(prev => {
       const installment = prev.creditCardInstallments.find(i => i.id === installmentId);
       if (!installment) return prev;
+
+      const totalDeduction = amount + bankCharge;
 
       const updatedPayments = prev.creditCardInstallmentPayments.map(p =>
         p.id === paymentId
@@ -2000,37 +2126,100 @@ export default function App() {
           : i
       );
 
-      const updatedCards = prev.cards.map(c =>
+      let updatedCash = [...prev.cashAccounts];
+      let updatedCards = [...prev.cards];
+
+      // Debit the funding source (cash balance or card currentBalance).
+      if (paidFromType === 'cash') {
+        updatedCash = updatedCash.map(acc =>
+          acc.id === paidFromId ? { ...acc, balance: subtractMoney(acc.balance, totalDeduction) } : acc
+        );
+      } else {
+        updatedCards = updatedCards.map(c =>
+          c.id === paidFromId ? { ...c, currentBalance: subtractMoney(c.currentBalance, totalDeduction) } : c
+        );
+      }
+
+      // Credit the installment card with the principal payment.
+      updatedCards = updatedCards.map(c =>
         c.id === installment.cardId
           ? { ...c, currentBalance: addMoney(c.currentBalance, amount) }
           : c
       );
 
-      const newTransaction = {
+      const nowIso = new Date().toISOString();
+
+      const newTransaction: Transaction = {
         id: `trans-${Date.now()}`,
         type: 'debt_payment' as const,
         title: `Installment Payment: ${installment.tenureMonths}-mo plan`,
         amount,
         date: todayLocal(),
         category: 'Debt Repayment',
-        accountId: installment.cardId,
-        accountType: 'card' as const,
-        updated_at: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        accountId: paidFromId,
+        accountType: paidFromType,
+        referenceId: paymentId,
+        charge: bankCharge > 0 ? bankCharge : undefined,
+        updated_at: nowIso,
+        updatedAt: nowIso,
       };
+
+      const newExpenses = [...prev.expenses];
+      const newTransactions = [newTransaction];
+
+      if (bankCharge > 0) {
+        const chargeExpenseId = `exp-charge-${Date.now()}`;
+        const chargeTransactionId = `trans-charge-${Date.now()}`;
+
+        const chargeExpense: Expense = {
+          id: chargeExpenseId,
+          title: `Bank Charge: Installment Plan`,
+          description: `Automatic bank charge fee for installment payment`,
+          amount: bankCharge,
+          date: todayLocal(),
+          category: 'Bank Charges & Interest',
+          paymentMethodId: paidFromId,
+          paymentMethodType: paidFromType,
+          updated_at: nowIso,
+          updatedAt: nowIso,
+        };
+
+        const chargeTransaction: Transaction = {
+          id: chargeTransactionId,
+          type: 'expense',
+          title: `Bank Charge: Installment Plan`,
+          amount: bankCharge,
+          date: todayLocal(),
+          category: 'Bank Charges & Interest',
+          accountId: paidFromId,
+          accountType: paidFromType,
+          referenceId: chargeExpenseId,
+          updated_at: nowIso,
+          updatedAt: nowIso,
+        };
+
+        newExpenses.push(chargeExpense);
+        newTransactions.push(chargeTransaction);
+      }
 
       return {
         ...prev,
         creditCardInstallments: updatedInstallments,
         creditCardInstallmentPayments: updatedPayments,
         cards: updatedCards,
-        transactions: [newTransaction, ...prev.transactions],
+        cashAccounts: updatedCash,
+        transactions: [...newTransactions, ...prev.transactions],
+        expenses: newExpenses,
       };
     });
     showToast('success', 'Installment payment recorded!');
   };
 
   const handleIncreaseDebt = (debtId: string, amount: number, newAccountId?: string, newAccountType?: 'cash' | 'card') => {
+    if (!validateMoneyAmount(amount)) {
+      showToast('Increase amount must be a positive number.', 'error');
+      return;
+    }
     updateState(prev => {
       const debt = prev.debts.find(d => d.id === debtId);
       if (!debt) return prev;
@@ -2108,6 +2297,10 @@ export default function App() {
     paidFromType: 'cash' | 'card',
     bankCharge: number = 0
   ) => {
+    if (!validateMoneyAmount(amount) || !validateOptionalCharge(bankCharge)) {
+      showToast('Debt payment amount must be a positive number and charges cannot be negative.', 'error');
+      return;
+    }
     const paymentId = `dp-${Date.now()}`;
     const transactionId = `trans-${Date.now()}`;
     const paymentDate = todayLocal();
@@ -2363,6 +2556,8 @@ export default function App() {
       let updatedExpenses = [...prev.expenses];
       let updatedDebts = [...prev.debts];
       let updatedCreditCardPurchases = [...prev.creditCardPurchases];
+      let updatedCreditCardInstallments = [...prev.creditCardInstallments];
+      let updatedCreditCardInstallmentPayments = [...prev.creditCardInstallmentPayments];
 
       const reverseAmount = (amount: number, accountId: string, accountType: string, isIncome: boolean) => {
         if (accountType === 'cash') {
@@ -2401,10 +2596,54 @@ export default function App() {
             reverseAmount(tx.amount, tx.accountId, tx.accountType, false);
           }
           // Restore the outstanding balance of the settled credit card (subtract the settled amount from the card)
-          const cardNamePart = tx.title.replace('Credit Card Settlement:', '').trim();
-          const targetCc = prev.cards.find(c => c.cardName === cardNamePart && c.cardType === 'Credit');
+          // Prefer the explicit target card id recorded at creation time; fall back to
+          // the historical cardName match for legacy transactions that predate it.
+          let targetCc: BankCard | undefined = undefined;
+          if (tx.targetAccountId && tx.targetAccountType === 'card') {
+            targetCc = prev.cards.find(c => c.id === tx.targetAccountId);
+          }
+          if (!targetCc) {
+            const cardNamePart = tx.title.replace('Credit Card Settlement:', '').trim();
+            targetCc = prev.cards.find(c => c.cardName === cardNamePart && c.cardType === 'Credit');
+          }
           if (targetCc) {
             updatedCards = updatedCards.map(c => c.id === targetCc.id ? { ...c, currentBalance: subtractMoney(c.currentBalance, tx.amount) } : c);
+          }
+        } else if (tx.referenceId && prev.creditCardInstallmentPayments.some(p => p.id === tx.referenceId)) {
+          // Installment payment: refund the funding source (below), revert the payment
+          // record, and remove the credit that was applied to the installment card.
+          if (tx.accountId && tx.accountType) reverseAmount(tx.amount, tx.accountId, tx.accountType, false);
+          const revertedPaymentId = tx.referenceId;
+          updatedCreditCardInstallmentPayments = prev.creditCardInstallmentPayments.map(p =>
+            p.id === revertedPaymentId
+              ? { ...p, amountPaid: 0, paidDate: undefined, status: 'pending' as const }
+              : p
+          );
+          const instPay = prev.creditCardInstallmentPayments.find(p => p.id === revertedPaymentId);
+          if (instPay) {
+            const installment = prev.creditCardInstallments.find(i => i.id === instPay.installmentId);
+            if (installment) {
+              const instPaymentRecords = updatedCreditCardInstallmentPayments.filter(p => p.installmentId === installment.id);
+              const paidCount = instPaymentRecords.filter(p => p.status === 'paid').length;
+              const nextPending = instPaymentRecords
+                .filter(p => p.status === 'pending')
+                .sort((a, b) => a.paymentNumber - b.paymentNumber)[0];
+              updatedCreditCardInstallments = prev.creditCardInstallments.map(i =>
+                i.id === installment.id
+                  ? {
+                      ...i,
+                      paymentsMade: paidCount,
+                      status: paidCount >= i.tenureMonths ? ('completed' as const) : ('active' as const),
+                      nextPaymentDate: nextPending?.dueDate || '',
+                    }
+                  : i
+              );
+              updatedCards = updatedCards.map(c =>
+                c.id === installment.cardId
+                  ? { ...c, currentBalance: subtractMoney(c.currentBalance, tx.amount) }
+                  : c
+              );
+            }
           }
         } else {
           if (tx.accountId && tx.accountType) reverseAmount(tx.amount, tx.accountId, tx.accountType, false);
@@ -2426,6 +2665,39 @@ export default function App() {
         if (tx.accountId) reverseAmount(tx.amount, tx.accountId, 'cash', true);
       } else if (tx.type === 'withdrawal') {
         if (tx.accountId) reverseAmount(tx.amount, tx.accountId, 'cash', false);
+      } else if (tx.type === 'financing') {
+        // Financing credited funds to the account; reverse by taking them out.
+        if (tx.accountId && tx.accountType) {
+          if (tx.accountType === 'cash') {
+            updatedCash = updatedCash.map(c => c.id === tx.accountId ? { ...c, balance: subtractMoney(c.balance, tx.amount) } : c);
+          } else {
+            updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: subtractMoney(c.currentBalance, tx.amount) } : c);
+          }
+        }
+      } else if (tx.type === 'transfer') {
+        // A transfer creates a pair of transactions sharing referenceId:
+        //   OUT: amount negative, deducted from source account
+        //   IN : amount positive, credited to destination account.
+        // Deleting either one reverses only that leg's balance effect.
+        if (tx.accountId && tx.accountType) {
+          // OUT leg (negative) flowed OUT of the account -> add back;
+          // IN leg (positive) flowed INTO the account -> subtract back.
+          if (tx.amount < 0) {
+            if (tx.accountType === 'cash') {
+              updatedCash = updatedCash.map(c => c.id === tx.accountId ? { ...c, balance: addMoney(c.balance, Math.abs(tx.amount)) } : c);
+            } else {
+              updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: addMoney(c.currentBalance, Math.abs(tx.amount)) } : c);
+            }
+          } else {
+            if (tx.accountType === 'cash') {
+              updatedCash = updatedCash.map(c => c.id === tx.accountId ? { ...c, balance: subtractMoney(c.balance, tx.amount) } : c);
+            } else {
+              updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: subtractMoney(c.currentBalance, tx.amount) } : c);
+            }
+          }
+        }
+        // Transfer charges are recorded as their own 'expense' transaction, so they
+        // are reversed by the general expense branch, not here.
       }
 
       const nowIso = new Date().toISOString();
@@ -2449,7 +2721,9 @@ export default function App() {
         incomes: updatedIncomes,
         expenses: updatedExpenses,
         debts: updatedDebts,
-        creditCardPurchases: updatedCreditCardPurchases
+        creditCardPurchases: updatedCreditCardPurchases,
+        creditCardInstallments: updatedCreditCardInstallments,
+        creditCardInstallmentPayments: updatedCreditCardInstallmentPayments
       };
     });
     setEditingTransactionId(null);
@@ -2468,6 +2742,11 @@ export default function App() {
   ) => {
     if (fromId === toId && fromType === toType) {
       showToast('error', "Source and destination accounts cannot be the same.");
+      return;
+    }
+
+    if (!validateMoneyAmount(amount) || !validateOptionalCharge(charge)) {
+      showToast('error', 'Transfer amount must be a positive number and charges cannot be negative.');
       return;
     }
 
@@ -2677,17 +2956,6 @@ export default function App() {
     }));
   };
 
-  // Reset demo setup
-  const triggerResetDemo = () => {
-    showConfirm({
-      message: 'Are you sure you want to restore all ledger books to initial demo genesis states? This replaces modifications.',
-      onConfirm: () => {
-        updateState(() => DEFAULT_APP_STATE);
-        showToast('success', 'Ledger re-seeded beautifully.');
-      }
-    });
-  };
-
   // JSON state upload restoration
   const handleJSONRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2696,48 +2964,67 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const loadedJson = JSON.parse(event.target?.result as string);
-        
+        const loaded = JSON.parse(event.target?.result as string);
+        if (loaded === null || typeof loaded !== 'object' || Array.isArray(loaded)) {
+          showToast('error', 'Invalid backup file. Expected a ledger export object.');
+          return;
+        }
+        const loadedJson = loaded as any;
+
         let stateToLoad: any = null;
         let originalOwner = '';
-        
-        if (loadedJson.version === 'EM_BUDGET_SECURE_EX_V1' && loadedJson.data) {
+
+        if (loadedJson.version === 'EM_BUDGET_SECURE_EX_V1' && loadedJson.data && typeof loadedJson.data === 'object' && !Array.isArray(loadedJson.data)) {
           stateToLoad = loadedJson.data;
           originalOwner = loadedJson.exportedBy || '';
-        } else if (loadedJson.cashAccounts && loadedJson.cards && loadedJson.transactions) {
-          stateToLoad = loadedJson;
+        } else if (
+          Array.isArray(loadedJson.cashAccounts) &&
+          Array.isArray(loadedJson.cards) &&
+          Array.isArray(loadedJson.transactions)
+        ) {
+          // A bare JSON object that merely reuses the ledger's top-level keys
+          // must not pass itself off as a valid backup (that would silently
+          // wipe all local and cloud data on import). Require actual content.
+          const hasContent =
+            loadedJson.cashAccounts.length > 0 ||
+            loadedJson.cards.length > 0 ||
+            loadedJson.transactions.length > 0;
+          if (hasContent) {
+            stateToLoad = loadedJson;
+          }
         }
 
         if (stateToLoad) {
-          const sanitizedState: AppState = {
-            ...DEFAULT_APP_STATE,
-            ...stateToLoad,
-            cashAccounts: stateToLoad.cashAccounts || [],
-            cards: stateToLoad.cards || [],
-            creditCards: stateToLoad.creditCards || [],
-            creditCardPurchases: stateToLoad.creditCardPurchases || [],
-            incomes: stateToLoad.incomes || [],
-            expenses: stateToLoad.expenses || [],
-            debts: stateToLoad.debts || [],
-            transactions: stateToLoad.transactions || [],
-            notifications: stateToLoad.notifications || [],
-            subscriptions: stateToLoad.subscriptions || [],
-            loansGiven: stateToLoad.loansGiven || [],
-            budgets: stateToLoad.budgets || DEFAULT_APP_STATE.budgets || [],
-            savingsGoals: stateToLoad.savingsGoals || DEFAULT_APP_STATE.savingsGoals || [],
-          };
-          updateState(() => sanitizedState);
-          
-          if (originalOwner && originalOwner !== 'Anonymous') {
-            showToast('success', `Personal ledger belonging to ${originalOwner} imported successfully! All records linked to your active identity.`);
+          const sanitizedState: any = { ...DEFAULT_APP_STATE };
+          let droppedTotal = 0;
+          for (const field of LEDGER_COLLECTION_FIELDS) {
+            if (stateToLoad[field] === undefined) continue;
+            const { records, dropped } = sanitizeImportedList(stateToLoad[field]);
+            droppedTotal += dropped;
+            sanitizedState[field] = records;
+          }
+          // Carry over any remaining non-collection fields (pinCode, pinEnabled,
+          // currency, version, timestamps, etc.).
+          for (const key of Object.keys(stateToLoad)) {
+            if (!(LEDGER_COLLECTION_FIELDS as readonly string[]).includes(key)) {
+              sanitizedState[key] = stateToLoad[key];
+            }
+          }
+
+          updateState(() => sanitizedState as AppState);
+
+          if (droppedTotal > 0) {
+            showToast('warning', `Backup imported with ${droppedTotal} invalid record(s) skipped.`);
           } else {
-            showToast('success', 'Database restored successfully! Ledger tracks have re-balanced.');
+            showToast('success', originalOwner && originalOwner !== 'Anonymous'
+              ? `Personal ledger belonging to ${originalOwner} imported successfully! All records linked to your active identity.`
+              : 'Database restored successfully! Ledger tracks have re-balanced.');
           }
 
           // Trigger manual push to ensure data is synced to cloud immediately
           const { autoSync } = getSupabaseConfig();
           if (autoSync && userEmail) {
-            syncStateToSupabase(userEmail, stateToLoad, true).then(res => {
+            syncStateToSupabase(userEmail, sanitizedState as AppState, true).then(res => {
               if (res.success) {
                 showToast('success', 'Imported data pushed to cloud automatically!');
               } else {
@@ -2749,7 +3036,7 @@ export default function App() {
         } else {
           showToast('error', 'Invalid backup file. Requisite database structures were missing.');
         }
-      } catch (err) {
+      } catch {
         showToast('error', 'File decode failure. Try with a valid export JSON backup.');
       }
     };
@@ -2820,37 +3107,6 @@ export default function App() {
     };
   });
 
-  // 4. TRANSACTION FILTERING METHOD
-  const filteredHistory = [...state.transactions]
-    .filter(t => {
-      const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            t.category.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesType = filterType === 'all' || t.type === filterType;
-      const matchesAccount = filterAccount === 'all' || t.accountId === filterAccount;
-
-      return matchesSearch && matchesType && matchesAccount;
-    })
-    .sort((a, b) => {
-      const getTs = (item: any): number => {
-        const raw = item.updated_at || item.updatedAt || item.created_at || item.createdAt || item.date;
-        if (!raw) return 0;
-        const time = new Date(raw).getTime();
-        return isNaN(time) ? 0 : time;
-      };
-
-      const timeA = getTs(a);
-      const timeB = getTs(b);
-      if (timeA !== timeB) return timeB - timeA;
-
-      const dateCompare = b.date.localeCompare(a.date);
-      if (dateCompare !== 0) return dateCompare;
-      const aNum = parseInt(a.id.replace(/\D/g, ''), 10);
-      const bNum = parseInt(b.id.replace(/\D/g, ''), 10);
-      if (!isNaN(aNum) && !isNaN(bNum)) return bNum - aNum;
-      return b.id.localeCompare(a.id);
-    });
-
   // Minimal auth gate — center card with mono
   if (isCheckingAuth || isAppLockInit) {
     return (
@@ -2871,17 +3127,6 @@ export default function App() {
     .forEach(t => {
       expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + Math.abs(t.amount);
     });
-
-  const totalExpenseCategorySum = Object.values(expensesByCategory).reduce((s, v) => s + v, 0) || 1;
-  const appCategoryChartList = Object.entries(expensesByCategory).map(([name, val]) => {
-    const percentage = Math.round((val / totalExpenseCategorySum) * 100);
-    return {
-      name,
-      value: val,
-      percentage,
-      color: EXPENSE_COLORS[name] || '#6B7280',
-    };
-  }).sort((a, b) => b.value - a.value).slice(0, 4);
 
   return (
     <div id="full-workspace-view" className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-[var(--bg)] text-[var(--ink)] flex flex-col lg:flex-row font-sans selection:bg-[var(--ink)] selection:text-[var(--bg)] antialiased relative">

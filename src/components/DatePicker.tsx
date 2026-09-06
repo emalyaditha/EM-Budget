@@ -133,6 +133,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         window.removeEventListener('scroll', updatePosition, true);
       };
     }
+    // updatePosition is stable per mount; re-subscribing on every render is undesirable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Click outside to close handler (checks both input element container and the portal-rendered calendar)

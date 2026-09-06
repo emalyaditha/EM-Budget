@@ -154,7 +154,7 @@ export default function CashCardManagement({
   const [editCardLockedAmount, setEditCardLockedAmount] = useState('0');
   const [editCardTheme, setEditCardTheme] = useState('obsidian');
   const [editCardErrors, setEditCardErrors] = useState<Record<string,string>>({});
-  const [editCardSubmitted, setEditCardSubmitted] = useState(false);
+  const [, setEditCardSubmitted] = useState(false);
   const [showCanceled, setShowCanceled] = useState(false);
   const [expandedCardIds, setExpandedCardIds] = useState<Record<string,boolean>>({});
   const [chargeType, setChargeType] = useState<'Interest'|'LatePayment'|'OverLimit'|'Annual'|'Custom'>('Interest');

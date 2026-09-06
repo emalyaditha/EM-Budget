@@ -1,4 +1,4 @@
-import { CashAccount, BankCard, Debt, AppState } from '../types';
+import { CashAccount, BankCard, Debt } from '../types';
 
 export const accountService = {
   calculateTotalAssets: (cashAccounts: CashAccount[], cards: BankCard[]): number => {

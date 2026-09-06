@@ -47,8 +47,12 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
     ...cards.map(c => ({ id: c.id, name: `${c.bankName} - ${c.cardName} (${c.cardType})`, balance: c.currentBalance, type: 'card' as const })),
   ];
 
+  // availableAccounts/selectors are derived from the listed deps; omission is intended (avoids setState thrash each render).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { if (availableAccounts.length > 0 && !sourceAccountId) { setSourceAccountId(availableAccounts[0].id); setSourceAccountType(availableAccounts[0].type); } }, [cashAccounts, cards]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { if (availableAccounts.length > 0 && !increaseSourceId) { setIncreaseSourceId(availableAccounts[0].id); setIncreaseSourceType(availableAccounts[0].type); } }, [cashAccounts, cards, increasingLoanId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { if (availableAccounts.length > 0 && !receivedInId) { setReceivedInId(availableAccounts[0].id); setReceivedInType(availableAccounts[0].type); } }, [cashAccounts, cards, settlingLoanId]);
 
   const activeLoans = loans.filter(l => l.status !== 'Settled');

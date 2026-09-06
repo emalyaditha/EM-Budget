@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { Transaction, Income, Expense, Debt, CashAccount, BankCard, LoanGiven, Subscription } from '../types';
-import { exportTransactionsToCSV, EXPENSE_COLORS, INCOME_COLORS } from '../utils';
+import { exportTransactionsToCSV, EXPENSE_COLORS } from '../utils';
 import { FileDown, Printer, BarChart3, PieChart, TrendingUp, Landmark, Search } from 'lucide-react';
 import { IncomeVsExpenseBar, CategorySpreadAnalysis, TrendAnalysisChart } from './Charts';
 import { DatePicker } from './DatePicker';
@@ -21,7 +21,7 @@ interface ReportsCentreProps {
   onPaySubscription?: (subId: string, accountId: string, accountType: 'cash' | 'card', paymentDate: string, bankCharge?: number) => void;
 }
 
-export default function ReportsCentre({ transactions, incomes, expenses, debts, loansGiven, cashAccounts, cards, currency, onSelectTransaction, subscriptions = [], onToggleSubscriptionStatus, onPaySubscription }: ReportsCentreProps) {
+export default function ReportsCentre({ transactions, debts, loansGiven, cashAccounts, cards, currency, onSelectTransaction, subscriptions = [], onToggleSubscriptionStatus, onPaySubscription }: ReportsCentreProps) {
   const [reportType, setReportType] = useState<'monthly' | 'yearly' | 'category' | 'debt' | 'audit'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AppState } from '../types';
-import { ArrowUpRight, ArrowDownLeft, Plus, ArrowRight, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { DashboardHero } from './dashboard/DashboardHero';
 import { DashboardMetricsGrid } from './dashboard/DashboardMetricsGrid';
@@ -37,6 +37,8 @@ export function AnimatedCountUp({ value, duration = 1200, prefix = "", suffix = 
       cancelled = true;
       window.cancelAnimationFrame(rafId);
     };
+    // displayValue is intentionally read for the animation start point; re-adding it would restart the tween on every frame update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, duration]);
 
   return <span className="tabular-nums font-semibold">{prefix}{Math.round(displayValue).toLocaleString()}{suffix}</span>;
@@ -78,14 +80,12 @@ export default function Dashboard({
   totalDebitCardsAmount,
   totalCreditCardsAmount,
   totalDebtsAmount,
-  totalLoansGiven,
   currentMonthLabel,
   currentMonthInflow,
   currentMonthOutflow,
   setActiveTab,
   setEditingTransactionId,
   onProfileClick,
-  onNotificationClick,
   onAddIncome,
   onAddExpense
 }: DashboardProps) {

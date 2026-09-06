@@ -8,11 +8,14 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild api-src/index.ts --bundle --platform=node --format=cjs --target=node20 --external:tesseract.js --external:@google/genai --external:vite --sourcemap --outfile=api/index.js",
+    "build": "vite build && esbuild api-src/index.ts --bundle --platform=node --format=cjs --target=node20 --external:tesseract.js --external:@google/genai --external:vite --external:@sentry/node --sourcemap --outfile=api/index.js",
     "start": "node api/index.js",
     "preview": "vite preview",
+    "db:migrate": "supabase db push --linked",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
-    "lint": "eslint src/ && tsc --noEmit"
+    "lint": "eslint src/ && tsc --noEmit",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@google/genai": "^2.14.0",
@@ -37,6 +40,7 @@
     "postcss": "^8.5.26"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.1.14",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -60,5 +64,8 @@
     "typescript-eslint": "^8.65.0",
     "vite": "^6.2.3",
     "vitest": "^4.1.8"
+  },
+  "optionalDependencies": {
+    "@sentry/node": "^8.55.2"
   }
 }

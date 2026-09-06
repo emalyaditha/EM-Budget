@@ -76,12 +76,6 @@ create index if not exists idx_auth_rate_limits_reset
   on public.auth_rate_limits (reset_time);
 -- key is PK already; reset_time index helps `delete ... where reset_time < now()`
 
--- DEVICE TOKENS (lookup by hashed_email + expiry sweep)
-create index if not exists idx_device_tokens_hashed
-  on public.auth_device_tokens (hashed_email);
-create index if not exists idx_device_tokens_expires
-  on public.auth_device_tokens (expires_at);
-
 -- AUTH ACCOUNTS (email PK already indexed; add updated_at for admin scans if needed)
 create index if not exists idx_auth_accounts_updated_at
   on public.auth_accounts (updated_at desc);

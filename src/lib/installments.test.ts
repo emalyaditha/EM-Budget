@@ -6,7 +6,6 @@ import {
   isCardEligibleForInstallment,
   getInstallmentProgress,
   formatFeeBreakdown,
-  SAMPATH_ESP_FEES,
 } from './installments';
 import { BankCard, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
 
@@ -90,6 +89,23 @@ describe('installments', () => {
       schedule.forEach(p => {
         expect(p).not.toHaveProperty('id');
       });
+    });
+
+    it('absorbs rounding remainder into the last payment so payments tile the principal exactly', () => {
+      const schedule = generateInstallmentSchedule('inst-1', 833.33, 12, '2026-09-05', 10000);
+      const total = schedule.reduce((sum, p) => sum + p.amountDue, 0);
+      expect(schedule).toHaveLength(12);
+      expect(schedule[11].amountDue).toBe(833.37);
+      expect(total).toBeCloseTo(10000, 2);
+    });
+
+    it('produces equal payments when monthlyPayment tiles the principal evenly', () => {
+      const schedule = generateInstallmentSchedule('inst-1', 5000, 6, '2026-09-05', 30000);
+      schedule.forEach(p => {
+        expect(p.amountDue).toBe(5000);
+      });
+      const total = schedule.reduce((sum, p) => sum + p.amountDue, 0);
+      expect(total).toBe(30000);
     });
   });
 

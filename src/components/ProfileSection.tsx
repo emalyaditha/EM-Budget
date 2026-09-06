@@ -29,6 +29,8 @@ export default function ProfileSection({ state, updateState, onOpenSettings, onL
   useEffect(() => {
     setName(state.userProfile?.name || profileFallback);
     setTempAvatar(state.userProfile?.avatarUrl);
+    // profileFallback is stable per mount; syncing follows userProfile changes only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.userProfile]);
 
   const handleSave = async () => {

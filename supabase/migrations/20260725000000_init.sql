@@ -218,7 +218,12 @@ begin
   end if;
   
   expected_signature := encode(hmac(payload_str, secret, 'sha256'), 'hex');
-  if signature != expected_signature then
+  -- Constant-time comparison: never compare the raw signature against the
+  -- expected signature with a plain '=' (which short-circuits on the first
+  -- differing byte and leaks timing). Instead HMAC both candidate strings and
+  -- compare the fixed-length outputs, so work performed does not depend on how
+  -- many leading bytes matched.
+  if encode(hmac(signature, secret, 'sha256'), 'hex') != encode(hmac(expected_signature, secret, 'sha256'), 'hex') then
     return null;
   end if;
   
@@ -273,7 +278,9 @@ begin
   end if;
   
   expected_signature := encode(hmac(payload_str, secret, 'sha256'), 'hex');
-  return signature = expected_signature;
+  -- Constant-time comparison (see verify_user_token): HMAC both candidates and
+  -- compare fixed-length outputs to avoid a byte-by-byte short-circuit timing leak.
+  return encode(hmac(signature, secret, 'sha256'), 'hex') = encode(hmac(expected_signature, secret, 'sha256'), 'hex');
 exception
   when others then
     return false;

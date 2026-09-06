@@ -28,6 +28,7 @@ ENV PORT=3000
 
 # Copy prebuilt artifacts and node_modules dependencies
 COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/api ./api
 COPY --from=builder /usr/src/app/prod_node_modules ./node_modules
 COPY --from=builder /usr/src/app/package*.json ./
 COPY --from=builder /usr/src/app/metadata.json ./

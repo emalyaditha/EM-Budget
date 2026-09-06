@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction, CashAccount, BankCard } from '../types';
-import { X, Save, Trash2, Calendar, Edit3, HelpCircle, Lock } from 'lucide-react';
+import { X, Save, Trash2, Edit3 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
 
@@ -113,7 +113,7 @@ export default function TransactionEditModal({
       });
       showToast('success', 'Transaction updated successfully!');
       onClose();
-    } catch (err) {
+    } catch {
       showToast('error', 'Failed to update transaction.');
     } finally {
       setIsProcessing(false);
@@ -126,7 +126,7 @@ export default function TransactionEditModal({
       onDelete(transaction.id);
       showToast('info', 'Transaction deleted.');
       onClose();
-    } catch (err) {
+    } catch {
       showToast('error', 'Failed to delete transaction.');
       setIsProcessing(false);
     }

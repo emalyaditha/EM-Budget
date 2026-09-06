@@ -81,6 +81,8 @@ export default function DebtDetailModal({ debt, currency, cashAccounts, cards, o
       return a.id.localeCompare(b.id);
     });
     return events;
+    // resolveAccountName derives solely from the memo deps; recomputing per render is undesirable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debt, cashAccounts, cards]);
 
   const handleIncrease = (e: React.FormEvent) => {
