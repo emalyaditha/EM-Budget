@@ -3056,9 +3056,6 @@ export default function App() {
   const netWorthBreakdown = calculateNetWorth(state);
   const totalCashAmount = netWorthBreakdown.cash;
   const totalDebitCardsAmount = netWorthBreakdown.debitCards;
-  const totalCreditCardsAmount = netWorthBreakdown.creditCardLiabilities;
-  const totalDebtsAmount = netWorthBreakdown.debts;
-  const totalLoansGiven = netWorthBreakdown.loansGiven;
   const aggregateActiveWealth = netWorthBreakdown.netWorth;
 
   const currentMonthInflow = state.transactions
@@ -3593,9 +3590,6 @@ export default function App() {
                     aggregateActiveWealth={aggregateActiveWealth}
                     totalCashAmount={totalCashAmount}
                     totalDebitCardsAmount={totalDebitCardsAmount}
-                    totalCreditCardsAmount={totalCreditCardsAmount}
-                    totalDebtsAmount={totalDebtsAmount}
-                    totalLoansGiven={totalLoansGiven}
                     currentMonthLabel={currentMonthLabel}
                     currentMonthInflow={currentMonthInflow}
                     currentMonthOutflow={currentMonthOutflow}

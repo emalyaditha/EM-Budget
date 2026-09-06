@@ -50,9 +50,6 @@ interface DashboardProps {
   aggregateActiveWealth: number;
   totalCashAmount: number;
   totalDebitCardsAmount: number;
-  totalCreditCardsAmount: number;
-  totalDebtsAmount: number;
-  totalLoansGiven: number;
   currentMonthLabel: string;
   currentMonthInflow: number;
   currentMonthOutflow: number;
@@ -78,8 +75,6 @@ export default function Dashboard({
   aggregateActiveWealth,
   totalCashAmount,
   totalDebitCardsAmount,
-  totalCreditCardsAmount,
-  totalDebtsAmount,
   currentMonthLabel,
   currentMonthInflow,
   currentMonthOutflow,
@@ -126,39 +121,6 @@ export default function Dashboard({
     if (t.type === 'expense') return -Math.abs(t.amount);
     return 0;
   };
-
-  const transactionDates = useMemo(() => {
-    return Array.from(
-      new Set(
-        state.transactions
-          .filter(t => t.date)
-          .map(t => t.date.split('T')[0])
-      )
-    ).sort();
-  }, [state.transactions]);
-
-  const sparklineData = useMemo(() => {
-    const hasAnyRecords = state.cashAccounts.length > 0 || state.cards.length > 0 || state.transactions.length > 0 || state.debts.length > 0;
-    if (!hasAnyRecords || transactionDates.length === 0) {
-      return [];
-    }
-    const last6Dates = transactionDates.slice(-6);
-    const orderedTxs = [...state.transactions].sort((a, b) => {
-      if (!a.date || !b.date) return 0;
-      return a.date.localeCompare(b.date);
-    });
-    const totalImpact = orderedTxs.reduce((sum, t) => sum + getTransactionImpact(t), 0);
-    const baseNetWorth = aggregateActiveWealth - totalImpact;
-    return last6Dates.map(dateStr => {
-      const impactUpToDate = orderedTxs
-        .filter(t => t.date && t.date.split('T')[0] <= dateStr)
-        .reduce((sum, t) => sum + getTransactionImpact(t), 0);
-      return {
-        date: dateStr,
-        value: baseNetWorth + impactUpToDate
-      };
-    });
-  }, [state.transactions, transactionDates, aggregateActiveWealth, state.cashAccounts.length, state.cards.length, state.debts.length]);
 
   const fullTrendChartData = useMemo(() => {
     let daysCount = 30;
@@ -272,14 +234,8 @@ export default function Dashboard({
           <DashboardHero
             currency={state.currency}
             aggregateActiveWealth={aggregateActiveWealth}
-            totalAssets={totalCashAmount + totalDebitCardsAmount}
-            totalLiabilities={totalCreditCardsAmount + totalDebtsAmount}
-            assetRatioPct={0}
-            liabilityRatioPct={0}
-            sparklineData={sparklineData}
-            trendLabel=""
-            trendColorClass=""
-            onManageWallets={() => setActiveTab('accounts')}
+            totalCashAmount={totalCashAmount}
+            totalDebitCardsAmount={totalDebitCardsAmount}
             userName={state.userProfile?.name && state.userProfile.name !== 'User' ? state.userProfile.name : deriveNameFromEmail(userEmail) || 'User'}
             userAvatarUrl={state.userProfile?.avatarUrl}
             currentMonthInflow={currentMonthInflow}
