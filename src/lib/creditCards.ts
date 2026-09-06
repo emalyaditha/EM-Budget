@@ -136,6 +136,16 @@ export function paymentsInCycle(transactions: Transaction[], cardId: string, due
 }
 
 /**
+ * True when cumulative payments already made TO the card within the current
+ * billing window cover the configured minimum. Used to show a "min paid"
+ * indicator in the UI.
+ */
+export function isMinimumSatisfied(card: BankCard, transactions: Transaction[]): boolean {
+  if (!card.dueDate || !card.minPayment || card.minPayment <= 0) return false;
+  return paymentsInCycle(transactions, card.id, card.dueDate) >= card.minPayment;
+}
+
+/**
  * Decides what happens to a card's billing cycle when a payment of `amount`
  * is recorded against it:
  *

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { CashAccount, BankCard, CreditCardPurchase, Transaction, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
-import { CreditCard as CcIcon, Plus, CheckSquare, Lock, Unlock, Calendar, AlertTriangle, Clock, Receipt, ArrowUpRight, ChevronDown, ChevronUp, Repeat } from 'lucide-react';
+import { CreditCard as CcIcon, Plus, CheckSquare, Lock, Unlock, Calendar, AlertTriangle, Clock, Receipt, ArrowUpRight, ChevronDown, ChevronUp, Repeat, CheckCircle2 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
 import InstallmentPlanModal from './InstallmentPlanModal';
 import InstallmentSchedule from './InstallmentSchedule';
+import { isMinimumSatisfied } from '../lib/creditCards';
 
 interface Props {
   creditCards: BankCard[];
@@ -138,6 +139,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
             const monthlyInterest = calculateInterest(c.currentBalance, c.apr || 0, 30);
             const cardPurchases = getCardPurchases(c.id);
             const cardPayments = getCardPayments(c.id);
+            const minSatisfied = isMinimumSatisfied(c, transactions);
 
             return (
               <div key={c.id} className="card p-4 space-y-3 !shadow-none border border-white/10 bg-white/[0.06]">
@@ -173,12 +175,19 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                     {c.dueDate && <span className="block text-[10px] text-[var(--ink-3)]">{c.dueDate}</span>}
                   </div>
 
-                  <div className="p-2 rounded-lg border border-[var(--line)] bg-[var(--surface)]">
-                    <div className="flex items-center gap-1 mb-1">
-                      <AlertTriangle size={10} className="text-[var(--ink-3)]" />
-                      <span className="eyebrow normal-case">Min. Payment</span>
+                  <div className={`p-2 rounded-lg border ${minSatisfied ? 'border-[var(--success)]/40 bg-[var(--success)]/10' : 'border-[var(--line)] bg-[var(--surface)]'}`}>
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-1">
+                        <AlertTriangle size={10} className={minSatisfied ? 'text-[var(--success)]' : 'text-[var(--ink-3)]'} />
+                        <span className="eyebrow normal-case">Min. Payment</span>
+                      </div>
+                      {minSatisfied && (
+                        <span className="pill !px-1.5 !py-0 !text-[9px] !border-[var(--success)]/40 !text-[var(--success)] mono font-bold flex items-center gap-0.5">
+                          <CheckCircle2 size={9} /> Min paid
+                        </span>
+                      )}
                     </div>
-                    <span className="mono font-bold text-[var(--ink)]">{currency}{(c.minPayment || 0).toLocaleString()}</span>
+                    <span className={`mono font-bold ${minSatisfied ? 'text-[var(--success)]' : 'text-[var(--ink)]'}`}>{currency}{(c.minPayment || 0).toLocaleString()}</span>
                   </div>
 
                   <div className="p-2 rounded-lg border border-[var(--line)] bg-[var(--surface)]">
@@ -218,6 +227,9 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                   </div>
                   <div className="flex gap-2">
                     {c.minPayment && c.minPayment > 0 && (
+                      minSatisfied ? (
+                        <button type="button" disabled className="btn-ghost !text-[10px] !py-2 px-2 border border-[var(--success)]/40 !text-[var(--success)] flex items-center gap-1 opacity-80"><CheckCircle2 size={10}/> Min paid</button>
+                      ) : (
                       <button onClick={()=>{
                         const src=paySources[c.id]||''; if(!src){ setPayErrors(p=>({...p,[c.id]:'Select source'})); showToast('error','Select source'); return; }
                         const source=fundingAccounts.find(a=>`${a.type}-${a.id}`===src);
@@ -226,6 +238,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
                         setPayAmounts(p=>{const cp={...p}; delete cp[c.id]; return cp;}); setPaySources(p=>{const cp={...p}; delete cp[c.id]; return cp;}); setPayErrors(p=>{const cp={...p}; delete cp[c.id]; return cp;});
                         showToast('success',`Paid ${currency}${c.minPayment} minimum`);
                       }} className="btn-ghost !text-[10px] !py-2 px-2 border border-[var(--line)]">Pay Min.</button>
+                      )
                     )}
                     <button onClick={()=>{
                       const src=paySources[c.id]||''; if(!validatePay(c.id,'',src,true)){ showToast('error',payErrors[c.id]||'Select valid source'); return; }

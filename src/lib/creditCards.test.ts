@@ -5,6 +5,7 @@ import {
   computeMinimumPayment,
   paymentsInCycle,
   maybeRollCard,
+  isMinimumSatisfied,
 } from './creditCards';
 import { BankCard, Transaction } from '../types';
 
@@ -228,5 +229,41 @@ describe('maybeRollCard', () => {
     const result = maybeRollCard(card, [], 6190.62);
     expect(result.dueDate).toBe('2026-10-07');
     expect(result.minPayment).toBe(2328.06);
+  });
+});
+
+describe('isMinimumSatisfied', () => {
+  it('is false when the card has no due date', () => {
+    const card = makeCard({ dueDate: undefined });
+    expect(isMinimumSatisfied(card, [makeTx({ amount: 10000 })])).toBe(false);
+  });
+
+  it('is false when no minimum is configured', () => {
+    const card = makeCard({ minPayment: undefined });
+    expect(isMinimumSatisfied(card, [makeTx({ amount: 999999 })])).toBe(false);
+  });
+
+  it('is false when payments in the window are below the minimum', () => {
+    const card = makeCard();
+    expect(isMinimumSatisfied(card, [makeTx({ amount: 1000 })])).toBe(false);
+  });
+
+  it('is true when cumulative in-window payments reach the minimum exactly', () => {
+    const card = makeCard();
+    const inWindow = makeTx({ amount: 6190.62, date: '2026-08-20' });
+    expect(isMinimumSatisfied(card, [inWindow])).toBe(true);
+  });
+
+  it('is true when cumulative in-window payments exceed the minimum', () => {
+    const card = makeCard();
+    const t1 = makeTx({ amount: 3000, date: '2026-08-15' });
+    const t2 = makeTx({ amount: 3190.62, date: '2026-09-01' });
+    expect(isMinimumSatisfied(card, [t1, t2])).toBe(true);
+  });
+
+  it('excludes payments outside the billing window', () => {
+    const card = makeCard();
+    const stale = makeTx({ amount: 6190.62, date: '2026-07-01' });
+    expect(isMinimumSatisfied(card, [stale])).toBe(false);
   });
 });
