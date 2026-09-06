@@ -179,7 +179,7 @@ export function getSupabaseClient(): SupabaseClient | null {
 
 // Fallback column list if Supabase REST OpenAPI inspection is unavailable
 const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
-  bank_cards: ['id', 'user_email', 'card_name', 'bank_name', 'card_type', 'current_balance', 'card_number', 'is_canceled', 'limit', 'is_limit_locked', 'is_frozen', 'card_theme', 'updated_at', 'locked_amount'],
+  bank_cards: ['id', 'user_email', 'card_name', 'bank_name', 'card_type', 'current_balance', 'card_number', 'is_canceled', 'limit', 'is_limit_locked', 'is_frozen', 'card_theme', 'updated_at', 'locked_amount', 'due_date', 'min_payment', 'apr', 'last_payment_date'],
   cash_accounts: ['id', 'user_email', 'name', 'balance', 'updated_at'],
   transactions: ['id', 'user_email', 'type', 'title', 'amount', 'charge', 'transfer_charge', 'date', 'category', 'account_id', 'account_type', 'target_account_id', 'target_account_type', 'reference_id', 'updated_at'],
   debts: ['id', 'user_email', 'debt_source', 'total_amount', 'remaining_amount', 'due_date', 'notes', 'payments', 'account_id', 'account_type', 'account_name', 'updated_at'],
@@ -999,7 +999,7 @@ function mapDatabaseResultToState(item: any): any {
   const result: any = {};
   const numericFields = new Set([
     'totalAmount', 'remainingAmount', 'amount', 'balance', 
-    'currentBalance', 'limit', 'charge', 'transferCharge', 'lockedAmount'
+    'currentBalance', 'limit', 'charge', 'transferCharge', 'lockedAmount', 'apr', 'minPayment'
   ]);
 
   for (const key of Object.keys(item)) {
