@@ -428,6 +428,11 @@ export default function App() {
   // while already locked. It only runs after login/unlock, not on the login flow.
   useEffect(() => {
     if (!isUnlocked || isAppLocked) return;
+    // Only run the idle auto-lock when there is an actual lock mechanism
+    // (PIN or biometric) configured for the account. Without one, locking
+    // every minute just bounces the user through the "continue to your
+    // vault" screen, which reads as a bug even though no lock is enforced.
+    if (!appLockStatus?.appLockEnabled) return;
     // Default to 1 minute; overridable per-account in Settings -> App Lock.
     const LOCK_MINUTES = appLockStatus?.lockIdleMinutes ?? 1;
     const LOCK_MS = Math.max(1, LOCK_MINUTES) * 60 * 1000;
@@ -443,7 +448,7 @@ export default function App() {
       events.forEach((ev) => window.removeEventListener(ev, scheduleLock));
       if (idleTimer) clearTimeout(idleTimer);
     };
-  }, [isUnlocked, isAppLocked, appLockStatus?.lockIdleMinutes]);
+  }, [isUnlocked, isAppLocked, appLockStatus?.appLockEnabled, appLockStatus?.lockIdleMinutes]);
 
   // Scroll to the top of the page when the active tab/view changes
   useEffect(() => {
