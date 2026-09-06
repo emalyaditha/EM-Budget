@@ -8,7 +8,7 @@
  * with a standing-order floor of Rs. 250.
  */
 import { BankCard, Transaction } from '../types';
-import { addMoney, sumMoney } from './money';
+import { addMoney, subtractMoney, sumMoney } from './money';
 
 export function isLeapYear(year: number): boolean {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
@@ -113,7 +113,10 @@ export function computeMinimumPayment(balance: number, limit?: number): number {
 
 /**
  * Sums all debt_payment transactions made TO a card within the billing window
- * that precedes the given due date: [cycleWindowStart(dueDate), dueDate).
+ * that precedes the given due date: [cycleWindowStart(dueDate), dueDate].
+ *
+ * The window is inclusive of the due date — the due date is the last day of
+ * the cycle, so payments made on it still count toward that cycle's minimum.
  *
  * Matches on targetAccountId/targetAccountType rather than title so the window
  * is robust to card renames.
@@ -129,7 +132,7 @@ export function paymentsInCycle(transactions: Transaction[], cardId: string, due
         t.targetAccountId === cardId &&
         t.targetAccountType === 'card' &&
         t.date >= windowStart &&
-        t.date < dueDate
+        t.date <= dueDate
       )
       .map(t => t.amount)
   );
@@ -146,38 +149,149 @@ export function isMinimumSatisfied(card: BankCard, transactions: Transaction[]):
 }
 
 /**
+ * Days between two YYYY-MM-DD dates (start inclusive, end exclusive), computed
+ * with pure arithmetic so timezone/date-parsing quirks can't drift the result.
+ * Returns 0 when either date is malformed.
+ */
+export function daysBetween(start: string, end: string): number {
+  const a = parseDateParts(start);
+  const b = parseDateParts(end);
+  if (!a || !b) return 0;
+  const startUtc = Date.UTC(a.year, a.month - 1, a.day);
+  const endUtc = Date.UTC(b.year, b.month - 1, b.day);
+  return Math.round((endUtc - startUtc) / 86400000);
+}
+
+/**
+ * Revolving interest applied to a carried (negative) balance over a billing
+ * cycle, per the Sampath daily-balance rule: interest = |balance| * APR/365
+ * * number of days, compounded into the balance at cycle end. Rounded to 2
+ * decimal places. Returns 0 for credit balances, unset APR, or no elapsed days.
+ */
+export function interestForCycle(balance: number, aprPercent: number, days: number): number {
+  if (balance >= 0 || !(aprPercent > 0) || days <= 0) return 0;
+  const raw = Math.abs(balance) * (aprPercent / 100 / 365) * days;
+  return Math.round(raw * 100) / 100;
+}
+
+/**
+ * Late payment fee per the Sampath official tariff: Rs. 1,200 or 5% of the
+ * minimum amount due, whichever is higher. Returns 0 when no minimum is set.
+ */
+export function latePaymentFee(minPayment?: number): number {
+  if (!minPayment || minPayment <= 0) return 0;
+  return Math.round(Math.max(1200, 0.05 * minPayment) * 100) / 100;
+}
+
+/**
  * Decides what happens to a card's billing cycle when a payment of `amount`
  * is recorded against it:
  *
- * - No due date configured       -> no change ({}).
- * - Balance fully settled        -> clear both dueDate and minPayment.
- * - Cumulative cycle payments (previous in-window payments + this one) reach
- *   the configured minimum AND minPayment > 0
- *                                 -> roll the due date forward one month and
- *                                    recompute the next minimum.
- * - Otherwise                    -> no change ({}).
+ * - No due date configured -> no change ({}).
+ * - Balance fully settled  -> clear both dueDate and minPayment.
+ * - Otherwise              -> no change ({}).
  *
- * Always returns both keys or neither, so spread into a card never half-updates.
+ * The cycle itself (advancing the due date, recomputing the minimum, and
+ * applying interest / late fees) is settled once, at the end of the cycle,
+ * by runCycleRollover — see the note there.
  */
 export function maybeRollCard(
   card: BankCard,
-  transactions: Transaction[],
+  _transactions: Transaction[],
   amount: number
 ): { dueDate?: string; minPayment?: number } {
   if (!card.dueDate) return {};
-
   const newBalance = addMoney(card.currentBalance, amount);
+  return newBalance >= 0 ? { dueDate: undefined, minPayment: undefined } : {};
+}
+
+/** A charge produced by a cycle-end rollover, ready to be persisted as a
+ * Charge plus a credit_card_charge transaction. */
+export interface CycleChargeDraft {
+  type: 'Interest Charge' | 'Late Payment Fee';
+  name: string;
+  amount: number;
+  appliedDate: string;
+  description?: string;
+}
+
+/** Result of closing out a card's billing cycle on the day after its due date. */
+export interface CycleRolloverResult {
+  currentBalance: number;
+  dueDate?: string;
+  minPayment?: number;
+  charges: CycleChargeDraft[];
+}
+
+/**
+ * Closes out a card's billing cycle the day after its due date (cycle end),
+ * auto-advancing the cycle per the Sampath credit-card model:
+ *
+ * - Interest applies to any carried (revolving) balance at the stored APR,
+ *   computed on a daily basis over the cycle's length and added to the balance.
+ * - If the minimum wasn't paid during the ended cycle, the Sampath late
+ *   payment fee (Rs. 1,200 or 5% of the minimum, whichever is higher) is also
+ *   added to the balance.
+ * - The charges are returned as CycleChargeDraft entries (the caller persists
+ *   them), the due date advances one month, and the minimum is recomputed on
+ *   the new balance.
+ * - A balance that fully settles from the charges clears dueDate and minPayment.
+ *
+ * Returns undefined while the cycle is still open (today <= dueDate) or when
+ * the card has no due date. Callers must deduplicate by card + ended due date
+ * (e.g. a rollover reference key) so the rollover runs exactly once per cycle.
+ */
+export function runCycleRollover(
+  card: BankCard,
+  transactions: Transaction[],
+  today: string
+): CycleRolloverResult | undefined {
+  if (!card.dueDate) return undefined;
+  const cycleEnd = card.dueDate;
+  if (today <= cycleEnd) return undefined;
+
+  const outstanding = card.currentBalance < 0 ? Math.abs(card.currentBalance) : 0;
+  const cyclePayments = paymentsInCycle(transactions, card.id, cycleEnd);
+  const minOk = !card.minPayment || card.minPayment <= 0 || cyclePayments >= card.minPayment;
+
+  const charges: CycleChargeDraft[] = [];
+
+  const cycleDays = daysBetween(cycleWindowStart(cycleEnd), cycleEnd);
+  const interest = interestForCycle(card.currentBalance, card.apr, cycleDays);
+  if (outstanding > 0 && interest > 0) {
+    charges.push({
+      type: 'Interest Charge',
+      name: 'Revolving Interest',
+      amount: interest,
+      appliedDate: cycleEnd,
+      description: `${card.apr}% p.a. on the carried balance for the ${cycleEnd} cycle`,
+    });
+  }
+
+  if (!minOk && outstanding > 0) {
+    const fee = latePaymentFee(card.minPayment);
+    if (fee > 0) {
+      charges.push({
+        type: 'Late Payment Fee',
+        name: 'Late Payment Fee',
+        amount: fee,
+        appliedDate: cycleEnd,
+        description: `Pays to ${cycleEnd}: minimum of ${card.minPayment.toLocaleString()} not paid`,
+      });
+    }
+  }
+
+  const chargeTotal = sumMoney(charges.map(c => c.amount));
+  const newBalance = subtractMoney(card.currentBalance, chargeTotal);
+
   if (newBalance >= 0) {
-    return { dueDate: undefined, minPayment: undefined };
+    return { currentBalance: newBalance, dueDate: undefined, minPayment: undefined, charges };
   }
 
-  const cumulativeCyclePayments = addMoney(paymentsInCycle(transactions, card.id, card.dueDate), amount);
-  if (card.minPayment && card.minPayment > 0 && cumulativeCyclePayments >= card.minPayment) {
-    return {
-      dueDate: advanceDueDate(card.dueDate),
-      minPayment: computeMinimumPayment(newBalance, card.limit)
-    };
-  }
-
-  return {};
+  return {
+    currentBalance: newBalance,
+    dueDate: advanceDueDate(cycleEnd),
+    minPayment: computeMinimumPayment(newBalance, card.limit),
+    charges,
+  };
 }

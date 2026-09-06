@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy } from 'react';
+import React, { useState, useEffect, lazy, useRef } from 'react';
 import { apiUrl, safeJson, fetchWithTimeout } from "./lib/api";
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
@@ -6,7 +6,7 @@ import { DEFAULT_APP_STATE } from './initialData';
 import { exportStateAsJSON, generateUniqueId, todayLocal, saveStateToStorage, loadStateFromStorage } from './utils';
 import { addMoney, subtractMoney, compareMoney } from './lib/money';
 import { calculateInstallmentFee, calculateMonthlyPayment, generateInstallmentSchedule, isCardEligibleForInstallment } from './lib/installments';
-import { maybeRollCard } from './lib/creditCards';
+import { maybeRollCard, runCycleRollover, paymentsInCycle } from './lib/creditCards';
 import { authSession } from './services/authSession';
 import { 
   Plus, Search, Bell, Wallet, LayoutDashboard, 
@@ -556,6 +556,102 @@ export default function App() {
     const t = window.setTimeout(() => saveStateToStorage(state), 1500);
     return () => window.clearTimeout(t);
   }, [state, isUnlocked]);
+
+  // Update-state and toast are recreated every render, so capture the current
+  // versions in refs — the rollover interval can then stay mounted without
+  // re-subscribing on every render while still writing through fresh versions.
+  const updateStateRef = useRef(updateState);
+  updateStateRef.current = updateState;
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
+
+  // Automatic credit-card cycle rollover. On the day after a card's due date
+  // the ended cycle closes: revolving interest is applied to any carried
+  // balance and the Sampath late fee (Rs. 1,200 or 5% of the minimum) is added
+  // when the minimum went unpaid. The due date advances one month, the minimum
+  // is recomputed on the new balance, and the charges are recorded as
+  // credit_card_charge transactions. Each card + cycle end rolls exactly once
+  // (deduplicated via the rollover referenceId embedded in those transactions).
+  useEffect(() => {
+    if (!isUnlocked || !isOnline || !isSupabaseReachable) return;
+
+    const applyRollovers = () => {
+      const today = todayLocal();
+      const seen = new Set(
+        (state.transactions || [])
+          .filter(t => t.type === 'credit_card_charge' && t.referenceId)
+          .map(t => t.referenceId)
+      );
+
+      const nowIso = new Date().toISOString();
+      const nextTransactions: Transaction[] = [];
+      let cards = state.cards;
+      const cycledNames: string[] = [];
+      let hadLateFee = false;
+
+      for (const card of state.cards) {
+        if (!card.dueDate || seen.has(`rollover::${card.id}::${card.dueDate}`)) continue;
+        const roll = runCycleRollover(card, state.transactions, today);
+        if (!roll || roll.charges.length === 0) continue;
+
+        const cycleEnd = card.dueDate;
+        seen.add(`rollover::${card.id}::${cycleEnd}`);
+        const charges = roll.charges.map((c, i) => ({ ...c, id: `chg::${card.id}::${cycleEnd}::${i}` }));
+
+        for (const c of charges) {
+          nextTransactions.push({
+            id: generateUniqueId('trans'),
+            type: 'credit_card_charge',
+            title: c.name,
+            amount: c.amount,
+            date: c.appliedDate,
+            category: 'Bank Charges & Interest',
+            accountId: card.id,
+            accountType: 'card',
+            referenceId: `rollover::${card.id}::${cycleEnd}`,
+            updated_at: nowIso,
+            updatedAt: nowIso,
+          });
+        }
+
+        if (roll.charges.some(c => c.type === 'Late Payment Fee')) hadLateFee = true;
+        cycledNames.push(card.cardName || card.id);
+
+        cards = cards.map(c =>
+          c.id === card.id
+            ? {
+                ...c,
+                currentBalance: roll.currentBalance,
+                dueDate: roll.dueDate,
+                minPayment: roll.minPayment,
+                charges: [...(c.charges || []), ...charges],
+              }
+            : c
+        );
+      }
+
+      if (nextTransactions.length === 0) return;
+
+      updateStateRef.current(prev => {
+        const prevSeen = new Set(
+          (prev.transactions || [])
+            .filter(t => t.type === 'credit_card_charge' && t.referenceId)
+            .map(t => t.referenceId)
+        );
+        if (nextTransactions.every(t => prevSeen.has(t.referenceId || ''))) return prev;
+        return { ...prev, cards, transactions: [...nextTransactions, ...prev.transactions] };
+      });
+
+      showToastRef.current('info', hadLateFee
+        ? `Cycles closed: ${cycledNames.join(', ')} — revolving interest and late fees applied.`
+        : `Cycles closed: ${cycledNames.join(', ')} — revolving interest applied.`);
+    };
+
+    applyRollovers();
+    const interval = window.setInterval(applyRollovers, 60000);
+
+    return () => window.clearInterval(interval);
+  }, [state, isUnlocked, isOnline, isSupabaseReachable]);
 
   // Best-effort flush on leave: persist locally AND fire one final Supabase
   // sync so a quick close doesn't drop the latest edit. Supabase upsert is
@@ -1991,8 +2087,13 @@ export default function App() {
         showToast('success', `Payment recorded! ${overpaymentMsg}`);
       } else if ('dueDate' in rollResult && rollResult.dueDate === undefined) {
         showToast('success', 'Card fully settled — no further minimum due.');
-      } else if (rollResult.dueDate) {
-        showToast('success', `Payment recorded! Minimum satisfied — next payment due ${rollResult.dueDate}.`);
+      } else if (
+        rollSourceCard &&
+        rollSourceCard.dueDate &&
+        rollSourceCard.minPayment &&
+        paymentsInCycle(state.transactions, cardId, rollSourceCard.dueDate) + amount >= rollSourceCard.minPayment
+      ) {
+        showToast('success', 'Payment recorded! Minimum satisfied for this cycle — revolving interest applies to the remaining balance at cycle end.');
       } else {
         showToast('success', 'Payment recorded successfully!');
       }

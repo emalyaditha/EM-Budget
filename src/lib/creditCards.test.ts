@@ -6,6 +6,10 @@ import {
   paymentsInCycle,
   maybeRollCard,
   isMinimumSatisfied,
+  daysBetween,
+  interestForCycle,
+  latePaymentFee,
+  runCycleRollover,
 } from './creditCards';
 import { BankCard, Transaction } from '../types';
 
@@ -140,8 +144,13 @@ describe('paymentsInCycle', () => {
     expect(paymentsInCycle(txs, 'card-1', '2026-09-07')).toBe(3000);
   });
 
-  it('ignores payments on or after the due date', () => {
+  it('counts payments dated on the due date itself (last day of the cycle)', () => {
     const txs: Transaction[] = [makeTx({ amount: 3000, date: '2026-09-07' })];
+    expect(paymentsInCycle(txs, 'card-1', '2026-09-07')).toBe(3000);
+  });
+
+  it('ignores payments dated after the due date', () => {
+    const txs: Transaction[] = [makeTx({ amount: 3000, date: '2026-09-08' })];
     expect(paymentsInCycle(txs, 'card-1', '2026-09-07')).toBe(0);
   });
 
@@ -159,28 +168,20 @@ describe('paymentsInCycle', () => {
 });
 
 describe('maybeRollCard', () => {
-  it('does not roll on a partial payment below the minimum', () => {
+  it('does nothing on a partial payment below the minimum', () => {
     const card = makeCard();
     expect(maybeRollCard(card, [], 3000)).toEqual({});
   });
 
-  it('rolls when payments in the cycle reach the minimum exactly', () => {
+  it('does not roll the due date at payment time — cycles close at their end', () => {
     const card = makeCard();
     const earlier = makeTx({ amount: 3000, date: '2026-08-20' });
-    const result = maybeRollCard(card, [earlier], 3190.62);
-    expect(result).toEqual({
-      dueDate: '2026-10-07',
-      minPayment: 2478.06,
-    });
+    expect(maybeRollCard(card, [earlier], 3190.62)).toEqual({});
   });
 
-  it('rolls when a single payment covers the minimum', () => {
+  it('keeps the due date when a payment covers the minimum but leaves a balance', () => {
     const card = makeCard({ currentBalance: -10000, minPayment: 5000 });
-    const result = maybeRollCard(card, [], 5000);
-    expect(result).toEqual({
-      dueDate: '2026-10-07',
-      minPayment: 250,
-    });
+    expect(maybeRollCard(card, [], 5000)).toEqual({});
   });
 
   it('clears due date and minimum when the card is fully settled', () => {
@@ -199,36 +200,170 @@ describe('maybeRollCard', () => {
     });
   });
 
+  it('clears due date on an overpayment into credit', () => {
+    const card = makeCard({ currentBalance: -5000 });
+    expect(maybeRollCard(card, [], 6000)).toEqual({
+      dueDate: undefined,
+      minPayment: undefined,
+    });
+  });
+
   it('does nothing when the card has no due date', () => {
     const card = makeCard({ dueDate: undefined });
     expect(maybeRollCard(card, [], 6190.62)).toEqual({});
   });
+});
 
-  it('does not count payments outside the billing window', () => {
-    const card = makeCard();
-    const stale = makeTx({ amount: 3000, date: '2026-07-01' });
-    expect(maybeRollCard(card, [stale], 3000)).toEqual({});
+describe('daysBetween', () => {
+  it('counts full calendar days between dates', () => {
+    expect(daysBetween('2026-08-07', '2026-09-07')).toBe(31);
   });
 
-  it('counts payments dated exactly on the window start', () => {
+  it('returns 0 for the same day', () => {
+    expect(daysBetween('2026-09-07', '2026-09-07')).toBe(0);
+  });
+
+  it('works across a year boundary', () => {
+    expect(daysBetween('2026-12-25', '2027-01-01')).toBe(7);
+  });
+
+  it('returns 0 when either date is malformed', () => {
+    expect(daysBetween('', '2026-09-07')).toBe(0);
+    expect(daysBetween('2026-09-07', 'not-a-date')).toBe(0);
+  });
+});
+
+describe('interestForCycle', () => {
+  it('computes daily-balance interest on a carried balance', () => {
+    expect(interestForCycle(-20000, 24, 31)).toBe(407.67);
+  });
+
+  it('returns 0 for a credit (positive) balance', () => {
+    expect(interestForCycle(5000, 24, 31)).toBe(0);
+  });
+
+  it('returns 0 when the APR is unset or zero', () => {
+    expect(interestForCycle(-20000, 0, 31)).toBe(0);
+    expect(interestForCycle(-20000, NaN, 31)).toBe(0);
+  });
+
+  it('returns 0 when no days have elapsed', () => {
+    expect(interestForCycle(-20000, 24, 0)).toBe(0);
+  });
+
+  it('rounds to 2 decimal places', () => {
+    expect(interestForCycle(-3333.33, 20, 10)).toBe(18.26);
+  });
+});
+
+describe('latePaymentFee', () => {
+  it('applies the Rs. 1,200 floor when 5% of the minimum is below it', () => {
+    expect(latePaymentFee(1000)).toBe(1200);
+  });
+
+  it('applies 5% of the minimum when that is higher than Rs. 1,200', () => {
+    expect(latePaymentFee(50000)).toBe(2500);
+  });
+
+  it('returns 0 when no minimum is configured', () => {
+    expect(latePaymentFee(undefined)).toBe(0);
+    expect(latePaymentFee(0)).toBe(0);
+  });
+});
+
+describe('runCycleRollover', () => {
+  it('does nothing while the cycle is still open', () => {
     const card = makeCard();
-    const boundary = makeTx({ amount: 3000, date: '2026-08-07' });
-    expect(maybeRollCard(card, [boundary], 3190.62)).toEqual({
+    expect(runCycleRollover(card, [], '2026-09-06')).toBeUndefined();
+    expect(runCycleRollover(card, [], '2026-09-07')).toBeUndefined();
+  });
+
+  it('does nothing when the card has no due date', () => {
+    const card = makeCard({ dueDate: undefined });
+    expect(runCycleRollover(card, [], '2026-09-08')).toBeUndefined();
+  });
+
+  it('charges interest on the carried balance when the minimum was paid', () => {
+    const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 1000 });
+    const paid = makeTx({ amount: 1000, date: '2026-08-20' });
+    expect(runCycleRollover(card, [paid], '2026-09-08')).toEqual({
+      currentBalance: -20407.67,
       dueDate: '2026-10-07',
-      minPayment: 2478.06,
+      minPayment: 1020.38,
+      charges: [
+        {
+          type: 'Interest Charge',
+          name: 'Revolving Interest',
+          amount: 407.67,
+          appliedDate: '2026-09-07',
+          description: '24% p.a. on the carried balance for the 2026-09-07 cycle',
+        },
+      ],
     });
   });
 
-  it('does not roll when minPayment is not configured', () => {
-    const card = makeCard({ minPayment: undefined, currentBalance: -20000 });
-    expect(maybeRollCard(card, [], 1000)).toEqual({});
+  it('adds the Sampath late fee when the minimum was not paid', () => {
+    const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 1000 });
+    expect(runCycleRollover(card, [], '2026-09-08')).toEqual({
+      currentBalance: -21607.67,
+      dueDate: '2026-10-07',
+      minPayment: 1080.38,
+      charges: [
+        {
+          type: 'Interest Charge',
+          name: 'Revolving Interest',
+          amount: 407.67,
+          appliedDate: '2026-09-07',
+          description: '24% p.a. on the carried balance for the 2026-09-07 cycle',
+        },
+        {
+          type: 'Late Payment Fee',
+          name: 'Late Payment Fee',
+          amount: 1200,
+          appliedDate: '2026-09-07',
+          description: 'Pays to 2026-09-07: minimum of 1,000 not paid',
+        },
+      ],
+    });
   });
 
-  it('balances paid from another card still roll the target card', () => {
-    const card = makeCard();
-    const result = maybeRollCard(card, [], 6190.62);
-    expect(result.dueDate).toBe('2026-10-07');
-    expect(result.minPayment).toBe(2328.06);
+  it('applies the 5% late fee when it exceeds Rs. 1,200', () => {
+    const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 50000 });
+    expect(runCycleRollover(card, [], '2026-09-08').charges[1]).toEqual({
+      type: 'Late Payment Fee',
+      name: 'Late Payment Fee',
+      amount: 2500,
+      appliedDate: '2026-09-07',
+      description: 'Pays to 2026-09-07: minimum of 50,000 not paid',
+    });
+  });
+
+  it('skips the late fee when the minimum is not configured, interest still applies', () => {
+    const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: undefined });
+    const result = runCycleRollover(card, [], '2026-09-08');
+    expect(result?.charges).toHaveLength(1);
+    expect(result?.charges[0].type).toBe('Interest Charge');
+  });
+
+  it('charges no interest when the APR is unset, just advances the cycle', () => {
+    const card = makeCard({ currentBalance: -20000, limit: 50000, apr: 0, minPayment: 1000 });
+    const paid = makeTx({ amount: 1000, date: '2026-08-20' });
+    expect(runCycleRollover(card, [paid], '2026-09-08')).toEqual({
+      currentBalance: -20000,
+      dueDate: '2026-10-07',
+      minPayment: 1000,
+      charges: [],
+    });
+  });
+
+  it('clears the cycle when the balance fully settles from the rollover', () => {
+    const card = makeCard({ currentBalance: 100, limit: 50000, dueDate: '2026-09-07', minPayment: 1000 });
+    expect(runCycleRollover(card, [], '2026-09-08')).toEqual({
+      currentBalance: 100,
+      dueDate: undefined,
+      minPayment: undefined,
+      charges: [],
+    });
   });
 });
 
