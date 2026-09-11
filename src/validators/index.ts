@@ -123,6 +123,47 @@ export const SubscriptionSchema = z.object({
   instanceType: z.string().optional()
 });
 
+// 6. Restore/Backup payload schemas (B4)
+// Bare-shape requires the three critical collections as arrays so a malformed
+// or empty doppelganger payload can never silently wipe local + cloud state.
+const CollectionListSchema = z.array(z.unknown());
+
+export const RestoreCollectionFieldsSchema = z.object({
+  cashAccounts: CollectionListSchema.optional(),
+  cards: CollectionListSchema.optional(),
+  creditCards: CollectionListSchema.optional(),
+  creditCardPurchases: CollectionListSchema.optional(),
+  creditCardInstallments: CollectionListSchema.optional(),
+  creditCardInstallmentPayments: CollectionListSchema.optional(),
+  incomes: CollectionListSchema.optional(),
+  expenses: CollectionListSchema.optional(),
+  debts: CollectionListSchema.optional(),
+  transactions: CollectionListSchema.optional(),
+  notifications: CollectionListSchema.optional(),
+  subscriptions: CollectionListSchema.optional(),
+  loansGiven: CollectionListSchema.optional(),
+  budgets: CollectionListSchema.optional(),
+  savingsGoals: CollectionListSchema.optional()
+});
+
+export const BareRestoreStateSchema = RestoreCollectionFieldsSchema.extend({
+  cashAccounts: CollectionListSchema,
+  cards: CollectionListSchema,
+  transactions: CollectionListSchema
+});
+
+export const LedgerExportV1Schema = z.object({
+  version: z.literal('EM_BUDGET_SECURE_EX_V1'),
+  exportedBy: z.string().optional(),
+  exportedAt: z.string().optional(),
+  data: RestoreCollectionFieldsSchema
+});
+
+export const LedgerRestorePayloadSchema = z.union([
+  LedgerExportV1Schema,
+  BareRestoreStateSchema
+]);
+
 export type ValidationResult<T> = 
   | { success: true; data: T; error?: undefined }
   | { success: false; error: string; data?: undefined };

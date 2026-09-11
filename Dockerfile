@@ -5,16 +5,16 @@ FROM node:22-alpine AS builder
 
 WORKDIR /usr/src/app
 
-# Leverage Docker layer caching for node dependency footprints
+# Single npm ci with all deps, then prune dev after build
 COPY package*.json ./
-RUN npm ci --omit=dev && cp -r node_modules prod_node_modules
 RUN npm ci
 
 # Copy full repository footprints
 COPY . .
 
-# Run production build and server compilation
+# Build, then strip devDependencies and save prod node_modules
 RUN npm run build
+RUN npm prune --omit=dev && cp -r node_modules prod_node_modules
 
 # ==========================================
 # STAGE 2: Secure Production Container Setup

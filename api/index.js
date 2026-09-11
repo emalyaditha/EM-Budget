@@ -1293,8 +1293,8 @@ var require_node = __commonJS({
           }
           break;
         case "FILE":
-          var fs2 = require("fs");
-          stream2 = new fs2.SyncWriteStream(fd2, { autoClose: false });
+          var fs = require("fs");
+          stream2 = new fs.SyncWriteStream(fd2, { autoClose: false });
           stream2._type = "fs";
           break;
         case "PIPE":
@@ -17676,8 +17676,8 @@ var require_node2 = __commonJS({
           }
           break;
         case "FILE":
-          var fs2 = require("fs");
-          stream2 = new fs2.SyncWriteStream(fd2, { autoClose: false });
+          var fs = require("fs");
+          stream2 = new fs.SyncWriteStream(fd2, { autoClose: false });
           stream2._type = "fs";
           break;
         case "PIPE":
@@ -17978,7 +17978,7 @@ var require_finalhandler = __commonJS({
       return typeof res.headersSent !== "boolean" ? Boolean(res._header) : res.headersSent;
     }
     function send(req, res, status, headers, message) {
-      function write() {
+      function write2() {
         var body = createHtmlDocument(message);
         res.statusCode = status;
         if (req.httpVersionMajor < 2) {
@@ -17999,11 +17999,11 @@ var require_finalhandler = __commonJS({
         res.end(body, "utf8");
       }
       if (isFinished(req)) {
-        write();
+        write2();
         return;
       }
       unpipe(req);
-      onFinished(req, write);
+      onFinished(req, write2);
       req.resume();
     }
     function setHeaders(res, headers) {
@@ -18395,8 +18395,8 @@ var require_node3 = __commonJS({
           }
           break;
         case "FILE":
-          var fs2 = require("fs");
-          stream2 = new fs2.SyncWriteStream(fd2, { autoClose: false });
+          var fs = require("fs");
+          stream2 = new fs.SyncWriteStream(fd2, { autoClose: false });
           stream2._type = "fs";
           break;
         case "PIPE":
@@ -19290,7 +19290,7 @@ var require_view = __commonJS({
     "use strict";
     var debug = require_src3()("express:view");
     var path2 = require("path");
-    var fs2 = require("fs");
+    var fs = require("fs");
     var dirname = path2.dirname;
     var basename = path2.basename;
     var extname = path2.extname;
@@ -19356,7 +19356,7 @@ var require_view = __commonJS({
     function tryStat(path3) {
       debug('stat "%s"', path3);
       try {
-        return fs2.statSync(path3);
+        return fs.statSync(path3);
       } catch (e) {
         return void 0;
       }
@@ -19961,8 +19961,8 @@ var require_node4 = __commonJS({
           }
           break;
         case "FILE":
-          var fs2 = require("fs");
-          stream2 = new fs2.SyncWriteStream(fd2, { autoClose: false });
+          var fs = require("fs");
+          stream2 = new fs.SyncWriteStream(fd2, { autoClose: false });
           stream2._type = "fs";
           break;
         case "PIPE":
@@ -20135,7 +20135,7 @@ var require_types = __commonJS({
 var require_mime = __commonJS({
   "node_modules/mime/mime.js"(exports2, module2) {
     var path2 = require("path");
-    var fs2 = require("fs");
+    var fs = require("fs");
     function Mime() {
       this.types = /* @__PURE__ */ Object.create(null);
       this.extensions = /* @__PURE__ */ Object.create(null);
@@ -20156,7 +20156,7 @@ var require_mime = __commonJS({
     };
     Mime.prototype.load = function(file) {
       this._loading = file;
-      var map = {}, content = fs2.readFileSync(file, "ascii"), lines = content.split(/[\r\n]+/);
+      var map = {}, content = fs.readFileSync(file, "ascii"), lines = content.split(/[\r\n]+/);
       lines.forEach(function(line) {
         var fields = line.replace(/\s*#.*|^\s*|\s*$/g, "").split(/\s+/);
         map[fields.shift()] = fields;
@@ -20394,7 +20394,7 @@ var require_send = __commonJS({
     var escapeHtml = require_escape_html();
     var etag = require_etag();
     var fresh = require_fresh();
-    var fs2 = require("fs");
+    var fs = require("fs");
     var mime = require_mime();
     var ms = require_ms5();
     var onFinished = require_on_finished();
@@ -20727,7 +20727,7 @@ var require_send = __commonJS({
       var i = 0;
       var self2 = this;
       debug('stat "%s"', path3);
-      fs2.stat(path3, function onstat(err, stat) {
+      fs.stat(path3, function onstat(err, stat) {
         if (err && err.code === "ENOENT" && !extname(path3) && path3[path3.length - 1] !== sep) {
           return next(err);
         }
@@ -20742,7 +20742,7 @@ var require_send = __commonJS({
         }
         var p = path3 + "." + self2._extensions[i++];
         debug('stat "%s"', p);
-        fs2.stat(p, function(err2, stat) {
+        fs.stat(p, function(err2, stat) {
           if (err2) return next(err2);
           if (stat.isDirectory()) return next();
           self2.emit("file", p, stat);
@@ -20760,7 +20760,7 @@ var require_send = __commonJS({
         }
         var p = join(path3, self2._index[i]);
         debug('stat "%s"', p);
-        fs2.stat(p, function(err2, stat) {
+        fs.stat(p, function(err2, stat) {
           if (err2) return next(err2);
           if (stat.isDirectory()) return next();
           self2.emit("file", p, stat);
@@ -20772,7 +20772,7 @@ var require_send = __commonJS({
     SendStream.prototype.stream = function stream(path3, options) {
       var self2 = this;
       var res = this.res;
-      var stream2 = fs2.createReadStream(path3, options);
+      var stream2 = fs.createReadStream(path3, options);
       this.emit("stream", stream2);
       stream2.pipe(res);
       function cleanup() {
@@ -24873,7 +24873,7 @@ var require_shared = __commonJS({
     "use strict";
     var urllib = require_url();
     var util = require("util");
-    var fs2 = require("fs");
+    var fs = require("fs");
     var nmfetch = require_fetch();
     var errors = require_errors();
     var objects = require_objects();
@@ -25305,7 +25305,7 @@ var require_shared = __commonJS({
               callback(err);
             });
           }
-          return resolveStream(fs2.createReadStream(content.path), callback);
+          return resolveStream(fs.createReadStream(content.path), callback);
         }
       }
       if (typeof data[key].content === "string" && !["utf8", "usascii", "ascii"].includes(encoding)) {
@@ -28764,7 +28764,7 @@ var require_mime_node = __commonJS({
   "node_modules/nodemailer/lib/mime-node/index.js"(exports2, module2) {
     "use strict";
     var crypto4 = require("crypto");
-    var fs2 = require("fs");
+    var fs = require("fs");
     var punycode = require_punycode();
     var { PassThrough } = require("stream");
     var shared = require_shared();
@@ -29484,7 +29484,7 @@ var require_mime_node = __commonJS({
             });
             return contentStream;
           }
-          return fs2.createReadStream(content.path);
+          return fs.createReadStream(content.path);
         }
         if (content && typeof content.href === "string") {
           if (this.disableUrlAccess) {
@@ -30627,7 +30627,7 @@ var require_dkim = __commonJS({
     var RelaxedBody = require_relaxed_body();
     var sign = require_sign2();
     var { PassThrough } = require("stream");
-    var fs2 = require("fs");
+    var fs = require("fs");
     var path2 = require("path");
     var crypto4 = require("crypto");
     var { copyOwnKeys } = require_objects();
@@ -30663,10 +30663,10 @@ var require_dkim = __commonJS({
         if (!this.cache || !this.cachePath) {
           return;
         }
-        fs2.unlink(this.cachePath, () => false);
+        fs.unlink(this.cachePath, () => false);
       }
       createReadCache() {
-        this.cache = fs2.createReadStream(this.cachePath);
+        this.cache = fs.createReadStream(this.cachePath);
         this.cache.once("error", (err) => {
           this.cleanup();
           this.output.emit("error", err);
@@ -30722,7 +30722,7 @@ var require_dkim = __commonJS({
       }
       createWriteCache() {
         this.output.usingCache = true;
-        this.cache = fs2.createWriteStream(this.cachePath);
+        this.cache = fs.createWriteStream(this.cachePath);
         this.cache.once("error", (err) => {
           this.cleanup();
           this.relaxedBody.unpipe(this.cache);
@@ -36873,8 +36873,8 @@ var require_node5 = __commonJS({
           }
           break;
         case "FILE":
-          var fs2 = require("fs");
-          stream2 = new fs2.SyncWriteStream(fd2, { autoClose: false });
+          var fs = require("fs");
+          stream2 = new fs.SyncWriteStream(fd2, { autoClose: false });
           stream2._type = "fs";
           break;
         case "PIPE":
@@ -37066,7 +37066,7 @@ var require_compression = __commonJS({
             stream.flush();
           }
         };
-        res.write = function write(chunk, encoding) {
+        res.write = function write2(chunk, encoding) {
           if (ended) {
             return false;
           }
@@ -50383,7 +50383,7 @@ var require_main3 = __commonJS({
 // node_modules/dotenv/lib/main.js
 var require_main4 = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports2, module2) {
-    var fs2 = require("fs");
+    var fs = require("fs");
     var path2 = require("path");
     var os = require("os");
     var crypto4 = require("crypto");
@@ -50515,7 +50515,7 @@ var require_main4 = __commonJS({
       if (options && options.path && options.path.length > 0) {
         if (Array.isArray(options.path)) {
           for (const filepath of options.path) {
-            if (fs2.existsSync(filepath)) {
+            if (fs.existsSync(filepath)) {
               possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
             }
           }
@@ -50525,7 +50525,7 @@ var require_main4 = __commonJS({
       } else {
         possibleVaultPath = path2.resolve(process.cwd(), ".env.vault");
       }
-      if (fs2.existsSync(possibleVaultPath)) {
+      if (fs.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
       }
       return null;
@@ -50578,7 +50578,7 @@ var require_main4 = __commonJS({
       const parsedAll = {};
       for (const path3 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs2.readFileSync(path3, { encoding }));
+          const parsed = DotenvModule.parse(fs.readFileSync(path3, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
@@ -68916,7 +68916,6 @@ module.exports = __toCommonJS(index_exports);
 // server.ts
 var import_express = __toESM(require_express2(), 1);
 var import_path = __toESM(require("path"), 1);
-var import_fs = __toESM(require("fs"), 1);
 var import_nodemailer = __toESM(require_nodemailer(), 1);
 
 // node_modules/bcryptjs/index.js
@@ -87771,11 +87770,88 @@ async function verifyAuthenticationResponse(options) {
 
 // api-src/log.ts
 var import_crypto2 = __toESM(require("crypto"), 1);
+function write(entry) {
+  const line = JSON.stringify(entry);
+  if (entry.level === "error") {
+    console.error(line);
+  } else if (entry.level === "warn") {
+    console.warn(line);
+  } else {
+    console.log(line);
+  }
+}
+function logWarn(event, meta = {}) {
+  write({ ts: (/* @__PURE__ */ new Date()).toISOString(), level: "warn", event, ...meta });
+}
+var DB_FAILURE_WINDOW_MS = 6e4;
+var dbFailureState = /* @__PURE__ */ new Map();
+function logDbFailure(event, err, meta = {}) {
+  const message = err instanceof Error ? err.message : String(err);
+  if (process.env.NODE_ENV !== "production") {
+    logWarn(event, { message, ...meta });
+    return;
+  }
+  const now = Date.now();
+  const prev = dbFailureState.get(event);
+  if (!prev || now - prev.firstAt >= DB_FAILURE_WINDOW_MS) {
+    const suppressedCount = prev ? prev.count - 1 : 0;
+    dbFailureState.set(event, { count: 1, firstAt: now });
+    write({
+      ts: (/* @__PURE__ */ new Date()).toISOString(),
+      level: "error",
+      event,
+      message,
+      ...suppressedCount > 0 ? { suppressedCount } : {},
+      ...meta
+    });
+    return;
+  }
+  prev.count += 1;
+}
 function newRequestId(incoming) {
   if (typeof incoming === "string" && incoming.length > 0 && incoming.length <= 128) {
     return incoming;
   }
   return import_crypto2.default.randomUUID();
+}
+
+// api-src/rate-limit.ts
+var FAIL_OPEN_EXPLICIT = true;
+function applyInMemoryRateLimit(store, key, limit, windowMs, now = Date.now()) {
+  const resetTimeStr = new Date(now + windowMs).toISOString();
+  for (let i = store.length - 1; i >= 0; i--) {
+    if (new Date(store[i].reset_time).getTime() <= now) {
+      store.splice(i, 1);
+    }
+  }
+  const foundIndex = store.findIndex((item) => item.key === key);
+  if (foundIndex === -1) {
+    store.push({ key, count: 1, reset_time: resetTimeStr });
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+  const recordResetTime = new Date(store[foundIndex].reset_time).getTime();
+  if (now > recordResetTime) {
+    store[foundIndex] = { key, count: 1, reset_time: resetTimeStr };
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+  if (store[foundIndex].count >= limit) {
+    return { allowed: false, retryAfterSeconds: Math.ceil((recordResetTime - now) / 1e3) };
+  }
+  store[foundIndex].count += 1;
+  return { allowed: true, retryAfterSeconds: 0 };
+}
+
+// api-src/db-unavailable.ts
+var DatabaseUnavailableError = class extends Error {
+  constructor(message) {
+    super(message || "Database service is temporarily unavailable. Please try again shortly.");
+    this.name = "DatabaseUnavailableError";
+  }
+};
+function failClosedOnDbError(isProduction, err) {
+  if (!isProduction) return;
+  const detail = err instanceof Error ? err.message : err != null ? String(err) : void 0;
+  throw new DatabaseUnavailableError(detail);
 }
 
 // server.ts
@@ -87885,7 +87961,7 @@ async function createApp() {
       if (Date.now() > payload.expiresAt) {
         return null;
       }
-      return { email: payload.email.trim().toLowerCase() };
+      return { email: payload.email.trim().toLowerCase(), expiresAt: payload.expiresAt };
     } catch (e) {
       return null;
     }
@@ -87933,7 +88009,7 @@ async function createApp() {
         throw error;
       }
     } catch (e) {
-      console.warn(`[Supabase Connection/Query Failed] storeOtpInDb:`, e.message || e);
+      logDbFailure("[Supabase Connection/Query Failed] storeOtpInDb", e);
       if (IS_PRODUCTION) throw e;
       mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
       mockDb.otps.push({
@@ -87971,7 +88047,7 @@ async function createApp() {
       }
       return null;
     } catch (e) {
-      console.warn(`[Supabase Connection/Query Failed] getOtpFromDb:`, e.message || e);
+      logDbFailure("[Supabase Connection/Query Failed] getOtpFromDb", e);
       if (IS_PRODUCTION) return null;
       const found = mockDb.otps.find((item) => item.email === storageEmail);
       if (found) {
@@ -87996,7 +88072,7 @@ async function createApp() {
         console.error("OTP database delete failed:", error);
       }
     } catch (e) {
-      console.warn(`[Supabase Connection/Query Failed] deleteOtpFromDb:`, e.message || e);
+      logDbFailure("[Supabase Connection/Query Failed] deleteOtpFromDb", e);
       if (!IS_PRODUCTION) mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
     }
   }
@@ -88077,7 +88153,7 @@ async function createApp() {
       }
       return !error && !!data;
     } catch (e) {
-      console.warn(`[Supabase Connection/Query Failed] checkAccountExists:`, e.message || e);
+      logDbFailure("[Supabase Connection/Query Failed] checkAccountExists", e);
       if (IS_PRODUCTION) return false;
       return mockDb.accounts.some((acc) => acc.email === normalizedEmail);
     }
@@ -88100,7 +88176,7 @@ async function createApp() {
       }
       return null;
     } catch (e) {
-      console.warn(`[Supabase Connection/Query Failed] getAccountByEmail:`, e.message || e);
+      logDbFailure("[Supabase Connection/Query Failed] getAccountByEmail", e);
       if (IS_PRODUCTION) return null;
       const found = mockDb.accounts.find((acc) => acc.email === normalizedEmail);
       return found || null;
@@ -88132,7 +88208,7 @@ async function createApp() {
         throw error;
       }
     } catch (e) {
-      console.warn(`[Supabase Connection/Query Failed] saveAccount:`, e.message || e);
+      logDbFailure("[Supabase Connection/Query Failed] saveAccount", e);
       if (IS_PRODUCTION) throw e;
       mockDb.accounts = mockDb.accounts.filter((item) => item.email !== normalizedEmail);
       mockDb.accounts.push({
@@ -88161,7 +88237,7 @@ async function createApp() {
         console.log(`\u{1F512} Devices: Registered trusted device for ${normalizedEmail || "unknown"}.`);
       }
     } catch (e) {
-      console.warn(`[Supabase Connection/Query Failed] saveDeviceToken falling back to Mock DB:`, e.message || e);
+      logDbFailure("[Supabase Connection/Query Failed] saveDeviceToken falling back to Mock DB", e);
       mockDb.deviceTokens.add(hashedToken + ":" + hashedEmail);
     }
   }
@@ -88186,7 +88262,7 @@ async function createApp() {
       if (hashedEmail && data.hashed_email && data.hashed_email !== hashedEmail) return false;
       return true;
     } catch (e) {
-      console.warn(`[Supabase Connection/Query Failed] verifyDeviceToken falling back to Mock DB:`, e.message || e);
+      logDbFailure("[Supabase Connection/Query Failed] verifyDeviceToken falling back to Mock DB", e);
       if (hashedEmail) return mockDb.deviceTokens.has(hashedToken + ":" + hashedEmail);
       return mockDb.deviceTokens.has(hashedToken);
     }
@@ -88217,6 +88293,7 @@ async function createApp() {
   async function getAppLock(email, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       return mockDb.appLocks.find((x) => x.email === e) || null;
     }
     try {
@@ -88237,13 +88314,15 @@ async function createApp() {
         lockIdleMinutes: data.lock_idle_minutes != null ? Number(data.lock_idle_minutes) : null
       };
     } catch (err) {
-      console.warn("[AppLock] getAppLock fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] getAppLock fallback", err);
       return mockDb.appLocks.find((x) => x.email === e) || null;
     }
   }
   async function upsertAppLock(email, fields, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       let rec = mockDb.appLocks.find((x) => x.email === e);
       if (!rec) {
         rec = { email: e, pinEnabled: false, failedAttempts: 0, lockedUntil: null };
@@ -88267,7 +88346,8 @@ async function createApp() {
       );
       if (error) throw error;
     } catch (err) {
-      console.warn("[AppLock] upsertAppLock fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] upsertAppLock fallback", err);
       let rec = mockDb.appLocks.find((x) => x.email === e);
       if (!rec) {
         rec = { email: e, pinEnabled: false, failedAttempts: 0, lockedUntil: null };
@@ -88285,6 +88365,7 @@ async function createApp() {
   async function getLoginState(email, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       const found = mockDb.loginAttempts.find((x) => x.email === e);
       return found || null;
     }
@@ -88302,13 +88383,15 @@ async function createApp() {
         lockedUntil: data.locked_until != null ? Number(data.locked_until) : null
       };
     } catch (err) {
-      console.warn("[LoginLockout] getLoginState fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[LoginLockout] getLoginState fallback", err);
       return mockDb.loginAttempts.find((x) => x.email === e) || null;
     }
   }
   async function upsertLoginState(email, fields, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       let rec = mockDb.loginAttempts.find((x) => x.email === e);
       if (!rec) {
         rec = { email: e, failed: 0, lockedUntil: null };
@@ -88330,7 +88413,8 @@ async function createApp() {
       );
       if (error) throw error;
     } catch (err) {
-      console.warn("[LoginLockout] upsertLoginState fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[LoginLockout] upsertLoginState fallback", err);
       let rec = mockDb.loginAttempts.find((x) => x.email === e);
       if (!rec) {
         rec = { email: e, failed: 0, lockedUntil: null };
@@ -88345,6 +88429,7 @@ async function createApp() {
     const id = import_crypto3.default.randomUUID();
     const expiresAt = Date.now() + 10 * 60 * 1e3;
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       mockDb.webauthnChallenges.push({ id, email: e, challenge, purpose, expiresAt });
       return id;
     }
@@ -88352,7 +88437,8 @@ async function createApp() {
       const { error } = await supabase.from("webauthn_challenges").insert({ id, user_email: e, challenge, purpose, expires_at: expiresAt });
       if (error) throw error;
     } catch (err) {
-      console.warn("[AppLock] storeWebAuthnChallenge fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] storeWebAuthnChallenge fallback", err);
       mockDb.webauthnChallenges.push({ id, email: e, challenge, purpose, expiresAt });
     }
     return id;
@@ -88360,6 +88446,7 @@ async function createApp() {
   async function consumeWebAuthnChallenge(id, email, purpose, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       const idx = mockDb.webauthnChallenges.findIndex((c) => c.id === id && c.email === e && c.purpose === purpose);
       if (idx === -1) return null;
       const [rec] = mockDb.webauthnChallenges.splice(idx, 1);
@@ -88376,7 +88463,8 @@ async function createApp() {
       if (delError) throw delError;
       return data.challenge;
     } catch (err) {
-      console.warn("[AppLock] consumeWebAuthnChallenge fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] consumeWebAuthnChallenge fallback", err);
       const idx = mockDb.webauthnChallenges.findIndex((c) => c.id === id && c.email === e && c.purpose === purpose);
       if (idx === -1) return null;
       const [rec] = mockDb.webauthnChallenges.splice(idx, 1);
@@ -88387,6 +88475,7 @@ async function createApp() {
   async function listWebAuthnCredentials(email, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       return mockDb.webauthnCreds.filter((c) => c.email === e);
     }
     try {
@@ -88417,7 +88506,8 @@ async function createApp() {
       const seen = new Set(fromDb.map((c) => c.credentialId));
       return [...fromDb, ...fromMock.filter((c) => !seen.has(c.credentialId))];
     } catch (err) {
-      console.warn("[AppLock] listWebAuthnCredentials fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] listWebAuthnCredentials fallback", err);
       return mockDb.webauthnCreds.filter((c) => c.email === e);
     }
   }
@@ -88425,6 +88515,7 @@ async function createApp() {
     const e = normalizeEmailLower(email);
     const publicKeyB64 = publicKeyToBase64url(cred.publicKey);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       mockDb.webauthnCreds.push({
         email: e,
         credentialId: cred.credentialId,
@@ -88445,7 +88536,8 @@ async function createApp() {
       });
       if (error) throw error;
     } catch (err) {
-      console.warn("[AppLock] saveWebAuthnCredential fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] saveWebAuthnCredential fallback", err);
       mockDb.webauthnCreds.push({
         email: e,
         credentialId: cred.credentialId,
@@ -88458,6 +88550,7 @@ async function createApp() {
   async function deleteWebAuthnCredential(email, credentialId, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       mockDb.webauthnCreds = mockDb.webauthnCreds.filter((c) => !(c.email === e && c.credentialId === credentialId));
       return;
     }
@@ -88465,7 +88558,8 @@ async function createApp() {
       const { error } = await supabase.from("webauthn_credentials").delete().eq("user_email", e).eq("credential_id", credentialId);
       if (error) throw error;
     } catch (err) {
-      console.warn("[AppLock] deleteWebAuthnCredential fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] deleteWebAuthnCredential fallback", err);
       mockDb.webauthnCreds = mockDb.webauthnCreds.filter((c) => !(c.email === e && c.credentialId === credentialId));
     }
   }
@@ -88475,6 +88569,7 @@ async function createApp() {
     const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1e3;
     const id = import_crypto3.default.randomUUID();
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       mockDb.trustedDevices.push({
         id,
         email: e,
@@ -88501,7 +88596,8 @@ async function createApp() {
       );
       if (error) throw error;
     } catch (err) {
-      console.warn("[AppLock] createTrustedDevice fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] createTrustedDevice fallback", err);
       mockDb.trustedDevices.push({
         id,
         email: e,
@@ -88518,6 +88614,7 @@ async function createApp() {
     if (!token) return null;
     const tokenHash = import_crypto3.default.createHash("sha256").update(token).digest("hex");
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       const rec = mockDb.trustedDevices.find((d) => d.tokenHash === tokenHash);
       if (!rec) return null;
       if (Date.now() > rec.expiresAt) {
@@ -88561,7 +88658,8 @@ async function createApp() {
       );
       return { email: data.user_email, expiresAt: newExpiry };
     } catch (err) {
-      console.warn("[AppLock] findTrustedDeviceByToken fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] findTrustedDeviceByToken fallback", err);
       const rec = mockDb.trustedDevices.find((d) => d.tokenHash === tokenHash);
       if (!rec) return null;
       if (Date.now() > rec.expiresAt) {
@@ -88575,6 +88673,7 @@ async function createApp() {
   async function listTrustedDevices(email, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       return mockDb.trustedDevices.filter((d) => d.email === e).map((d) => ({
         id: d.id,
         createdAt: d.createdAt,
@@ -88607,7 +88706,8 @@ async function createApp() {
       const seen = new Set(fromDb.map((d) => d.id));
       return [...fromDb, ...fromMock.filter((d) => !seen.has(d.id))];
     } catch (err) {
-      console.warn("[AppLock] listTrustedDevices fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] listTrustedDevices fallback", err);
       return mockDb.trustedDevices.filter((d) => d.email === e).map((d) => ({
         id: d.id,
         createdAt: d.createdAt,
@@ -88620,6 +88720,7 @@ async function createApp() {
   async function deleteTrustedDevice(email, id, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => !(d.email === e && d.id === id));
       return;
     }
@@ -88627,13 +88728,15 @@ async function createApp() {
       const { error } = await supabase.from("trusted_devices").delete().eq("user_email", e).eq("id", id);
       if (error) throw error;
     } catch (err) {
-      console.warn("[AppLock] deleteTrustedDevice fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] deleteTrustedDevice fallback", err);
       mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => !(d.email === e && d.id === id));
     }
   }
   async function deleteAllTrustedDevices(email, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => d.email !== e);
       return;
     }
@@ -88641,7 +88744,8 @@ async function createApp() {
       const { error } = await supabase.from("trusted_devices").delete().eq("user_email", e);
       if (error) throw error;
     } catch (err) {
-      console.warn("[AppLock] deleteAllTrustedDevices fallback:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] deleteAllTrustedDevices fallback", err);
       mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => d.email !== e);
     }
   }
@@ -88654,6 +88758,7 @@ async function createApp() {
   async function updateWebAuthnCredentialCounter(email, credentialId, counter, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
       const rec = mockDb.webauthnCreds.find((c) => c.email === e && c.credentialId === credentialId);
       if (rec) rec.signCount = counter;
       return;
@@ -88662,7 +88767,8 @@ async function createApp() {
       const { error } = await supabase.from("webauthn_credentials").update({ sign_count: counter }).eq("user_email", e).eq("credential_id", credentialId);
       if (error) throw error;
     } catch (err) {
-      console.warn("[AppLock] updateWebAuthnCredentialCounter:", err?.message || err);
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure("[AppLock] updateWebAuthnCredentialCounter", err);
       const rec = mockDb.webauthnCreds.find((c) => c.email === e && c.credentialId === credentialId);
       if (rec) rec.signCount = counter;
     }
@@ -88721,7 +88827,7 @@ async function createApp() {
   app.use((req, res, next) => {
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+      `default-src 'self'; script-src 'self'${IS_PRODUCTION ? "" : " 'unsafe-inline'"}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`
     );
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
@@ -88760,32 +88866,7 @@ async function createApp() {
     const resetTime = now + windowMs;
     const resetTimeStr = new Date(resetTime).toISOString();
     if (!supabase) {
-      mockDb.rateLimits = mockDb.rateLimits.filter((item2) => new Date(item2.reset_time).getTime() > now);
-      const foundIndex = mockDb.rateLimits.findIndex((item2) => item2.key === key);
-      if (foundIndex === -1) {
-        mockDb.rateLimits.push({
-          key,
-          count: 1,
-          reset_time: resetTimeStr
-        });
-        return { allowed: true, retryAfterSeconds: 0 };
-      }
-      const item = mockDb.rateLimits[foundIndex];
-      const recordResetTime = new Date(item.reset_time).getTime();
-      if (now > recordResetTime) {
-        mockDb.rateLimits[foundIndex] = {
-          key,
-          count: 1,
-          reset_time: resetTimeStr
-        };
-        return { allowed: true, retryAfterSeconds: 0 };
-      }
-      if (item.count >= limit) {
-        const retryAfterSeconds = Math.ceil((recordResetTime - now) / 1e3);
-        return { allowed: false, retryAfterSeconds };
-      }
-      item.count += 1;
-      return { allowed: true, retryAfterSeconds: 0 };
+      return applyInMemoryRateLimit(mockDb.rateLimits, key, limit, windowMs, now);
     }
     try {
       await supabase.from("auth_rate_limits").delete().lt("reset_time", new Date(now).toISOString());
@@ -88818,27 +88899,9 @@ async function createApp() {
       }).eq("key", key);
       return { allowed: true, retryAfterSeconds: 0 };
     } catch (e) {
-      console.error("Rate limit database operation failed:", e);
-      const fallbackKey = `fallback:${key}`;
-      const fbNow = Date.now();
-      const fbResetTimeStr = new Date(fbNow + windowMs).toISOString();
-      mockDb.rateLimits = mockDb.rateLimits.filter((item) => new Date(item.reset_time).getTime() > fbNow);
-      const fbIdx = mockDb.rateLimits.findIndex((item) => item.key === fallbackKey);
-      if (fbIdx === -1) {
-        mockDb.rateLimits.push({ key: fallbackKey, count: 1, reset_time: fbResetTimeStr });
-        return { allowed: true, retryAfterSeconds: 0 };
-      }
-      const fbItem = mockDb.rateLimits[fbIdx];
-      const fbReset = new Date(fbItem.reset_time).getTime();
-      if (fbNow > fbReset) {
-        mockDb.rateLimits[fbIdx] = { key: fallbackKey, count: 1, reset_time: fbResetTimeStr };
-        return { allowed: true, retryAfterSeconds: 0 };
-      }
-      if (fbItem.count >= limit) {
-        return { allowed: false, retryAfterSeconds: Math.ceil((fbReset - fbNow) / 1e3) };
-      }
-      fbItem.count += 1;
-      return { allowed: true, retryAfterSeconds: 0 };
+      logDbFailure("[RateLimit] database operation failed; failing open with in-memory fallback", e);
+      if (!FAIL_OPEN_EXPLICIT) throw e;
+      return applyInMemoryRateLimit(mockDb.rateLimits, `fallback:${key}`, limit, windowMs);
     }
   }
   const rateLimitAuth = (limit, windowMs) => {
@@ -89206,6 +89269,10 @@ async function createApp() {
           deviceToken
         });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] Login-password operation failed:", err.message || err);
         res.status(500).json({ success: false, error: "System authentication service error." });
       }
@@ -89345,6 +89412,10 @@ async function createApp() {
           webauthnRpid: getRPID(req)
         });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[AppLock] status error:", err?.message || err);
         res.status(500).json({ success: false, error: "System app-lock status error." });
       }
@@ -89374,6 +89445,10 @@ async function createApp() {
         console.log(`[AppLock] PIN set for ${normalizedEmail} (hash only, PIN never stored).`);
         res.json({ success: true });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] App-lock PIN set failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System app-lock service error." });
       }
@@ -89400,6 +89475,10 @@ async function createApp() {
         );
         res.json({ success: true });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] App-lock PIN disable failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System app-lock service error." });
       }
@@ -89423,6 +89502,10 @@ async function createApp() {
         console.log(`[AppLock] lock-on-open ${enabled ? "enabled" : "disabled"} for ${normalizedEmail}.`);
         res.json({ success: true, lockOnOpen: enabled });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] App-lock always-lock update failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System app-lock service error." });
       }
@@ -89450,6 +89533,10 @@ async function createApp() {
         console.log(`[AppLock] idle-lock timeout set to ${Math.round(minutes)} min for ${normalizedEmail}.`);
         res.json({ success: true, minutes: Math.round(minutes) });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] App-lock idle-minutes update failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System app-lock service error." });
       }
@@ -89511,6 +89598,10 @@ async function createApp() {
           retryAfter
         });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] App-lock PIN verify failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System app-lock verification error." });
       }
@@ -89538,6 +89629,10 @@ async function createApp() {
         traceAppLockEvent(normalizedEmail, "pin_reset");
         res.json({ success: true });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] App-lock PIN reset failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System app-lock reset error." });
       }
@@ -89577,6 +89672,10 @@ async function createApp() {
         const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, "registration", supabase);
         res.json({ success: true, stateId, options });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] WebAuthn register-options failed:", err?.message || err);
         res.status(500).json({ success: false, error: "WebAuthn registration could not start." });
       }
@@ -89636,6 +89735,10 @@ async function createApp() {
         traceAppLockEvent(normalizedEmail, "webauthn_registered");
         res.json({ success: true, credentialId: regInfo.credential.id });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] WebAuthn register-verify failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System WebAuthn registration error." });
       }
@@ -89669,6 +89772,10 @@ async function createApp() {
         const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, "authentication", supabase);
         res.json({ success: true, stateId, options });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] WebAuthn authentication-options failed:", err?.message || err);
         res.status(500).json({ success: false, error: "Biometric unlock could not start." });
       }
@@ -89723,6 +89830,10 @@ async function createApp() {
         traceAppLockEvent(normalizedEmail, "webauthn_unlock_success");
         res.json({ success: true });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] WebAuthn authentication-verify failed:", err?.message || err);
         res.json({ success: false, error: "Biometric unlock could not be verified." });
       }
@@ -89745,6 +89856,10 @@ async function createApp() {
         await deleteWebAuthnCredential(normalizedEmail, credentialId, supabase);
         res.json({ success: true });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] WebAuthn remove failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System WebAuthn removal error." });
       }
@@ -89774,6 +89889,10 @@ async function createApp() {
           }))
         });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] WebAuthn list failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System WebAuthn list error." });
       }
@@ -89799,6 +89918,10 @@ async function createApp() {
         setTrustCookie(res, rawToken);
         res.json({ success: true, expiresInDays: 30 });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] Trusted device issue failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System device-trust error." });
       }
@@ -89824,6 +89947,10 @@ async function createApp() {
         }
         res.json({ success: true, trusted: true, email: found.email });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] Trusted device check failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System device-trust check error." });
       }
@@ -89846,6 +89973,10 @@ async function createApp() {
         const devices = await listTrustedDevices(normalizedEmail, supabase);
         res.json({ success: true, devices });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] Trusted device list failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System device-trust list error." });
       }
@@ -89868,6 +89999,10 @@ async function createApp() {
         await deleteTrustedDevice(normalizedEmail, id, supabase);
         res.json({ success: true });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] Trusted device revoke failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System device-trust revoke error." });
       }
@@ -89891,6 +90026,10 @@ async function createApp() {
         clearTrustCookie(res);
         res.json({ success: true });
       } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
         console.error("[SECURITY LOG] Trusted device revoke-all failed:", err?.message || err);
         res.status(500).json({ success: false, error: "System device-trust revoke error." });
       }
@@ -90063,20 +90202,21 @@ async function createApp() {
     rateLimitAuth(30, 60 * 1e3),
     async (req, res) => {
       try {
-        const { email, rememberMe } = req.body;
+        const { rememberMe } = req.body;
         let token = req.body.token;
         if (!token || typeof token !== "string") token = getTokenFromRequest(req);
         if (!token || typeof token !== "string") {
           res.json({ success: false, error: "Empty token" });
           return;
         }
-        if (!email || typeof email !== "string") {
-          res.status(400).json({ success: false, error: "Email is required." });
+        const decoded = verifySecureToken(token);
+        if (!decoded) {
+          res.json({ success: false, error: "Session token is invalid or expired." });
           return;
         }
-        const normalizedEmail = email.trim().toLowerCase();
-        const decoded = verifySecureToken(token);
-        if (!decoded || decoded.email !== normalizedEmail) {
+        const providedEmail = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+        const normalizedEmail = providedEmail || decoded.email;
+        if (providedEmail && decoded.email !== providedEmail) {
           res.json({ success: false, error: "Session token is invalid or expired." });
           return;
         }
@@ -90086,12 +90226,13 @@ async function createApp() {
           res.json({ success: false, error: "Account no longer exists." });
           return;
         }
-        if (rememberMe) {
+        const isLongLived = decoded.expiresAt - Date.now() > SESSION_TTL_SHORT;
+        if (rememberMe || isLongLived) {
           const newToken = generateSecureToken(normalizedEmail, SESSION_TTL_LONG);
           setSessionCookie(res, newToken, 30 * 24 * 60 * 60);
-          res.json({ success: true, token: newToken });
+          res.json({ success: true, token: newToken, email: normalizedEmail });
         } else {
-          res.json({ success: true });
+          res.json({ success: true, token, email: normalizedEmail });
         }
       } catch (err) {
         console.error("[SECURITY LOG] Verify Session Token failed:", err.message || err);
@@ -90161,21 +90302,6 @@ async function createApp() {
       }
     }
   );
-  app.get("/api/config/sql", rateLimitAuth(10, 60 * 1e3), (req, res) => {
-    const token = getTokenFromRequest(req);
-    if (!verifySecureToken(token)) {
-      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
-      return;
-    }
-    try {
-      const sqlPath = import_path.default.join(process.cwd(), "supabase/migrations/20260725_init.sql");
-      const sqlContent = import_fs.default.readFileSync(sqlPath, "utf8");
-      res.json({ success: true, sql: sqlContent });
-    } catch (e) {
-      console.error("[Error] Failed loading SQL migration script from file:", e.message || e);
-      res.status(500).json({ success: false, error: "Failed to load SQL migration script." });
-    }
-  });
   app.post(
     "/api/gemini/analyze-image",
     import_express.default.json({ limit: "2mb" }),

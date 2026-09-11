@@ -82,6 +82,16 @@ export function loadStateFromStorage(defaultState: AppState): AppState {
   }
 }
 
+const RESTORE_BACKUP_KEY = 'em_budget_restore_backup_v1';
+
+export function savePreRestoreBackup(state: AppState) {
+  try {
+    localStorage.setItem(RESTORE_BACKUP_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error('Failed to preserve pre-restore backup:', error);
+  }
+}
+
 export function generateUniqueId(prefix = ''): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     const uuid = crypto.randomUUID();
@@ -103,15 +113,13 @@ export function exportStateAsJSON(state: AppState, userEmail?: string) {
     exportedAt: new Date().toISOString(),
     data: sanitizedState
   };
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
-  const downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute("href", dataStr);
-  const stamp = new Date().toISOString().split('T')[0];
+  const stamp = todayLocal();
   const emailPrefix = userEmail ? `${userEmail.split('@')[0]}_` : '';
-  downloadAnchor.setAttribute("download", `em_budget_${emailPrefix}backup_${stamp}.json`);
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  downloadAnchor.remove();
+  downloadBlob(
+    JSON.stringify(payload, null, 2),
+    `em_budget_${emailPrefix}backup_${stamp}.json`,
+    'application/json;charset=utf-8'
+  );
 }
 
 // Export Transactions to CSV / Excel spreadsheet
@@ -127,24 +135,16 @@ export function exportTransactionsToCSV(transactions: Transaction[], currency: s
     t.accountId ? `${t.accountType === 'card' ? 'Card' : 'Cash Account'}: ${t.accountId}` : 'N/A'
   ]);
 
-  const csvContent = "data:text/csv;charset=utf-8," 
-    + [headers.map(h => `"${h}"`).join(','), ...rows.map(escapeCsvRow)].join('\n');
-    
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  const stamp = new Date().toISOString().split('T')[0];
-  link.setAttribute("download", `finance_statement_${stamp}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  const csvContent = [escapeCsvRow(headers), ...rows.map(escapeCsvRow)].join('\n');
+  const stamp = todayLocal();
+  downloadBlob(csvContent, `finance_statement_${stamp}.csv`, 'text/csv;charset=utf-8;');
 }
 
 // ---- Collection CSV export helpers (formula-injection sanitized) ----
 
 function exportCollectionAsCSV(filename: string, headers: string[], rows: (string | number)[][]) {
   const csvContent = [escapeCsvRow(headers), ...rows.map(escapeCsvRow)].join('\n');
-  const stamp = new Date().toISOString().split('T')[0];
+  const stamp = todayLocal();
   downloadBlob(csvContent, `${filename}_${stamp}.csv`, 'text/csv;charset=utf-8;');
 }
 
@@ -317,6 +317,10 @@ export interface NetWorthBreakdown {
 }
 
 export function calculateNetWorth(state: Partial<AppState>): NetWorthBreakdown {
+  // Net worth (B7) is intentionally snapshot-based by design: it sums account
+  // balances, card balances, debts and loans directly from current state rather
+  // than recomputing from the transaction ledger. Recalculating from the ledger
+  // is a documented follow-up decision (EM-Budget-Improvement-Plan.md), not a bug.
   const cashAccounts = state.cashAccounts || [];
   const cards = state.cards || [];
   const debts = state.debts || [];

@@ -121,15 +121,17 @@ describe('retryWithBackoff', () => {
   it('throws after exhausting all retries', async () => {
     const fn = vi.fn().mockRejectedValue(new Error('permanent'));
 
-    try {
-      const promise = retryWithBackoff(fn, { maxRetries: 2, baseDelayMs: 10 });
-      await vi.advanceTimersByTimeAsync(10);
-      await vi.advanceTimersByTimeAsync(20);
-      await promise;
-      throw new Error('should have thrown');
-    } catch (err: any) {
-      expect(err.message).toBe('permanent');
-    }
+    const promise = retryWithBackoff(fn, { maxRetries: 2, baseDelayMs: 10 });
+    // Attach the rejection handler immediately: retryWithBackoff rejects as soon
+    // as the last retry fails (i.e. during advanceTimersByTimeAsync below), and
+    // a briefly-unhandled rejection makes vitest exit non-zero despite the
+    // assertion itself passing.
+    promise.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(10);
+    await vi.advanceTimersByTimeAsync(20);
+    await expect(promise).rejects.toThrow('permanent');
+
     // attempt 0 (initial) + attempt 1 + attempt 2 = 3 calls
     expect(fn).toHaveBeenCalledTimes(3);
   });

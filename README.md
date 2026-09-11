@@ -27,6 +27,7 @@ EM Budget is a premium, minimalist, and mobile-oriented personal finance applica
 - **Debts Track & Payback Ledger**: Structured overview for outstanding loans or credits with progress meters, targeted paydown actions, and associated amortization logs.
 - **Auto Sorted Subscriptions**: Interactive manager tracking recurring active, closed, or paused monthly and yearly plans (Netflix, AWS, Rent, etc.) sorted automatically by impending due dates.
 - **Smart Asset Transfers**: Securely transfer funds between cash containers and digital credit/debit bank cards.
+- **Snapshot-Based Net Worth**: Net worth is computed directly from current account/card/debt/loan balances, not recomputed from the transaction ledger. This is a deliberate design decision (ledger-derived recalculation is a documented follow-up).
 
 ---
 
@@ -40,7 +41,7 @@ To secure user data across client/server boundaries without forcing full OAuth s
 3. **DB-Level Verification (`verify_user_token`)**: When the query is evaluated by PostgreSQL, RLS policies call the custom `verify_user_token(headers)` function to reconstruct, parse, and verify the token signature cryptographically via `pgcrypto`.
 
 ### 🛠️ Key Bugfixes & Intermittent Failure Resolutions:
-During a rigorous root-cause investigation, several deep-seated middleware and transport-layer compatibility issues were resolved to guarantee **100% reliable upserts and deletes**:
+During a rigorous root-cause investigation, several deep-seated middleware and transport-layer compatibility issues were resolved to make upserts and deletes reliable across environments:
 - **Case-Insensitive Header Resolution**: PostgreSQL custom settings headers from PostgREST/Supabase are occasionally transformed into mixed-case or lowercase counterparts (e.g., `X-Session-Token` vs `x-session-token`). The cryptographic analyzer now uses a safe, multi-case `COALESCE` pattern (extracting `x-session-token`, `X-Session-Token`, and `x-Session-Token`) to guarantee authentication succeeds across all environments.
 - **Case-Insensitive Email Normalization**: Emails supplied as login credentials could vary in case depending on mobile autocomplete features. The RLS policies and verification engine now strictly force lower-case comparison (`return lower(email)`) when matching the token's authenticated owner against row ownership, avoiding silent auth denials.
 - **Zero-Failure RPC Transaction Engine**: Implemented seamless transactional fallbacks. If single-trip Postgres bulk synchronization (`sync_complete_ledger`) experiences locks or schema drifts, the client seamlessly downgrades to safe, row-by-row table synchronizations with detailed, structural logs.
@@ -49,8 +50,8 @@ During a rigorous root-cause investigation, several deep-seated middleware and t
 
 ## 🛠️ Technology Stack
 
-- **Client App**: React 19, TypeScript, Tailwind CSS, Lucide Icons, Framer Motion
-- **Visual Analytics**: Direct D3-inspired custom layout visualizers & expressive data charts
+- **Client App**: React 19, TypeScript, Tailwind CSS, Lucide Icons, Motion
+- **Visual Analytics**: Interactive data charts & visualizers built on **Recharts** (D3-powered)
 - **Server Engine**: Express.js (Node.js full-stack proxy), tsx transpilers
 - **Sync & Storage**: PostgreSQL Cloud Sync (Supabase integration Client)
 - **SMTP Gateway**: Direct SMTP Nodemailer configurations with custom rich media template layouts
@@ -67,6 +68,15 @@ Define the following environment variables in your local `.env` file (see `.env.
 PORT=3000
 NODE_ENV=production
 SESSION_SECRET=your-random-32-character-secret-key
+
+# Same-origin / WebAuthn origin validation (must be set in production)
+APP_ORIGIN=https://app.example.com
+
+# Optional error tracking
+SENTRY_DSN=
+
+# Gemini AI API (used by the receipt-OCR free-scan server route in Settings > Secrets)
+GEMINI_API_KEY=your-gemini-api-key
 
 # SMTP / Email Configuration for 2FA Delivery
 SMTP_HOST=smtp.example.com

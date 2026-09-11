@@ -119,3 +119,38 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--ink); 
 .light .card-dark [class*="border-white"] { border-color: var(--line) !important; }
 .light .gradient-card [class*="bg-white"],
 .light .card-dark [class*="bg-white"] { background: color-mix(in srgb, var(--ink) 8%, transparent) !important; }
+
+/* =========================================================
+   PRINT STYLESHEET - ReportsCentre
+   Clean, paper-friendly export for the print report flow.
+   ========================================================= */
+@media print {
+  #print-report-header { display: block !important; }
+  #print-report-footer { display: block !important; }
+  body { background: #FFFFFF !important; color: #000000 !important; }
+  #header-brand-rail,
+  #docked-desktop-sidebar,
+  #tab-header-block,
+  footer,
+  nav[aria-label="Bottom Navigation"] {
+    display: none !important;
+  }
+  #reports-centre-view .card,
+  #reports-centre-view .card-flat,
+  #reports-centre-view .gradient-card {
+    box-shadow: none !important;
+    border-color: #CCCCCC !important;
+    background: #FFFFFF !important;
+    break-inside: avoid;
+  }
+  /* hide interactive controls */
+  #reports-centre-view .card.p-1\.5,
+  #reports-centre-view .card.p-3,
+  #reports-centre-view .btn-ghost,
+  #reports-centre-view .btn-primary,
+  #reports-centre-view #unified-audits-column {
+    display: none !important;
+  }
+  #reports-centre-view .gradient-card .grid { display: grid !important; }
+  #reports-centre-view .lg\:col-span-7 { width: 100% !important; }
+}
