@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle, AlertCircle, Info, XCircle, X } from 'lucide-react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -55,6 +56,8 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     setConfirm(options);
   };
 
+  const confirmDialogRef = useFocusTrap<HTMLDivElement>(!!confirm, () => { confirm?.onCancel?.(); setConfirm(null); });
+
   return (
     <NotificationContext.Provider value={{ showToast, showConfirm }}>
       {children}
@@ -89,7 +92,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       {/* Confirmation Modal */}
       <AnimatePresence>
         {confirm && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div ref={confirmDialogRef} tabIndex={-1} className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
               role="dialog"
               aria-modal="true"

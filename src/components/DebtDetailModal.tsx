@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Debt, CashAccount, BankCard } from '../types';
 import { X, Plus, CornerDownRight, Wallet, Calendar, FileText } from 'lucide-react';
 import { compareMoney } from '../lib/money';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface DebtDetailModalProps {
   debt: Debt;
@@ -25,6 +26,8 @@ export default function DebtDetailModal({ debt, currency, cashAccounts, cards, o
   const [incAmount, setIncAmount] = useState('');
   const [incAccount, setIncAccount] = useState('other');
   const [incError, setIncError] = useState<string | null>(null);
+
+  const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
 
   // Resolve paidFrom name for payments
   const resolveAccountName = (paidFromId: string, paidFromType: 'cash' | 'card'): string => {
@@ -106,6 +109,8 @@ export default function DebtDetailModal({ debt, currency, cashAccounts, cards, o
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       onClick={handleOverlayClose}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-[6px]"
       aria-modal="true"

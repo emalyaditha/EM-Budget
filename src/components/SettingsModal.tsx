@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { apiUrl, safeJson } from "../lib/api";
-import { Settings, Database, Zap, FileDown, X, Shield, Cloud, RefreshCw, Check, Copy, Eye, EyeOff, Code, ChevronDown, ChevronUp, AlertCircle, LogOut, Sun, Moon, Lock, Fingerprint, Smartphone, KeyRound, Clock } from 'lucide-react';
+import { Settings, Database, Zap, FileDown, X, Shield, Cloud, RefreshCw, Check, Copy, Eye, EyeOff, ChevronDown, ChevronUp, AlertCircle, LogOut, Sun, Moon, Lock, Fingerprint, Smartphone, KeyRound, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState } from '../types';
 import { getSupabaseConfig, saveSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, truncateAllDataInSupabase } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
+import { authSession } from '../services/authSession';
 import {
   exportCashAccountsCSV,
   exportCardsCSV,
@@ -57,11 +59,8 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
   const [purgeLoading, setPurgeLoading] = useState(false);
   const [purgeError, setPurgeError] = useState<string | null>(null);
   const [purgeDevOtp, setPurgeDevOtp] = useState<string | null>(null);
-  const [expandedSection, setExpandedSection] = useState<'none' | 'sql' | 'flutter' | 'upgrade'>('none');
-  const [sqlCopied, setSqlCopied] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<'none' | 'flutter'>('none');
   const [flutterCopied, setFlutterCopied] = useState(false);
-  const [upgradeCopied, setUpgradeCopied] = useState(false);
-  const [sqlScript, setSqlScript] = useState('');
   const [appLockStatus, setAppLockStatus] = useState<{ appLockEnabled: boolean; lockOnOpen: boolean; hasPin: boolean; pinEnabled: boolean; biometricCount: number } | null>(null);
   const [appLockBusy, setAppLockBusy] = useState(false);
   const [appLockMsg, setAppLockMsg] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -102,12 +101,13 @@ const [idleMinutes, setIdleMinutes] = useState(1);
       setPurgeOtp('');
       setPurgeError(null);
       setPurgeDevOtp(null);
-      fetch(apiUrl('/api/config/sql')).then((r) => safeJson(r)).then((d) => { if (d?.success) setSqlScript(d.sql); }).catch(() => {});
       void refreshAppLock();
     }
     // refreshAppLock is a stable hook callback; modal open is the intended refresh trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  const settingsDrawerRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   const handlePushSync = async () => {
     saveSupabaseConfig(supabaseUrl.trim(), supabaseKey.trim(), autoSync);
@@ -131,7 +131,7 @@ const [idleMinutes, setIdleMinutes] = useState(1);
     if (!userEmail) { setSyncStatus('error'); setSyncMessage('Email required.'); return; }
     setSyncStatus('loading'); setSyncMessage('Sending verification code...'); setPurgeLoading(true); setPurgeError(null);
     try {
-      const token = localStorage.getItem('auth_session_token') || '';
+      const token = authSession.getToken() || '';
       const res = await fetch(apiUrl('/api/auth/send-delete-otp'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: userEmail }) });
       const data = await safeJson(res); setPurgeLoading(false);
       if (!data) throw new Error("Empty response from API (" + res.status + " " + res.statusText + ") — check VITE_API_URL (should be your Railway URL) and Vercel function logs for /api");
@@ -144,7 +144,7 @@ const [idleMinutes, setIdleMinutes] = useState(1);
     if (!purgeOtp.trim()) { setPurgeError('Enter the 6-digit code.'); return; }
     setPurgeLoading(true); setPurgeError(null); setSyncStatus('loading'); setSyncMessage('Verifying code...');
     try {
-      const token = localStorage.getItem('auth_session_token') || '';
+      const token = authSession.getToken() || '';
       const res = await fetch(apiUrl('/api/auth/verify-delete-otp'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: userEmail, otp: purgeOtp }) });
       const data = await safeJson(res);
       if (!data) { setPurgeLoading(false); setSyncStatus('error'); const m = "Empty response"; setSyncMessage(m); setPurgeError(m); showToast(m, 'error'); return; }
@@ -158,11 +158,9 @@ const [idleMinutes, setIdleMinutes] = useState(1);
     } catch (err: any) { setPurgeLoading(false); setSyncStatus('error'); const m = err.message || 'Verification failed.'; setSyncMessage(m); setPurgeError(m); showToast(m, 'error'); }
   };
 
-  const copyToClipboard = (text: string, type: 'sql' | 'flutter' | 'upgrade') => {
+  const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    if (type === 'sql') { setSqlCopied(true); setTimeout(() => setSqlCopied(false), 2000); }
-    else if (type === 'upgrade') { setUpgradeCopied(true); setTimeout(() => setUpgradeCopied(false), 2000); }
-    else { setFlutterCopied(true); setTimeout(() => setFlutterCopied(false), 2000); }
+    setFlutterCopied(true); setTimeout(() => setFlutterCopied(false), 2000);
   };
 
   // ================= APP LOCK =================
@@ -268,7 +266,7 @@ class CloudSyncService {
       {isOpen && (
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} onClick={onClose} className="fixed inset-0 z-40 bg-[var(--ink)]/40 backdrop-blur-[2px]" id="settings-backdrop-overlay" />
-          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 260 }} className="fixed top-0 right-0 bottom-0 w-full max-w-[600px] bg-[var(--surface)] border-l border-[var(--line)] z-50 flex flex-col shadow-2xl" id="settings-panel-drawer" role="dialog" aria-modal="true" aria-label="Settings">
+          <motion.div ref={settingsDrawerRef} tabIndex={-1} initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 260 }} className="fixed top-0 right-0 bottom-0 w-full max-w-[600px] bg-[var(--surface)] border-l border-[var(--line)] z-50 flex flex-col shadow-2xl" id="settings-panel-drawer" role="dialog" aria-modal="true" aria-label="Settings">
             <div className="px-6 h-14 flex items-center justify-between border-b border-[var(--line)] bg-[var(--surface)]/80 backdrop-blur shrink-0">
               <div className="flex items-center gap-2.5">
                 <span className="w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] flex items-center justify-center text-[var(--ink-2)]"><Settings size={13} /></span>
@@ -480,29 +478,23 @@ class CloudSyncService {
               {/* Developer */}
               <section className="space-y-2">
                 <p className="eyebrow">Developer blueprints</p>
-                {[
-                  { key: 'sql' as const, icon: <Code size={12} />, label: '1. Prepare DB tables & functions (SQL)' },
-                  { key: 'flutter' as const, icon: <Zap size={12} />, label: '2. Sync with Flutter (Dart)' },
-                  { key: 'upgrade' as const, icon: <Database size={12} />, label: '3. Upgrade live DB (migration)' },
-                ].map((row) => (
-                  <div key={row.key} className="card-flat overflow-hidden">
-                    <button onClick={() => setExpandedSection(expandedSection === row.key ? 'none' : row.key)} className="w-full px-4 h-11 flex items-center justify-between text-[12px] font-semibold text-[var(--ink)] hover:bg-[var(--surface-2)] transition-colors">
-                      <span className="inline-flex items-center gap-2 text-[var(--ink-2)]">{row.icon}<span className="text-[var(--ink)]">{row.label}</span></span>
-                      {expandedSection === row.key ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                    </button>
-                    <AnimatePresence>
-                      {expandedSection === row.key && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="border-t border-[var(--line)] bg-[var(--surface-2)] p-4">
-                          <p className="text-[11px] leading-4 text-[var(--ink-2)] mb-2">{row.key === 'flutter' ? 'Add supabase_flutter and use this helper.' : 'Run this in Supabase SQL Editor.'}</p>
-                          <div className="relative">
-                            <pre className="mono text-[11px] leading-4 bg-[var(--surface)] border border-[var(--line)] rounded-xl p-3 overflow-x-auto max-h-[260px] text-[var(--ink-2)] whitespace-pre">{row.key === 'flutter' ? flutterCode : (sqlScript || '-- Loading SQL...' )}</pre>
-                            <button onClick={() => copyToClipboard(row.key === 'flutter' ? flutterCode : sqlScript, row.key)} className="absolute right-2 top-2 w-7 h-7 rounded-full bg-[var(--surface)] border border-[var(--line)] flex items-center justify-center text-[var(--ink-2)] hover:text-[var(--ink)]" aria-label="Copy">{(row.key === 'sql' && sqlCopied) || (row.key === 'flutter' && flutterCopied) || (row.key === 'upgrade' && upgradeCopied) ? <Check size={11} /> : <Copy size={11} />}</button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                ))}
+                <div className="card-flat overflow-hidden">
+                  <button onClick={() => setExpandedSection(expandedSection === 'flutter' ? 'none' : 'flutter')} className="w-full px-4 h-11 flex items-center justify-between text-[12px] font-semibold text-[var(--ink)] hover:bg-[var(--surface-2)] transition-colors">
+                    <span className="inline-flex items-center gap-2 text-[var(--ink-2)]"><Zap size={12} /><span className="text-[var(--ink)]">Sync with Flutter (Dart)</span></span>
+                    {expandedSection === 'flutter' ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </button>
+                  <AnimatePresence>
+                    {expandedSection === 'flutter' && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="border-t border-[var(--line)] bg-[var(--surface-2)] p-4">
+                        <p className="text-[11px] leading-4 text-[var(--ink-2)] mb-2">Add supabase_flutter and use this helper.</p>
+                        <div className="relative">
+                          <pre className="mono text-[11px] leading-4 bg-[var(--surface)] border border-[var(--line)] rounded-xl p-3 overflow-x-auto max-h-[260px] text-[var(--ink-2)] whitespace-pre">{flutterCode}</pre>
+                          <button onClick={() => copyToClipboard(flutterCode)} className="absolute right-2 top-2 w-7 h-7 rounded-full bg-[var(--surface)] border border-[var(--line)] flex items-center justify-center text-[var(--ink-2)] hover:text-[var(--ink)]" aria-label="Copy">{flutterCopied ? <Check size={11} /> : <Copy size={11} />}</button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </section>
 
               {/* Identity & prefs */}

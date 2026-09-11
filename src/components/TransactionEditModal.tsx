@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Transaction, CashAccount, BankCard } from '../types';
 import { X, Save, Trash2, Edit3 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { DatePicker } from './DatePicker';
 
 interface TransactionEditModalProps {
@@ -52,6 +53,8 @@ export default function TransactionEditModal({
       setSubmitted(false);
     }
   }, [transaction]);
+
+  const editDialogRef = useFocusTrap<HTMLDivElement>(!!transaction, onClose);
 
   if (!transaction) return null;
 
@@ -133,7 +136,7 @@ export default function TransactionEditModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div ref={editDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Edit transaction" className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-[var(--surface)] border border-[var(--line)] p-6 md:p-8 rounded-[24px] shadow-2xl max-w-sm w-full relative overflow-hidden" id="edit-transaction-modal-container">
         
         <div className="flex justify-between items-center mb-6">
