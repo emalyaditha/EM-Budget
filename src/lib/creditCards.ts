@@ -46,6 +46,26 @@ function formatDate(year: number, month: number, day: number): string {
 }
 
 /**
+ * The day of the month on which the bank deducts the credit-card payment.
+ * The 15th is the authoritative payment/deduction date — NOT the 7th, the 8th,
+ * or any other day.
+ */
+export const DEDUCTION_DAY = 15;
+
+/**
+ * Returns the authoritative deduction date for a card's billing cycle: the
+ * 15th of the month that contains the card's due date.
+ *
+ * e.g. dueDate "2026-09-07" or "2026-09-15" both yield "2026-09-15".
+ * Returns the input unchanged when it is malformed.
+ */
+export function deductionDate(dueDate: string): string {
+  const parts = parseDateParts(dueDate);
+  if (!parts) return dueDate;
+  return formatDate(parts.year, parts.month, DEDUCTION_DAY);
+}
+
+/**
  * Advances a YYYY-MM-DD date by exactly one calendar month.
  *
  * Month-end dates are clamped to the last day of the target month
@@ -112,8 +132,24 @@ export function computeMinimumPayment(balance: number, limit?: number): number {
 }
 
 /**
+ * Returns the anchor date for a card's billing window. When a card carries a
+ * statement close (payment cut-off) date it takes precedence — the cycle opens
+ * one calendar month before that cut-off — otherwise the window is anchored on
+ * the due date (unchanged previous behaviour). Returns '' when neither date is
+ * configured.
+ */
+export function cycleAnchor(card: { dueDate?: string; statementCloseDate?: string }): string {
+  return card.statementCloseDate || card.dueDate || '';
+}
+
+/**
  * Sums all debt_payment transactions made TO a card within the billing window
- * that precedes the given due date: [cycleWindowStart(dueDate), dueDate].
+ * that precedes the given anchor date: [cycleWindowStart(anchor), dueDate].
+ *
+ * When `anchorDate` is provided it is used to derive the window start (useful
+ * when a card carries a statement close / cut-off date that differs from the
+ * due date). When omitted the window is computed from `dueDate` alone, which is
+ * fully backward compatible with prior call-sites.
  *
  * The window is inclusive of the due date — the due date is the last day of
  * the cycle, so payments made on it still count toward that cycle's minimum.
@@ -121,9 +157,15 @@ export function computeMinimumPayment(balance: number, limit?: number): number {
  * Matches on targetAccountId/targetAccountType rather than title so the window
  * is robust to card renames.
  */
-export function paymentsInCycle(transactions: Transaction[], cardId: string, dueDate: string): number {
+export function paymentsInCycle(
+  transactions: Transaction[],
+  cardId: string,
+  dueDate: string,
+  anchorDate?: string,
+): number {
   if (!dueDate) return 0;
-  const windowStart = cycleWindowStart(dueDate);
+  const anchor = anchorDate || dueDate;
+  const windowStart = cycleWindowStart(anchor);
 
   return sumMoney(
     (transactions || [])
@@ -145,7 +187,7 @@ export function paymentsInCycle(transactions: Transaction[], cardId: string, due
  */
 export function isMinimumSatisfied(card: BankCard, transactions: Transaction[]): boolean {
   if (!card.dueDate || !card.minPayment || card.minPayment <= 0) return false;
-  return paymentsInCycle(transactions, card.id, card.dueDate) >= card.minPayment;
+  return paymentsInCycle(transactions, card.id, card.dueDate, cycleAnchor(card)) >= card.minPayment;
 }
 
 /**
@@ -224,8 +266,10 @@ export interface CycleRolloverResult {
 }
 
 /**
- * Closes out a card's billing cycle the day after its due date (cycle end),
- * auto-advancing the cycle per the Sampath credit-card model:
+ * Closes out a card's billing cycle on the deduction day — the 15th of the
+ * month that contains the card's due date (see DEDUCTION_DAY / deductionDate).
+ * The 15th is the authoritative payment/deduction date, so no charge is ever
+ * recorded before it, and the cycle closes ON the 15th (inclusive):
  *
  * - Interest applies to any carried (revolving) balance at the stored APR,
  *   computed on a daily basis over the cycle's length and added to the balance.
@@ -234,12 +278,12 @@ export interface CycleRolloverResult {
  *   added to the balance.
  * - The charges are returned as CycleChargeDraft entries (the caller persists
  *   them), the due date advances one month, and the minimum is recomputed on
- *   the new balance.
+ *   the new balance. The charges carry the deduction date as their appliedDate.
  * - A balance that fully settles from the charges clears dueDate and minPayment.
  *
- * Returns undefined while the cycle is still open (today <= dueDate) or when
- * the card has no due date. Callers must deduplicate by card + ended due date
- * (e.g. a rollover reference key) so the rollover runs exactly once per cycle.
+ * Returns undefined while the cycle is still open (today < the deduction date)
+ * or when the card has no due date. Callers must deduplicate by card + deduction
+ * date (e.g. a rollover reference key) so the rollover runs exactly once per cycle.
  */
 export function runCycleRollover(
   card: BankCard,
@@ -247,16 +291,21 @@ export function runCycleRollover(
   today: string
 ): CycleRolloverResult | undefined {
   if (!card.dueDate) return undefined;
-  const cycleEnd = card.dueDate;
-  if (today <= cycleEnd) return undefined;
+  const cycleEnd = deductionDate(card.dueDate);
+  if (today < cycleEnd) return undefined;
+
+  // The cycle anchor: a card with a statement close (payment cut-off) date
+  // opens its billing window one calendar month before that cut-off; without
+  // one the window is anchored on the due date (previous behaviour).
+  const anchor = cycleAnchor(card) || cycleEnd;
 
   const outstanding = card.currentBalance < 0 ? Math.abs(card.currentBalance) : 0;
-  const cyclePayments = paymentsInCycle(transactions, card.id, cycleEnd);
+  const cyclePayments = paymentsInCycle(transactions, card.id, cycleEnd, anchor);
   const minOk = !card.minPayment || card.minPayment <= 0 || cyclePayments >= card.minPayment;
 
   const charges: CycleChargeDraft[] = [];
 
-  const cycleDays = daysBetween(cycleWindowStart(cycleEnd), cycleEnd);
+  const cycleDays = daysBetween(cycleWindowStart(anchor), anchor);
   const interest = interestForCycle(card.currentBalance, card.apr, cycleDays);
   if (outstanding > 0 && interest > 0) {
     charges.push({
