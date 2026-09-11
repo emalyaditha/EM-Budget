@@ -147,8 +147,8 @@ export function getSupabaseClient(): SupabaseClient | null {
     return null;
   }
   try {
-    const token = authSession.getToken() || localStorage.getItem('auth_session_token');
-    const email = authSession.getEmail() || localStorage.getItem('auth_user_email') || '';
+    const token = authSession.getToken();
+    const email = authSession.getEmail() || '';
     const clientKey = `${url}:${token}:${email}`;
 
     if (!supabaseClientInstance || (globalThis as any).__lastClientKey !== clientKey) {
@@ -177,8 +177,12 @@ export function getSupabaseClient(): SupabaseClient | null {
   }
 }
 
-// Fallback column list if Supabase REST OpenAPI inspection is unavailable
-const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
+// Static column contract derived from supabase/migrations. The sync path relies
+// on these exact names, so any edit must ship a matching migration.
+// bank_cards carries credit-card metadata (due_date, min_payment, apr,
+// last_payment_date) that round-trips with the app's card fields.
+const SCHEMA_COLUMNS: { [tableName: string]: string[] } = {
+  ledger_states: ['id', 'user_email', 'state', 'updated_at'],
   bank_cards: ['id', 'user_email', 'card_name', 'bank_name', 'card_type', 'current_balance', 'card_number', 'is_canceled', 'limit', 'is_limit_locked', 'is_frozen', 'card_theme', 'updated_at', 'locked_amount', 'due_date', 'min_payment', 'apr', 'last_payment_date'],
   cash_accounts: ['id', 'user_email', 'name', 'balance', 'updated_at'],
   transactions: ['id', 'user_email', 'type', 'title', 'amount', 'charge', 'transfer_charge', 'date', 'category', 'account_id', 'account_type', 'target_account_id', 'target_account_type', 'reference_id', 'updated_at'],
@@ -193,81 +197,18 @@ const FALLBACK_COLUMNS: { [tableName: string]: string[] } = {
   credit_card_installment_payments: ['id', 'installment_id', 'payment_number', 'amount_due', 'amount_paid', 'due_date', 'paid_date', 'status', 'updated_at'],
 };
 
-let detectedColumnsCache: { [tableName: string]: string[] } | null = null;
-
 /**
- * Automatically inspects empty table metadata via Supabase/PostgREST OpenAPI or CSV headers to find exactly what columns exist
+ * Returns the migration-verified column list for a table.
+ * Synchronous (no network I/O); returns a copy so callers cannot mutate the
+ * canonical schema.
  */
-async function getColumnsForTable(tableName: string): Promise<string[]> {
-  if (detectedColumnsCache && detectedColumnsCache[tableName]) {
-    return detectedColumnsCache[tableName];
-  }
-  const client = getSupabaseClient();
-  if (!client) return FALLBACK_COLUMNS[tableName] || [];
-  
-  // Method A: Quick CSV header lookup to find existing database columns instantly
-  try {
-    const { data, error } = await withTimeout(
-      Promise.resolve(client.from(tableName).select('*').limit(0).csv()),
-      5000,
-      `csvHeader:${tableName}`,
-    );
-    if (error) {
-      if (error.code === '42P01' || (error.message && error.message.includes('does not exist'))) {
-        console.warn(`Table ${tableName} does not exist in the remote database yet (Error 42P01: undefined table).`);
-        if (!detectedColumnsCache) detectedColumnsCache = {};
-        detectedColumnsCache[tableName] = [];
-        return [];
-      }
-    }
-    if (!error && typeof data === 'string' && data.trim()) {
-      const firstLine = data.split('\n')[0].trim();
-      const cols = firstLine.split(',').map(c => c.replace(/^["']|["']$/g, '').trim()).filter(Boolean);
-      if (cols.length > 0) {
-        if (tableName === 'bank_cards' && !cols.includes('is_canceled')) cols.push('is_canceled');
-        if (!detectedColumnsCache) detectedColumnsCache = {};
-        detectedColumnsCache[tableName] = cols;
-        if (import.meta.env.DEV) console.log(`Detected database columns for ${tableName} via CSV headers:`, cols);
-        return cols;
-      }
-    }
-  } catch (csvErr) {
-    console.warn(`Could not fetch columns via CSV headers for ${tableName}:`, csvErr);
-  }
-
-  // Method B: Swagger model endpoint backup
-  const { url, key } = getSupabaseConfig();
-  if (url && key) {
-    try {
-      const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-      const response = await fetchWithTimeout(`${cleanUrl}/rest/v1/`, {
-        headers: {
-          'apikey': key,
-          'Authorization': `Bearer ${key}`
-        }
-      }, 5000);
-      if (response.ok) {
-        const swagger = await safeJson(response);
-        if (!swagger) return FALLBACK_COLUMNS[tableName] || [];
-        const tableDef = swagger.definitions?.[tableName];
-        if (tableDef && tableDef.properties) {
-          const cols = Object.keys(tableDef.properties);
-          if (tableName === 'bank_cards' && !cols.includes('is_canceled')) cols.push('is_canceled');
-          if (!detectedColumnsCache) detectedColumnsCache = {};
-          detectedColumnsCache[tableName] = cols;
-          return cols;
-        }
-      }
-    } catch (err) {
-      console.warn(`Could not auto-detect columns for table ${tableName} via Swagger. Using fallbacks.`, err);
-    }
-  }
-  return FALLBACK_COLUMNS[tableName] || [];
+export function getSchemaColumns(tableName: string): string[] {
+  return (SCHEMA_COLUMNS[tableName] || []).slice();
 }
 
 /**
- * Intelligent mapper that dynamically translates camelCase to snake_case properties
- * depending on what columns actually exist in the user's Supabase table.
+ * Deterministic mapper: translates camelCase state properties to snake_case
+ * database columns, limited to the migration-verified static schema.
  */
 function mapObjectToColumns(item: any, columns: string[], email: string, mappingRules: { [key: string]: any }): any {
   const result: any = {};
@@ -376,12 +317,7 @@ export async function updateAuthAccountName(email: string, name: string, avatarU
     }
     const { error } = await client.from('auth_accounts').update(updatePayload).eq('email', email);
     if (error) {
-      if (error.message && (error.message.includes('column') || error.message.includes('not found') || error.message.includes('does not exist'))) {
-        console.warn('avatar_url column missing from auth_accounts, falling back to name-only update...');
-        await client.from('auth_accounts').update({ name }).eq('email', email);
-      } else {
-        throw error;
-      }
+      throw error;
     }
     if (import.meta.env.DEV) console.log(`Updated profile for ${email} in auth_accounts.`);
   } catch(err) {
@@ -403,15 +339,10 @@ export async function truncateAllDataInSupabase(email: string): Promise<{ succes
     const tables = ['ledger_states', 'bank_cards', 'cash_accounts', 'transactions', 'debts', 'incomes', 'expenses', 'notifications', 'subscriptions', 'spending_envelopes'];
     
     for (const table of tables) {
-      let emailCol = 'user_email';
-      if (['incomes', 'expenses', 'debts', 'notifications', 'transactions'].includes(table)) {
-        emailCol = 'userEmail';
-      }
-      
+      const emailCol = getSchemaColumns(table).includes('user_email') ? 'user_email' : 'userEmail';
       const { error } = await client.from(table).delete().eq(emailCol, email);
-      if (error && error.message.includes(`column "${emailCol}" does not exist`)) {
-        const fallbackCol = emailCol === 'userEmail' ? 'user_email' : 'userEmail';
-        await client.from(table).delete().eq(fallbackCol, email);
+      if (error) {
+        return { success: false, error: error.message };
       }
     }
     return { success: true };
@@ -419,6 +350,17 @@ export async function truncateAllDataInSupabase(email: string): Promise<{ succes
     return { success: false, error: err.message || JSON.stringify(err) };
   }
 }
+
+/**
+ * Retry budget for the single sync path (transactional sync_complete_ledger
+ * RPC, B2). Exported so tests can shrink the retry delay; the RPC is the only
+ * write path, so transient failures are retried with exponential backoff
+ * before the error is surfaced to the caller.
+ */
+export const SYNC_RPC_RETRY = {
+  maxRetries: 2,
+  baseDelayMs: 500,
+};
 
 /**
  * Pushes the current application state to the supabase ledger_states table
@@ -445,12 +387,10 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
 
   const doPush = async (): Promise<{ success: boolean; error?: string }> => {
 
-  const errorDetails: string[] = [];
-
   try {
     // 1. Map all arrays for modern transactional database sync
-    const cardsCols = await getColumnsForTable('bank_cards');
-    const spendingEnvelopesCols = await getColumnsForTable('spending_envelopes');
+    const cardsCols = getSchemaColumns('bank_cards');
+    const spendingEnvelopesCols = getSchemaColumns('spending_envelopes');
     
     const recordsSpendingEnvelopes = (state.budgets || []).map(b => mapObjectToColumns(b, spendingEnvelopesCols, email, {
       id: b.id,
@@ -490,14 +430,14 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       return mapped;
     });
 
-    const cashCols = await getColumnsForTable('cash_accounts');
+    const cashCols = getSchemaColumns('cash_accounts');
     const recordsCash = (state.cashAccounts || []).map(acc => mapObjectToColumns(acc, cashCols, email, {
       id: acc.id,
       name: acc.name,
       balance: acc.balance
     }));
 
-    const txCols = await getColumnsForTable('transactions');
+    const txCols = getSchemaColumns('transactions');
     const recordsTx = (state.transactions || []).map(tx => mapObjectToColumns(tx, txCols, email, {
       id: tx.id,
       type: tx.type,
@@ -516,7 +456,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       reference_id: tx.referenceId || null
     }));
 
-    const debtsCols = await getColumnsForTable('debts');
+    const debtsCols = getSchemaColumns('debts');
     const recordsDebts = (state.debts || []).map(debt => mapObjectToColumns(debt, debtsCols, email, {
       id: debt.id,
       debt_source: debt.debtSource,
@@ -530,7 +470,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       account_name: debt.accountName || null
     }));
 
-    const incomesCols = await getColumnsForTable('incomes');
+    const incomesCols = getSchemaColumns('incomes');
     const recordsIncomes = (state.incomes || []).map(inc => mapObjectToColumns(inc, incomesCols, email, {
       id: inc.id,
       amount: inc.amount,
@@ -541,7 +481,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       target_type: inc.targetType
     }));
 
-    const expensesCols = await getColumnsForTable('expenses');
+    const expensesCols = getSchemaColumns('expenses');
     const recordsExpenses = (state.expenses || []).map(exp => mapObjectToColumns(exp, expensesCols, email, {
       id: exp.id,
       title: exp.title,
@@ -553,7 +493,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       payment_method_type: exp.paymentMethodType
     }));
 
-    const notificationsCols = await getColumnsForTable('notifications');
+    const notificationsCols = getSchemaColumns('notifications');
     const recordsNotifications = (state.notifications || []).map(notif => mapObjectToColumns(notif, notificationsCols, email, {
       id: notif.id,
       type: notif.type,
@@ -562,7 +502,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       read: notif.read
     }));
 
-    const subscriptionsCols = await getColumnsForTable('subscriptions');
+    const subscriptionsCols = getSchemaColumns('subscriptions');
     const recordsSubscriptions = (state.subscriptions || []).map(sub => mapObjectToColumns(sub, subscriptionsCols, email, {
       id: sub.id,
       name: sub.name,
@@ -577,7 +517,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       instance_type: sub.instanceType || null
     }));
 
-    const loansCols = await getColumnsForTable('loans_given');
+    const loansCols = getSchemaColumns('loans_given');
     const recordsLoans = (state.loansGiven || []).map(loan => mapObjectToColumns(loan, loansCols, email, {
       id: loan.id,
       borrower_name: loan.borrowerName,
@@ -592,7 +532,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       settlements: loan.settlements || []
     }));
 
-    const installmentsCols = await getColumnsForTable('credit_card_installments');
+    const installmentsCols = getSchemaColumns('credit_card_installments');
     const recordsInstallments = (state.creditCardInstallments || []).map(inst => mapObjectToColumns(inst, installmentsCols, email, {
       id: inst.id,
       card_id: inst.cardId,
@@ -607,7 +547,7 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
       payments_made: inst.paymentsMade,
     }));
 
-    const instPaymentsCols = await getColumnsForTable('credit_card_installment_payments');
+    const instPaymentsCols = getSchemaColumns('credit_card_installment_payments');
     const recordsInstPayments = (state.creditCardInstallmentPayments || []).map(pay => mapObjectToColumns(pay, instPaymentsCols, email, {
       id: pay.id,
       installment_id: pay.installmentId,
@@ -621,360 +561,68 @@ export async function syncStateToSupabase(email: string, state: AppState, bypass
 
     const sanitizedState = { ...state, pinCode: '' };
 
-    // 2. ATTEMPT TRANSACTIONAL SINGLE-TRIP RPC
-    try {
-      const { data: rpcRes, error: rpcErr } = await client.rpc('sync_complete_ledger', {
-        p_email: email,
-        p_state: sanitizedState,
-        p_cards: recordsCards,
-        p_cash_accounts: recordsCash,
-        p_transactions: recordsTx,
-        p_debts: recordsDebts,
-        p_incomes: recordsIncomes,
-        p_expenses: recordsExpenses,
-        p_notifications: recordsNotifications,
-        p_subscriptions: recordsSubscriptions,
-        p_loans_given: recordsLoans,
-        p_spending_envelopes: recordsSpendingEnvelopes,
-        p_installments: recordsInstallments,
-        p_installment_payments: recordsInstPayments
-      });
-
-      const rpcSuccess = !rpcErr && rpcRes && (rpcRes as any).success !== false;
-
-      if (rpcSuccess) {
-        if (import.meta.env.DEV) console.log('[TRANSACTIONAL SYNC ENGINE] Successfully synced entire ledger atomically using single-trip Postgres Transaction!');
-        lastSyncedStatesCache[cacheKey] = currentStateString;
-        // Always persist the full state JSON snapshot (including subscriptions) to
-        // ledger_states.state, even though the RPC succeeded. The app falls back to
-        // this JSON when relational-table reads are blocked (e.g. RLS), so it must
-        // be kept current or subscriptions can be lost from the restored view.
-        try {
-          await client
-            .from('ledger_states')
-            .upsert({ user_email: email, state: sanitizedState, updated_at: new Date().toISOString() }, { onConflict: 'user_email' });
-        } catch (jsonErr) {
-          console.warn('[SYNC] ledger_states snapshot upsert failed after RPC:', jsonErr);
-        }
-        return { success: true };
-      }
-
-      const rpcErrorMsg = rpcErr ? rpcErr.message : (rpcRes ? (rpcRes as any).error : 'Unknown RPC result structure');
-      console.warn('[TRANSACTIONAL SYNC ENGINE] RPC call failed:', rpcErr || rpcRes);
-      console.warn(`[TRANSACTIONAL SYNC ENGINE] sync_complete_ledger SQL function had an issue: ${rpcErrorMsg}. Falling back to robust sequential client-side table sync...`);
-    } catch (rpcExecErr: any) {
-      console.warn('[TRANSACTIONAL SYNC ENGINE] Transactional RPC execution failed with exception:', rpcExecErr);
-      console.warn('[TRANSACTIONAL SYNC ENGINE] Falling back to robust sequential client-side table-by-table sync...');
-    }
-
-    // 3. FALLBACK BACKWARD-COMPATIBILITY: CHUNKED PARALLEL CLIENT SYNCHRONIZER
-    if (import.meta.env.DEV) console.log('[SYNC] Upserting state to ledger_states...');
-    
-    const payload = { 
-        user_email: email, 
-        state: sanitizedState,
-        updated_at: new Date().toISOString()
+    // 2. SINGLE SYNC PATH: the transactional sync_complete_ledger RPC
+    // (SECURITY DEFINER, 14-param, migration 20260905240000) mirrors every
+    // relational table for this user inside one Postgres transaction and is
+    // the only write path (B2). The former row-by-row client fallback was
+    // removed because it could drift from the RPC (partial writes, stale
+    // delete semantics, per-table column guessing). On transient failure the
+    // RPC is retried with exponential backoff, then the error is surfaced.
+    const rpcPayload = {
+      p_email: email,
+      p_state: sanitizedState,
+      p_cards: recordsCards,
+      p_cash_accounts: recordsCash,
+      p_transactions: recordsTx,
+      p_debts: recordsDebts,
+      p_incomes: recordsIncomes,
+      p_expenses: recordsExpenses,
+      p_notifications: recordsNotifications,
+      p_subscriptions: recordsSubscriptions,
+      p_loans_given: recordsLoans,
+      p_spending_envelopes: recordsSpendingEnvelopes,
+      p_installments: recordsInstallments,
+      p_installment_payments: recordsInstPayments,
     };
-    if (import.meta.env.DEV) console.log('[SYNC] ledger_states payload:', payload);
 
-    const { error: stateError } = await client
-      .from('ledger_states')
-      .upsert(payload, { onConflict: 'user_email' });
-
-    if (stateError) {
-      console.error('[SYNC] State Upsert Error:', stateError);
-      throw stateError;
-    }
-    if (import.meta.env.DEV) console.log('[SYNC] ledger_states upsert successful.');
-
-    // A. Sync Bank Cards
-    if (cardsCols.length > 0) {
-      if (recordsCards.length > 0) {
-         if (import.meta.env.DEV) console.log(`[SYNC] Upserting ${recordsCards.length} cards...`);
-        const { error: cardErr } = await client.from('bank_cards').upsert(recordsCards, { onConflict: 'id' });
-        
-        if (cardErr) {
-          console.error('[SYNC] Card Upsert Error:', cardErr);
-          errorDetails.push(`Cards: ${cardErr.message}`);
-        }
-      }
-      const activeCardIds = (state.cards || []).map(c => c.id);
-      const emailField = cardsCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeCardIds.length > 0) {
-        const { data: existing, error: fetchErr } = await client.from('bank_cards').select('id').eq(emailField, email);
-        if (fetchErr) {
-            console.error('[SYNC] Card Fetch for Delete Error:', fetchErr);
-            errorDetails.push(`Cards fetch for delete: ${fetchErr.message}`);
-        }
-        
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeCardIds.includes(id));
-        if (toDelete.length > 0) {
-          const { error: delErr } = await client.from('bank_cards').delete().in('id', toDelete);
-          if (delErr) {
-            console.error('[SYNC] Card Delete Error:', delErr);
-            errorDetails.push(`Cards delete error: ${delErr.message}`);
+    try {
+      await retryWithBackoff(
+        async () => {
+          const { data: rpcRes, error: rpcErr } = await client.rpc('sync_complete_ledger', rpcPayload);
+          if (rpcErr) {
+            throw new Error(rpcErr.message);
           }
-        }
-      } else {
-        const { error: delAllErr } = await client.from('bank_cards').delete().eq(emailField, email);
-        if (delAllErr) {
-          console.error('[SYNC] Card Delete All Error:', delAllErr);
-          errorDetails.push(`Cards delete all error: ${delAllErr.message}`);
-        }
-      }
-    }
-
-    // B. Sync Cash Accounts
-    if (cashCols.length > 0) {
-      if (recordsCash.length > 0) {
-        const { error: cashErr } = await client.from('cash_accounts').upsert(recordsCash, { onConflict: 'id' });
-        if (cashErr) errorDetails.push(`Cash: ${cashErr.message}`);
-      }
-      const activeCashIds = (state.cashAccounts || []).map(c => c.id);
-      const emailField = cashCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeCashIds.length > 0) {
-        const { data: existing } = await client.from('cash_accounts').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeCashIds.includes(id));
-        if (toDelete.length > 0) {
-          await client.from('cash_accounts').delete().in('id', toDelete);
-        }
-      } else {
-        await client.from('cash_accounts').delete().eq(emailField, email);
-      }
-    }
-
-    // C. Sync Transactions
-    if (txCols.length > 0) {
-      if (recordsTx.length > 0) {
-         if (import.meta.env.DEV) console.log(`[SYNC] Upserting ${recordsTx.length} transactions...`);
-        let { error: txErr } = await client.from('transactions').upsert(recordsTx, { onConflict: 'id' });
-        
-        if (txErr && txErr.message && txErr.message.toLowerCase().includes('could not find')) {
-          console.warn('[TRANSACTIONAL SYNC ENGINE] Schema mismatch on transactions identified. Stripping new experimental columns and retrying natively...');
-          const fallbackRecords = recordsTx.map(r => {
-            const safe = { ...r };
-            delete safe.charge;
-            delete safe.transfer_charge;
-            return safe;
-          });
-          const retryRes = await client.from('transactions').upsert(fallbackRecords, { onConflict: 'id' });
-          txErr = retryRes.error;
-        }
-
-        if (txErr) {
-          console.error('[SYNC] Transaction Upsert Error:', txErr);
-          errorDetails.push(`Transactions: ${txErr.message}`);
-        }
-      }
-      const activeTxIds = (state.transactions || []).map(t => t.id);
-      const emailField = txCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeTxIds.length > 0) {
-        const { data: existing } = await client.from('transactions').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeTxIds.includes(id));
-        if (toDelete.length > 0) {
-          for (let i = 0; i < toDelete.length; i += 100) {
-            await client.from('transactions').delete().in('id', toDelete.slice(i, i + 100));
+          if (!rpcRes || (rpcRes as any).success !== true) {
+            throw new Error((rpcRes as any)?.error || 'Unknown RPC result structure');
           }
-        }
-      } else {
-        await client.from('transactions').delete().eq(emailField, email);
-      }
+        },
+        {
+          maxRetries: SYNC_RPC_RETRY.maxRetries,
+          baseDelayMs: SYNC_RPC_RETRY.baseDelayMs,
+          onRetry: (attempt, err) => {
+            console.warn(`[TRANSACTIONAL SYNC ENGINE] sync_complete_ledger attempt ${attempt} failed (${err.message}); retrying...`);
+          },
+        },
+      );
+    } catch (rpcErr: any) {
+      const rpcErrorMsg = rpcErr?.message ?? String(rpcErr);
+      console.error('[TRANSACTIONAL SYNC ENGINE] sync_complete_ledger failed after retries:', rpcErrorMsg);
+      return { success: false, error: rpcErrorMsg };
     }
 
-    // D. Sync Debts
-    if (debtsCols.length > 0) {
-      if (recordsDebts.length > 0) {
-         if (import.meta.env.DEV) console.log(`[SYNC] Upserting ${recordsDebts.length} debts...`);
-        let { error: debtsErr } = await client.from('debts').upsert(recordsDebts, { onConflict: 'id' });
-        
-        if (debtsErr && debtsErr.message && debtsErr.message.toLowerCase().includes('could not find')) {
-          console.warn('[TRANSACTIONAL SYNC ENGINE] Schema mismatch on debts identified. Stripping new experimental columns and retrying natively...');
-          const fallbackRecords = recordsDebts.map(r => {
-            const safe = { ...r };
-            delete safe.account_id;
-            delete safe.account_type;
-            delete safe.account_name;
-            return safe;
-          });
-          const retryRes = await client.from('debts').upsert(fallbackRecords, { onConflict: 'id' });
-          debtsErr = retryRes.error;
-        }
-
-        if (debtsErr) {
-          console.error('[SYNC] Debt Upsert Error:', debtsErr);
-          errorDetails.push(`Debts: ${debtsErr.message}`);
-        }
-      }
-      const activeDebtIds = (state.debts || []).map(d => d.id);
-      const emailField = debtsCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeDebtIds.length > 0) {
-        const { data: existing } = await client.from('debts').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeDebtIds.includes(id));
-        if (toDelete.length > 0) {
-          await client.from('debts').delete().in('id', toDelete);
-        }
-      } else {
-        await client.from('debts').delete().eq(emailField, email);
-      }
-    }
-
-    // E. Sync Incomes
-    if (incomesCols.length > 0) {
-      if (recordsIncomes.length > 0) {
-        const { error: incErr } = await client.from('incomes').upsert(recordsIncomes, { onConflict: 'id' });
-        if (incErr) errorDetails.push(`Incomes: ${incErr.message}`);
-      }
-      const activeIncomeIds = (state.incomes || []).map(i => i.id);
-      const emailField = incomesCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeIncomeIds.length > 0) {
-        const { data: existing } = await client.from('incomes').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeIncomeIds.includes(id));
-        if (toDelete.length > 0) {
-          await client.from('incomes').delete().in('id', toDelete);
-        }
-      } else {
-        await client.from('incomes').delete().eq(emailField, email);
-      }
-    }
-
-    // F. Sync Expenses
-    if (expensesCols.length > 0) {
-      if (recordsExpenses.length > 0) {
-        const { error: expErr } = await client.from('expenses').upsert(recordsExpenses, { onConflict: 'id' });
-        if (expErr) errorDetails.push(`Expenses: ${expErr.message}`);
-      }
-      const activeExpenseIds = (state.expenses || []).map(e => e.id);
-      const emailField = expensesCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeExpenseIds.length > 0) {
-        const { data: existing } = await client.from('expenses').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeExpenseIds.includes(id));
-        if (toDelete.length > 0) {
-          await client.from('expenses').delete().in('id', toDelete);
-        }
-      } else {
-        await client.from('expenses').delete().eq(emailField, email);
-      }
-    }
-
-    // G. Sync Notifications
-    if (notificationsCols.length > 0) {
-      if (recordsNotifications.length > 0) {
-        const { error: notifErr } = await client.from('notifications').upsert(recordsNotifications, { onConflict: 'id' });
-        if (notifErr) errorDetails.push(`Notifications: ${notifErr.message}`);
-      }
-      const activeNotifIds = (state.notifications || []).map(n => n.id);
-      const emailField = notificationsCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeNotifIds.length > 0) {
-        const { data: existing } = await client.from('notifications').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeNotifIds.includes(id));
-        if (toDelete.length > 0) {
-          await client.from('notifications').delete().in('id', toDelete);
-        }
-      } else {
-        await client.from('notifications').delete().eq(emailField, email);
-      }
-    }
-
-    // H. Sync Subscriptions
-    if (subscriptionsCols.length > 0) {
-      if (recordsSubscriptions.length > 0) {
-        const { error: subErr } = await client.from('subscriptions').upsert(recordsSubscriptions, { onConflict: 'id' });
-        if (subErr) errorDetails.push(`Subscriptions: ${subErr.message}`);
-      }
-      const activeSubIds = (state.subscriptions || []).map(s => s.id);
-      const emailField = subscriptionsCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeSubIds.length > 0) {
-        const { data: existing } = await client.from('subscriptions').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeSubIds.includes(id));
-        if (toDelete.length > 0) {
-          await client.from('subscriptions').delete().in('id', toDelete);
-        }
-      } else {
-        await client.from('subscriptions').delete().eq(emailField, email);
-      }
-    }
-
-    // I. Sync Loans Given
-    if (loansCols.length > 0) {
-      if (recordsLoans.length > 0) {
-        const { error: loanErr } = await client.from('loans_given').upsert(recordsLoans, { onConflict: 'id' });
-        if (loanErr) errorDetails.push(`Loans Given: ${loanErr.message}`);
-      }
-      const activeLoanIds = (state.loansGiven || []).map(l => l.id);
-      const emailField = loansCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeLoanIds.length > 0) {
-        const { data: existing } = await client.from('loans_given').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeLoanIds.includes(id));
-        if (toDelete.length > 0) {
-          await client.from('loans_given').delete().in('id', toDelete);
-        }
-      } else {
-        await client.from('loans_given').delete().eq(emailField, email);
-      }
-    }
-
-    // J. Sync Spending Envelopes
-    if (spendingEnvelopesCols.length > 0) {
-      if (recordsSpendingEnvelopes.length > 0) {
-        const { error: seErr } = await client.from('spending_envelopes').upsert(recordsSpendingEnvelopes, { onConflict: 'id' });
-        if (seErr) errorDetails.push(`Spending Envelopes: ${seErr.message}`);
-      }
-      const activeSeIds = (state.budgets || []).map(b => b.id);
-      const emailField = spendingEnvelopesCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeSeIds.length > 0) {
-        const { data: existing } = await client.from('spending_envelopes').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeSeIds.includes(id));
-        if (toDelete.length > 0) {
-          await client.from('spending_envelopes').delete().in('id', toDelete);
-        }
-      } else {
-        await client.from('spending_envelopes').delete().eq(emailField, email);
-      }
-    }
-
-    // K. Sync Credit Card Installments
-    if (installmentsCols.length > 0) {
-      if (recordsInstallments.length > 0) {
-        const { error: instErr } = await client.from('credit_card_installments').upsert(recordsInstallments, { onConflict: 'id' });
-        if (instErr) errorDetails.push(`Installments: ${instErr.message}`);
-      }
-      const activeInstIds = (state.creditCardInstallments || []).map(i => i.id);
-      const emailField = installmentsCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activeInstIds.length > 0) {
-        const { data: existing } = await client.from('credit_card_installments').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activeInstIds.includes(id));
-        if (toDelete.length > 0) {
-          await client.from('credit_card_installments').delete().in('id', toDelete);
-        }
-      } else {
-        await client.from('credit_card_installments').delete().eq(emailField, email);
-      }
-    }
-
-    // L. Sync Credit Card Installment Payments
-    if (instPaymentsCols.length > 0) {
-      if (recordsInstPayments.length > 0) {
-        const { error: payErr } = await client.from('credit_card_installment_payments').upsert(recordsInstPayments, { onConflict: 'id' });
-        if (payErr) errorDetails.push(`Installment Payments: ${payErr.message}`);
-      }
-      const activePayIds = (state.creditCardInstallmentPayments || []).map(p => p.id);
-      const emailField = instPaymentsCols.includes('user_email') ? 'user_email' : 'userEmail';
-      if (activePayIds.length > 0) {
-        const { data: existing } = await client.from('credit_card_installment_payments').select('id').eq(emailField, email);
-        const toDelete = (existing || []).map((e: any) => e.id).filter((id: string) => !activePayIds.includes(id));
-        if (toDelete.length > 0) {
-          await client.from('credit_card_installment_payments').delete().in('id', toDelete);
-        }
-      } else {
-        await client.from('credit_card_installment_payments').delete().eq(emailField, email);
-      }
-    }
-
-    if (errorDetails.length > 0) {
-      console.warn('[SYNC AUXILIARY TABLE WARNINGS] Master state saved to ledger_states successfully, but some relational tables had sync warnings:', errorDetails.join('; '));
-    }
-
+    if (import.meta.env.DEV) console.log('[TRANSACTIONAL SYNC ENGINE] Successfully synced entire ledger atomically using single-trip Postgres Transaction!');
     lastSyncedStatesCache[cacheKey] = currentStateString;
+    // Always persist the full state JSON snapshot (including subscriptions) to
+    // ledger_states.state, even though the RPC succeeded. The app falls back to
+    // this JSON when relational-table reads are blocked (e.g. RLS), so it must
+    // be kept current or subscriptions can be lost from the restored view.
+    try {
+      await client
+        .from('ledger_states')
+        .upsert({ user_email: email, state: sanitizedState, updated_at: new Date().toISOString() }, { onConflict: 'user_email' });
+    } catch (jsonErr) {
+      console.warn('[SYNC] ledger_states snapshot upsert failed after RPC:', jsonErr);
+    }
     return { success: true };
   } catch (err: any) {
     console.error('Supabase State Push Error:', err);
@@ -1060,17 +708,22 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
     console.warn('Syncing state from relational tables...');
     
     const fetchTable = async (tableName: string) => {
-      const cols = await withTimeout(getColumnsForTable(tableName), 5000, `getColumns:${tableName}`);
+      const cols = getSchemaColumns(tableName);
       if (!cols || cols.length === 0) {
         console.warn(`Table ${tableName} does not exist in the remote database yet, skipping query.`);
         return [];
       }
-      // More robust column detection (case-insensitive check)
+      // Only filter by the user column when the table actually has one (RLS scopes
+      // by session user; a literal user_email fallback raised PGRST 42703 and
+      // silently dropped installment payments on pull).
       const userCol = cols.find(c => c.toLowerCase() === 'user_email' || c.toLowerCase() === 'useremail');
-      const emailField = userCol || 'user_email'; // Default to user_email
-      
+      const emailField = userCol || null;
+
+      let query = client.from(tableName).select('*');
+      if (emailField) query = query.eq(emailField, email);
+
       const { data, error } = await withTimeout(
-        Promise.resolve(client.from(tableName).select('*').eq(emailField, email)),
+        Promise.resolve(query),
         5000,
         `fetchTable:${tableName}`,
       );
