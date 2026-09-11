@@ -64,7 +64,7 @@ test.describe.serial('Auth flows', () => {
     expect(goodData.deviceToken).toBeTruthy();
   });
 
-  test('UI unlock with localStorage session opens the dashboard', async ({ page }) => {
+  test('UI unlock with httpOnly cookie session opens the dashboard', async ({ page }) => {
     const user = uniqueEmail('e2e-ui');
     await registerUser(page, user);
     const { token } = await loginUser(page, user);

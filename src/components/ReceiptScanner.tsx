@@ -7,6 +7,7 @@ import {
 import { createWorker } from 'tesseract.js';
 import { useNotifications } from '../context/NotificationContext';
 import { parseReceiptText, ScannedTransaction } from '../utils/freeOcrParser';
+import { authSession } from '../services/authSession';
 
 interface ReceiptScannerProps {
   onScanSuccess: (data: {
@@ -117,7 +118,7 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
     if (!extractedText.trim()) {
       try {
         setStatusMessage('Processing scan on OCR server...');
-        const token = localStorage.getItem('auth_session_token') || '';
+        const token = authSession.getToken() || '';
         const response = await fetch(apiUrl('/api/ocr/free-scan'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },

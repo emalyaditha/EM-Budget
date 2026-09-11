@@ -3,10 +3,10 @@ import { apiUrl, safeJson, fetchWithTimeout } from "./lib/api";
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
-import { exportStateAsJSON, generateUniqueId, todayLocal, saveStateToStorage, loadStateFromStorage } from './utils';
+import { exportStateAsJSON, generateUniqueId, todayLocal, saveStateToStorage, loadStateFromStorage, savePreRestoreBackup } from './utils';
 import { addMoney, subtractMoney, compareMoney } from './lib/money';
 import { calculateInstallmentFee, calculateMonthlyPayment, generateInstallmentSchedule, isCardEligibleForInstallment } from './lib/installments';
-import { maybeRollCard, runCycleRollover, paymentsInCycle } from './lib/creditCards';
+import { maybeRollCard, runCycleRollover, paymentsInCycle, cycleAnchor, deductionDate } from './lib/creditCards';
 import { authSession } from './services/authSession';
 import { 
   Plus, Search, Bell, Wallet, LayoutDashboard, 
@@ -43,7 +43,7 @@ import { useTheme } from './context/ThemeContext';
 import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice, revokeAllDevices, AppLockStatus } from './lib/appLock';
 import { calculateNetWorth } from './utils';
 import { toMinorUnits } from './lib/money';
-import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
+import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema, LedgerRestorePayloadSchema } from './validators';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 
 // Merge locally-held subscriptions with ones freshly fetched from the backend
@@ -297,10 +297,6 @@ export default function App() {
   // this account so a future login goes back through the app-lock gate.
   const handleLogout = () => {
     const email = userEmail;
-    localStorage.removeItem('auth_user_email');
-    localStorage.removeItem('auth_session_token');
-    localStorage.removeItem('auth_device_token');
-    localStorage.removeItem('auth_remember_me');
     authSession.clear();
     resetLoadedFromCloud();
     setState(DEFAULT_APP_STATE);
@@ -326,92 +322,70 @@ export default function App() {
 
       const timeLeft = () => Math.max(0, mountDeadline - Date.now());
 
-      // Load system-provided environments on mount to ensure fresh configuration matches backend
+      // A1: credentials live in the httpOnly session cookie only — nothing auth
+      // related is read from or written to localStorage. Verify unconditionally
+      // on every mount; the server returns the token + email for in-memory use.
       try {
-        const confResp = await fetchWithTimeout(apiUrl('/api/config'), { credentials: 'include' }, Math.min(4000, timeLeft()));
-        if (confResp.ok) {
-          const confData = await safeJson(confResp);
-          if (confData?.supabaseUrl && confData?.supabaseKey) {
-            localStorage.setItem('cashflow_supabase_url_v1', confData.supabaseUrl);
-            localStorage.setItem('cashflow_supabase_key_v1', confData.supabaseKey);
-          }
-        }
-      } catch (err) {
-        console.warn("Failed retrieving dynamic server environments:", err);
-      }
+        setIsAppLockInit(true);
+        const vRes = await fetchWithTimeout(apiUrl('/api/auth/verify-session'), {
+          credentials: 'include',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        }, Math.min(6000, timeLeft()));
+        const vData = await safeJson(vRes);
+        if (vData?.success && typeof vData.token === 'string' && vData.token && typeof vData.email === 'string' && vData.email) {
+          const activeToken = vData.token;
+          const email = vData.email;
+          authSession.setToken(activeToken);
+          authSession.setEmail(email);
+          setUserEmail(email);
 
-      const email = localStorage.getItem('auth_user_email');
-      const token = localStorage.getItem('auth_session_token');
-      const rememberMe = localStorage.getItem('auth_remember_me') === 'true';
-      
-      if (email && token) {
-        try {
-          setIsAppLockInit(true);
-          const vRes = await fetchWithTimeout(apiUrl('/api/auth/verify-session'), {
-            credentials: 'include',
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, token, rememberMe })
-          }, Math.min(6000, timeLeft()));
-          const vData = await safeJson(vRes);
-          if (vData?.success) {
-            // If the server rotated the token (rememberMe flow), persist the new one
-            const activeToken = vData.token || token;
-            authSession.setToken(activeToken);
-            authSession.setEmail(email);
-            localStorage.setItem('auth_session_token', activeToken);
-            setUserEmail(email);
+          // Ensure Supabase config is available before sync.
+          await ensureSupabaseConfigFromBackend();
 
-            // Ensure Supabase config is available before sync.
-            await ensureSupabaseConfigFromBackend();
+          // Run the three heavy async operations in parallel — they are
+          // independent of each other and all depend only on the verified
+          // session.  Each has its own timeout; the global deadline above
+          // prevents the whole block from exceeding ~12 s.
+          const syncPromise = syncStateFromSupabase(email);
+          const subsPromise = refreshSubscriptionsFromBackend(email, activeToken);
+          const lockPromise = determineAppLock(email);
 
-            // Run the three heavy async operations in parallel — they are
-            // independent of each other and all depend only on the verified
-            // session.  Each has its own timeout; the global deadline above
-            // prevents the whole block from exceeding ~12 s.
-            const syncPromise = syncStateFromSupabase(email);
-            const subsPromise = refreshSubscriptionsFromBackend(email, token);
-            const lockPromise = determineAppLock(email);
+          const [result, backendSubs] = await Promise.all([syncPromise, subsPromise]);
 
-            const [result, backendSubs] = await Promise.all([syncPromise, subsPromise]);
-
-            if (result.success && result.state) {
-              setState(migrateStateCards(result.state));
-            } else {
-              // Supabase unavailable or returned no state — fall back to the
-              // local mirror so recent offline edits are not dropped. It will
-              // be pushed up by the next successful background sync.
-              const localState = loadStateFromStorage(DEFAULT_APP_STATE);
-              if (localState.transactions.length > 0 || (localState.cashAccounts || []).length > 0) {
-                setState(migrateStateCards(localState));
-              }
-            }
-            if (backendSubs && backendSubs.length > 0) {
-              setState(prev => ({ ...prev, subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs) }));
-            }
-
-            // determineAppLock already ran in parallel — its side effects
-            // (setIsAppLocked) are safe to apply now.
-            await lockPromise;
-
-            setIsUnlocked(true);
-            setIsAppLockInit(false);
+          if (result.success && result.state) {
+            setState(migrateStateCards(result.state));
           } else {
-            console.warn("Session token expired or invalid:", vData?.error);
-            localStorage.removeItem('auth_session_token');
-            authSession.clear();
-            setIsUnlocked(false);
-            setIsAppLocked(false);
-            setIsAppLockInit(false);
+            // Supabase unavailable or returned no state — fall back to the
+            // local mirror so recent offline edits are not dropped. It will
+            // be pushed up by the next successful background sync.
+            const localState = loadStateFromStorage(DEFAULT_APP_STATE);
+            if (localState.transactions.length > 0 || (localState.cashAccounts || []).length > 0) {
+              setState(migrateStateCards(localState));
+            }
           }
-        } catch (err) {
-          console.warn("Fatal error verifying session token:", err);
+          if (backendSubs && backendSubs.length > 0) {
+            setState(prev => ({ ...prev, subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs) }));
+          }
+
+          // determineAppLock already ran in parallel — its side effects
+          // (setIsAppLocked) are safe to apply now.
+          await lockPromise;
+
+          setIsUnlocked(true);
+          setIsAppLockInit(false);
+        } else {
+          console.warn("Session invalid or expired:", vData?.error);
+          authSession.clear();
           setIsUnlocked(false);
           setIsAppLocked(false);
           setIsAppLockInit(false);
         }
-      } else {
+      } catch (err) {
+        console.warn("Fatal error verifying session token:", err);
         setIsUnlocked(false);
+        setIsAppLocked(false);
         setIsAppLockInit(false);
       }
       setIsCheckingAuth(false);
@@ -565,13 +539,15 @@ export default function App() {
   const showToastRef = useRef(showToast);
   showToastRef.current = showToast;
 
-  // Automatic credit-card cycle rollover. On the day after a card's due date
-  // the ended cycle closes: revolving interest is applied to any carried
-  // balance and the Sampath late fee (Rs. 1,200 or 5% of the minimum) is added
-  // when the minimum went unpaid. The due date advances one month, the minimum
-  // is recomputed on the new balance, and the charges are recorded as
-  // credit_card_charge transactions. Each card + cycle end rolls exactly once
-  // (deduplicated via the rollover referenceId embedded in those transactions).
+  // Automatic credit-card cycle rollover. On the deduction day — the 15th of
+  // the month that contains the card's due date (see DEDUCTION_DAY) — the
+  // ended cycle closes: revolving interest is applied to any carried balance
+  // and the Sampath late fee (Rs. 1,200 or 5% of the minimum) is added when the
+  // minimum went unpaid. The due date advances one month, the minimum is
+  // recomputed on the new balance, and the charges are recorded as
+  // credit_card_charge transactions. Each card + deduction date rolls exactly
+  // once (deduplicated via the rollover referenceId embedded in those
+  // transactions).
   useEffect(() => {
     if (!isUnlocked || !isOnline || !isSupabaseReachable) return;
 
@@ -590,11 +566,12 @@ export default function App() {
       let hadLateFee = false;
 
       for (const card of state.cards) {
-        if (!card.dueDate || seen.has(`rollover::${card.id}::${card.dueDate}`)) continue;
+        if (!card.dueDate) continue;
+        const cycleEnd = deductionDate(card.dueDate);
+        if (seen.has(`rollover::${card.id}::${cycleEnd}`)) continue;
         const roll = runCycleRollover(card, state.transactions, today);
         if (!roll || roll.charges.length === 0) continue;
 
-        const cycleEnd = card.dueDate;
         seen.add(`rollover::${card.id}::${cycleEnd}`);
         const charges = roll.charges.map((c, i) => ({ ...c, id: `chg::${card.id}::${cycleEnd}::${i}` }));
 
@@ -673,96 +650,104 @@ export default function App() {
   const handleUpdateBudgetLimit = (id: string, limit: number) => {
     updateState(prev => {
       const updatedBudgets = (prev.budgets || []).map(b => b.id === id ? { ...b, limit } : b);
-      showToast('Budget allocation limit adjusted successfully', 'success');
       return { ...prev, budgets: updatedBudgets };
     });
+    showToast('Budget allocation limit adjusted successfully', 'success');
   };
 
   const handleAddBudget = (category: CategoryExpense, limit: number, icon: string) => {
-    updateState(prev => {
-      const existing = (prev.budgets || []).find(b => b.category === category);
-      if (existing) {
-        showToast(`Budget allocation for ${category} already exists. Adjusting limit.`, 'warning');
-        return prev;
-      }
-      const newBudget = {
-        id: 'b' + Date.now(),
-        category,
-        limit,
-        spent: 0,
-        icon,
-        subBreakdown: []
-      };
-      showToast(`Monitoring created for category: ${category}`, 'success');
-      return { ...prev, budgets: [...(prev.budgets || []), newBudget] };
-    });
+    const existing = (state.budgets || []).find(b => b.category === category);
+    if (existing) {
+      showToast(`Budget allocation for ${category} already exists. Adjusting limit.`, 'warning');
+      return;
+    }
+    const newBudget = {
+      id: 'b' + Date.now(),
+      category,
+      limit,
+      spent: 0,
+      icon,
+      subBreakdown: []
+    };
+    updateState(prev => ({
+      ...prev,
+      budgets: [...(prev.budgets || []), newBudget],
+    }));
+    showToast(`Monitoring created for category: ${category}`, 'success');
   };
 
   const handleRemoveBudget = (id: string) => {
     updateState(prev => {
       const updatedBudgets = (prev.budgets || []).filter(b => b.id !== id);
-      showToast('Budget category deleted successfully', 'success');
       return { ...prev, budgets: updatedBudgets };
     });
+    showToast('Budget category deleted successfully', 'success');
   };
 
   const handleAddGoal = (name: string, target: number, targetDate: string) => {
-    updateState(prev => {
-      const newGoal = {
-        id: 'g' + Date.now(),
-        name,
-        target,
-        current: 0,
-        targetDate
-      };
-      showToast(`Savings Jar: ${name} established!`, 'success');
-      return { ...prev, savingsGoals: [...(prev.savingsGoals || []), newGoal] };
-    });
+    const newGoal = {
+      id: 'g' + Date.now(),
+      name,
+      target,
+      current: 0,
+      targetDate
+    };
+    updateState(prev => ({
+      ...prev,
+      savingsGoals: [...(prev.savingsGoals || []), newGoal],
+    }));
+    showToast(`Savings Jar: ${name} established!`, 'success');
   };
 
   const handleModifyGoalFunds = (id: string, amount: number, cashAccountId: string | null) => {
-    updateState(prev => {
-      const targetGoal = (prev.savingsGoals || []).find(g => g.id === id);
-      if (!targetGoal) return prev;
+    const factor = amount > 0 ? -1 : 1; // saving (amount > 0) decrements wallet, withdrawing (amount < 0) increments wallet
+    const absAmount = Math.abs(amount);
 
+    const targetGoal = (state.savingsGoals || []).find(g => g.id === id);
+    if (!targetGoal) return;
+
+    if (cashAccountId) {
+      const account = state.cashAccounts.find(a => a.id === cashAccountId);
+      if (account && factor < 0 && compareMoney(account.balance, absAmount) < 0) {
+        showToast('Insufficient wallet reserves for allocation transfer', 'error');
+        return;
+      }
+    }
+
+    updateState(prev => {
       let finalCashAccounts = prev.cashAccounts;
       if (cashAccountId) {
         const account = prev.cashAccounts.find(a => a.id === cashAccountId);
         if (account) {
-          const factor = amount > 0 ? -1 : 1; // saving (amount > 0) decrements wallet, withdrawing (amount < 0) increments wallet
-          const absAmount = Math.abs(amount);
-          if (factor < 0 && compareMoney(account.balance, absAmount) < 0) {
-            showToast('Insufficient wallet reserves for allocation transfer', 'error');
-            return prev;
-          }
-          const newBal = (toMinorUnits(account.balance) + (toMinorUnits(absAmount) * factor)) / 100;
+          const newBal = addMoney(account.balance, amount);
           finalCashAccounts = prev.cashAccounts.map(a => a.id === cashAccountId ? { ...a, balance: newBal } : a);
         }
       }
 
       const updatedGoals = (prev.savingsGoals || []).map(g => {
         if (g.id === id) {
-          const newCurrent = Math.max(0, (toMinorUnits(g.current) + toMinorUnits(amount)) / 100);
+          const newCurrent = Math.max(0, addMoney(g.current, amount));
           return { ...g, current: newCurrent };
         }
         return g;
       });
 
-      showToast(amount > 0 ? 'Reserves transferred into savings jar' : 'Reserves returned back to liquid wallet', 'success');
-      return { 
-        ...prev, 
+      return {
+        ...prev,
         cashAccounts: finalCashAccounts,
-        savingsGoals: updatedGoals 
+        savingsGoals: updatedGoals
       };
     });
+
+    showToast(amount > 0 ? 'Reserves transferred into savings jar' : 'Reserves returned back to liquid wallet', 'success');
   };
 
   const handleRemoveGoal = (id: string) => {
     updateState(prev => {
       const updatedGoals = (prev.savingsGoals || []).filter(g => g.id !== id);
-      showToast('Savings jar goal deleted successfully', 'success');
       return { ...prev, savingsGoals: updatedGoals };
     });
+    showToast('Savings jar goal deleted successfully', 'success');
   };
 
   const handleClearAllBudgets = () => {
@@ -2091,7 +2076,7 @@ export default function App() {
         rollSourceCard &&
         rollSourceCard.dueDate &&
         rollSourceCard.minPayment &&
-        paymentsInCycle(state.transactions, cardId, rollSourceCard.dueDate) + amount >= rollSourceCard.minPayment
+        paymentsInCycle(state.transactions, cardId, rollSourceCard.dueDate, cycleAnchor(rollSourceCard)) + amount >= rollSourceCard.minPayment
       ) {
         showToast('success', 'Payment recorded! Minimum satisfied for this cycle — revolving interest applies to the remaining balance at cycle end.');
       } else {
@@ -2632,34 +2617,32 @@ export default function App() {
   };
 
   const handleDeleteCashAccount = (id: string) => {
-    updateState(prev => {
-      const accountToDelete = prev.cashAccounts.find(c => c.id === id);
-      if (accountToDelete && accountToDelete.balance !== 0) {
-        showToast('error', `Cannot delete account "${accountToDelete.name}" with balance ${prev.currency} ${accountToDelete.balance.toLocaleString()}. Please clear funds first.`);
-        return prev;
-      }
-      
-      if (!accountToDelete) return prev;
-      
-      const nowIso = new Date().toISOString();
-      const auditTransaction: Transaction = {
-        id: `trans-cash-del-${Date.now()}`,
-        type: 'expense',
-        title: `Cash Account Deleted: ${accountToDelete.name}`,
-        amount: 0,
-        date: todayLocal(),
-        category: 'Account Deletion',
-        referenceId: id,
-        updated_at: nowIso,
-        updatedAt: nowIso,
-      };
+    // Guard computed from current state (B5: no side effects inside updater)
+    const accountToDelete = state.cashAccounts.find(c => c.id === id);
+    if (accountToDelete && accountToDelete.balance !== 0) {
+      showToast('error', `Cannot delete account "${accountToDelete.name}" with balance ${state.currency} ${accountToDelete.balance.toLocaleString()}. Please clear funds first.`);
+      return;
+    }
+    if (!accountToDelete) return;
 
-      return {
-        ...prev,
-        cashAccounts: prev.cashAccounts.filter(c => c.id !== id),
-        transactions: [auditTransaction, ...prev.transactions],
-      };
-    });
+    const nowIso = new Date().toISOString();
+    const auditTransaction: Transaction = {
+      id: `trans-cash-del-${Date.now()}`,
+      type: 'expense',
+      title: `Cash Account Deleted: ${accountToDelete.name}`,
+      amount: 0,
+      date: todayLocal(),
+      category: 'Account Deletion',
+      referenceId: id,
+      updated_at: nowIso,
+      updatedAt: nowIso,
+    };
+
+    updateState(prev => ({
+      ...prev,
+      cashAccounts: prev.cashAccounts.filter(c => c.id !== id),
+      transactions: [auditTransaction, ...prev.transactions],
+    }));
   };
 
   // Notification Modifiers
@@ -2872,36 +2855,36 @@ export default function App() {
     const transOutId = `trans-${Date.now()}-out`;
     const transInId = `trans-${Date.now()}-in`;
 
+    // 1. Validate balance (computed from current state; B5: no side effects inside updater)
+    let sourceAccountBalance = 0;
+    if (fromType === 'cash') {
+      sourceAccountBalance = state.cashAccounts.find(c => c.id === fromId)?.balance || 0;
+    } else {
+      sourceAccountBalance = state.cards.find(c => c.id === fromId)?.currentBalance || 0;
+    }
+
+    if (compareMoney(sourceAccountBalance, addMoney(amount, charge)) < 0) {
+      showToast('error', "Insufficient balance in the source account including transfer charges.");
+      return;
+    }
+
     updateState(prev => {
-      // 1. Validate balance
-      let sourceAccountBalance = 0;
-      if (fromType === 'cash') {
-        sourceAccountBalance = prev.cashAccounts.find(c => c.id === fromId)?.balance || 0;
-      } else {
-        sourceAccountBalance = prev.cards.find(c => c.id === fromId)?.currentBalance || 0;
-      }
-
-      if (sourceAccountBalance < amount + charge) {
-        showToast('error', "Insufficient balance in the source account including transfer charges.");
-        return prev;
-      }
-
       // 2. Perform transfer
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
 
       // Deduct from source (amount + charge)
       if (fromType === 'cash') {
-        updatedCash = updatedCash.map(c => c.id === fromId ? { ...c, balance: (toMinorUnits(c.balance) - toMinorUnits(amount) - toMinorUnits(charge)) / 100 } : c);
+        updatedCash = updatedCash.map(c => c.id === fromId ? { ...c, balance: subtractMoney(c.balance, addMoney(amount, charge)) } : c);
       } else {
-        updatedCards = updatedCards.map(c => c.id === fromId ? { ...c, currentBalance: (toMinorUnits(c.currentBalance) - toMinorUnits(amount) - toMinorUnits(charge)) / 100 } : c);
+        updatedCards = updatedCards.map(c => c.id === fromId ? { ...c, currentBalance: subtractMoney(c.currentBalance, addMoney(amount, charge)) } : c);
       }
 
       // Add to destination
       if (toType === 'cash') {
-        updatedCash = updatedCash.map(c => c.id === toId ? { ...c, balance: (toMinorUnits(c.balance) + toMinorUnits(amount)) / 100 } : c);
+        updatedCash = updatedCash.map(c => c.id === toId ? { ...c, balance: addMoney(c.balance, amount) } : c);
       } else {
-        updatedCards = updatedCards.map(c => c.id === toId ? { ...c, currentBalance: (toMinorUnits(c.currentBalance) + toMinorUnits(amount)) / 100 } : c);
+        updatedCards = updatedCards.map(c => c.id === toId ? { ...c, currentBalance: addMoney(c.currentBalance, amount) } : c);
       }
 
       // 3. Transactions
@@ -3083,7 +3066,8 @@ export default function App() {
     reader.onload = (event) => {
       try {
         const loaded = JSON.parse(event.target?.result as string);
-        if (loaded === null || typeof loaded !== 'object' || Array.isArray(loaded)) {
+        const validation = validateData(LedgerRestorePayloadSchema, loaded);
+        if (!validation.success) {
           showToast('error', 'Invalid backup file. Expected a ledger export object.');
           return;
         }
@@ -3092,21 +3076,16 @@ export default function App() {
         let stateToLoad: any = null;
         let originalOwner = '';
 
-        if (loadedJson.version === 'EM_BUDGET_SECURE_EX_V1' && loadedJson.data && typeof loadedJson.data === 'object' && !Array.isArray(loadedJson.data)) {
+        if ('data' in validation.data) {
           stateToLoad = loadedJson.data;
           originalOwner = loadedJson.exportedBy || '';
-        } else if (
-          Array.isArray(loadedJson.cashAccounts) &&
-          Array.isArray(loadedJson.cards) &&
-          Array.isArray(loadedJson.transactions)
-        ) {
-          // A bare JSON object that merely reuses the ledger's top-level keys
-          // must not pass itself off as a valid backup (that would silently
-          // wipe all local and cloud data on import). Require actual content.
+        } else {
+          // A bare state object must prove content in a critical collection;
+          // an empty doppelganger would silently wipe local + cloud data.
           const hasContent =
-            loadedJson.cashAccounts.length > 0 ||
-            loadedJson.cards.length > 0 ||
-            loadedJson.transactions.length > 0;
+            validation.data.cashAccounts.length > 0 ||
+            validation.data.cards.length > 0 ||
+            validation.data.transactions.length > 0;
           if (hasContent) {
             stateToLoad = loadedJson;
           }
@@ -3129,6 +3108,7 @@ export default function App() {
             }
           }
 
+          savePreRestoreBackup(state);
           updateState(() => sanitizedState as AppState);
 
           if (droppedTotal > 0) {
@@ -3572,11 +3552,7 @@ export default function App() {
             onUnlocked={async (email, token, rememberMe, deviceToken) => {
               authSession.setToken(token);
               authSession.setEmail(email);
-              localStorage.setItem('auth_user_email', email);
-              localStorage.setItem('auth_session_token', token);
-              localStorage.setItem('auth_remember_me', rememberMe ? 'true' : 'false');
               if (rememberMe && deviceToken) {
-                localStorage.setItem('auth_device_token', deviceToken);
                 authSession.setDeviceToken(deviceToken);
               }
               setUserEmail(email);
@@ -3628,7 +3604,7 @@ export default function App() {
           
           {/* Header block for current active tab */}
           {activeTab !== 'dashboard' && (
-            <div className="card flex justify-between items-center p-6">
+            <div className="card flex justify-between items-center p-6" id="tab-header-block">
               <div className="min-w-0 pr-3 space-y-1">
                 <span className="eyebrow">
                   {activeTab === 'accounts' ? 'Wallets Core' :

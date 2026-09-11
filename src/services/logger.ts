@@ -1,4 +1,5 @@
 // Structured Logger for Enterprise Telemetry
+import { authSession } from './authSession';
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
 
 export interface LogEntry {
@@ -36,7 +37,7 @@ class TelemetryLogger {
   }
 
   private writeLog(level: LogLevel, source: string, message: string, metadata?: Record<string, any>) {
-    const userEmail = localStorage.getItem('auth_user_email') || 'anonymous';
+    const userEmail = authSession.getEmail() || 'anonymous';
     const logObj: LogEntry = {
       level,
       timestamp: new Date().toISOString(),

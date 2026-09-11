@@ -59,14 +59,5 @@ export async function loginUser(page: Page, user: TestUser): Promise<{ token: st
   expect(resp.status).toBe(200);
   expect(resp.data.success).toBe(true);
   await page.goto('/');
-  await page.evaluate(
-    ([email, token, deviceToken]) => {
-      window.localStorage.setItem('auth_user_email', email as string);
-      window.localStorage.setItem('auth_session_token', token as string);
-      window.localStorage.setItem('auth_device_token', deviceToken as string);
-      window.localStorage.setItem('auth_remember_me', 'false');
-    },
-    [user.email, resp.data.token, resp.data.deviceToken],
-  );
   return { token: resp.data.token, deviceToken: resp.data.deviceToken };
 }
