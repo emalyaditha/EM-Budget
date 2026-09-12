@@ -10,14 +10,14 @@
 import { BankCard, Transaction } from '../types';
 import { addMoney, subtractMoney, sumMoney } from './money';
 
-export function isLeapYear(year: number): boolean {
+function isLeapYear(year: number): boolean {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 }
 
 /**
  * Number of days in a given month (1-12), leap-year aware.
  */
-export function daysInMonth(year: number, month: number): number {
+function daysInMonth(year: number, month: number): number {
   switch (month) {
     case 2:
       return isLeapYear(year) ? 29 : 28;
@@ -268,7 +268,7 @@ export function maybeRollCard(
 
 /** A charge produced by a cycle-end rollover, ready to be persisted as a
  * Charge plus a credit_card_charge transaction. */
-export interface CycleChargeDraft {
+interface CycleChargeDraft {
   type: 'Interest Charge' | 'Late Payment Fee';
   name: string;
   amount: number;
@@ -277,7 +277,7 @@ export interface CycleChargeDraft {
 }
 
 /** Result of closing out a card's billing cycle on the day after its due date. */
-export interface CycleRolloverResult {
+interface CycleRolloverResult {
   currentBalance: number;
   dueDate?: string;
   minPayment?: number;

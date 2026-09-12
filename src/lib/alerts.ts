@@ -1,6 +1,6 @@
 import { AppState } from '../types';
 
-export type AlertSeverity = 'critical' | 'warning' | 'info';
+type AlertSeverity = 'critical' | 'warning' | 'info';
 
 export interface FinanceAlert {
   id: string;
@@ -12,10 +12,10 @@ export interface FinanceAlert {
 
 // Budget usage thresholds (fraction of the limit spent) mapped to severities.
 export const BUDGET_WARN_AT = 0.8; // 80% spent -> warning
-export const BUDGET_CRITICAL_AT = 1.0; // 100%+ spent -> critical
+const BUDGET_CRITICAL_AT = 1.0; // 100%+ spent -> critical
 
 // How many days ahead a due date should raise a "coming due" alert.
-export const DUE_SOON_DAYS = 3;
+const DUE_SOON_DAYS = 3;
 
 function parseDay(iso: string): number {
   // Parse a calendar date ("YYYY-MM-DD") at LOCAL midnight so it aligns with

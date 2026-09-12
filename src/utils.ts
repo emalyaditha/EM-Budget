@@ -21,14 +21,7 @@ export function todayLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Whole days from today to a "YYYY-MM-DD" date, compared in LOCAL calendar space
-// so "due today" is 0 and "due tomorrow" is 1 (no UTC midnight shift).
-export function daysFromToday(dateStr: string): number {
-  const then = new Date(`${dateStr}T00:00:00`);
-  const now = new Date();
-  const nowLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((then.getTime() - nowLocal.getTime()) / (1000 * 60 * 60 * 24));
-}
+
 
 const STORAGE_KEY = 'cashflow_manager_state_v1';
 
@@ -269,14 +262,7 @@ export const EXPENSE_COLORS: Record<string, string> = {
   Other: '#6B7280',       // Gray
 };
 
-export const INCOME_COLORS: Record<string, string> = {
-  Salary: '#10B981',      // Emerald Green
-  Freelance: '#06B6D4',   // Cyan
-  Business: '#3B82F6',    // Blue
-  Bonus: '#F59E0B',       // Gold
-  Commission: '#84CC16',  // Lime
-  Other: '#6B7280',       // Gray
-};
+
 
 // Canonical category lists. These are the single source of truth for category
 // <select>s across the app. They must match the zod enums in
@@ -306,7 +292,7 @@ export const INCOME_CATEGORIES = [
   'Other',
 ] as const;
 
-export interface NetWorthBreakdown {
+interface NetWorthBreakdown {
   cash: number;
   debitCards: number;
   creditCardAssets: number;
@@ -320,7 +306,7 @@ export function calculateNetWorth(state: Partial<AppState>): NetWorthBreakdown {
   // Net worth (B7) is intentionally snapshot-based by design: it sums account
   // balances, card balances, debts and loans directly from current state rather
   // than recomputing from the transaction ledger. Recalculating from the ledger
-  // is a documented follow-up decision (EM-Budget-Improvement-Plan.md), not a bug.
+  // is a documented follow-up decision, not a bug.
   const cashAccounts = state.cashAccounts || [];
   const cards = state.cards || [];
   const debts = state.debts || [];

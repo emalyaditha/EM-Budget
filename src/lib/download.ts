@@ -11,7 +11,7 @@ export function downloadBlob(content: BlobPart, filename: string, mimeType: stri
 }
 
 /** Prefix cells that could trigger formula injection in Excel/Sheets. */
-export function sanitizeCsvCell(value: string | number): string {
+function sanitizeCsvCell(value: string | number): string {
   const str = String(value);
   if (/^[=+\-@\t\r]/.test(str)) {
     return `'${str}`;

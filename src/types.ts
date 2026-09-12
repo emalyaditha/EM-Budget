@@ -87,7 +87,7 @@ export interface Expense {
   createdAt?: string;
 }
 
-export interface DebtPayment {
+interface DebtPayment {
   id: string;
   debtId: string;
   amount: number;
@@ -232,7 +232,7 @@ export interface CreditCardInstallmentPayment {
   status: 'pending' | 'paid' | 'overdue';
 }
 
-export interface UserProfile {
+interface UserProfile {
   name: string;
   email: string;
   avatarUrl?: string;

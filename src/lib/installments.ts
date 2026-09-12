@@ -1,6 +1,6 @@
 import { BankCard, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
 
-export const SAMPATH_ESP_FEES: Record<number, number> = {
+const SAMPATH_ESP_FEES: Record<number, number> = {
   6: 0,
   12: 7.5,
   24: 15,

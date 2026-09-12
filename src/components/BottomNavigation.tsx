@@ -2,7 +2,7 @@ import React from 'react';
 import { LayoutDashboard, Wallet, ArrowLeftRight, PieChart, Menu, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export interface BottomNavigationProps {
+interface BottomNavigationProps {
   activeTab: string;
   onTabChange: (tabId: string) => void;
   onQuickActionClick: () => void;

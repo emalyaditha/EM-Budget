@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export interface OnlineStatus {
+interface OnlineStatus {
   isOnline: boolean;
   isSupabaseReachable: boolean;
   lastChecked: number;

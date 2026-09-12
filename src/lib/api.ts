@@ -41,12 +41,7 @@ export function withTimeout<T>(
   });
 }
 
-export const apiFetch = async (path: string, init?: RequestInit) => {
-  const res = await fetchWithTimeout(apiUrl(path), init);
-  return res;
-};
-
-export interface RetryOptions {
+interface RetryOptions {
   maxRetries?: number;
   baseDelayMs?: number;
   maxDelayMs?: number;

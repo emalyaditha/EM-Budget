@@ -1,7 +1,7 @@
 ﻿import React from 'react';
 import { TrendingUp } from 'lucide-react';
 
-export interface CategorySum {
+interface CategorySum {
   name: string;
   value: number;
   percentage: number;
@@ -138,26 +138,4 @@ export function CategorySpreadAnalysis({ categories, currency = 'Rs.', layout: _
   );
 }
 
-export function RepaymentGauge({ totalDebt, remaining, name, currency = 'Rs.' }: { totalDebt: number; remaining: number; name: string; currency?: string }) {
-  const repaid = totalDebt - remaining;
-  const percentage = totalDebt > 0 ? Math.round((repaid / totalDebt) * 100) : 100;
-  return (
-    <div className="card p-4 flex gap-4 items-center overflow-hidden relative">
-      <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-40" />
-      <div className="relative w-16 h-16 shrink-0">
-        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-          <circle cx="18" cy="18" r="15.9155" stroke="var(--line)" strokeWidth="3.5" fill="none" />
-          <path strokeDasharray={`${percentage}, 100`} strokeWidth="3.5" strokeLinecap="round" stroke="url(#ultraRainbow)" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-          <defs><linearGradient id="ultraRainbow" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#F4B5BE"/><stop offset="50%" stopColor="#F5E6A3"/><stop offset="100%" stopColor="#B8D4F0"/></linearGradient></defs>
-        </svg>
-        <div className="absolute inset-0 grid place-items-center mono text-[11px] font-black">{percentage}%</div>
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-[12px] font-bold truncate">{name} Repaid</div>
-        <div className="mono text-[11px] mt-0.5" style={{ color: 'var(--ink-2)' }}>Cleared: <span className="font-bold" style={{ color: 'var(--ink)' }}>{currency} {repaid.toLocaleString()}</span></div>
-        <div className="mono text-[11px]" style={{ color: 'var(--ink-3)' }}>Outstanding: {currency} {remaining.toLocaleString()}</div>
-        <div className="h-1.5 rounded-full bg-[var(--surface-3)] overflow-hidden mt-1.5"><div className="h-full mw-progress" style={{ width: `${percentage}%`}} /></div>
-      </div>
-    </div>
-  );
-}
+

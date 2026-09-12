@@ -2,7 +2,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, PlusCircle, CreditCard, ArrowLeftRight, FileText, Wallet, PiggyBank, Settings, X, ChevronRight } from 'lucide-react';
 
-export interface CommandPaletteProps {
+interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectAction: (actionId: string) => void;

@@ -920,8 +920,3 @@ export async function syncStateFromSupabase(email: string): Promise<{ success: b
     'syncStateFromSupabase',
   );
 }
-
-
-export function getSupabaseSQLScript(): string {
-  return `-- SQL Migrations are now managed on the backend and located in /supabase/migrations/20260725_init.sql\n-- The Settings panel will dynamically fetch the fresh script from the server.`;
-}

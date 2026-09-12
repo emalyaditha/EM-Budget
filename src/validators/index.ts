@@ -1,17 +1,7 @@
 import { z } from 'zod';
 
 // Category Definitions matching types.ts
-export const CategoryIncomeSchema = z.enum([
-  'Salary',
-  'Freelance',
-  'Business',
-  'Bonus',
-  'Commission',
-  'Loan Settle',
-  'Other'
-]);
-
-export const CategoryExpenseSchema = z.enum([
+const CategoryExpenseSchema = z.enum([
   'Food',
   'Transport',
   'Shopping',
@@ -85,7 +75,7 @@ export const TransactionSchema = z.object({
 });
 
 // 4. Debt & Payments Schemas
-export const DebtPaymentSchema = z.object({
+const DebtPaymentSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   debtId: z.string().min(1),
   amount: z.number().finite().positive('Payment must be positive'),
@@ -128,7 +118,7 @@ export const SubscriptionSchema = z.object({
 // or empty doppelganger payload can never silently wipe local + cloud state.
 const CollectionListSchema = z.array(z.unknown());
 
-export const RestoreCollectionFieldsSchema = z.object({
+const RestoreCollectionFieldsSchema = z.object({
   cashAccounts: CollectionListSchema.optional(),
   cards: CollectionListSchema.optional(),
   creditCards: CollectionListSchema.optional(),
@@ -164,7 +154,7 @@ export const LedgerRestorePayloadSchema = z.union([
   BareRestoreStateSchema
 ]);
 
-export type ValidationResult<T> = 
+type ValidationResult<T> = 
   | { success: true; data: T; error?: undefined }
   | { success: false; error: string; data?: undefined };
 

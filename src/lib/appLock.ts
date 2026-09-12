@@ -23,7 +23,7 @@ export type AppLockStatus = {
   webauthnRpid?: string;
 };
 
-export type TrustedDevice = {
+type TrustedDevice = {
   id: string;
   createdAt: number;
   lastUsedAt: number;
@@ -90,7 +90,7 @@ export async function setLockIdleMinutes(email: string, minutes: number): Promis
   }
 }
 
-export type PinVerifyResult = {
+type PinVerifyResult = {
   ok: boolean;
   success?: boolean;
   error?: string;
@@ -157,7 +157,7 @@ export async function removeBiometricCredential(email: string, credentialId: str
   }
 }
 
-export type BiometricCredential = {
+type BiometricCredential = {
   credentialId: string;
   deviceLabel: string;
   createdAt: number;
@@ -173,7 +173,7 @@ export async function listBiometricCredentials(email: string): Promise<Biometric
   }
 }
 
-export type BiometricUnlockResult = {
+type BiometricUnlockResult = {
   ok: boolean;
   error?: string;
   unavailable?: boolean;
@@ -208,7 +208,7 @@ export async function biometricUnlock(email: string): Promise<BiometricUnlockRes
 
 // --- Trusted devices ---
 
-export type DeviceCheckResult = { trusted: boolean; email?: string };
+type DeviceCheckResult = { trusted: boolean; email?: string };
 
 export async function checkTrustedDevice(): Promise<DeviceCheckResult> {
   try {
