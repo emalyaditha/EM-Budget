@@ -24,5 +24,4 @@ backups/
 
 # Vercel serverless build output
 api/index.js.map
-api/index.js
 .vercel
