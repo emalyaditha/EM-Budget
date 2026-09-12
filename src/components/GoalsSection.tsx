@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SavingsGoal, CashAccount } from '../types';
 import { Plus, X, Trash2, MinusCircle, PlusCircle } from 'lucide-react';
-import { DatePicker } from './DatePicker';
+
 import { todayLocal } from '../utils';
 
 interface GoalsSectionProps {
@@ -162,7 +162,7 @@ export default function GoalsSection({
                     </div>
                     <div>
                       <label className="eyebrow block mb-1.5 !text-[9px]">Deadline</label>
-                      <DatePicker value={goalDate} onChange={setGoalDate} />
+                      <input type="date" className="input" value={goalDate} onChange={e => setGoalDate(e.target.value)} />
                     </div>
                   </div>
                 </div>

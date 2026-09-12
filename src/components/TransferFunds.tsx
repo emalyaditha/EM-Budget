@@ -2,7 +2,7 @@
 import { CashAccount, BankCard } from "../types";
 import { ArrowRightLeft } from "lucide-react";
 import { useNotifications } from "../context/NotificationContext";
-import { DatePicker } from "./DatePicker";
+
 
 interface TransferFundsProps {
   cashAccounts: CashAccount[];
@@ -175,7 +175,7 @@ export default function TransferFunds({ cashAccounts, cards, currency, onTransfe
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <label className="eyebrow normal-case tracking-normal">Date</label>
-          <DatePicker value={transferDate} onChange={setTransferDate} required />
+          <input type="date" className="input" value={transferDate} onChange={e => setTransferDate(e.target.value)} required />
         </div>
         <div className="space-y-1.5">
           <label className="eyebrow normal-case tracking-normal">Note · memo</label>

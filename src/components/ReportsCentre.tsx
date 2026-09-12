@@ -3,7 +3,7 @@ import { Transaction, Income, Expense, Debt, CashAccount, BankCard, LoanGiven, S
 import { exportTransactionsToCSV, EXPENSE_COLORS } from '../utils';
 import { FileDown, Printer, BarChart3, PieChart, TrendingUp, Landmark, Search } from 'lucide-react';
 import { IncomeVsExpenseBar, CategorySpreadAnalysis, TrendAnalysisChart } from './Charts';
-import { DatePicker } from './DatePicker';
+
 import AuditPanel from './AuditPanel';
 
 interface ReportsCentreProps {
@@ -164,8 +164,8 @@ export default function ReportsCentre({ transactions, debts, loansGiven, cashAcc
               <div><p className="eyebrow !text-[9px] mb-1">Account</p><select value={filterAccount} onChange={e => setFilterAccount(e.target.value)} className="input !py-2.5 text-[12px]"><option value="all">All wallets/cards</option>{cashAccounts.map(c => <option key={c.id} value={c.id}>Cash: {c.name}</option>)}{cards.filter(c => !c.isCanceled).map(card => <option key={card.id} value={card.id}>Card: {card.cardName}</option>)}</select></div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div><p className="eyebrow !text-[9px] mb-1">Start</p><DatePicker value={startDate} onChange={setStartDate} /></div>
-              <div><p className="eyebrow !text-[9px] mb-1">End</p><DatePicker value={endDate} onChange={setEndDate} /></div>
+              <div><p className="eyebrow !text-[9px] mb-1">Start</p><input type="date" className="input" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
+              <div><p className="eyebrow !text-[9px] mb-1">End</p><input type="date" className="input" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
             </div>
             {(startDate || endDate) && <button onClick={() => { setStartDate(''); setEndDate(''); }} className="mono text-[11px] underline" style={{ color: 'var(--ink-2)' }}>Reset bounds</button>}
             <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1" id="filtered-list">

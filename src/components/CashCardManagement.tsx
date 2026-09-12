@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CashAccount, BankCard, Charge } from '../types';
 import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronDown, CornerDownRight, Snowflake, RefreshCw, Lock } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
+
 import { todayLocal } from '../utils';
 
 interface CashCardManagementProps {
@@ -406,8 +406,8 @@ export default function CashCardManagement({
                   <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Min. payment ({currency})</label><input type="number" min="0" placeholder="2500" value={cardMinPayment} onChange={e=>setCardMinPayment(e.target.value)} className="input mono" /></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Payment due date</label><DatePicker value={cardDueDate} onChange={setCardDueDate} /></div>
-                  <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Payment cut-off date</label><DatePicker value={cardStatementCloseDate} onChange={setCardStatementCloseDate} /></div>
+                  <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Payment due date</label><input type="date" className="input" value={cardDueDate} onChange={e => setCardDueDate(e.target.value)} /></div>
+                  <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Payment cut-off date</label><input type="date" className="input" value={cardStatementCloseDate} onChange={e => setCardStatementCloseDate(e.target.value)} /></div>
                 </div>
               </div>
             )}
@@ -513,8 +513,8 @@ export default function CashCardManagement({
                       <div className="grid grid-cols-2 gap-2">
                         <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">APR (%)</label><input type="number" step="0.01" min="0" value={editCardApr} onChange={e=>setEditCardApr(e.target.value)} className="input mono !text-xs" /></div>
                         <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Min. ({currency})</label><input type="number" min="0" value={editCardMinPayment} onChange={e=>setEditCardMinPayment(e.target.value)} className="input mono !text-xs" /></div>
-                        <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Due date</label><DatePicker value={editCardDueDate} onChange={setEditCardDueDate} /></div>
-                        <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Cut-off date</label><DatePicker value={editCardStatementCloseDate} onChange={setEditCardStatementCloseDate} /></div>
+                        <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Due date</label><input type="date" className="input" value={editCardDueDate} onChange={e => setEditCardDueDate(e.target.value)} /></div>
+                        <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Cut-off date</label><input type="date" className="input" value={editCardStatementCloseDate} onChange={e => setEditCardStatementCloseDate(e.target.value)} /></div>
                       </div>
                     </>}
                     <div className="space-y-1.5"><span className="eyebrow normal-case">Border accent</span><div className="flex gap-1.5 flex-wrap">{themeOptions.slice(0,5).map(th=>(
@@ -543,7 +543,7 @@ export default function CashCardManagement({
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <input type="number" step="0.01" value={chargeAmount} onChange={e=>setChargeAmount(e.target.value)} placeholder="Amount" className="input mono !text-xs" />
-                        <DatePicker value={chargeDate} onChange={setChargeDate} />
+                        <input type="date" className="input" value={chargeDate} onChange={e => setChargeDate(e.target.value)} />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <select value={chargeRecurring} onChange={e=>setChargeRecurring(e.target.value as any)} className="input !text-xs"><option value="none">One-off</option><option value="Monthly">Monthly</option><option value="Yearly">Yearly</option><option value="Custom">Custom</option></select>

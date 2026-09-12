@@ -2,7 +2,7 @@
 import { LoanGiven, CashAccount, BankCard } from '../types';
 import { Plus, CheckCircle2, Calendar, ArrowDownLeft, Trash2, Wallet, History, ChevronDown, ChevronUp, ArrowUpRight } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
+
 import { todayLocal } from '../utils';
 
 interface LoansTrackerProps {
@@ -134,7 +134,7 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
             <div className="card-flat !p-3 space-y-2"><label className="eyebrow block">Card charge ({currency})</label><input type="number" step="any" placeholder="0" value={giveLoanBankCharge} onChange={e => setGiveLoanBankCharge(e.target.value)} className="input mono" /></div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label className="eyebrow block mb-2">Date lent</label><DatePicker value={dateGiven} onChange={setDateGiven} />{errors.dateGiven && <p className="mono text-[11px] mt-1" style={{ color: 'var(--danger)' }}>{errors.dateGiven}</p>}</div>
+            <div><label className="eyebrow block mb-2">Date lent</label><input type="date" className="input" value={dateGiven} onChange={e => setDateGiven(e.target.value)} />{errors.dateGiven && <p className="mono text-[11px] mt-1" style={{ color: 'var(--danger)' }}>{errors.dateGiven}</p>}</div>
             <div><label className="eyebrow block mb-2">Notes</label><input type="text" placeholder="Friendly loan..." value={notes} onChange={e => setNotes(e.target.value)} className="input" /></div>
           </div>
           <div className="flex justify-end gap-2"><button type="button" onClick={() => { setIsGivingLoan(false); setErrors({}); }} className="btn-ghost">Cancel</button><button type="submit" className="btn-primary">Authorize & log</button></div>

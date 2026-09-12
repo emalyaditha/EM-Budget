@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CashAccount, BankCard, CategoryIncome, CategoryExpense } from '../types';
 import { PlusCircle, MinusCircle, Sparkles } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
+
 import ReceiptScanner from './ReceiptScanner';
 import { todayLocal } from '../utils';
 
@@ -121,7 +121,7 @@ export default function InflowsOutflows({ cashAccounts, cards, onAddIncome, onAd
               <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Category</label><select value={incCategory} onChange={e=>setIncCategory(e.target.value as any)} className="input"><option value="Salary">Salary</option><option value="Freelance">Freelance</option><option value="Business">Business</option><option value="Bonus">Bonus</option><option value="Commission">Commission</option><option value="Other">Other</option></select></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Date</label><DatePicker value={incDate} onChange={setIncDate} required /></div>
+              <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Date</label><input type="date" className="input" value={incDate} onChange={e => setIncDate(e.target.value)} required /></div>
               <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Destination</label>
                 <select ref={incTargetRef} value={incTargetId?`${incTargetId}:${incTargetType}`:''} onChange={e=>handleSelectTargetAccount(e.target.value)} className="input">
                   <option value="">Select target</option>
@@ -144,7 +144,7 @@ export default function InflowsOutflows({ cashAccounts, cards, onAddIncome, onAd
               <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Category</label><select value={expCategory} onChange={e=>setExpCategory(e.target.value as any)} className="input"><option value="Food">Food</option><option value="Transport">Transport</option><option value="Shopping">Shopping</option><option value="Utilities">Utilities</option><option value="Rent">Rent</option><option value="Entertainment">Entertainment</option><option value="Medical">Medical</option><option value="Education">Education</option><option value="Insurance">Insurance</option><option value="Other">Other</option></select></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Date</label><DatePicker value={expDate} onChange={setExpDate} required /></div>
+              <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Date</label><input type="date" className="input" value={expDate} onChange={e => setExpDate(e.target.value)} required /></div>
               <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Deduct from</label>
                 <select ref={expTargetRef} value={expMethodId?`${expMethodId}:${expMethodType}`:''} onChange={e=>handleSelectPaymentMethod(e.target.value)} className="input">
                   <option value="">Select source</option>

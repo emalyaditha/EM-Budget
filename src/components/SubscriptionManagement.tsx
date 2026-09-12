@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { CashAccount, BankCard, Subscription, CategoryExpense } from '../types';
 import { Plus, Trash2, Calendar, CreditCard, Play, Pause, CheckCircle2, Clock, DollarSign } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
+
 import { todayLocal } from '../utils';
 
 interface SubscriptionManagementProps {
@@ -113,7 +113,7 @@ export default function SubscriptionManagement({ subscriptions, cashAccounts, ca
             <div><label className="eyebrow block mb-2">Billing cycle</label><select value={billingCycle} onChange={e => setBillingCycle(e.target.value as 'Monthly' | 'Yearly')} className="input"><option value="Monthly">Monthly</option><option value="Yearly">Yearly</option></select></div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label className="eyebrow block mb-2">Next due</label><DatePicker value={dueDate} onChange={setDueDate} /></div>
+            <div><label className="eyebrow block mb-2">Next due</label><input type="date" className="input" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
             <div><label className="eyebrow block mb-2">Category</label><select value={category} onChange={e => setCategory(e.target.value as CategoryExpense)} className="input"><option value="Entertainment">Entertainment</option><option value="Utilities">Utilities</option><option value="Rent">Rent</option><option value="Transport">Transport</option><option value="Shopping">Shopping</option><option value="Medical">Medical</option><option value="Education">Education</option><option value="Insurance">Insurance</option><option value="Other">Other</option></select></div>
           </div>
           <div><label className="eyebrow block mb-2">Instance type (optional)</label><div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><select value={instanceTypeSelection} onChange={e => { const v = e.target.value; setInstanceTypeSelection(v); if (v !== 'custom') setInstanceType(v === 'none' ? '' : v); else setInstanceType(''); }} className="input"><option value="none">Not a server</option><option value="Web Service">Web Service</option><option value="PostgreSQL Database">PostgreSQL Database</option><option value="Redis Cache">Redis Cache</option><option value="Background Worker">Background Worker</option><option value="Static Site">Static Site</option><option value="Cron Job">Cron Job</option><option value="custom">Custom...</option></select>{instanceTypeSelection === 'custom' ? <input type="text" placeholder="Custom type" value={instanceType} onChange={e => setInstanceType(e.target.value)} className="input" /> : <span className="mono text-[11px] self-center" style={{ color: 'var(--ink-3)' }}>Preset or custom label.</span>}</div></div>
@@ -130,7 +130,7 @@ export default function SubscriptionManagement({ subscriptions, cashAccounts, ca
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div><label className="eyebrow block mb-2">Deduct from</label><select value={`${payAccountId}:${payAccountType}`} onChange={e => handleSelectPayAccount(e.target.value)} className="input"><optgroup label="Cash">{cashAccounts.map(c => <option key={c.id} value={`${c.id}:cash`}>Wallet: {c.name} ({currency}{c.balance.toLocaleString()})</option>)}</optgroup><optgroup label="Cards">{cards.filter(c => !c.isCanceled).map(c => <option key={c.id} value={`${c.id}:card`}>{c.bankName} - {c.cardName} ({currency}{c.currentBalance.toLocaleString()})</option>)}</optgroup></select></div>
-            <div><label className="eyebrow block mb-2">Payment date</label><DatePicker value={payDate} onChange={setPayDate} /></div>
+            <div><label className="eyebrow block mb-2">Payment date</label><input type="date" className="input" value={payDate} onChange={e => setPayDate(e.target.value)} /></div>
           </div>
           {payAccountType === 'card' && payAccountId && (
             <div className="card-flat !p-3 space-y-2"><label className="eyebrow block">Card charge ({currency})</label><input type="number" step="any" placeholder="0" value={payBankCharge} onChange={e => setPayBankCharge(e.target.value)} className="input mono" /></div>

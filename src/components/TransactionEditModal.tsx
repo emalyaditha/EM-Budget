@@ -3,7 +3,7 @@ import { Transaction, CashAccount, BankCard } from '../types';
 import { X, Save, Trash2, Edit3 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-import { DatePicker } from './DatePicker';
+
 
 interface TransactionEditModalProps {
   transaction: Transaction | null;
@@ -192,13 +192,14 @@ export default function TransactionEditModal({
 
           <div>
             <label className="eyebrow block mb-1.5">Calendar Date</label>
-            <DatePicker 
-              value={date} 
-              onChange={val => {
-                setDate(val);
-                validateTxForm(title, amount, val, submitted);
+            <input
+              type="date"
+              value={date}
+              onChange={e => {
+                setDate(e.target.value);
+                validateTxForm(title, amount, e.target.value, submitted);
               }}
-              error={!!errors.date}
+              className={`input ${errors.date ? '!border-[var(--danger)]' : ''}`}
             />
             {errors.date && (
               <span className="text-[var(--danger)] mono text-[10px] pl-1 mt-1.5 block">{errors.date}</span>

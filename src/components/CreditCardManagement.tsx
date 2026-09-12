@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CashAccount, BankCard, CreditCardPurchase, Transaction, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
 import { CreditCard as CcIcon, Plus, CheckSquare, Lock, Unlock, Calendar, AlertTriangle, Clock, Receipt, ArrowUpRight, ChevronDown, ChevronUp, Repeat, CheckCircle2 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
+
 import { todayLocal } from '../utils';
 import InstallmentPlanModal from './InstallmentPlanModal';
 import InstallmentSchedule from './InstallmentSchedule';
@@ -367,7 +367,7 @@ export default function CreditCardManagement({ creditCards, cashAccounts, cards,
           <div className="sm:col-span-2 flex flex-col gap-1.5"><label className="eyebrow normal-case">Amount ({currency})</label><input ref={purchaseAmountRef} type="number" placeholder="0.00" value={purAmount} onChange={e=>{setPurAmount(e.target.value); validatePurchase(purCardId,e.target.value,purMerchant,purDesc,purchaseSubmitted);}} className="input mono" />{purchaseErrors.amount && <span className="mono text-[11px] text-[var(--danger)]">{purchaseErrors.amount}</span>}</div>
           <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Merchant</label><input ref={purchaseMerchantRef} placeholder="Uber, Amazon" value={purMerchant} onChange={e=>{setPurMerchant(e.target.value); validatePurchase(purCardId,purAmount,e.target.value,purDesc,purchaseSubmitted);}} className="input" />{purchaseErrors.merchant && <span className="mono text-[11px] text-[var(--danger)]">{purchaseErrors.merchant}</span>}</div>
           <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Reference</label><input placeholder="Business dinner" value={purDesc} onChange={e=>setPurDesc(e.target.value)} className="input" /></div>
-          <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Date</label><DatePicker value={purDate} onChange={setPurDate} /></div>
+          <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Date</label><input type="date" className="input" value={purDate} onChange={e => setPurDate(e.target.value)} /></div>
         </div>
         <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2"><Plus size={14}/>Record purchase</button>
       </form>

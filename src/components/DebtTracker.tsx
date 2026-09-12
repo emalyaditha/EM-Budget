@@ -2,7 +2,7 @@
 import { Debt, CashAccount, BankCard } from '../types';
 import { Plus, AlertCircle, Calendar, Wallet, CornerDownRight, Eye } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
+
 import { compareMoney } from '../lib/money';
 import DebtDetailModal from './DebtDetailModal';
 
@@ -154,7 +154,7 @@ export default function DebtTracker({ debts, cashAccounts, cards, onAddDebt, onI
               </select>
             </div>
           </div>
-          <div><label className="eyebrow block mb-2">Due date</label><DatePicker value={dueDate} onChange={val => { setDueDate(val); validateDebtForm(source, totalDebt, val, submitted); }} />{errors.dueDate && <span className="mono text-[11px] mt-1 block" style={{ color: 'var(--danger)' }}>{errors.dueDate}</span>}</div>
+          <div><label className="eyebrow block mb-2">Due date</label><input type="date" className="input" value={dueDate} onChange={e => { setDueDate(e.target.value); validateDebtForm(source, totalDebt, e.target.value, submitted); }} />{errors.dueDate && <span className="mono text-[11px] mt-1 block" style={{ color: 'var(--danger)' }}>{errors.dueDate}</span>}</div>
           <div><label className="eyebrow block mb-2">Notes (optional)</label><input type="text" placeholder="Zero-interest plan..." value={notes} onChange={e => setNotes(e.target.value)} className="input" /></div>
           <button type="submit" className="btn-primary w-full">Record liability</button>
         </form>
