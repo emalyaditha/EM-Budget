@@ -181,13 +181,32 @@ export function paymentsInCycle(
 }
 
 /**
+ * True when a debt_payment is dated exactly the deduction day — the bank's
+ * automatic debit on the 15th collects the minimum regardless of the manual
+ * payment window that closed on the 7th, so a deduction never triggers a late fee.
+ */
+function hasDeductionPayment(transactions: Transaction[], cardId: string, cycleEnd: string): boolean {
+  return (transactions || []).some(
+    t =>
+      t.type === 'debt_payment' &&
+      t.targetAccountId === cardId &&
+      t.targetAccountType === 'card' &&
+      t.date === cycleEnd &&
+      t.amount > 0
+  );
+}
+
+/**
  * True when cumulative payments already made TO the card within the current
- * billing window cover the configured minimum. Used to show a "min paid"
- * indicator in the UI.
+ * billing window cover the configured minimum, or the bank deduction on the
+ * 15th has run. Used to show a "min paid" indicator in the UI.
  */
 export function isMinimumSatisfied(card: BankCard, transactions: Transaction[]): boolean {
   if (!card.dueDate || !card.minPayment || card.minPayment <= 0) return false;
-  return paymentsInCycle(transactions, card.id, card.dueDate, cycleAnchor(card)) >= card.minPayment;
+  return (
+    hasDeductionPayment(transactions, card.id, deductionDate(card.dueDate)) ||
+    paymentsInCycle(transactions, card.id, card.dueDate, cycleAnchor(card)) >= card.minPayment
+  );
 }
 
 /**
@@ -300,8 +319,16 @@ export function runCycleRollover(
   const anchor = cycleAnchor(card) || cycleEnd;
 
   const outstanding = card.currentBalance < 0 ? Math.abs(card.currentBalance) : 0;
-  const cyclePayments = paymentsInCycle(transactions, card.id, cycleEnd, anchor);
-  const minOk = !card.minPayment || card.minPayment <= 0 || cyclePayments >= card.minPayment;
+  // The manual payment window closes on the due date (the 7th), so payments
+  // dated 8th-14th do not count toward the minimum. A payment dated exactly the
+  // deduction day (the 15th) is the bank's automatic debit and satisfies the
+  // minimum regardless of the window.
+  const cyclePayments = paymentsInCycle(transactions, card.id, card.dueDate, anchor);
+  const minOk =
+    !card.minPayment ||
+    card.minPayment <= 0 ||
+    cyclePayments >= card.minPayment ||
+    hasDeductionPayment(transactions, card.id, cycleEnd);
 
   const charges: CycleChargeDraft[] = [];
 
@@ -339,7 +366,11 @@ export function runCycleRollover(
 
   return {
     currentBalance: newBalance,
-    dueDate: advanceDueDate(cycleEnd),
+    // Advance from the card's own due date (the 7th), not the deduction date
+    // (the 15th) — the bank rule is that the next payment deadline stays on the
+    // 7th of the following month. Advancing from the 15th would silently migrate
+    // the deadline to the 15th every cycle.
+    dueDate: advanceDueDate(card.dueDate),
     minPayment: computeMinimumPayment(newBalance, card.limit),
     charges,
   };

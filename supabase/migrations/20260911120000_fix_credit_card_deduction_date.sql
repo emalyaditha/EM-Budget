@@ -1,42 +1,43 @@
--- Fix the credit-card auto-deduction date and remove the pre-15th charge it created.
+-- Fix the credit-card rollover treatment (see DEDUCTION_DAY / paymentsInCycle in src/lib/creditCards.ts).
 --
 -- Background:
---   The app used the card's due date (the 7th) as the rollover cycle end, so on
---   the day AFTER the 7th it auto-applied revolving interest + a late fee and
---   wrote a credit_card_charge with reference_id
---   'rollover::card-1781028399253::2026-09-07' (dated 2026-09-07).
+--   The old rollover logic used the card's due date (the 7th) as the cycle end,
+--   so on the day after the 7th it wrote a credit_card_charge dated 2026-09-07
+--   with reference_id 'rollover::card-1781028399253::2026-09-07'.
 --
---   The deduction rule is now the 15th (see DEDUCTION_DAY in src/lib/creditCards.ts):
---   a cycle closes on the 15th of the month containing the due date, charges are
---   dated that 15th, and the reference key embeds that 15th. The wrong 2026-09-07
---   charge must not exist, the card must show the corrected balance / due date /
---   minimum, and the ledger_states.state mirror must match.
+--   The cycle actually closes on the 15th of the month containing the due date
+--   (the deduction day), while the payment deadline stays on the 7th. State at
+--   the time this file is applied:
+--     - the wrong charge has already been deleted, and the card balance was
+--       restored to -46451.87 / min_payment 2322.59 by an earlier manual run;
+--     - but the card's due_date was left at '2026-09-15' — the deduction day,
+--       not the deadline. With the fixed logic a deadline on the 15th would
+--       permanently drift every future deadline to the 15th
+--       (advanceDueDate('2026-09-15') -> '2026-10-15').
 --
--- This migration is idempotent: every statement is guarded so it only acts on
--- rows that still hold the pre-fix values.
+--   This migration converges the card and its ledger_states mirror to the
+--   corrected state. Every statement is guarded and idempotent: it only acts on
+--   rows that still hold the wrong values.
 
--- 1) Remove the wrong pre-15th charge (exact row only).
+-- 1) Remove the wrong pre-15th charge if it still exists (exact row only).
 DELETE FROM transactions
 WHERE id = 'trans-b56a0a28-5fef-496b-a42c-71a728e0ca42'
   AND reference_id = 'rollover::card-1781028399253::2026-09-07'
   AND type = 'credit_card_charge'
   AND account_id = 'card-1781028399253';
 
--- 2) Restore the card to the post-payment balance with the 15th-anchored due date.
---      -47477.63 (wrong, included the 1025.76 charge) -> -46451.87 (post 6300.00 payment)
---      dueDate  2026-10-07 (advanced by the wrong rollover)  -> 2026-09-15 (deduction day)
---      minPayment 5% of 46451.87 = 2322.59
+-- 2) Converge the card to the corrected state: post-payment balance,
+--    7th-anchored deadline, 5% minimum.
 UPDATE bank_cards
 SET current_balance = -46451.87,
-    due_date        = '2026-09-15',
+    due_date        = '2026-10-07',
     min_payment     = 2322.59
 WHERE id = 'card-1781028399253'
-  AND current_balance = -47477.63
-  AND due_date = '2026-10-07';
+  AND (current_balance <> -46451.87 OR due_date <> '2026-10-07' OR min_payment <> 2322.59);
 
--- 3) Mirror: fix ledger_states.state for the owning account row.
---      a) drop the wrong charge from state->'transactions'
---      b) set the mirror card's currentBalance / dueDate / minPayment
+-- 3) Mirror the same state into ledger_states.state: drop the wrong charge from
+--    state->'transactions' and set the mirror card's currentBalance / dueDate /
+--    minPayment to the same values as the bank_cards UPDATE above.
 UPDATE ledger_states
 SET state = jsonb_set(
       jsonb_set(
@@ -55,7 +56,7 @@ SET state = jsonb_set(
                 CASE WHEN c->>'id' = 'card-1781028399253'
                      THEN c || jsonb_build_object(
                                 'currentBalance', -46451.87,
-                                'dueDate',         '2026-09-15',
+                                'dueDate',         '2026-10-07',
                                 'minPayment',      2322.59
                               )
                      ELSE c
@@ -64,4 +65,4 @@ SET state = jsonb_set(
       false
     )
 WHERE id = '84448b01-ab55-4359-b6cb-91380889a531'
-  AND state->'transactions' @> '[{"referenceId": "rollover::card-1781028399253::2026-09-07"}]'::jsonb;
+  AND NOT state->'cards' @> '[{"id": "card-1781028399253", "currentBalance": -46451.87, "dueDate": "2026-10-07", "minPayment": 2322.59}]'::jsonb;

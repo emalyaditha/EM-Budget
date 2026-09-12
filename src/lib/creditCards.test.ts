@@ -308,7 +308,7 @@ describe('runCycleRollover', () => {
     const paid = makeTx({ amount: 1000, date: '2026-08-20' });
     expect(runCycleRollover(card, [paid], '2026-09-15')).toEqual({
       currentBalance: -20407.67,
-      dueDate: '2026-10-15',
+      dueDate: '2026-10-07',
       minPayment: 1020.38,
       charges: [
         {
@@ -326,7 +326,7 @@ describe('runCycleRollover', () => {
     const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 1000 });
     expect(runCycleRollover(card, [], '2026-09-15')).toEqual({
       currentBalance: -21607.67,
-      dueDate: '2026-10-15',
+      dueDate: '2026-10-07',
       minPayment: 1080.38,
       charges: [
         {
@@ -370,7 +370,7 @@ describe('runCycleRollover', () => {
     const paid = makeTx({ amount: 1000, date: '2026-08-20' });
     expect(runCycleRollover(card, [paid], '2026-09-15')).toEqual({
       currentBalance: -20000,
-      dueDate: '2026-10-15',
+      dueDate: '2026-10-07',
       minPayment: 1000,
       charges: [],
     });
@@ -405,12 +405,12 @@ describe('runCycleRollover', () => {
     });
   });
 
-  it('rolls a late-open cycle on the deduction date — charge dated the 15th, next cycle from the 15th', () => {
+it('rolls a late-open cycle on the deduction date — charge dated the 15th, next cycle from the 7th', () => {
     const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 1000 });
     const paid = makeTx({ amount: 1000, date: '2026-08-20' });
     expect(runCycleRollover(card, [paid], '2026-09-20')).toEqual({
       currentBalance: -20407.67,
-      dueDate: '2026-10-15',
+      dueDate: '2026-10-07',
       minPayment: 1020.38,
       charges: [
         {
@@ -438,8 +438,48 @@ describe('runCycleRollover', () => {
     expect(runCycleRollover(cardA, [], '2026-09-15')).toBeDefined();
     expect(runCycleRollover(cardB, [], '2026-09-15')).toBeUndefined();
     const b15 = runCycleRollover(cardB, [], '2026-10-15')!;
-    expect(b15.dueDate).toBe('2026-11-15');
+    expect(b15.dueDate).toBe('2026-11-02');
     expect(b15.charges).toHaveLength(0);
+  });
+
+  it('pays no late fee when the minimum is paid by the 5th — inside the manual window', () => {
+    const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 1000 });
+    const paid = makeTx({ amount: 1000, date: '2026-09-05' });
+    const result = runCycleRollover(card, [paid], '2026-09-15')!;
+    expect(result.currentBalance).toBe(-20407.67);
+    expect(result.charges.map(c => c.type)).toEqual(['Interest Charge']);
+  });
+
+  it('pays no late fee when the minimum is paid on the 7th — the due date is inclusive', () => {
+    const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 1000 });
+    const paid = makeTx({ amount: 1000, date: '2026-09-07' });
+    const result = runCycleRollover(card, [paid], '2026-09-15')!;
+    expect(result.currentBalance).toBe(-20407.67);
+    expect(result.charges.map(c => c.type)).toEqual(['Interest Charge']);
+  });
+
+  it('pays no late fee when only the 15th deduction lands — it is the bank debit, not a manual payment', () => {
+    const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 1000 });
+    const deduction = makeTx({ amount: 1000, date: '2026-09-15' });
+    const result = runCycleRollover(card, [deduction], '2026-09-15')!;
+    expect(result.currentBalance).toBe(-20407.67);
+    expect(result.charges.map(c => c.type)).toEqual(['Interest Charge']);
+  });
+
+  it('charges the late fee for a manual payment dated the 12th — after the 7th window closes', () => {
+    const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 1000 });
+    const late = makeTx({ amount: 1000, date: '2026-09-12' });
+    const result = runCycleRollover(card, [late], '2026-09-15')!;
+    expect(result.currentBalance).toBe(-21607.67);
+    expect(result.charges.map(c => c.type)).toEqual(['Interest Charge', 'Late Payment Fee']);
+  });
+
+  it('is idempotent — repeating the rollover produces the identical result and charges', () => {
+    const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 1000 });
+    const first = runCycleRollover(card, [], '2026-09-15');
+    const second = runCycleRollover(card, [], '2026-09-15');
+    expect(second).toEqual(first);
+    expect(second!.charges).toHaveLength(2);
   });
 });
 
