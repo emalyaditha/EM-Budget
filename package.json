@@ -3,27 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "engines": {
-    "node": ">=20"
-  },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild api-src/index.ts --bundle --platform=node --format=cjs --target=node20 --external:tesseract.js --external:@google/genai --external:vite --external:@sentry/node --sourcemap --outfile=api/index.js",
+    "build": "vite build && esbuild api-src/index.ts --bundle --platform=node --format=cjs --target=node20 --external:tesseract.js --external:@google/genai --external:vite --sourcemap --outfile=api/index.js",
     "start": "node api/index.js",
     "preview": "vite preview",
-    "db:migrate": "supabase db push --linked",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
-    "lint": "eslint src/ && tsc --noEmit",
-    "e2e": "playwright test",
-    "e2e:headed": "playwright test --headed"
+    "lint": "eslint src/ && tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^2.14.0",
-    "@simplewebauthn/browser": "^13.3.0",
-    "@simplewebauthn/server": "^13.3.3",
     "@supabase/supabase-js": "^2.106.2",
     "bcryptjs": "^3.0.3",
-    "compression": "^1.8.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
@@ -40,11 +31,7 @@
     "postcss": "^8.5.26"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.1.14",
-    "@testing-library/jest-dom": "^7.0.1",
-    "@testing-library/react": "^16.3.3",
-    "@types/compression": "^1.8.1",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/nodemailer": "^8.0.0",
@@ -64,8 +51,5 @@
     "typescript-eslint": "^8.65.0",
     "vite": "^6.2.3",
     "vitest": "^4.1.8"
-  },
-  "optionalDependencies": {
-    "@sentry/node": "^8.55.2"
   }
 }

@@ -1,11 +1,45 @@
 import React, { useState, useMemo } from 'react';
 import { AppState } from '../types';
-import { ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Plus, ArrowRight, TrendingUp } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { DashboardHero } from './dashboard/DashboardHero';
 import { DashboardMetricsGrid } from './dashboard/DashboardMetricsGrid';
 import { QuickActionModal } from './dashboard/QuickActionModal';
-import { AlertsPanel } from './AlertsPanel';
+
+export function AnimatedCountUp({ value, duration = 1200, prefix = "", suffix = "" }: { value: number, duration?: number, prefix?: string, suffix?: string }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  React.useEffect(() => {
+    let startTimestamp: number | null = null;
+    const startValue = displayValue;
+    const endValue = value;
+    let rafId = 0;
+    let cancelled = false;
+
+    const step = (timestamp: number) => {
+      if (cancelled) return;
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      const easeProgress = progress * (2 - progress);
+      const currentValue = startValue + easeProgress * (endValue - startValue);
+      setDisplayValue(currentValue);
+
+      if (progress < 1) {
+        rafId = window.requestAnimationFrame(step);
+      } else {
+        setDisplayValue(endValue);
+      }
+    };
+
+    rafId = window.requestAnimationFrame(step);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(rafId);
+    };
+  }, [value, duration]);
+
+  return <span className="tabular-nums font-semibold">{prefix}{Math.round(displayValue).toLocaleString()}{suffix}</span>;
+}
 
 interface DashboardProps {
   state: AppState;
@@ -13,6 +47,9 @@ interface DashboardProps {
   aggregateActiveWealth: number;
   totalCashAmount: number;
   totalDebitCardsAmount: number;
+  totalCreditCardsAmount: number;
+  totalDebtsAmount: number;
+  totalLoansGiven: number;
   currentMonthLabel: string;
   currentMonthInflow: number;
   currentMonthOutflow: number;
@@ -38,12 +75,16 @@ export default function Dashboard({
   aggregateActiveWealth,
   totalCashAmount,
   totalDebitCardsAmount,
+  totalCreditCardsAmount,
+  totalDebtsAmount,
+  totalLoansGiven,
   currentMonthLabel,
   currentMonthInflow,
   currentMonthOutflow,
   setActiveTab,
   setEditingTransactionId,
   onProfileClick,
+  onNotificationClick,
   onAddIncome,
   onAddExpense
 }: DashboardProps) {
@@ -84,6 +125,39 @@ export default function Dashboard({
     if (t.type === 'expense') return -Math.abs(t.amount);
     return 0;
   };
+
+  const transactionDates = useMemo(() => {
+    return Array.from(
+      new Set(
+        state.transactions
+          .filter(t => t.date)
+          .map(t => t.date.split('T')[0])
+      )
+    ).sort();
+  }, [state.transactions]);
+
+  const sparklineData = useMemo(() => {
+    const hasAnyRecords = state.cashAccounts.length > 0 || state.cards.length > 0 || state.transactions.length > 0 || state.debts.length > 0;
+    if (!hasAnyRecords || transactionDates.length === 0) {
+      return [];
+    }
+    const last6Dates = transactionDates.slice(-6);
+    const orderedTxs = [...state.transactions].sort((a, b) => {
+      if (!a.date || !b.date) return 0;
+      return a.date.localeCompare(b.date);
+    });
+    const totalImpact = orderedTxs.reduce((sum, t) => sum + getTransactionImpact(t), 0);
+    const baseNetWorth = aggregateActiveWealth - totalImpact;
+    return last6Dates.map(dateStr => {
+      const impactUpToDate = orderedTxs
+        .filter(t => t.date && t.date.split('T')[0] <= dateStr)
+        .reduce((sum, t) => sum + getTransactionImpact(t), 0);
+      return {
+        date: dateStr,
+        value: baseNetWorth + impactUpToDate
+      };
+    });
+  }, [state.transactions, transactionDates, aggregateActiveWealth, state.cashAccounts.length, state.cards.length, state.debts.length]);
 
   const fullTrendChartData = useMemo(() => {
     let daysCount = 30;
@@ -188,17 +262,20 @@ export default function Dashboard({
   return (
     <div className="flex flex-col bg-[var(--bg)] text-[var(--ink)] font-sans animate-fade-in gap-6 px-4 sm:px-6 py-5 max-w-[1280px] mx-auto w-full" id="command-dashboard">
 
-      {/* Actionable alerts (budget near/over limit, bills & debts due soon, goals closing) */}
-      <AlertsPanel state={state} />
-
       {/* PIN IDENTICAL 2-col grid: left Financial report, right My goals */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         <div className="lg:col-span-7">
           <DashboardHero
             currency={state.currency}
             aggregateActiveWealth={aggregateActiveWealth}
-            totalCashAmount={totalCashAmount}
-            totalDebitCardsAmount={totalDebitCardsAmount}
+            totalAssets={totalCashAmount + totalDebitCardsAmount}
+            totalLiabilities={totalCreditCardsAmount + totalDebtsAmount}
+            assetRatioPct={0}
+            liabilityRatioPct={0}
+            sparklineData={sparklineData}
+            trendLabel=""
+            trendColorClass=""
+            onManageWallets={() => setActiveTab('accounts')}
             userName={state.userProfile?.name && state.userProfile.name !== 'User' ? state.userProfile.name : deriveNameFromEmail(userEmail) || 'User'}
             userAvatarUrl={state.userProfile?.avatarUrl}
             currentMonthInflow={currentMonthInflow}

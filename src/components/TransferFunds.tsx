@@ -2,7 +2,7 @@
 import { CashAccount, BankCard } from "../types";
 import { ArrowRightLeft } from "lucide-react";
 import { useNotifications } from "../context/NotificationContext";
-
+import { DatePicker } from "./DatePicker";
 
 interface TransferFundsProps {
   cashAccounts: CashAccount[];
@@ -114,7 +114,7 @@ export default function TransferFunds({ cashAccounts, cards, currency, onTransfe
           <div>
             <p className="eyebrow !text-white/60">Transfer · Wise-like</p>
             <h3 className="text-[16px] font-bold tracking-tight mt-1 flex items-center gap-2 text-white">
-              <span className="w-7 h-7 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] grid place-items-center"><ArrowRightLeft size={13} /></span>
+              <span className="w-7 h-7 rounded-full bg-white text-black grid place-items-center"><ArrowRightLeft size={13} /></span>
               Transfer Capital
             </h3>
             <p className="text-[12.5px] text-white/60 mt-1">Move funds instantly between accounts — zero friction.</p>
@@ -175,7 +175,7 @@ export default function TransferFunds({ cashAccounts, cards, currency, onTransfe
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <label className="eyebrow normal-case tracking-normal">Date</label>
-          <input type="date" className="input" value={transferDate} onChange={e => setTransferDate(e.target.value)} required />
+          <DatePicker value={transferDate} onChange={setTransferDate} required />
         </div>
         <div className="space-y-1.5">
           <label className="eyebrow normal-case tracking-normal">Note · memo</label>

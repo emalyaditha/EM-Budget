@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles } from 'lucide-react';
 import { AppState } from '../../types';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, todayLocal } from '../../utils';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface QuickActionModalProps {
   isOpen: boolean;
@@ -47,8 +46,6 @@ export function QuickActionModal({
     }
   }, [isOpen, state.cashAccounts, state.cards]);
 
-  const quickDialogRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(txAmount);
@@ -84,11 +81,6 @@ export function QuickActionModal({
           />
 
           <motion.div 
-            ref={quickDialogRef}
-            tabIndex={-1}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Quick register"
             initial={{ y: "100%", opacity: 0.5 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0.5 }}

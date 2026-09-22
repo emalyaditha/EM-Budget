@@ -1,7 +1,7 @@
 ﻿import React from 'react';
 import { TrendingUp } from 'lucide-react';
 
-interface CategorySum {
+export interface CategorySum {
   name: string;
   value: number;
   percentage: number;
@@ -49,7 +49,7 @@ export function TrendAnalysisChart({ data, currency }: { data: { date: string; v
       <div className="flex justify-between mono text-[10px] mt-3" style={{ color: 'var(--ink-3)' }}>
         {data.map((d, idx) => {
           let label = d.date;
-          try { const dateObj = new Date(d.date); if (!isNaN(dateObj.getTime())) label = `${dateObj.getDate()} ${dateObj.toLocaleString('default', { month: 'short' })}`; } catch { /* ignore invalid date */ }
+          try { const dateObj = new Date(d.date); if (!isNaN(dateObj.getTime())) label = `${dateObj.getDate()} ${dateObj.toLocaleString('default', { month: 'short' })}`; } catch (_e) { /* ignore invalid date */ }
           return (<span key={idx} title={d.date}>{label}</span>);
         })}
       </div>
@@ -77,6 +77,11 @@ export function IncomeVsExpenseBar({ income, expense, currency }: { income: numb
   );
 }
 
+function getMonoShade(idx: number, total: number): string {
+  const alpha = 0.18 + (idx / Math.max(1, total - 1)) * 0.75;
+  return `color-mix(in srgb, var(--ink) ${Math.round(alpha * 100)}%, transparent)`;
+}
+
 const PASTEL_PALETTE = ['bar-pink','bar-mint','bar-yellow','bar-lavender','bar-blue'] as const;
 function pastelClass(idx: number) { return PASTEL_PALETTE[idx % PASTEL_PALETTE.length]; }
 function hexForPastel(cls: string): string {
@@ -84,7 +89,7 @@ function hexForPastel(cls: string): string {
   return map[cls] || '#0A0A0A';
 }
 
-export function CategorySpreadAnalysis({ categories, currency = 'Rs.', layout: _layout = 'auto' }: { categories: CategorySum[]; currency?: string; layout?: 'auto' | 'vertical' | 'horizontal' }) {
+export function CategorySpreadAnalysis({ categories, currency = 'Rs.', layout = 'auto' }: { categories: CategorySum[]; currency?: string; layout?: 'auto' | 'vertical' | 'horizontal' }) {
   if (categories.length === 0) {
     return (
       <div className="card p-6 text-center min-h-[180px] grid place-items-center">
@@ -138,4 +143,26 @@ export function CategorySpreadAnalysis({ categories, currency = 'Rs.', layout: _
   );
 }
 
-
+export function RepaymentGauge({ totalDebt, remaining, name, currency = 'Rs.' }: { totalDebt: number; remaining: number; name: string; currency?: string }) {
+  const repaid = totalDebt - remaining;
+  const percentage = totalDebt > 0 ? Math.round((repaid / totalDebt) * 100) : 100;
+  return (
+    <div className="card p-4 flex gap-4 items-center overflow-hidden relative">
+      <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-40" />
+      <div className="relative w-16 h-16 shrink-0">
+        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+          <circle cx="18" cy="18" r="15.9155" stroke="var(--line)" strokeWidth="3.5" fill="none" />
+          <path strokeDasharray={`${percentage}, 100`} strokeWidth="3.5" strokeLinecap="round" stroke="url(#ultraRainbow)" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          <defs><linearGradient id="ultraRainbow" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#F4B5BE"/><stop offset="50%" stopColor="#F5E6A3"/><stop offset="100%" stopColor="#B8D4F0"/></linearGradient></defs>
+        </svg>
+        <div className="absolute inset-0 grid place-items-center mono text-[11px] font-black">{percentage}%</div>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[12px] font-bold truncate">{name} Repaid</div>
+        <div className="mono text-[11px] mt-0.5" style={{ color: 'var(--ink-2)' }}>Cleared: <span className="font-bold" style={{ color: 'var(--ink)' }}>{currency} {repaid.toLocaleString()}</span></div>
+        <div className="mono text-[11px]" style={{ color: 'var(--ink-3)' }}>Outstanding: {currency} {remaining.toLocaleString()}</div>
+        <div className="h-1.5 rounded-full bg-[var(--surface-3)] overflow-hidden mt-1.5"><div className="h-full mw-progress" style={{ width: `${percentage}%`}} /></div>
+      </div>
+    </div>
+  );
+}

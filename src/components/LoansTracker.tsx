@@ -2,7 +2,7 @@
 import { LoanGiven, CashAccount, BankCard } from '../types';
 import { Plus, CheckCircle2, Calendar, ArrowDownLeft, Trash2, Wallet, History, ChevronDown, ChevronUp, ArrowUpRight } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-
+import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
 
 interface LoansTrackerProps {
@@ -47,12 +47,8 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
     ...cards.map(c => ({ id: c.id, name: `${c.bankName} - ${c.cardName} (${c.cardType})`, balance: c.currentBalance, type: 'card' as const })),
   ];
 
-  // availableAccounts/selectors are derived from the listed deps; omission is intended (avoids setState thrash each render).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { if (availableAccounts.length > 0 && !sourceAccountId) { setSourceAccountId(availableAccounts[0].id); setSourceAccountType(availableAccounts[0].type); } }, [cashAccounts, cards]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { if (availableAccounts.length > 0 && !increaseSourceId) { setIncreaseSourceId(availableAccounts[0].id); setIncreaseSourceType(availableAccounts[0].type); } }, [cashAccounts, cards, increasingLoanId]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { if (availableAccounts.length > 0 && !receivedInId) { setReceivedInId(availableAccounts[0].id); setReceivedInType(availableAccounts[0].type); } }, [cashAccounts, cards, settlingLoanId]);
 
   const activeLoans = loans.filter(l => l.status !== 'Settled');
@@ -112,7 +108,7 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
       <div className="gradient-card p-6 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
         <div className="flex flex-col sm:flex-row justify-between gap-4 relative z-10">
           <div><p className="eyebrow !text-white/60">Receivables</p><h2 className="text-[22px] font-bold tracking-tight mt-1 text-white">Loans given</h2><p className="text-[13px] mt-1 text-white/60">Capital lent · settlements · ledger history.</p></div>
-          <button onClick={() => setIsGivingLoan(!isGivingLoan)} className="pill pill-active self-start sm:self-center inline-flex items-center gap-1.5 !bg-[var(--accent)] !text-[var(--accent-fg)] !border-[var(--accent)]"><Plus size={13} />{isGivingLoan ? 'Close form' : 'Lend & record'}</button>
+          <button onClick={() => setIsGivingLoan(!isGivingLoan)} className="pill pill-active self-start sm:self-center inline-flex items-center gap-1.5 !bg-white !text-black !border-white"><Plus size={13} />{isGivingLoan ? 'Close form' : 'Lend & record'}</button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5 relative z-10">
           <div className="rounded-[14px] p-3 bg-white/10 border border-white/10"><p className="eyebrow !text-white/60 !text-[9px]">Outstanding</p><p className="mono text-[15px] font-bold mt-1 text-white">{currency} {totalRemainingAmount.toLocaleString()}</p></div>
@@ -134,7 +130,7 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
             <div className="card-flat !p-3 space-y-2"><label className="eyebrow block">Card charge ({currency})</label><input type="number" step="any" placeholder="0" value={giveLoanBankCharge} onChange={e => setGiveLoanBankCharge(e.target.value)} className="input mono" /></div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label className="eyebrow block mb-2">Date lent</label><input type="date" className="input" value={dateGiven} onChange={e => setDateGiven(e.target.value)} />{errors.dateGiven && <p className="mono text-[11px] mt-1" style={{ color: 'var(--danger)' }}>{errors.dateGiven}</p>}</div>
+            <div><label className="eyebrow block mb-2">Date lent</label><DatePicker value={dateGiven} onChange={setDateGiven} />{errors.dateGiven && <p className="mono text-[11px] mt-1" style={{ color: 'var(--danger)' }}>{errors.dateGiven}</p>}</div>
             <div><label className="eyebrow block mb-2">Notes</label><input type="text" placeholder="Friendly loan..." value={notes} onChange={e => setNotes(e.target.value)} className="input" /></div>
           </div>
           <div className="flex justify-end gap-2"><button type="button" onClick={() => { setIsGivingLoan(false); setErrors({}); }} className="btn-ghost">Cancel</button><button type="submit" className="btn-primary">Authorize & log</button></div>
@@ -154,13 +150,13 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
                   <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-40" />
                   <div className="flex flex-col sm:flex-row justify-between gap-3" style={{ borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
                     <div>
-                      <h3 className="text-[14px] font-bold flex items-center gap-2 min-w-0"><span className="truncate">{loan.borrowerName}</span><span className="mono text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ border: '1px solid var(--line)', background: 'var(--surface-2)' }}>{loan.status}</span></h3>
-                      <p className="mono text-[11px] mt-1 flex flex-wrap gap-1 items-center min-w-0" style={{ color: 'var(--ink-2)' }}><Calendar size={11} className="shrink-0" /><span className="truncate">{loan.dateGiven} · {loan.sourceAccountName}</span></p>
+                      <h3 className="text-[14px] font-bold flex items-center gap-2">{loan.borrowerName}<span className="mono text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ border: '1px solid var(--line)', background: 'var(--surface-2)' }}>{loan.status}</span></h3>
+                      <p className="mono text-[11px] mt-1 inline-flex items-center gap-1" style={{ color: 'var(--ink-2)' }}><Calendar size={11} />{loan.dateGiven} · {loan.sourceAccountName}</p>
                     </div>
                     <div className="flex items-center gap-1.5 self-start sm:self-center">
-                      <button onClick={() => { setIncreasingLoanId(increasingLoanId === loan.id ? null : loan.id); setIncreaseAmount(''); setIncreaseError(null); setSettlingLoanId(null); }} className="btn-ghost text-[12px] inline-flex items-center gap-1"><Plus size={11} />Lend more</button>
-                      {loan.status !== 'Settled' && <button onClick={() => { setSettlingLoanId(settlingLoanId === loan.id ? null : loan.id); setSettlementAmount(loan.remainingAmount.toString()); setSettlementError(null); setIncreasingLoanId(null); }} className="btn-primary text-[12px] inline-flex items-center gap-1"><CheckCircle2 size={11} />Receive</button>}
-                      <button onClick={() => handleDeleteLoanClick(loan.id, loan.borrowerName)} className="w-10 h-10 rounded-full grid place-items-center" style={{ border: '1px solid var(--line)' }}><Trash2 size={12} /></button>
+                      <button onClick={() => { setIncreasingLoanId(increasingLoanId === loan.id ? null : loan.id); setIncreaseAmount(''); setIncreaseError(null); setSettlingLoanId(null); }} className="btn-ghost !py-1.5 !px-3 text-[11px] inline-flex items-center gap-1"><Plus size={11} />Lend more</button>
+                      {loan.status !== 'Settled' && <button onClick={() => { setSettlingLoanId(settlingLoanId === loan.id ? null : loan.id); setSettlementAmount(loan.remainingAmount.toString()); setSettlementError(null); setIncreasingLoanId(null); }} className="btn-primary !py-1.5 !px-3 text-[11px] inline-flex items-center gap-1"><CheckCircle2 size={11} />Receive</button>}
+                      <button onClick={() => handleDeleteLoanClick(loan.id, loan.borrowerName)} className="w-7 h-7 rounded-full grid place-items-center" style={{ border: '1px solid var(--line)' }}><Trash2 size={12} /></button>
                     </div>
                   </div>
 
@@ -170,7 +166,7 @@ export default function LoansTracker({ loans = [], cashAccounts = [], cards = []
                     <div><p className="eyebrow !text-[9px]">Progress</p><div className="flex justify-between mono text-[11px] mt-1"><span style={{ color: 'var(--ink-2)' }}>{activeProgress}% settled</span></div><div className="h-2 w-full mt-2 rounded-full bg-[var(--surface-3)] overflow-hidden"><div className="h-full mw-progress rounded-full" style={{ width: `${activeProgress}%`}} /></div></div>
                   </div>
 
-                  {loan.notes && <p className="text-[12px] italic p-3 card-flat break-words" style={{ color: 'var(--ink-2)' }}>"{loan.notes}"</p>}
+                  {loan.notes && <p className="text-[12px] italic p-3 card-flat" style={{ color: 'var(--ink-2)' }}>"{loan.notes}"</p>}
 
                   {settlingLoanId === loan.id && (
                     <form onSubmit={handleSettleSubmit} className="card-flat p-4 space-y-3">

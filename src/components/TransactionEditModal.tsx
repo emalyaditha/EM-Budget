@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction, CashAccount, BankCard } from '../types';
-import { X, Save, Trash2, Edit3 } from 'lucide-react';
+import { X, Save, Trash2, Calendar, Edit3, HelpCircle, Lock } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { useFocusTrap } from '../hooks/useFocusTrap';
-
+import { DatePicker } from './DatePicker';
 
 interface TransactionEditModalProps {
   transaction: Transaction | null;
@@ -53,8 +52,6 @@ export default function TransactionEditModal({
       setSubmitted(false);
     }
   }, [transaction]);
-
-  const editDialogRef = useFocusTrap<HTMLDivElement>(!!transaction, onClose);
 
   if (!transaction) return null;
 
@@ -116,7 +113,7 @@ export default function TransactionEditModal({
       });
       showToast('success', 'Transaction updated successfully!');
       onClose();
-    } catch {
+    } catch (err) {
       showToast('error', 'Failed to update transaction.');
     } finally {
       setIsProcessing(false);
@@ -129,14 +126,14 @@ export default function TransactionEditModal({
       onDelete(transaction.id);
       showToast('info', 'Transaction deleted.');
       onClose();
-    } catch {
+    } catch (err) {
       showToast('error', 'Failed to delete transaction.');
       setIsProcessing(false);
     }
   };
 
   return (
-    <div ref={editDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Edit transaction" className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-[var(--surface)] border border-[var(--line)] p-6 md:p-8 rounded-[24px] shadow-2xl max-w-sm w-full relative overflow-hidden" id="edit-transaction-modal-container">
         
         <div className="flex justify-between items-center mb-6">
@@ -192,14 +189,13 @@ export default function TransactionEditModal({
 
           <div>
             <label className="eyebrow block mb-1.5">Calendar Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={e => {
-                setDate(e.target.value);
-                validateTxForm(title, amount, e.target.value, submitted);
+            <DatePicker 
+              value={date} 
+              onChange={val => {
+                setDate(val);
+                validateTxForm(title, amount, val, submitted);
               }}
-              className={`input ${errors.date ? '!border-[var(--danger)]' : ''}`}
+              error={!!errors.date}
             />
             {errors.date && (
               <span className="text-[var(--danger)] mono text-[10px] pl-1 mt-1.5 block">{errors.date}</span>

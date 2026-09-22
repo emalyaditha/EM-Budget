@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SavingsGoal, CashAccount } from '../types';
 import { Plus, X, Trash2, MinusCircle, PlusCircle } from 'lucide-react';
-
+import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
 
 interface GoalsSectionProps {
@@ -73,7 +73,8 @@ export default function GoalsSection({
   const openFundModal = (goalId: string, action: 'add' | 'remove') => {
     setSelectedGoalId(goalId); setFundAction(action); setIsFundModalOpen(true);
   };
-  const handleInlineAllocate = (goalId: string, action: 'add' | 'remove') => {
+  const handleInlineAllocate = (goalId: string, action: 'add' | 'remove', isMock: boolean) => {
+    if (isMock) return;
     const raw = inlineAmount[goalId] || '';
     const val = parseFloat(raw);
     if (isNaN(val) || val <= 0) return;
@@ -94,6 +95,7 @@ export default function GoalsSection({
 
   
   const displayGoals = goals;
+  const isMockMode = false;
 
   return (
     <div className="space-y-6" id="goals-savings-vault">
@@ -103,9 +105,12 @@ export default function GoalsSection({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-[22px] font-bold tracking-tight leading-none">My savings goals</h2>
-            <p className="mono text-[11px] mt-2" style={{ color: 'var(--ink-2)' }}>
+            {!isMockMode && (
+              <p className="mono text-[11px] mt-2" style={{ color: 'var(--ink-2)' }}>
                 {activeGoalsCount} goals · {completedGoalsCount} completed · {currency}{totalSavedValue.toLocaleString()} saved
-            </p>
+              </p>
+            )}
+
           </div>
           {goals.length > 0 && onClearAllGoals && (
             <button
@@ -116,7 +121,7 @@ export default function GoalsSection({
               className="btn-ghost !py-1.5 !px-3 text-[11px] shrink-0"
               style={showClearConfirm ? { borderColor: 'var(--danger)', color: 'var(--danger)', background: 'var(--danger-bg)' } : undefined}
             >
-              <span className="inline-flex items-center gap-1"><Trash2 size={11} />{showClearConfirm ? 'Confirm' : 'Clear All'}</span>
+              <span className="inline-flex items-center gap-1"><Trash2 size={11} />{showClearConfirm ? 'Confirm' : 'Limpiar'}</span>
             </button>
           )}
         </div>
@@ -130,7 +135,7 @@ export default function GoalsSection({
           <button
             aria-label="Add New goal"
             onClick={() => setIsAddModalOpen(v => !v)}
-            className="w-10 h-10 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] grid place-items-center shrink-0 hover:scale-[1.04] active:scale-[0.98] transition-transform shadow-sm"
+            className="w-10 h-10 rounded-full bg-[#0A0A0C] text-white grid place-items-center shrink-0 hover:scale-[1.04] active:scale-[0.98] transition-transform shadow-sm"
           >
             <Plus size={18} strokeWidth={2.5} />
           </button>
@@ -162,7 +167,7 @@ export default function GoalsSection({
                     </div>
                     <div>
                       <label className="eyebrow block mb-1.5 !text-[9px]">Deadline</label>
-                      <input type="date" className="input" value={goalDate} onChange={e => setGoalDate(e.target.value)} />
+                      <DatePicker value={goalDate} onChange={setGoalDate} />
                     </div>
                   </div>
                 </div>
@@ -219,7 +224,7 @@ export default function GoalsSection({
                 {/* 3 cols — Target / Saved / Deadline (mono 11px) */}
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <p className="eyebrow !text-[8px] !tracking-[0.12em]">Target</p>
+                    <p className="eyebrow !text-[8px] !tracking-[0.12em]">Meta</p>
                     <p className="mono text-[11px] font-bold mt-1 leading-none">{currency}{goal.target.toLocaleString()}</p>
                   </div>
                   <div>
@@ -246,44 +251,53 @@ export default function GoalsSection({
                         <div className="flex gap-2">
                           <input
                             type="number"
-                            value={inlineAmount[goal.id] ?? ''}
+                            value={isMockMode ? '' : (inlineAmount[goal.id] ?? '')}
                             onChange={e => setInlineAmount(prev => ({ ...prev, [goal.id]: e.target.value }))}
-                            placeholder="Amount"
+                            placeholder={isMockMode ? 'Demo — crea una meta real' : 'Amount'}
+                            disabled={isMockMode}
                             className="input !py-2 !text-[12px] mono flex-1 disabled:opacity-60"
                           />
                           <button
-                            onClick={() => handleInlineAllocate(goal.id, 'add')}
+                            onClick={() => handleInlineAllocate(goal.id, 'add', isMockMode)}
+                            disabled={isMockMode}
                             className="btn-primary !py-2 !px-3.5 text-[11px] inline-flex items-center gap-1 shrink-0 disabled:opacity-40"
                           >
                             <PlusCircle size={12} />Add
                           </button>
                           <button
-                            onClick={() => handleInlineAllocate(goal.id, 'remove')}
-                            disabled={goal.current <= 0}
+                            onClick={() => handleInlineAllocate(goal.id, 'remove', isMockMode)}
+                            disabled={isMockMode || goal.current <= 0}
                             className="btn-ghost !py-2 !px-3 text-[11px] inline-flex items-center gap-1 shrink-0 disabled:opacity-40"
                           >
                             <MinusCircle size={12} />Withdraw
                           </button>
                         </div>
 
-                        {/* Secondary wallet row + modal fallback */}
-                        <div className="flex flex-wrap gap-2 items-center">
-                          <button onClick={() => openFundModal(goal.id, 'add')} className="mono text-[11px] underline underline-offset-2" style={{ color: 'var(--ink-3)' }}>Choose wallet</button>
-                          <span className="mono text-[10px]" style={{ color: 'var(--ink-3)' }}>·</span>
-                          <span className="mono text-[10px]" style={{ color: 'var(--ink-3)' }}>{currency}{goal.current.toLocaleString()} / {currency}{goal.target.toLocaleString()}</span>
-                          {onRemoveGoal && (
-                            <button
-                              onClick={() => {
-                                if (deleteConfirmId === goal.id) { onRemoveGoal(goal.id); setDeleteConfirmId(null); setExpandedId(null); }
-                                else { setDeleteConfirmId(goal.id); setTimeout(() => setDeleteConfirmId(c => c === goal.id ? null : c), 3500); }
-                              }}
-                              className="ml-auto inline-flex items-center gap-1 mono text-[11px] px-2.5 py-1 rounded-full"
-                              style={{ border: '1px solid var(--line)', background: deleteConfirmId === goal.id ? 'var(--danger-bg)' : 'transparent', color: deleteConfirmId === goal.id ? 'var(--danger)' : 'var(--ink-2)' }}
-                            >
-                              <Trash2 size={11} />{deleteConfirmId === goal.id ? 'Confirm' : 'Delete'}
-                            </button>
-                          )}
-                        </div>
+                        {/* Secondary wallet row + modal fallback for mock/reality */}
+                        {!isMockMode && (
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <button onClick={() => openFundModal(goal.id, 'add')} className="mono text-[11px] underline underline-offset-2" style={{ color: 'var(--ink-3)' }}>Choose wallet</button>
+                            <span className="mono text-[10px]" style={{ color: 'var(--ink-3)' }}>·</span>
+                            <span className="mono text-[10px]" style={{ color: 'var(--ink-3)' }}>{currency}{goal.current.toLocaleString()} / {currency}{goal.target.toLocaleString()}</span>
+                            {onRemoveGoal && (
+                              <button
+                                onClick={() => {
+                                  if (deleteConfirmId === goal.id) { onRemoveGoal(goal.id); setDeleteConfirmId(null); setExpandedId(null); }
+                                  else { setDeleteConfirmId(goal.id); setTimeout(() => setDeleteConfirmId(c => c === goal.id ? null : c), 3500); }
+                                }}
+                                className="ml-auto inline-flex items-center gap-1 mono text-[11px] px-2.5 py-1 rounded-full"
+                                style={{ border: '1px solid var(--line)', background: deleteConfirmId === goal.id ? 'var(--danger-bg)' : 'transparent', color: deleteConfirmId === goal.id ? 'var(--danger)' : 'var(--ink-2)' }}
+                              >
+                                <Trash2 size={11} />{deleteConfirmId === goal.id ? 'Confirm' : 'Eliminar'}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {isMockMode && (
+                          <p className="mono text-[10px] leading-relaxed" style={{ color: 'var(--ink-3)' }}>
+                             “Add New goal” to save real data.
+                          </p>
+                        )}
                       </div>
                     </motion.div>
                   )}
@@ -297,8 +311,8 @@ export default function GoalsSection({
           {justCommittedGoal && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
               <div className="bg-[var(--surface-2)] border border-[var(--line)] rounded-[16px] p-3 flex items-center justify-between gap-3">
-                <p className="text-[12px] font-semibold">Goal reached — funds secured!</p>
-                <span className="mono text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0" style={{ border: '1px solid var(--line)' }}>Secured</span>
+                <p className="text-[12px] font-semibold">¡Goal reached — funds secured!</p>
+                <span className="mono text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0" style={{ border: '1px solid var(--line)' }}>Asegurado</span>
               </div>
             </motion.div>
           )}

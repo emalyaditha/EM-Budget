@@ -4,8 +4,14 @@ import { Transaction } from '../../types';
 interface DashboardHeroProps {
   currency: string;
   aggregateActiveWealth: number;
-  totalCashAmount: number;
-  totalDebitCardsAmount: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  assetRatioPct: number;
+  liabilityRatioPct: number;
+  sparklineData: Array<{ date: string; value: number }>;
+  trendLabel: string;
+  trendColorClass: string;
+  onManageWallets: () => void;
   userName?: string;
   userAvatarUrl?: string;
   currentMonthInflow?: number;
@@ -29,8 +35,6 @@ function getFirstName(full: string) {
 export function DashboardHero({
   currency,
   aggregateActiveWealth,
-  totalCashAmount,
-  totalDebitCardsAmount,
   currentMonthInflow = 0,
   currentMonthOutflow = 0,
   transactions = [],
@@ -42,7 +46,6 @@ export function DashboardHero({
   onSend,
 }: DashboardHeroProps) {
   const firstName = getFirstName(userName);
-  const liquidCash = totalCashAmount + totalDebitCardsAmount;
 
   const report = (() => {
     const expenseTx = transactions.filter((t) => t.type === 'expense' || (typeof t.amount === 'number' && t.amount < 0));
@@ -117,19 +120,9 @@ export function DashboardHero({
         <div className="flex flex-col items-center gap-1">
           <p className="mono text-[30px] sm:text-[32px] font-bold tracking-tight tabular-nums leading-none text-[var(--ink)]">
             {currency}
-            {liquidCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {aggregateActiveWealth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <p className="eyebrow !text-[10px]">Liquid cash</p>
-        </div>
-
-        {/* Net worth for context beside the Liquid cash headline */}
-        <div className="flex items-center justify-center gap-2 w-full max-w-[280px]">
-          <div className="rounded-[12px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-center space-y-0.5 flex-1">
-            <p className="eyebrow !text-[8px]">Net worth</p>
-            <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
-              {currency}{aggregateActiveWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </p>
-          </div>
+          <p className="eyebrow !text-[10px]">Available balance</p>
         </div>
 
         {/* 3 pills Add / Receive / Send — like Raul + Janvis */}

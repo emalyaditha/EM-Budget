@@ -1,17 +1,5 @@
-import {
-  AppState,
-  Transaction,
-  CashAccount,
-  BankCard,
-  Debt,
-  LoanGiven,
-  Subscription,
-  Budget,
-  SavingsGoal,
-  Income,
-  Expense,
-} from './types';
-import { downloadBlob, escapeCsvRow } from './lib/download';
+import { AppState, Transaction } from './types';
+import { escapeCsvRow } from './lib/download';
 
 // Local-timezone "YYYY-MM-DD" date for today. Replaces the widespread
 // `new Date().toISOString().split('T')[0]` pattern, which returns the UTC date
@@ -21,7 +9,14 @@ export function todayLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-
+// Whole days from today to a "YYYY-MM-DD" date, compared in LOCAL calendar space
+// so "due today" is 0 and "due tomorrow" is 1 (no UTC midnight shift).
+export function daysFromToday(dateStr: string): number {
+  const then = new Date(`${dateStr}T00:00:00`);
+  const now = new Date();
+  const nowLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((then.getTime() - nowLocal.getTime()) / (1000 * 60 * 60 * 24));
+}
 
 const STORAGE_KEY = 'cashflow_manager_state_v1';
 
@@ -46,7 +41,7 @@ export function loadStateFromStorage(defaultState: AppState): AppState {
       (parsed.cards && parsed.cards.some((c: any) => c.id === 'card-hnb'));
 
     if (containsOldSeedData) {
-      if (import.meta.env.DEV) console.log('🧹 Old test seed data detected. Resetting local database to clean state list.');
+      console.log('🧹 Old test seed data detected. Resetting local database to clean state list.');
       localStorage.removeItem(STORAGE_KEY);
       return defaultState;
     }
@@ -75,16 +70,6 @@ export function loadStateFromStorage(defaultState: AppState): AppState {
   }
 }
 
-const RESTORE_BACKUP_KEY = 'em_budget_restore_backup_v1';
-
-export function savePreRestoreBackup(state: AppState) {
-  try {
-    localStorage.setItem(RESTORE_BACKUP_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.error('Failed to preserve pre-restore backup:', error);
-  }
-}
-
 export function generateUniqueId(prefix = ''): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     const uuid = crypto.randomUUID();
@@ -97,8 +82,6 @@ export function generateUniqueId(prefix = ''): string {
 // Download state as backup JSON file
 export function exportStateAsJSON(state: AppState, userEmail?: string) {
   // Strip sensitive security PIN from exports
-  // Pin deliberately excluded from the sanitized export payload.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { pinCode, ...sanitizedState } = state;
   const payload = {
     version: "EM_BUDGET_SECURE_EX_V1",
@@ -106,13 +89,15 @@ export function exportStateAsJSON(state: AppState, userEmail?: string) {
     exportedAt: new Date().toISOString(),
     data: sanitizedState
   };
-  const stamp = todayLocal();
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  const stamp = new Date().toISOString().split('T')[0];
   const emailPrefix = userEmail ? `${userEmail.split('@')[0]}_` : '';
-  downloadBlob(
-    JSON.stringify(payload, null, 2),
-    `em_budget_${emailPrefix}backup_${stamp}.json`,
-    'application/json;charset=utf-8'
-  );
+  downloadAnchor.setAttribute("download", `em_budget_${emailPrefix}backup_${stamp}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
 }
 
 // Export Transactions to CSV / Excel spreadsheet
@@ -128,124 +113,17 @@ export function exportTransactionsToCSV(transactions: Transaction[], currency: s
     t.accountId ? `${t.accountType === 'card' ? 'Card' : 'Cash Account'}: ${t.accountId}` : 'N/A'
   ]);
 
-  const csvContent = [escapeCsvRow(headers), ...rows.map(escapeCsvRow)].join('\n');
-  const stamp = todayLocal();
-  downloadBlob(csvContent, `finance_statement_${stamp}.csv`, 'text/csv;charset=utf-8;');
-}
-
-// ---- Collection CSV export helpers (formula-injection sanitized) ----
-
-function exportCollectionAsCSV(filename: string, headers: string[], rows: (string | number)[][]) {
-  const csvContent = [escapeCsvRow(headers), ...rows.map(escapeCsvRow)].join('\n');
-  const stamp = todayLocal();
-  downloadBlob(csvContent, `${filename}_${stamp}.csv`, 'text/csv;charset=utf-8;');
-}
-
-export function exportCashAccountsCSV(accounts: CashAccount[], currency: string = 'Rs.') {
-  exportCollectionAsCSV(
-    'cash_accounts',
-    ['Account ID', 'Name', 'Balance'],
-    accounts.map(a => [a.id, a.name, `${currency} ${a.balance}`])
-  );
-}
-
-export function exportCardsCSV(cards: BankCard[], currency: string = 'Rs.') {
-  exportCollectionAsCSV(
-    'cards',
-    ['Card ID', 'Card Name', 'Bank', 'Type', 'Current Balance', 'Limit', 'Status'],
-    cards.map(c => [
-      c.id,
-      c.cardName,
-      c.bankName,
-      c.cardType,
-      `${currency} ${c.currentBalance}`,
-      c.limit != null ? `${currency} ${c.limit}` : '',
-      c.isCanceled ? 'Cancelled' : c.isFrozen ? 'Frozen' : 'Active',
-    ])
-  );
-}
-
-export function exportDebtsCSV(debts: Debt[], currency: string = 'Rs.') {
-  exportCollectionAsCSV(
-    'debts',
-    ['Debt ID', 'Source', 'Total', 'Remaining', 'Due Date', 'Status'],
-    debts.map(d => [
-      d.id,
-      d.debtSource,
-      `${currency} ${d.totalAmount}`,
-      `${currency} ${d.remainingAmount}`,
-      d.dueDate,
-      d.status || 'Active',
-    ])
-  );
-}
-
-export function exportLoansCSV(loans: LoanGiven[], currency: string = 'Rs.') {
-  exportCollectionAsCSV(
-    'loans_given',
-    ['Loan ID', 'Borrower', 'Total', 'Remaining', 'Date Given', 'Status'],
-    loans.map(l => [
-      l.id,
-      l.borrowerName,
-      `${currency} ${l.totalAmount}`,
-      `${currency} ${l.remainingAmount}`,
-      l.dateGiven,
-      l.status,
-    ])
-  );
-}
-
-export function exportSubscriptionsCSV(subs: Subscription[], currency: string = 'Rs.') {
-  exportCollectionAsCSV(
-    'subscriptions',
-    ['Plan ID', 'Name', 'Amount', 'Billing Cycle', 'Due Date', 'Status'],
-    subs.map(s => [s.id, s.name, `${currency} ${s.amount}`, s.billingCycle, s.dueDate, s.status])
-  );
-}
-
-export function exportBudgetsCSV(budgets: Budget[], currency: string = 'Rs.') {
-  exportCollectionAsCSV(
-    'budgets',
-    ['Budget ID', 'Category', 'Limit', 'Spent', 'Remaining'],
-    budgets.map(b => [
-      b.id,
-      b.category,
-      `${currency} ${b.limit}`,
-      `${currency} ${b.spent}`,
-      `${currency} ${Math.max(0, b.limit - b.spent)}`,
-    ])
-  );
-}
-
-export function exportGoalsCSV(goals: SavingsGoal[], currency: string = 'Rs.') {
-  exportCollectionAsCSV(
-    'goals',
-    ['Goal ID', 'Name', 'Target', 'Current', 'Target Date', 'Progress %'],
-    goals.map(g => [
-      g.id,
-      g.name,
-      `${currency} ${g.target}`,
-      `${currency} ${g.current}`,
-      g.targetDate,
-      g.target > 0 ? `${Math.round((g.current / g.target) * 100)}%` : '',
-    ])
-  );
-}
-
-export function exportIncomesCSV(incomes: Income[], currency: string = 'Rs.') {
-  exportCollectionAsCSV(
-    'incomes',
-    ['Income ID', 'Source', 'Category', 'Amount', 'Date'],
-    incomes.map(i => [i.id, i.source, i.category, `${currency} ${i.amount}`, i.date])
-  );
-}
-
-export function exportExpensesCSV(expenses: Expense[], currency: string = 'Rs.') {
-  exportCollectionAsCSV(
-    'expenses',
-    ['Expense ID', 'Title', 'Category', 'Amount', 'Date'],
-    expenses.map(e => [e.id, e.title, e.category, `${currency} ${e.amount}`, e.date])
-  );
+  const csvContent = "data:text/csv;charset=utf-8," 
+    + [headers.map(h => `"${h}"`).join(','), ...rows.map(escapeCsvRow)].join('\n');
+    
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  const stamp = new Date().toISOString().split('T')[0];
+  link.setAttribute("download", `finance_statement_${stamp}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 // Standard category colors configuration
@@ -262,7 +140,14 @@ export const EXPENSE_COLORS: Record<string, string> = {
   Other: '#6B7280',       // Gray
 };
 
-
+export const INCOME_COLORS: Record<string, string> = {
+  Salary: '#10B981',      // Emerald Green
+  Freelance: '#06B6D4',   // Cyan
+  Business: '#3B82F6',    // Blue
+  Bonus: '#F59E0B',       // Gold
+  Commission: '#84CC16',  // Lime
+  Other: '#6B7280',       // Gray
+};
 
 // Canonical category lists. These are the single source of truth for category
 // <select>s across the app. They must match the zod enums in
@@ -292,7 +177,7 @@ export const INCOME_CATEGORIES = [
   'Other',
 ] as const;
 
-interface NetWorthBreakdown {
+export interface NetWorthBreakdown {
   cash: number;
   debitCards: number;
   creditCardAssets: number;
@@ -303,10 +188,6 @@ interface NetWorthBreakdown {
 }
 
 export function calculateNetWorth(state: Partial<AppState>): NetWorthBreakdown {
-  // Net worth (B7) is intentionally snapshot-based by design: it sums account
-  // balances, card balances, debts and loans directly from current state rather
-  // than recomputing from the transaction ledger. Recalculating from the ledger
-  // is a documented follow-up decision, not a bug.
   const cashAccounts = state.cashAccounts || [];
   const cards = state.cards || [];
   const debts = state.debts || [];

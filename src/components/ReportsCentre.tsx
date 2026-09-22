@@ -1,9 +1,9 @@
 ﻿import React, { useState } from 'react';
 import { Transaction, Income, Expense, Debt, CashAccount, BankCard, LoanGiven, Subscription } from '../types';
-import { exportTransactionsToCSV, EXPENSE_COLORS } from '../utils';
+import { exportTransactionsToCSV, EXPENSE_COLORS, INCOME_COLORS } from '../utils';
 import { FileDown, Printer, BarChart3, PieChart, TrendingUp, Landmark, Search } from 'lucide-react';
 import { IncomeVsExpenseBar, CategorySpreadAnalysis, TrendAnalysisChart } from './Charts';
-
+import { DatePicker } from './DatePicker';
 import AuditPanel from './AuditPanel';
 
 interface ReportsCentreProps {
@@ -21,7 +21,7 @@ interface ReportsCentreProps {
   onPaySubscription?: (subId: string, accountId: string, accountType: 'cash' | 'card', paymentDate: string, bankCharge?: number) => void;
 }
 
-export default function ReportsCentre({ transactions, debts, loansGiven, cashAccounts, cards, currency, onSelectTransaction, subscriptions = [], onToggleSubscriptionStatus, onPaySubscription }: ReportsCentreProps) {
+export default function ReportsCentre({ transactions, incomes, expenses, debts, loansGiven, cashAccounts, cards, currency, onSelectTransaction, subscriptions = [], onToggleSubscriptionStatus, onPaySubscription }: ReportsCentreProps) {
   const [reportType, setReportType] = useState<'monthly' | 'yearly' | 'category' | 'debt' | 'audit'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
@@ -73,13 +73,7 @@ export default function ReportsCentre({ transactions, debts, loansGiven, cashAcc
 
   return (
     <div id="reports-centre-view" className="space-y-6">
-      <div id="print-report-header" className="hidden print:block">
-        <p className="mono text-[18px] font-extrabold tracking-tight text-[var(--ink)]">EM Budget — Financial Report</p>
-        <p className="eyebrow !text-[10px] mt-1 text-[var(--ink-2)]">
-          {reportType.charAt(0).toUpperCase() + reportType.slice(1)} report · Generated {new Date().toLocaleString()} · Currency {currency}
-        </p>
-      </div>
-      <div className="card p-1.5 flex gap-1 overflow-x-auto scrollbar-none">
+      <div className="card p-1.5 flex gap-1 overflow-hidden">
         {[
           { key: 'monthly', label: 'Monthly' },
           { key: 'yearly', label: 'Annual' },
@@ -87,7 +81,7 @@ export default function ReportsCentre({ transactions, debts, loansGiven, cashAcc
           { key: 'debt', label: 'Debts' },
           { key: 'audit', label: 'Audit & Health' },
         ].map(item => (
-          <button key={item.key} onClick={() => setReportType(item.key as any)} className={reportType === item.key ? 'pill pill-active !py-2 text-[12px] justify-center whitespace-nowrap shrink-0' : 'pill !py-2 text-[12px] justify-center !border-transparent whitespace-nowrap shrink-0'}>{item.label}</button>
+          <button key={item.key} onClick={() => setReportType(item.key as any)} className={reportType === item.key ? 'pill pill-active flex-1 !py-2 text-[12px] justify-center' : 'pill flex-1 !py-2 text-[12px] justify-center !border-transparent'}>{item.label}</button>
         ))}
       </div>
 
@@ -164,8 +158,8 @@ export default function ReportsCentre({ transactions, debts, loansGiven, cashAcc
               <div><p className="eyebrow !text-[9px] mb-1">Account</p><select value={filterAccount} onChange={e => setFilterAccount(e.target.value)} className="input !py-2.5 text-[12px]"><option value="all">All wallets/cards</option>{cashAccounts.map(c => <option key={c.id} value={c.id}>Cash: {c.name}</option>)}{cards.filter(c => !c.isCanceled).map(card => <option key={card.id} value={card.id}>Card: {card.cardName}</option>)}</select></div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div><p className="eyebrow !text-[9px] mb-1">Start</p><input type="date" className="input" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-              <div><p className="eyebrow !text-[9px] mb-1">End</p><input type="date" className="input" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+              <div><p className="eyebrow !text-[9px] mb-1">Start</p><DatePicker value={startDate} onChange={setStartDate} /></div>
+              <div><p className="eyebrow !text-[9px] mb-1">End</p><DatePicker value={endDate} onChange={setEndDate} /></div>
             </div>
             {(startDate || endDate) && <button onClick={() => { setStartDate(''); setEndDate(''); }} className="mono text-[11px] underline" style={{ color: 'var(--ink-2)' }}>Reset bounds</button>}
             <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1" id="filtered-list">
@@ -190,9 +184,6 @@ export default function ReportsCentre({ transactions, debts, loansGiven, cashAcc
           </div>
         </div>
       )}
-      <div id="print-report-footer" className="hidden print:block">
-        <p className="mono text-[9px] text-[var(--ink-3)]">Generated by EM Budget · {new Date().toLocaleString()}</p>
-      </div>
     </div>
   );
 }

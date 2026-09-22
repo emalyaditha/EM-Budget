@@ -1,38 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { apiUrl, safeJson } from "../lib/api";
-import { Settings, Database, Zap, FileDown, X, Shield, Cloud, RefreshCw, Check, Copy, Eye, EyeOff, ChevronDown, ChevronUp, AlertCircle, LogOut, Sun, Moon, Lock, Fingerprint, Smartphone, KeyRound, Clock } from 'lucide-react';
+import { Settings, Database, Zap, FileDown, X, Shield, Cloud, RefreshCw, Check, Copy, Eye, EyeOff, Code, ChevronDown, ChevronUp, AlertCircle, LogOut, Sun, Moon, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppState } from '../types';
 import { getSupabaseConfig, saveSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, truncateAllDataInSupabase } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
-import { useFocusTrap } from '../hooks/useFocusTrap';
-import { authSession } from '../services/authSession';
-import {
-  exportCashAccountsCSV,
-  exportCardsCSV,
-  exportDebtsCSV,
-  exportLoansCSV,
-  exportSubscriptionsCSV,
-  exportBudgetsCSV,
-  exportGoalsCSV,
-  exportIncomesCSV,
-  exportExpensesCSV,
-} from '../utils';
-import {
-  getAppLockStatus,
-  setPin,
-  disablePin,
-  setLockOnOpen,
-  setLockIdleMinutes,
-  startBiometricRegistration,
-  removeBiometricCredential,
-  listBiometricCredentials,
-  listTrustedDevices,
-  revokeTrustedDevice,
-  revokeAllDevices,
-  isBiometricAvailable,
-} from '../lib/appLock';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -59,35 +32,11 @@ export default function SettingsModal({ isOpen, onClose, state, userEmail, updat
   const [purgeLoading, setPurgeLoading] = useState(false);
   const [purgeError, setPurgeError] = useState<string | null>(null);
   const [purgeDevOtp, setPurgeDevOtp] = useState<string | null>(null);
-  const [expandedSection, setExpandedSection] = useState<'none' | 'flutter'>('none');
+  const [expandedSection, setExpandedSection] = useState<'none' | 'sql' | 'flutter' | 'upgrade'>('none');
+  const [sqlCopied, setSqlCopied] = useState(false);
   const [flutterCopied, setFlutterCopied] = useState(false);
-  const [appLockStatus, setAppLockStatus] = useState<{ appLockEnabled: boolean; lockOnOpen: boolean; hasPin: boolean; pinEnabled: boolean; biometricCount: number } | null>(null);
-  const [appLockBusy, setAppLockBusy] = useState(false);
-  const [appLockMsg, setAppLockMsg] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(null);
-  const [newPin, setNewPin] = useState('');
-  const [pinError, setPinError] = useState<string | null>(null);
-  const [biometricSupported, setBiometricSupported] = useState(false);
-  const [deviceLabel, setDeviceLabel] = useState('');
-  const [devices, setDevices] = useState<{ id: string; label: string; lastUsed: string }[]>([]);
-  const [biometricCredIds, setBiometricCredIds] = useState<string[]>([]);
-  const [confirmRemoveBiometric, setConfirmRemoveBiometric] = useState<string | null>(null);
-const [idleMinutes, setIdleMinutes] = useState(1);
-
-  const refreshAppLock = async () => {
-    if (!userEmail) return;
-    const status = await getAppLockStatus(userEmail);
-    setAppLockStatus(status ? { appLockEnabled: status.appLockEnabled, lockOnOpen: status.lockOnOpen, hasPin: status.hasPin, pinEnabled: status.pinEnabled, biometricCount: status.biometricCount } : null);
-    setIdleMinutes(status?.lockIdleMinutes ?? 1);
-    const devs = await listTrustedDevices(userEmail);
-    setDevices(devs.map((d) => ({ id: d.id, label: d.userAgent.split(/[ (/]/)[0] || 'Device', lastUsed: new Date(d.lastUsedAt || d.createdAt).toLocaleDateString() })));
-    const creds = await listBiometricCredentials(userEmail);
-    setBiometricCredIds(creds.map((c) => c.credentialId));
-    try {
-      setBiometricSupported(await isBiometricAvailable());
-    } catch {
-      setBiometricSupported(false);
-    }
-  };
+  const [upgradeCopied, setUpgradeCopied] = useState(false);
+  const [sqlScript, setSqlScript] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -101,13 +50,16 @@ const [idleMinutes, setIdleMinutes] = useState(1);
       setPurgeOtp('');
       setPurgeError(null);
       setPurgeDevOtp(null);
-      void refreshAppLock();
+      fetch(apiUrl('/api/config/sql')).then((r) => safeJson(r)).then((d) => { if (d?.success) setSqlScript(d.sql); }).catch(() => {});
     }
-    // refreshAppLock is a stable hook callback; modal open is the intended refresh trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const settingsDrawerRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
+  const handleSaveCredentials = () => {
+    saveSupabaseConfig(supabaseUrl.trim(), supabaseKey.trim(), autoSync);
+    setSyncStatus('success');
+    setSyncMessage('Credentials saved.');
+    setTimeout(() => setSyncMessage(null), 3000);
+  };
 
   const handlePushSync = async () => {
     saveSupabaseConfig(supabaseUrl.trim(), supabaseKey.trim(), autoSync);
@@ -131,7 +83,7 @@ const [idleMinutes, setIdleMinutes] = useState(1);
     if (!userEmail) { setSyncStatus('error'); setSyncMessage('Email required.'); return; }
     setSyncStatus('loading'); setSyncMessage('Sending verification code...'); setPurgeLoading(true); setPurgeError(null);
     try {
-      const token = authSession.getToken() || '';
+      const token = localStorage.getItem('auth_session_token') || '';
       const res = await fetch(apiUrl('/api/auth/send-delete-otp'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: userEmail }) });
       const data = await safeJson(res); setPurgeLoading(false);
       if (!data) throw new Error("Empty response from API (" + res.status + " " + res.statusText + ") — check VITE_API_URL (should be your Railway URL) and Vercel function logs for /api");
@@ -144,7 +96,7 @@ const [idleMinutes, setIdleMinutes] = useState(1);
     if (!purgeOtp.trim()) { setPurgeError('Enter the 6-digit code.'); return; }
     setPurgeLoading(true); setPurgeError(null); setSyncStatus('loading'); setSyncMessage('Verifying code...');
     try {
-      const token = authSession.getToken() || '';
+      const token = localStorage.getItem('auth_session_token') || '';
       const res = await fetch(apiUrl('/api/auth/verify-delete-otp'), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: userEmail, otp: purgeOtp }) });
       const data = await safeJson(res);
       if (!data) { setPurgeLoading(false); setSyncStatus('error'); const m = "Empty response"; setSyncMessage(m); setPurgeError(m); showToast(m, 'error'); return; }
@@ -158,88 +110,11 @@ const [idleMinutes, setIdleMinutes] = useState(1);
     } catch (err: any) { setPurgeLoading(false); setSyncStatus('error'); const m = err.message || 'Verification failed.'; setSyncMessage(m); setPurgeError(m); showToast(m, 'error'); }
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, type: 'sql' | 'flutter' | 'upgrade') => {
     navigator.clipboard.writeText(text);
-    setFlutterCopied(true); setTimeout(() => setFlutterCopied(false), 2000);
-  };
-
-  // ================= APP LOCK =================
-  const handleSetPin = async () => {
-    const pin = newPin.replace(/\D/g, '').trim();
-    if (!/^\d{4,6}$/.test(pin)) { setPinError('PIN must be 4–6 digits.'); return; }
-    if (/^(0+|\d)\1*$/.test(pin) || pin === '1234' || pin === '0000' || pin === '4321') { setPinError('That PIN is too easy to guess. Choose a different one.'); return; }
-    setAppLockBusy(true); setPinError(null); setAppLockMsg(null);
-    const r = await setPin(userEmail, pin);
-    setAppLockBusy(false);
-    if (r.ok) { setAppLockMsg({ kind: 'success', text: 'PIN set. App lock is now active.' }); setNewPin(''); await refreshAppLock(); }
-    else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to set PIN.' });
-  };
-
-  const handleDisablePin = async () => {
-    setAppLockBusy(true); setAppLockMsg(null);
-    const r = await disablePin(userEmail);
-    setAppLockBusy(false);
-    if (r.ok) { setAppLockMsg({ kind: 'success', text: 'PIN disabled.' }); await refreshAppLock(); }
-    else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to disable PIN.' });
-  };
-
-  const handleDisableAll = async () => {
-    setAppLockBusy(true); setAppLockMsg(null);
-    const a = await disablePin(userEmail);
-    const b = await revokeAllDevices(userEmail);
-    setAppLockBusy(false);
-    if (a.ok && b.ok) { setAppLockMsg({ kind: 'success', text: 'App lock disabled and all trusted devices removed.' }); setNewPin(''); await refreshAppLock(); }
-    else setAppLockMsg({ kind: 'error', text: 'Could not fully disable app lock.' });
-  };
-
-  const handleSetLockOnOpen = async (enabled: boolean) => {
-    setAppLockBusy(true); setAppLockMsg(null);
-    const r = await setLockOnOpen(userEmail, enabled);
-    setAppLockBusy(false);
-    if (r.ok) { setAppLockMsg({ kind: 'success', text: enabled ? 'PIN will now be asked every time the app opens.' : 'PIN only asked on new/unknown devices.' }); await refreshAppLock(); }
-    else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to update lock preference.' });
-  };
-
-  const handleSaveIdleMinutes = async () => {
-    const minutes = Math.round(Number(idleMinutes) || 1);
-    const clamped = Math.min(240, Math.max(1, minutes));
-    setIdleMinutes(clamped);
-    setAppLockBusy(true); setAppLockMsg(null);
-    const r = await setLockIdleMinutes(userEmail, clamped);
-    setAppLockBusy(false);
-    if (r.ok) { setAppLockMsg({ kind: 'success', text: `App will auto-lock after ${clamped} min of inactivity.` }); await refreshAppLock(); }
-    else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to update idle-lock timeout.' });
-  };
-
-  const handleRegisterBiometric = async () => {
-    setAppLockBusy(true); setAppLockMsg(null);
-    const label = deviceLabel.trim() || 'Biometric device';
-    const r = await startBiometricRegistration(userEmail, label);
-    setAppLockBusy(false);
-    if (r.ok) { setAppLockMsg({ kind: 'success', text: 'Biometric added. You can now unlock with this device.' }); setDeviceLabel(''); await refreshAppLock(); }
-    else setAppLockMsg({ kind: 'error', text: r.error || 'Biometric registration failed.' });
-  };
-
-  const handleRemoveBiometric = async (credentialId: string) => {
-    setAppLockBusy(true); setAppLockMsg(null);
-    let ok = true; let err = '';
-    const ids = credentialId === '__all__' ? biometricCredIds : [credentialId];
-    for (const id of ids) {
-      const r = await removeBiometricCredential(userEmail, id);
-      if (!r.ok) { ok = false; err = r.error || 'Failed to remove biometric.'; }
-    }
-    setAppLockBusy(false);
-    setConfirmRemoveBiometric(null);
-    if (ok) { setAppLockMsg({ kind: 'success', text: 'Biometric removed.' }); await refreshAppLock(); }
-    else setAppLockMsg({ kind: 'error', text: err || 'Failed to remove biometric.' });
-  };
-
-  const handleRevokeDevice = async (id: string) => {
-    setAppLockBusy(true); setAppLockMsg(null);
-    const r = await revokeTrustedDevice(userEmail, id);
-    setAppLockBusy(false);
-    if (r.ok) { setAppLockMsg({ kind: 'success', text: 'Device removed.' }); await refreshAppLock(); }
-    else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to remove device.' });
+    if (type === 'sql') { setSqlCopied(true); setTimeout(() => setSqlCopied(false), 2000); }
+    else if (type === 'upgrade') { setUpgradeCopied(true); setTimeout(() => setUpgradeCopied(false), 2000); }
+    else { setFlutterCopied(true); setTimeout(() => setFlutterCopied(false), 2000); }
   };
 
   const flutterCode = `// Flutter Dart helper to Sync with this same Supabase Ledger!
@@ -266,7 +141,7 @@ class CloudSyncService {
       {isOpen && (
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} onClick={onClose} className="fixed inset-0 z-40 bg-[var(--ink)]/40 backdrop-blur-[2px]" id="settings-backdrop-overlay" />
-          <motion.div ref={settingsDrawerRef} tabIndex={-1} initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 260 }} className="fixed top-0 right-0 bottom-0 w-full max-w-[600px] bg-[var(--surface)] border-l border-[var(--line)] z-50 flex flex-col shadow-2xl" id="settings-panel-drawer" role="dialog" aria-modal="true" aria-label="Settings">
+          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 260 }} className="fixed top-0 right-0 bottom-0 w-full max-w-[600px] bg-[var(--surface)] border-l border-[var(--line)] z-50 flex flex-col shadow-2xl" id="settings-panel-drawer" role="dialog" aria-modal="true" aria-label="Settings">
             <div className="px-6 h-14 flex items-center justify-between border-b border-[var(--line)] bg-[var(--surface)]/80 backdrop-blur shrink-0">
               <div className="flex items-center gap-2.5">
                 <span className="w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] flex items-center justify-center text-[var(--ink-2)]"><Settings size={13} /></span>
@@ -275,13 +150,13 @@ class CloudSyncService {
                   <p className="eyebrow normal-case tracking-normal text-[11px]">Vault &amp; cloud sync</p>
                 </div>
               </div>
-              <button onClick={onClose} aria-label="Close settings" className="w-10 h-10 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]">
+              <button onClick={onClose} aria-label="Close settings" className="w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]">
                 <X size={14} />
               </button>
             </div>
             <div className="ledger-rule" />
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Cloud Sync */}
               <section className="space-y-3">
                 <div className="eyebrow flex items-center justify-between"><span className="inline-flex items-center gap-1.5"><Cloud size={11} /> Cloud sync</span><span className="mono text-[10px] font-normal normal-case tracking-normal px-2 py-0.5 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]">Flutter ready</span></div>
@@ -301,7 +176,7 @@ class CloudSyncService {
                     </div>
                     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5 flex gap-2 text-[11px] leading-4 text-[var(--ink-2)]"><Lock size={12} className="shrink-0 mt-0.5 text-[var(--ink-3)]" /><span>Connection credentials are locked to environment variables.</span></div>
                     <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input type="checkbox" id="autoSyncToggle" checked={autoSync} onChange={(e) => { const v = e.target.checked; setAutoSync(v); const cfg = getSupabaseConfig(); saveSupabaseConfig(cfg.url, cfg.key, v); }} className="w-5 h-5 rounded border-[var(--line)] bg-[var(--surface)] accent-[var(--ink)]" />
+                      <input type="checkbox" id="autoSyncToggle" checked={autoSync} onChange={(e) => { const v = e.target.checked; setAutoSync(v); const cfg = getSupabaseConfig(); saveSupabaseConfig(cfg.url, cfg.key, v); }} className="w-3.5 h-3.5 rounded border-[var(--line)] bg-[var(--surface)] accent-[var(--ink)]" />
                       <span className="text-[12px] text-[var(--ink-2)]">Auto-push local changes to cloud</span>
                     </label>
                   </div>
@@ -320,181 +195,32 @@ class CloudSyncService {
                 </div>
               </section>
 
-              {/* App Lock */}
-              <section className="space-y-3">
-                <div className="eyebrow flex items-center justify-between"><span className="inline-flex items-center gap-1.5"><Fingerprint size={11} /> App Lock</span><span className="mono text-[10px] font-normal normal-case tracking-normal px-2 py-0.5 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]">{appLockStatus?.appLockEnabled ? 'Active' : 'Off'}</span></div>
-                <div className="card-flat p-5 space-y-4">
-                  {!appLockStatus && <p className="text-[12px] text-[var(--ink-3)]">Loading app lock status…</p>}
-                  {appLockStatus && (
-                    <>
-                      <div className="flex items-start gap-2.5 text-[12px] leading-5 text-[var(--ink-2)]">
-                        <Lock size={13} className="shrink-0 mt-0.5 text-[var(--ink-3)]" />
-                        <p>App lock adds a PIN or biometric layer on top of your login, so a stolen/borrowed session still can't be read until you unlock.</p>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-2 py-2.5">
-                          <p className="text-[15px] font-bold text-[var(--ink)]">{appLockStatus.pinEnabled ? 'On' : 'Off'}</p>
-                          <p className="eyebrow text-[10px] mt-0.5">PIN</p>
-                        </div>
-                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-2 py-2.5">
-                          <p className="text-[15px] font-bold text-[var(--ink)]">{appLockStatus.biometricCount}</p>
-                          <p className="eyebrow text-[10px] mt-0.5">Biometrics</p>
-                        </div>
-                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-2 py-2.5">
-                          <p className="text-[15px] font-bold text-[var(--ink)]">{devices.length}</p>
-                          <p className="eyebrow text-[10px] mt-0.5">Devices</p>
-                        </div>
-                      </div>
-
-                      <div className="ledger-rule" />
-
-                      {/* PIN setup */}
-                      <div className="space-y-2">
-                        <p className="text-[12px] font-semibold text-[var(--ink)] inline-flex items-center gap-1.5"><KeyRound size={12} /> PIN</p>
-                        {appLockStatus.hasPin ? (
-                          <button type="button" onClick={handleDisablePin} disabled={appLockBusy} className="btn-ghost w-full justify-center text-[12px] disabled:opacity-50">Disable PIN</button>
-                        ) : (
-                          <div className="space-y-2">
-                            <div>
-                              <label htmlFor="settings-pin" className="eyebrow block mb-1.5">Set a 4–6 digit PIN</label>
-                              <div className="flex gap-2">
-                                <input id="settings-pin" type="password" inputMode="numeric" maxLength={6} value={newPin} onChange={(e) => { setNewPin(e.target.value.replace(/\D/g, '')); setPinError(null); }} placeholder="••••" className="input mono text-center tracking-[0.35em] flex-1" />
-                                <button type="button" onClick={handleSetPin} disabled={appLockBusy || newPin.length < 4} className="btn-primary disabled:opacity-50">Set PIN</button>
-                              </div>
-                              {pinError && <p className="text-[11px] text-[var(--danger)] mt-1.5">{pinError}</p>}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Always ask for PIN on open */}
-                      <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5">
-                        <div className="flex items-start gap-2.5">
-                          <Shield size={13} className="shrink-0 mt-0.5 text-[var(--ink-3)]" />
-                          <div>
-                            <p className="text-[12px] font-semibold text-[var(--ink)]">Always ask for PIN on open</p>
-                            <p className="text-[11px] leading-4 text-[var(--ink-3)] mt-0.5">Require the PIN every time the app opens, even on a remembered device.</p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={appLockStatus.lockOnOpen}
-                          aria-label="Always ask for PIN on open"
-                          disabled={appLockBusy}
-                          onClick={() => handleSetLockOnOpen(!appLockStatus.lockOnOpen)}
-                          className={`relative shrink-0 w-11 h-6 rounded-full transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] ${appLockStatus.lockOnOpen ? 'bg-[var(--accent)]' : 'bg-[var(--line)]'}`}
-                        >
-                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${appLockStatus.lockOnOpen ? 'translate-x-5' : ''}`} />
-                        </button>
-                      </div>
-
-                      {/* Auto-lock idle timeout */}
-                      <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5">
-                        <div className="flex items-start gap-2.5">
-                          <Clock size={13} className="shrink-0 mt-0.5 text-[var(--ink-3)]" />
-                          <div>
-                            <p className="text-[12px] font-semibold text-[var(--ink)]">Auto-lock after inactivity</p>
-                            <p className="text-[11px] leading-4 text-[var(--ink-3)] mt-0.5">Locks the app after this many minutes of inactivity. Defaults to 1.</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            max={240}
-                            value={idleMinutes}
-                            disabled={appLockBusy}
-                            onChange={(e) => setIdleMinutes(Number(e.target.value))}
-                            onBlur={handleSaveIdleMinutes}
-                            aria-label="Auto-lock minutes"
-                            className="input w-16 text-center text-[12px] mono"
-                          />
-                          <span className="text-[11px] text-[var(--ink-3)]">min</span>
-                          <button type="button" onClick={handleSaveIdleMinutes} disabled={appLockBusy || !idleMinutes} className="btn-ghost justify-center text-[12px] disabled:opacity-50">Save</button>
-                        </div>
-                      </div>
-
-                      {/* Biometric */}
-                      <div className="space-y-2">
-                        <p className="text-[12px] font-semibold text-[var(--ink)] inline-flex items-center gap-1.5"><Fingerprint size={12} /> Biometrics</p>
-                        {appLockStatus.biometricCount > 0 ? (
-                          confirmRemoveBiometric ? (
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--danger-bg)] p-3 space-y-2">
-                              <p className="text-[11px] leading-4 text-[var(--ink-2)]">Remove all biometric unlock methods for this account?</p>
-                              <div className="grid grid-cols-2 gap-2">
-                                <button type="button" onClick={() => setConfirmRemoveBiometric(null)} className="btn-ghost justify-center text-[12px]" disabled={appLockBusy}>Cancel</button>
-                                <button type="button" onClick={() => { const id = confirmRemoveBiometric === '__all__' ? (biometricCredIds[0] || '') : confirmRemoveBiometric; if (id) handleRemoveBiometric(id); }} className="btn-primary justify-center text-[12px] bg-[var(--danger)] border-[var(--danger)] hover:brightness-95 disabled:opacity-50" disabled={appLockBusy}>Remove</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button type="button" onClick={() => setConfirmRemoveBiometric('__all__')} disabled={appLockBusy} className="btn-ghost w-full justify-center text-[12px] text-[var(--danger)] disabled:opacity-50">Remove biometric unlock ({appLockStatus.biometricCount})</button>
-                          )
-                        ) : (
-                          <div className="space-y-2">
-                            <p className="text-[11px] leading-4 text-[var(--ink-3)]">{biometricSupported ? 'Add fingerprint / face unlock using this device.' : 'This device does not support platform biometrics.'}</p>
-                            <div className="flex gap-2">
-                              <input value={deviceLabel} onChange={(e) => setDeviceLabel(e.target.value)} placeholder="Device label (this phone)" maxLength={60} className="input flex-1 text-[12px]" />
-                              <button type="button" onClick={handleRegisterBiometric} disabled={appLockBusy || !biometricSupported} className="btn-primary disabled:opacity-50">Add</button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Trusted devices */}
-                      <div className="space-y-2">
-                        <p className="text-[12px] font-semibold text-[var(--ink)] inline-flex items-center gap-1.5"><Smartphone size={12} /> Trusted devices</p>
-                        {devices.length === 0 ? (
-                          <p className="text-[11px] leading-4 text-[var(--ink-3)]">No trusted devices. On login, tick "Remember this device" to skip the lock on this browser.</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {devices.map((d) => (
-                              <div key={d.id} className="flex items-center justify-between gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-[12px]">
-                                <span className="truncate flex items-center gap-1.5"><Smartphone size={11} className="shrink-0 text-[var(--ink-3)]" />{d.label} <span className="mono text-[10px] text-[var(--ink-3)] shrink-0">{d.lastUsed}</span></span>
-                                <button type="button" onClick={() => handleRevokeDevice(d.id)} disabled={appLockBusy} className="text-[11px] text-[var(--danger)] hover:underline shrink-0 disabled:opacity-40">Remove</button>
-                              </div>
-                            ))}
-                            <button type="button" onClick={async () => { const r = await revokeAllDevices(userEmail); if (r.ok) { setAppLockMsg({ kind: 'success', text: 'All trusted devices removed.' }); await refreshAppLock(); } }} disabled={appLockBusy} className="btn-ghost w-full justify-center text-[12px] disabled:opacity-50">Remove all</button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Disable all */}
-                      <div className="pt-3 border-t border-[var(--line)]">
-                        <button type="button" onClick={handleDisableAll} disabled={appLockBusy} className="w-full rounded-full border border-[var(--line)] bg-[var(--danger-bg)] text-[var(--danger)] hover:brightness-95 px-4 py-2.5 text-[12px] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50"><Shield size={12} /> Disable app lock everywhere</button>
-                      </div>
-                    </>
-                  )}
-                  {appLockMsg && (
-                    <div className={`rounded-xl border px-3 py-2.5 flex gap-2 text-[12px] leading-5 ${appLockMsg.kind === 'success' ? 'bg-[var(--success-bg)] border-[var(--line)] text-[var(--success)]' : appLockMsg.kind === 'error' ? 'bg-[var(--danger-bg)] border-[var(--line)] text-[var(--danger)]' : 'bg-[var(--surface-2)] border-[var(--line)] text-[var(--ink-2)]'}`}>
-                      {appLockMsg.kind === 'success' ? <Check size={13} className="shrink-0 mt-0.5" /> : appLockMsg.kind === 'error' ? <AlertCircle size={13} className="shrink-0 mt-0.5" /> : <Shield size={13} className="shrink-0 mt-0.5" />}
-                      <span>{appLockMsg.text}</span>
-                    </div>
-                  )}
-                </div>
-              </section>
-
               {/* Developer */}
               <section className="space-y-2">
                 <p className="eyebrow">Developer blueprints</p>
-                <div className="card-flat overflow-hidden">
-                  <button onClick={() => setExpandedSection(expandedSection === 'flutter' ? 'none' : 'flutter')} className="w-full px-4 h-11 flex items-center justify-between text-[12px] font-semibold text-[var(--ink)] hover:bg-[var(--surface-2)] transition-colors">
-                    <span className="inline-flex items-center gap-2 text-[var(--ink-2)]"><Zap size={12} /><span className="text-[var(--ink)]">Sync with Flutter (Dart)</span></span>
-                    {expandedSection === 'flutter' ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                  </button>
-                  <AnimatePresence>
-                    {expandedSection === 'flutter' && (
-                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="border-t border-[var(--line)] bg-[var(--surface-2)] p-4">
-                        <p className="text-[11px] leading-4 text-[var(--ink-2)] mb-2">Add supabase_flutter and use this helper.</p>
-                        <div className="relative">
-                          <pre className="mono text-[11px] leading-4 bg-[var(--surface)] border border-[var(--line)] rounded-xl p-3 overflow-x-auto max-h-[260px] text-[var(--ink-2)] whitespace-pre">{flutterCode}</pre>
-                          <button onClick={() => copyToClipboard(flutterCode)} className="absolute right-2 top-2 w-7 h-7 rounded-full bg-[var(--surface)] border border-[var(--line)] flex items-center justify-center text-[var(--ink-2)] hover:text-[var(--ink)]" aria-label="Copy">{flutterCopied ? <Check size={11} /> : <Copy size={11} />}</button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                {[
+                  { key: 'sql' as const, icon: <Code size={12} />, label: '1. Prepare DB tables & functions (SQL)' },
+                  { key: 'flutter' as const, icon: <Zap size={12} />, label: '2. Sync with Flutter (Dart)' },
+                  { key: 'upgrade' as const, icon: <Database size={12} />, label: '3. Upgrade live DB (migration)' },
+                ].map((row) => (
+                  <div key={row.key} className="card-flat overflow-hidden">
+                    <button onClick={() => setExpandedSection(expandedSection === row.key ? 'none' : row.key)} className="w-full px-4 h-11 flex items-center justify-between text-[12px] font-semibold text-[var(--ink)] hover:bg-[var(--surface-2)] transition-colors">
+                      <span className="inline-flex items-center gap-2 text-[var(--ink-2)]">{row.icon}<span className="text-[var(--ink)]">{row.label}</span></span>
+                      {expandedSection === row.key ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                    <AnimatePresence>
+                      {expandedSection === row.key && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="border-t border-[var(--line)] bg-[var(--surface-2)] p-4">
+                          <p className="text-[11px] leading-4 text-[var(--ink-2)] mb-2">{row.key === 'flutter' ? 'Add supabase_flutter and use this helper.' : 'Run this in Supabase SQL Editor.'}</p>
+                          <div className="relative">
+                            <pre className="mono text-[11px] leading-4 bg-[var(--surface)] border border-[var(--line)] rounded-xl p-3 overflow-x-auto max-h-[180px] text-[var(--ink-2)] whitespace-pre">{row.key === 'flutter' ? flutterCode : (sqlScript || '-- Loading SQL...' )}</pre>
+                            <button onClick={() => copyToClipboard(row.key === 'flutter' ? flutterCode : sqlScript, row.key)} className="absolute right-2 top-2 w-7 h-7 rounded-full bg-[var(--surface)] border border-[var(--line)] flex items-center justify-center text-[var(--ink-2)] hover:text-[var(--ink)]" aria-label="Copy">{(row.key === 'sql' && sqlCopied) || (row.key === 'flutter' && flutterCopied) || (row.key === 'upgrade' && upgradeCopied) ? <Check size={11} /> : <Copy size={11} />}</button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ))}
               </section>
 
               {/* Identity & prefs */}
@@ -535,21 +261,6 @@ class CloudSyncService {
                   <div>
                     <label htmlFor="database-config-uploader" className="eyebrow block mb-1.5">Restore from JSON</label>
                     <input type="file" id="database-config-uploader" accept=".json" onChange={handleJSONRestore} className="block w-full text-[12px] text-[var(--ink-2)] file:mr-3 file:btn-ghost file:py-1.5 file:px-3 file:text-[12px]" />
-                  </div>
-                  {/* CSV exports – one-click spreadsheet downloads per collection */}
-                  <div className="pt-3 border-t border-[var(--line)] space-y-2">
-                    <p className="eyebrow inline-flex items-center gap-1.5"><FileDown size={11} /> CSV exports (spreadsheet)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button onClick={() => exportCashAccountsCSV(state.cashAccounts, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Cash accounts</button>
-                      <button onClick={() => exportCardsCSV(state.cards, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Cards</button>
-                      <button onClick={() => exportDebtsCSV(state.debts, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Debts</button>
-                      <button onClick={() => exportLoansCSV(state.loansGiven, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Loans</button>
-                      <button onClick={() => exportSubscriptionsCSV(state.subscriptions, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Subscriptions</button>
-                      <button onClick={() => exportBudgetsCSV(state.budgets || [], state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Budgets</button>
-                      <button onClick={() => exportGoalsCSV(state.savingsGoals || [], state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Goals</button>
-                      <button onClick={() => exportIncomesCSV(state.incomes, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Incomes</button>
-                      <button onClick={() => exportExpensesCSV(state.expenses, state.currency)} className="btn-ghost justify-center text-[11px] px-2 py-2">Expenses</button>
-                    </div>
                   </div>
                   {!showPurge2FA ? (
                     <div className="pt-3 border-t border-[var(--line)] space-y-2">

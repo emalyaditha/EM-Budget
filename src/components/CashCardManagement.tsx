@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CashAccount, BankCard, Charge } from '../types';
 import { Plus, Trash2, Edit, Wallet, CreditCard, ChevronDown, CornerDownRight, Snowflake, RefreshCw, Lock } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-
+import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
 
 interface CashCardManagementProps {
@@ -10,7 +10,7 @@ interface CashCardManagementProps {
   cards: BankCard[];
   onAddCashAccount: (name: string, balance: number) => void;
   onEditCashAccount: (id: string, newBalance: number) => void;
-  onAddCard: (card: Omit<BankCard, 'id'>) => boolean;
+  onAddCard: (card: Omit<BankCard, 'id'>) => void;
   onDeleteCard: (id: string) => void;
   onDeleteCashAccount: (id: string) => void;
   currency: string;
@@ -35,10 +35,6 @@ interface InteractiveBankCardProps {
   onApplyCardCharge?: (cardId: string, charge: any) => void;
   onDeleteCardCharge?: (cardId: string, chargeId: string) => void;
   setEditCardLockedAmount?: (val: string) => void;
-  setEditCardDueDate?: (val: string) => void;
-  setEditCardApr?: (val: string) => void;
-  setEditCardMinPayment?: (val: string) => void;
-  setEditCardStatementCloseDate?: (val: string) => void;
   onClick?: () => void;
 }
 
@@ -53,7 +49,7 @@ function themeAccent(theme: string): string {
 
 function InteractiveBankCard({
   card, idx, currency, onUpdateCard, onDeleteCard,
-  setEditingCard, setEditCardName, setEditCardNumber, setEditCardTheme, setEditCardErrors, setEditCardSubmitted, setEditCardLockedAmount, setEditCardDueDate, setEditCardApr, setEditCardMinPayment, setEditCardStatementCloseDate, onClick,
+  setEditingCard, setEditCardName, setEditCardNumber, setEditCardTheme, setEditCardErrors, setEditCardSubmitted, setEditCardLockedAmount, onClick,
 }: InteractiveBankCardProps) {
   const { showToast } = useNotifications();
   const derivedThemes = ['obsidian','sapphire','blue','emerald','copper','ruby','amethyst','amber','silver','slate','graphite'];
@@ -74,7 +70,7 @@ function InteractiveBankCard({
           <div className="w-9 h-9 rounded-full border border-[var(--line)] bg-[var(--surface-2)] flex items-center justify-center text-[var(--ink-2)]">
             <Snowflake size={16} />
           </div>
-          <span className="eyebrow mt-2">Temporarily Frozen</span>
+          <span className="eyebrow mt-2">TEMP FROZEN</span>
           <button
             onClick={(e)=>{e.stopPropagation(); onUpdateCard({ ...card, isFrozen:false }); showToast('success', `${card.cardName} unfrozen.`);}}
             className="btn-ghost mt-3 !py-1.5 !text-xs flex items-center gap-1.5"
@@ -94,7 +90,7 @@ function InteractiveBankCard({
         </div>
         {!isCanceled && !card.isFrozen && (
           <div className="flex gap-1.5 shrink-0">
-            <button onClick={(e)=>{e.stopPropagation(); setEditingCard(card); setEditCardName(card.cardName); setEditCardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g,'').trim():''); setEditCardTheme(derivedTheme); setEditCardErrors({}); setEditCardSubmitted(false); setEditCardLockedAmount?.(card.lockedAmount?.toString()||'0'); setEditCardDueDate?.(card.dueDate||''); setEditCardApr?.(card.apr!==undefined?String(card.apr):''); setEditCardMinPayment?.(card.minPayment!==undefined?String(card.minPayment):''); setEditCardStatementCloseDate?.(card.statementCloseDate||'');}} className="btn-ghost !px-2.5 !py-1 !text-[11px] flex items-center gap-1"><Edit size={11}/>Edit</button>
+            <button onClick={(e)=>{e.stopPropagation(); setEditingCard(card); setEditCardName(card.cardName); setEditCardNumber(card.cardNumber ? card.cardNumber.replace(/\*/g,'').trim():''); setEditCardTheme(derivedTheme); setEditCardErrors({}); setEditCardSubmitted(false); setEditCardLockedAmount?.(card.lockedAmount?.toString()||'0');}} className="btn-ghost !px-2.5 !py-1 !text-[11px] flex items-center gap-1"><Edit size={11}/>Edit</button>
             <button onClick={(e)=>{e.stopPropagation(); onUpdateCard({ ...card, isFrozen:true }); showToast('warning', `${card.cardName} frozen.`);}} className="btn-ghost !px-2.5 !py-1 !text-[11px] flex items-center gap-1"><Snowflake size={11}/>Freeze</button>
           </div>
         )}
@@ -150,23 +146,15 @@ export default function CashCardManagement({
   const [cardNumber, setCardNumber] = useState('');
   const [cardTheme, setCardTheme] = useState('obsidian');
   const [cardLockedAmount, setCardLockedAmount] = useState('');
-  const [cardDueDate, setCardDueDate] = useState('');
-  const [cardStatementCloseDate, setCardStatementCloseDate] = useState('');
-  const [cardApr, setCardApr] = useState('');
-  const [cardMinPayment, setCardMinPayment] = useState('');
   const [cardErrors, setCardErrors] = useState<Record<string,string>>({});
   const [cardSubmitted, setCardSubmitted] = useState(false);
   const [editingCard, setEditingCard] = useState<BankCard|null>(null);
   const [editCardName, setEditCardName] = useState('');
   const [editCardNumber, setEditCardNumber] = useState('');
   const [editCardLockedAmount, setEditCardLockedAmount] = useState('0');
-  const [editCardDueDate, setEditCardDueDate] = useState('');
-  const [editCardStatementCloseDate, setEditCardStatementCloseDate] = useState('');
-  const [editCardApr, setEditCardApr] = useState('');
-  const [editCardMinPayment, setEditCardMinPayment] = useState('');
   const [editCardTheme, setEditCardTheme] = useState('obsidian');
   const [editCardErrors, setEditCardErrors] = useState<Record<string,string>>({});
-  const [, setEditCardSubmitted] = useState(false);
+  const [editCardSubmitted, setEditCardSubmitted] = useState(false);
   const [showCanceled, setShowCanceled] = useState(false);
   const [expandedCardIds, setExpandedCardIds] = useState<Record<string,boolean>>({});
   const [chargeType, setChargeType] = useState<'Interest'|'LatePayment'|'OverLimit'|'Annual'|'Custom'>('Interest');
@@ -247,9 +235,8 @@ export default function CashCardManagement({
     if(!ok){ if(!cardName.trim()) cardNameInputRef.current?.focus(); else if(!bankName.trim()) bankNameInputRef.current?.focus(); else if(!cardBalance) cardBalanceInputRef.current?.focus(); else cardNumberInputRef.current?.focus(); showToast('error','Fix card errors.'); return; }
     const bal=parseFloat(cardBalance)||0; const lim=cardType==='Credit'?parseFloat(cardLimit)||0:undefined;
     let clean=cardNumber.replace(/\s+/g,''); if(clean.length>0){ clean = clean.length>4 ? `•••• •••• •••• ${clean.slice(-4)}` : `•••• •••• •••• ${clean}`; } else clean=`•••• •••• •••• ${Math.floor(1000+Math.random()*9000)}`;
-    const cardSaved = onAddCard({ cardName:cardName.trim(), bankName:bankName.trim(), cardType, currentBalance: cardType==='Credit'?-Math.abs(bal):bal, limit:lim, cardNumber:clean, cardTheme, lockedAmount: cardType==='Debit'?parseFloat(cardLockedAmount)||0:undefined, dueDate: cardType==='Credit'&&cardDueDate?cardDueDate:undefined, statementCloseDate: cardType==='Credit'&&cardStatementCloseDate?cardStatementCloseDate:undefined, apr: cardType==='Credit'&&cardApr?parseFloat(cardApr):undefined, minPayment: cardType==='Credit'&&cardMinPayment?parseFloat(cardMinPayment):undefined });
-    if (!cardSaved) { showToast('error','Card was not saved. Please review the entered details.'); return; }
-    setCardName(''); setBankName(''); setCardBalance(''); setCardLimit('50000'); setCardNumber(''); setCardLockedAmount(''); setCardDueDate(''); setCardStatementCloseDate(''); setCardApr(''); setCardMinPayment(''); setCardSubmitted(false); setCardErrors({}); setIsAddingCard(false); showToast('success','Card added.');
+    onAddCard({ cardName:cardName.trim(), bankName:bankName.trim(), cardType, currentBalance: cardType==='Credit'?-Math.abs(bal):bal, limit:lim, cardNumber:clean, cardTheme, lockedAmount: cardType==='Debit'?parseFloat(cardLockedAmount)||0:undefined });
+    setCardName(''); setBankName(''); setCardBalance(''); setCardLimit('50000'); setCardNumber(''); setCardLockedAmount(''); setCardSubmitted(false); setCardErrors({}); setIsAddingCard(false); showToast('success','Card added.');
   };
   const validateEditCard=(name:string,numStr:string)=>{
     const errs:Record<string,string>={}; if(!name.trim()) errs.name='Card name required'; else if(name.trim().length<3) errs.name='At least 3 chars'; else if(/[<>{}]/.test(name)) errs.name='Invalid chars';
@@ -259,7 +246,7 @@ export default function CashCardManagement({
     e.preventDefault(); setEditCardSubmitted(true); if(!editingCard) return;
     if(!validateEditCard(editCardName,editCardNumber)) return;
     let clean=editCardNumber.replace(/\s+/g,'').replace(/\*/g,''); if(clean.length>0) clean= clean.length>4 ? `•••• •••• •••• ${clean.slice(-4)}` : `•••• •••• •••• ${clean}`; else clean=editingCard.cardNumber||`•••• •••• •••• ${Math.floor(1000+Math.random()*9000)}`;
-    onUpdateCard({ ...editingCard, cardName:editCardName.trim(), cardNumber:clean, cardTheme:editCardTheme, lockedAmount: editingCard.cardType==='Debit'?parseFloat(editCardLockedAmount)||0:undefined, dueDate: editingCard.cardType==='Credit'&&editCardDueDate?editCardDueDate:editingCard.dueDate, statementCloseDate: editingCard.cardType==='Credit'&&editCardStatementCloseDate?editCardStatementCloseDate:editingCard.statementCloseDate, apr: editingCard.cardType==='Credit'&&editCardApr?parseFloat(editCardApr):editingCard.apr, minPayment: editingCard.cardType==='Credit'&&editCardMinPayment?parseFloat(editCardMinPayment):editingCard.minPayment });
+    onUpdateCard({ ...editingCard, cardName:editCardName.trim(), cardNumber:clean, cardTheme:editCardTheme, lockedAmount: editingCard.cardType==='Debit'?parseFloat(editCardLockedAmount)||0:undefined });
     setEditingCard(null); showToast('success','Card updated.');
   };
   const handleQuickAdjustCash=(e:React.FormEvent)=>{
@@ -316,16 +303,14 @@ export default function CashCardManagement({
           {cashAccounts.length===0 ? (
             <div className="empty"><p className="text-sm font-medium">No cash accounts yet</p><p className="text-xs mt-1 text-[var(--ink-3)]">Add a wallet to start tracking.</p></div>
           ) : cashAccounts.map(account=>(
-            <div key={account.id} id={`cash-row-${account.id}`} className="flex flex-col gap-2.5 p-3.5 rounded-[16px] border border-[var(--line)] bg-[var(--surface-2)] hover:border-[var(--line-strong)] transition-colors sm:flex-row sm:items-center sm:gap-3">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-10 h-10 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] flex items-center justify-center shrink-0">
-                  <Wallet size={15} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="mono text-[13px] font-bold text-[var(--ink)] truncate">{account.name}</div>
-                  <div className="mono text-[15px] font-bold tabular-nums text-[var(--ink)] tracking-tight">{currency}{account.balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-                  <span className="pill !py-0.5 !px-2 !text-[10px] mono mt-1">Asset drawer</span>
-                </div>
+            <div key={account.id} id={`cash-row-${account.id}`} className="flex items-center gap-3 p-3.5 rounded-[16px] border border-[var(--line)] bg-[var(--surface-2)] hover:border-[var(--line-strong)] transition-colors">
+              <div className="w-10 h-10 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] flex items-center justify-center shrink-0">
+                <Wallet size={15} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="mono text-[13px] font-bold text-[var(--ink)] truncate">{account.name}</div>
+                <div className="mono text-[15px] font-bold tabular-nums text-[var(--ink)] tracking-tight">{currency}{account.balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+                <span className="pill !py-0.5 !px-2 !text-[10px] mono mt-1">Asset drawer</span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <button type="button" onClick={()=>{setSelectedCashId(account.id); setActionType('deposit');}} className="pill !px-3 !py-1.5 !text-[11px] mono">+ Deposit</button>
@@ -398,19 +383,7 @@ export default function CashCardManagement({
               <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Card type</label><select value={cardType} onChange={e=>setCardType(e.target.value as any)} className="input"><option value="Debit">Debit</option><option value="Credit">Credit</option></select></div>
               <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">{cardType==='Credit'?'Starting debt ('+currency+')':'Starting balance ('+currency+')'}</label><input ref={cardBalanceInputRef} type="number" placeholder="0.00" value={cardBalance} onChange={e=>{setCardBalance(e.target.value); validateCard(cardName,bankName,e.target.value,cardNumber,cardSubmitted);}} className="input mono" />{cardErrors.balance && <span className="text-[11px] text-[var(--danger)] mono">{cardErrors.balance}</span>}</div>
             </div>
-            {cardType==='Credit' && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Credit limit ({currency})</label><input type="number" placeholder="50000" value={cardLimit} onChange={e=>setCardLimit(e.target.value)} className="input mono" /></div>
-                  <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">APR (%)</label><input type="number" step="0.01" min="0" placeholder="18.00" value={cardApr} onChange={e=>setCardApr(e.target.value)} className="input mono" /></div>
-                  <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Min. payment ({currency})</label><input type="number" min="0" placeholder="2500" value={cardMinPayment} onChange={e=>setCardMinPayment(e.target.value)} className="input mono" /></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Payment due date</label><input type="date" className="input" value={cardDueDate} onChange={e => setCardDueDate(e.target.value)} /></div>
-                  <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Payment cut-off date</label><input type="date" className="input" value={cardStatementCloseDate} onChange={e => setCardStatementCloseDate(e.target.value)} /></div>
-                </div>
-              </div>
-            )}
+            {cardType==='Credit' && <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Credit limit ({currency})</label><input type="number" placeholder="50000" value={cardLimit} onChange={e=>setCardLimit(e.target.value)} className="input mono" /></div>}
             {cardType==='Debit' && <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Locked amount ({currency})</label><input type="number" placeholder="Optional" value={cardLockedAmount} onChange={e=>setCardLockedAmount(e.target.value)} className="input mono" /></div>}
             <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Card number (optional)</label><input ref={cardNumberInputRef} type="text" placeholder="4201 9283" value={cardNumber} onChange={e=>{setCardNumber(e.target.value); validateCard(cardName,bankName,cardBalance,e.target.value,cardSubmitted);}} maxLength={19} className="input mono" />{cardErrors.number && <span className="text-[11px] text-[var(--danger)] mono">{cardErrors.number}</span>}</div>
             <div className="space-y-2">
@@ -430,26 +403,26 @@ export default function CashCardManagement({
             return (
               <>
                 {active.length===0 ? <div className="empty"><p className="text-sm font-medium">No active cards</p><p className="text-xs mt-1 text-[var(--ink-3)]">Add a debit or credit card.</p></div> : active.map((card,idx)=>{
-                  const isCredit=card.cardType==='Credit'; const hasNeg=card.currentBalance<0; const out=hasNeg?Math.abs(card.currentBalance):0; const lim=card.limit??0; const lockedAmt=card.lockedAmount??0; const avail=lim+card.currentBalance; const used=lim>0?Math.max(0,lim-avail):0; const pct=lim>0?Math.min(100,(used/lim)*100):0;
+                  const isCredit=card.cardType==='Credit'; const hasNeg=card.currentBalance<0; const out=hasNeg?Math.abs(card.currentBalance):0; const lim=card.limit??0; const avail=lim+card.currentBalance; const used=lim>0?Math.max(0,lim-avail):0; const pct=lim>0?Math.min(100,(used/lim)*100):0;
                   const hasDetails=isCredit||(card.lockedAmount!==undefined && card.lockedAmount>0); const isExp=!!expandedCardIds[card.id];
                   return (
                     <div key={card.id} className="space-y-2">
-                      <InteractiveBankCard card={card} idx={idx} currency={currency} onUpdateCard={onUpdateCard} onDeleteCard={onDeleteCard} getCardGradient={getCardGradient} setEditingCard={setEditingCard} setEditCardName={setEditCardName} setEditCardNumber={setEditCardNumber} setEditCardTheme={setEditCardTheme} setEditCardErrors={setEditCardErrors} setEditCardSubmitted={setEditCardSubmitted} setEditCardLockedAmount={setEditCardLockedAmount} setEditCardDueDate={setEditCardDueDate} setEditCardApr={setEditCardApr} setEditCardMinPayment={setEditCardMinPayment} setEditCardStatementCloseDate={setEditCardStatementCloseDate} onClick={()=>{if(hasDetails) setExpandedCardIds(p=>({ ...p,[card.id]:!p[card.id]}));}} />
+                      <InteractiveBankCard card={card} idx={idx} currency={currency} onUpdateCard={onUpdateCard} onDeleteCard={onDeleteCard} getCardGradient={getCardGradient} setEditingCard={setEditingCard} setEditCardName={setEditCardName} setEditCardNumber={setEditCardNumber} setEditCardTheme={setEditCardTheme} setEditCardErrors={setEditCardErrors} setEditCardSubmitted={setEditCardSubmitted} setEditCardLockedAmount={setEditCardLockedAmount} onClick={()=>{if(hasDetails) setExpandedCardIds(p=>({ ...p,[card.id]:!p[card.id]}));}} />
                       {hasDetails && <div className="flex justify-center"><button type="button" onClick={()=>setExpandedCardIds(p=>({ ...p,[card.id]:!p[card.id]}))} className="btn-ghost !px-3 !py-1 !text-[11px] flex items-center gap-1"><span>{isExp?'Hide':'Show'} details</span><ChevronDown size={12} className={`transition-transform ${isExp?'rotate-180':''}`}/></button></div>}
                       {hasDetails && (
                         <div className={`overflow-hidden transition-all duration-300 ${isExp?'max-h-[520px] opacity-100':'max-h-0 opacity-0 pointer-events-none'}`}>
                           <div className="card-flat p-4 space-y-3">
-                            {!isCredit && lockedAmt>0 ? (
+                            {!isCredit && card.lockedAmount! >0 ? (
                               <>
                                 <div className="flex justify-between items-center">
                                   <span className="eyebrow normal-case">Spendable</span>
-                                  <span className="mono text-sm font-bold text-[var(--success)]">{currency}{(card.currentBalance-lockedAmt).toLocaleString(undefined,{minimumFractionDigits:2})}</span>
+                                  <span className="mono text-sm font-bold text-[var(--success)]">{currency}{(card.currentBalance-card.lockedAmount!).toLocaleString(undefined,{minimumFractionDigits:2})}</span>
                                 </div>
-                                <div className="w-full h-1.5 bg-[var(--surface-2)] border border-[var(--line)] rounded-full overflow-hidden"><div className="h-full bg-[var(--ink)]" style={{width:`${card.currentBalance>0?Math.max(0,Math.min(100,((card.currentBalance-lockedAmt)/card.currentBalance*100))):0}%`}}/></div>
+                                <div className="w-full h-1.5 bg-[var(--surface-2)] border border-[var(--line)] rounded-full overflow-hidden"><div className="h-full bg-[var(--ink)]" style={{width:`${card.currentBalance>0?Math.max(0,Math.min(100,((card.currentBalance-card.lockedAmount!)/card.currentBalance*100))):0}%`}}/></div>
                                 <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-[var(--line)]">
                                   <div><span className="eyebrow block">Total</span><span className="mono text-xs font-bold">{currency}{card.currentBalance.toLocaleString()}</span></div>
-                                  <div className="border-x border-[var(--line)]"><span className="eyebrow block">Locked</span><span className="mono text-xs font-bold text-amber-600">{currency}{lockedAmt.toLocaleString()}</span></div>
-                                  <div><span className="eyebrow block">Spendable</span><span className="mono text-xs font-bold text-[var(--success)]">{currency}{Math.max(0,card.currentBalance-lockedAmt).toLocaleString()}</span></div>
+                                  <div className="border-x border-[var(--line)]"><span className="eyebrow block">Locked</span><span className="mono text-xs font-bold text-amber-600">{currency}{card.lockedAmount!.toLocaleString()}</span></div>
+                                  <div><span className="eyebrow block">Spendable</span><span className="mono text-xs font-bold text-[var(--success)]">{currency}{Math.max(0,card.currentBalance-card.lockedAmount!).toLocaleString()}</span></div>
                                 </div>
                               </>
                             ): null}
@@ -481,7 +454,7 @@ export default function CashCardManagement({
                     <button type="button" onClick={()=>setShowCanceled(!showCanceled)} className="w-full btn-ghost flex justify-between !rounded-[12px]"><span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-[var(--ink-3)]"/>Archived ({canceled.length})</span><span>{showCanceled?'Hide':'Show'}</span></button>
                     {showCanceled && <div className="space-y-3 mt-3">{canceled.map((card,idx)=>(
                       <div key={card.id} className="relative">
-                        <InteractiveBankCard card={card} idx={idx} currency={currency} onUpdateCard={onUpdateCard} onDeleteCard={onDeleteCard} getCardGradient={getCardGradient} setEditingCard={setEditingCard} setEditCardName={setEditCardName} setEditCardNumber={setEditCardNumber} setEditCardTheme={setEditCardTheme} setEditCardErrors={setEditCardErrors} setEditCardSubmitted={setEditCardSubmitted} setEditCardLockedAmount={setEditCardLockedAmount} setEditCardDueDate={setEditCardDueDate} setEditCardApr={setEditCardApr} setEditCardMinPayment={setEditCardMinPayment} setEditCardStatementCloseDate={setEditCardStatementCloseDate} />
+                        <InteractiveBankCard card={card} idx={idx} currency={currency} onUpdateCard={onUpdateCard} onDeleteCard={onDeleteCard} getCardGradient={getCardGradient} setEditingCard={setEditingCard} setEditCardName={setEditCardName} setEditCardNumber={setEditCardNumber} setEditCardTheme={setEditCardTheme} setEditCardErrors={setEditCardErrors} setEditCardSubmitted={setEditCardSubmitted} setEditCardLockedAmount={setEditCardLockedAmount} />
                         <div className="absolute top-3 right-3"><button type="button" onClick={()=>{onUpdateCard({ ...card, isCanceled:false}); showToast('success',`${card.cardName} reactivated.`);}} className="btn-ghost !px-2.5 !py-1 !text-[11px] flex items-center gap-1"><RefreshCw size={10}/>Reactivate</button></div>
                       </div>
                     ))}</div>}
@@ -509,14 +482,6 @@ export default function CashCardManagement({
                     <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Card nickname</label><input type="text" value={editCardName} onChange={e=>{setEditCardName(e.target.value); validateEditCard(e.target.value,editCardNumber);}} className="input" />{editCardErrors.name && <span className="text-[11px] text-[var(--danger)] mono">{editCardErrors.name}</span>}</div>
                     <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Card number</label><input type="text" value={editCardNumber} onChange={e=>{setEditCardNumber(e.target.value); validateEditCard(editCardName,e.target.value);}} maxLength={19} className="input mono" />{editCardErrors.number && <span className="text-[11px] text-[var(--danger)] mono">{editCardErrors.number}</span>}</div>
                     {!isCredit && <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Locked ({currency})</label><input type="number" value={editCardLockedAmount} onChange={e=>setEditCardLockedAmount(e.target.value)} className="input mono" /></div>}
-                    {isCredit && <>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">APR (%)</label><input type="number" step="0.01" min="0" value={editCardApr} onChange={e=>setEditCardApr(e.target.value)} className="input mono !text-xs" /></div>
-                        <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Min. ({currency})</label><input type="number" min="0" value={editCardMinPayment} onChange={e=>setEditCardMinPayment(e.target.value)} className="input mono !text-xs" /></div>
-                        <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Due date</label><input type="date" className="input" value={editCardDueDate} onChange={e => setEditCardDueDate(e.target.value)} /></div>
-                        <div className="flex flex-col gap-1.5"><label className="eyebrow normal-case">Cut-off date</label><input type="date" className="input" value={editCardStatementCloseDate} onChange={e => setEditCardStatementCloseDate(e.target.value)} /></div>
-                      </div>
-                    </>}
                     <div className="space-y-1.5"><span className="eyebrow normal-case">Border accent</span><div className="flex gap-1.5 flex-wrap">{themeOptions.slice(0,5).map(th=>(
                       <button key={th.name} type="button" onClick={()=>setEditCardTheme(th.name)} className={`w-6 h-6 rounded-full border ${th.color} ${editCardTheme===th.name?'ring-2 ring-[var(--ink)] ring-offset-2 ring-offset-[var(--surface-2)]':''} border-[var(--line)]`} />
                     ))}</div></div>
@@ -543,7 +508,7 @@ export default function CashCardManagement({
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <input type="number" step="0.01" value={chargeAmount} onChange={e=>setChargeAmount(e.target.value)} placeholder="Amount" className="input mono !text-xs" />
-                        <input type="date" className="input" value={chargeDate} onChange={e => setChargeDate(e.target.value)} />
+                        <DatePicker value={chargeDate} onChange={setChargeDate} />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <select value={chargeRecurring} onChange={e=>setChargeRecurring(e.target.value as any)} className="input !text-xs"><option value="none">One-off</option><option value="Monthly">Monthly</option><option value="Yearly">Yearly</option><option value="Custom">Custom</option></select>

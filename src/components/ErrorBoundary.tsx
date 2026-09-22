@@ -1,5 +1,5 @@
-import React, { ErrorInfo, ReactNode } from 'react';
-import { ShieldAlert, RefreshCw } from 'lucide-react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { ShieldAlert, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface Props {
   children?: ReactNode;
@@ -26,7 +26,9 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('👾 [CRITICAL SYSTEM ERRROR DETECTED BY BOUNDARY]:', error, errorInfo);
     this.setState({ errorInfo });
-    // Telemetry hook: wire a real SDK here before adding (window as any).Sentry?.captureException?.(error).
+    if ((window as any).Sentry) {
+      (window as any).Sentry.captureException(error);
+    }
   }
 
   private handleReset = () => {

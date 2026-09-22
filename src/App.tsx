@@ -1,50 +1,42 @@
-import React, { useState, useEffect, lazy, useRef } from 'react';
-import { apiUrl, safeJson, fetchWithTimeout } from "./lib/api";
+import React, { useState, useEffect } from 'react';
+import { apiUrl, safeJson } from "./lib/api";
 import { motion, AnimatePresence } from 'motion/react';
-import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
+import { AppState, CashAccount, BankCard, Income, Expense, Debt, Transaction, AppNotification, CategoryIncome, CategoryExpense, CreditCard as DbCreditCard, CreditCardPurchase, Subscription, LoanGiven, LoanSettlement } from './types';
 import { DEFAULT_APP_STATE } from './initialData';
-import { exportStateAsJSON, generateUniqueId, todayLocal, saveStateToStorage, loadStateFromStorage, savePreRestoreBackup } from './utils';
+import { exportStateAsJSON, generateUniqueId, todayLocal } from './utils';
 import { addMoney, subtractMoney, compareMoney } from './lib/money';
-import { calculateInstallmentFee, calculateMonthlyPayment, generateInstallmentSchedule, isCardEligibleForInstallment } from './lib/installments';
-import { maybeRollCard, runCycleRollover, paymentsInCycle, cycleAnchor, deductionDate } from './lib/creditCards';
 import { authSession } from './services/authSession';
 import { 
-  Plus, Search, Bell, Wallet, LayoutDashboard, 
-  TrendingUp, User, Settings, 
+  Plus, Search, Bell, CreditCard, Wallet, LayoutDashboard, 
+  TrendingUp, User, Lock, Unlock, Settings, RefreshCw, 
   ArrowUpRight, CircleDot, CheckSquare, Zap, 
-  CloudOff, Sun, Moon, LogOut, MoreHorizontal
+  Cloud, CloudOff, Sun, Moon, LogOut, MoreHorizontal
 } from 'lucide-react';
 
 import EmailLogin from './components/EmailLogin';
-import LockScreen from './components/LockScreen';
 import NotificationDrawer from './components/NotificationDrawer';
+import CashCardManagement from './components/CashCardManagement';
+import InflowsOutflows from './components/InflowsOutflows';
+import SubscriptionManagement from './components/SubscriptionManagement';
+import Dashboard from './components/Dashboard';
 import ProfileSection from './components/ProfileSection';
+import DebtTracker from './components/DebtTracker';
+import LoansTracker from './components/LoansTracker';
+import TransferFunds from './components/TransferFunds';
+import CreditCardManagement from './components/CreditCardManagement';
+import ReportsCentre from './components/ReportsCentre';
 import SettingsModal from './components/SettingsModal';
 import TransactionEditModal from './components/TransactionEditModal';
+import BudgetsSection from './components/BudgetsSection';
+import GoalsSection from './components/GoalsSection';
 import { CommandPalette } from './components/CommandPalette';
 import { BottomNavigation } from './components/BottomNavigation';
-
-// Heavy tab sections are code-split (loaded on demand) to speed up initial load.
-const BudgetsSection = lazy(() => import('./components/BudgetsSection'));
-const GoalsSection = lazy(() => import('./components/GoalsSection'));
-const CashCardManagement = lazy(() => import('./components/CashCardManagement'));
-const InflowsOutflows = lazy(() => import('./components/InflowsOutflows'));
-const SubscriptionManagement = lazy(() => import('./components/SubscriptionManagement'));
-const DebtTracker = lazy(() => import('./components/DebtTracker'));
-const LoansTracker = lazy(() => import('./components/LoansTracker'));
-const TransferFunds = lazy(() => import('./components/TransferFunds'));
-const CreditCardManagement = lazy(() => import('./components/CreditCardManagement'));
-const ReportsCentre = lazy(() => import('./components/ReportsCentre'));
-const Dashboard = lazy(() => import('./components/Dashboard'));
-import LazyTab from './components/LazyTab';
 import { getSupabaseConfig, syncStateToSupabase, syncStateFromSupabase, forceCancelCardInSupabase, resetLoadedFromCloud, ensureSupabaseConfigFromBackend, refreshSubscriptionsFromBackend } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
-import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice, revokeAllDevices, AppLockStatus } from './lib/appLock';
-import { calculateNetWorth } from './utils';
+import { EXPENSE_COLORS, calculateNetWorth } from './utils';
 import { toMinorUnits } from './lib/money';
-import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema, LedgerRestorePayloadSchema } from './validators';
-import { useOnlineStatus } from './hooks/useOnlineStatus';
+import { validateData, CashAccountSchema, BankCardSchema, TransactionSchema, DebtSchema, SubscriptionSchema } from './validators';
 
 // Merge locally-held subscriptions with ones freshly fetched from the backend
 // (by id), preferring the fetched values then filling in any local-only rows.
@@ -60,70 +52,20 @@ function mergeSubscriptionsList(local: Subscription[], fetched: Subscription[]):
   return Array.from(byId.values());
 }
 
-const LEDGER_COLLECTION_FIELDS = [
-  'cashAccounts',
-  'cards',
-  'creditCards',
-  'creditCardPurchases',
-  'incomes',
-  'expenses',
-  'debts',
-  'transactions',
-  'notifications',
-  'subscriptions',
-  'loansGiven',
-  'budgets',
-  'savingsGoals',
-  'creditCardInstallments',
-  'creditCardInstallmentPayments',
-] as const;
-
-// Sanitize an imported ledger collection: keep only records that are plain
-// objects carrying a non-empty string id. Anything else is dropped so malformed
-// backups cannot poison the ledger or the cloud push that follows an import.
-function validateMoneyAmount(amount: number): boolean {
-  return typeof amount === 'number' && Number.isFinite(amount) && amount > 0;
-}
-
-function validateOptionalCharge(charge: number): boolean {
-  return typeof charge === 'number' && Number.isFinite(charge) && charge >= 0;
-}
-
-function sanitizeImportedList(value: unknown): { records: any[]; dropped: number } {
-  if (!Array.isArray(value)) return { records: [], dropped: 1 };
-  const records: any[] = [];
-  let dropped = 0;
-  for (const item of value) {
-    if (
-      item !== null &&
-      typeof item === 'object' &&
-      !Array.isArray(item) &&
-      typeof (item as any).id === 'string' &&
-      (item as any).id.trim() !== ''
-    ) {
-      records.push(item);
-    } else {
-      dropped++;
-    }
-  }
-  return { records, dropped };
-}
-
 export default function App() {
-  const { showToast } = useNotifications();
+  const { showConfirm, showToast } = useNotifications();
   const { theme, toggleTheme } = useTheme();
   // 1. Core State
   const [state, setState] = useState<AppState>(DEFAULT_APP_STATE);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isAppLocked, setIsAppLocked] = useState(false);
-  const [isAppLockInit, setIsAppLockInit] = useState(false);
-  const [appLockStatus, setAppLockStatus] = useState<AppLockStatus | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'inflow_outflow' | 'budgets' | 'goals' | 'debts' | 'loans' | 'reports'>('dashboard');
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   
   // Modals & Panels Toggles
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [newPinCode, setNewPinCode] = useState('');
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -136,9 +78,10 @@ export default function App() {
   const [realtimeSyncStatus, setRealtimeSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error' | 'disabled'>('idle');
   const [realtimeSyncError, setRealtimeSyncError] = useState<string | null>(null);
 
-  // Offline detection
-  const { url: supabaseUrl } = getSupabaseConfig();
-  const { isOnline, isSupabaseReachable } = useOnlineStatus(supabaseUrl || undefined);
+  // States for Unified search & filters on history
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterAccount, setFilterAccount] = useState<string>('all');
 
   const reconcileSubscriptionsWithTransactions = (subscriptions: Subscription[], transactions: Transaction[]): Subscription[] => {
     if (!subscriptions || !transactions) return subscriptions || [];
@@ -212,7 +155,7 @@ export default function App() {
     if (nextState.cards) {
       nextState.cards = nextState.cards.map(card => {
         if (card.cardType === 'Credit' && card.currentBalance > 0) {
-          if (import.meta.env.DEV) console.log(`MIGRATION: Auto-healing credit card "${card.cardName}" with positive balance ${card.currentBalance} to negative balance ${-card.currentBalance}`);
+          console.log(`MIGRATION: Auto-healing credit card "${card.cardName}" with positive balance ${card.currentBalance} to negative balance ${-card.currentBalance}`);
           return {
             ...card,
             currentBalance: -card.currentBalance
@@ -270,160 +213,67 @@ export default function App() {
     return nextState;
   };
 
-  // App Lock: decide whether this account needs the lock-screen gate.
-  // Returns true when the app-lock screen must be shown.
-  const determineAppLock = async (email: string): Promise<boolean> => {
-    try {
-      const [status, trusted] = await Promise.all([getAppLockStatus(email), checkTrustedDevice()]);
-      setAppLockStatus(status);
-      const enabled = !!status?.appLockEnabled;
-      // Always-ask mode overrides the trusted-device shortcut, so a remembered
-      // browser still has to unlock on every app open.
-      const alwaysLockOnOpen = !!status?.lockOnOpen;
-      if (enabled && (alwaysLockOnOpen || !trusted.trusted)) {
-        setIsAppLocked(true);
-        return true;
-      }
-      setIsAppLocked(false);
-      return false;
-    } catch (err) {
-      console.warn("App-lock check failed, defaulting to no lock:", err);
-      setIsAppLocked(false);
-      return false;
-    }
-  };
-
-  // Full logout: clear stored credentials, revoke trusted-device cookie(s) for
-  // this account so a future login goes back through the app-lock gate.
-  const handleLogout = () => {
-    const email = userEmail;
-    authSession.clear();
-    resetLoadedFromCloud();
-    setState(DEFAULT_APP_STATE);
-    setIsUnlocked(false);
-    setIsAppLocked(false);
-    setIsAppLockInit(false);
-    setIsProfileOpen(false);
-    setIsSettingsOpen(false);
-    if (email) {
-      try { void revokeAllDevices(email); } catch (err) { console.warn("Could not revoke trusted devices on logout:", err); }
-    }
-  };
-
   // Verify remembered device on mount
   useEffect(() => {
     const verifyDevice = async () => {
-      // Global safety net: the entire mount flow must finish within 12s.
-      // If any step hangs (backend unreachable, Supabase unreachable), we
-      // still show the login/PIN screen instead of leaving the user staring
-      // at "Checking session" indefinitely.
-      const MOUNT_TIMEOUT_MS = 12000;
-      const mountDeadline = Date.now() + MOUNT_TIMEOUT_MS;
-
-      const timeLeft = () => Math.max(0, mountDeadline - Date.now());
-
-      // A1: credentials live in the httpOnly session cookie only — nothing auth
-      // related is read from or written to localStorage. Verify unconditionally
-      // on every mount; the server returns the token + email for in-memory use.
+      // Load system-provided environments on mount to ensure fresh configuration matches backend
       try {
-        setIsAppLockInit(true);
-        const vRes = await fetchWithTimeout(apiUrl('/api/auth/verify-session'), {
-          credentials: 'include',
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        }, Math.min(6000, timeLeft()));
-        const vData = await safeJson(vRes);
-        if (vData?.success && typeof vData.token === 'string' && vData.token && typeof vData.email === 'string' && vData.email) {
-          const activeToken = vData.token;
-          const email = vData.email;
-          authSession.setToken(activeToken);
-          authSession.setEmail(email);
-          setUserEmail(email);
-
-          // Ensure Supabase config is available before sync.
-          await ensureSupabaseConfigFromBackend();
-
-          // Run the three heavy async operations in parallel — they are
-          // independent of each other and all depend only on the verified
-          // session.  Each has its own timeout; the global deadline above
-          // prevents the whole block from exceeding ~12 s.
-          const syncPromise = syncStateFromSupabase(email);
-          const subsPromise = refreshSubscriptionsFromBackend(email, activeToken);
-          const lockPromise = determineAppLock(email);
-
-          const [result, backendSubs] = await Promise.all([syncPromise, subsPromise]);
-
-          if (result.success && result.state) {
-            setState(migrateStateCards(result.state));
-          } else {
-            // Supabase unavailable or returned no state — fall back to the
-            // local mirror so recent offline edits are not dropped. It will
-            // be pushed up by the next successful background sync.
-            const localState = loadStateFromStorage(DEFAULT_APP_STATE);
-            if (localState.transactions.length > 0 || (localState.cashAccounts || []).length > 0) {
-              setState(migrateStateCards(localState));
-            }
+        const confResp = await fetch(apiUrl('/api/config'), { credentials: 'include' });
+        if (confResp.ok) {
+          const confData = await safeJson(confResp);
+          if (confData?.supabaseUrl && confData?.supabaseKey) {
+            localStorage.setItem('cashflow_supabase_url_v1', confData.supabaseUrl);
+            localStorage.setItem('cashflow_supabase_key_v1', confData.supabaseKey);
           }
-          if (backendSubs && backendSubs.length > 0) {
-            setState(prev => ({ ...prev, subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs) }));
-          }
-
-          // determineAppLock already ran in parallel — its side effects
-          // (setIsAppLocked) are safe to apply now.
-          await lockPromise;
-
-          setIsUnlocked(true);
-          setIsAppLockInit(false);
-        } else {
-          console.warn("Session invalid or expired:", vData?.error);
-          authSession.clear();
-          setIsUnlocked(false);
-          setIsAppLocked(false);
-          setIsAppLockInit(false);
         }
       } catch (err) {
-        console.warn("Fatal error verifying session token:", err);
+        console.warn("Failed retrieving dynamic server environments:", err);
+      }
+
+      const email = localStorage.getItem('auth_user_email');
+      const token = localStorage.getItem('auth_session_token');
+      
+      if (email && token) {
+        try {
+          const vRes = await fetch(apiUrl('/api/auth/verify-session'), {
+            credentials: 'include',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, token })
+          });
+          const vData = await safeJson(vRes);
+          if (vData?.success) {
+            authSession.setToken(token);
+            authSession.setEmail(email);
+            setUserEmail(email);
+            await ensureSupabaseConfigFromBackend();
+            const result = await syncStateFromSupabase(email);
+            if (result.success && result.state) {
+              setState(migrateStateCards(result.state));
+            }
+            const backendSubs = await refreshSubscriptionsFromBackend(email, token);
+            if (backendSubs && backendSubs.length > 0) {
+              setState(prev => ({ ...prev, subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs) }));
+            }
+            setIsUnlocked(true);
+          } else {
+            console.warn("Session token expired or invalid:", vData?.error);
+            localStorage.removeItem('auth_session_token');
+            authSession.clear();
+            setIsUnlocked(false);
+          }
+        } catch (err) {
+          console.warn("Fatal error verifying session token:", err);
+          setIsUnlocked(false);
+        }
+      } else {
         setIsUnlocked(false);
-        setIsAppLocked(false);
-        setIsAppLockInit(false);
       }
       setIsCheckingAuth(false);
     };
 
     verifyDevice();
-    // This gate runs once per mount to verify the device, not to migrate state — omitting migrateStateCards is intended.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // App Lock: auto re-lock after 60 seconds of inactivity while the workspace
-  // is visible and unlocked. One shared debounced listener resets a single
-  // timer whenever the user is active. The effect returns early (and tears down
-  // the listener/timer) while the lock screen is showing, so it never re-triggers
-  // while already locked. It only runs after login/unlock, not on the login flow.
-  useEffect(() => {
-    if (!isUnlocked || isAppLocked) return;
-    // Only run the idle auto-lock when there is an actual lock mechanism
-    // (PIN or biometric) configured for the account. Without one, locking
-    // every minute just bounces the user through the "continue to your
-    // vault" screen, which reads as a bug even though no lock is enforced.
-    if (!appLockStatus?.appLockEnabled) return;
-    // Default to 1 minute; overridable per-account in Settings -> App Lock.
-    const LOCK_MINUTES = appLockStatus?.lockIdleMinutes ?? 1;
-    const LOCK_MS = Math.max(1, LOCK_MINUTES) * 60 * 1000;
-    let idleTimer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleLock = () => {
-      if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => setIsAppLocked(true), LOCK_MS);
-    };
-    const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
-    events.forEach((ev) => window.addEventListener(ev, scheduleLock, { passive: true }));
-    scheduleLock();
-    return () => {
-      events.forEach((ev) => window.removeEventListener(ev, scheduleLock));
-      if (idleTimer) clearTimeout(idleTimer);
-    };
-  }, [isUnlocked, isAppLocked, appLockStatus?.appLockEnabled, appLockStatus?.lockIdleMinutes]);
 
   // Scroll to the top of the page when the active tab/view changes
   useEffect(() => {
@@ -433,21 +283,6 @@ export default function App() {
       mainEl.scrollTop = 0;
     }
   }, [activeTab]);
-
-  // Warm the Dashboard (default landing tab) chunk during idle so the first
-  // view after login paints instantly instead of showing the loading skeleton.
-  useEffect(() => {
-    const warm = () => {
-      import('./components/Dashboard').catch(() => {});
-    };
-    const w = window as any;
-    if (w.requestIdleCallback) {
-      w.requestIdleCallback(warm, { timeout: 3000 });
-      return;
-    }
-    const t = window.setTimeout(warm, 200);
-    return () => window.clearTimeout(t);
-  }, []);
 
   // Synchronize state with Storage whenever it edits
   const updateState = (updater: (prev: AppState) => AppState) => {
@@ -488,12 +323,6 @@ export default function App() {
       return;
     }
 
-    if (!isOnline || !isSupabaseReachable) {
-      setRealtimeSyncStatus('error');
-      setRealtimeSyncError(isOnline ? 'Cloud service unreachable.' : 'No internet connection.');
-      return;
-    }
-
     setRealtimeSyncStatus('syncing');
     setRealtimeSyncError(null);
 
@@ -506,7 +335,7 @@ export default function App() {
             setRealtimeSyncStatus('error');
             setRealtimeSyncError(res.error || 'Failed to sync check RLS/Table');
           } else {
-            if (import.meta.env.DEV) console.log('Real-time Supabase Auto-sync success!');
+            console.log('Real-time Supabase Auto-sync success!');
             setRealtimeSyncStatus('synced');
             setRealtimeSyncError(null);
           }
@@ -519,235 +348,102 @@ export default function App() {
     }, 1500);
 
     return () => clearTimeout(syncTimeout);
-  }, [state, isSettingsOpen, isUnlocked, userEmail, isOnline, isSupabaseReachable]);
-
-  // Local-first durability: keep a debounced localStorage mirror of state so
-  // recent changes survive a tab close/crash even when Supabase is unreachable.
-  // On reload, Supabase is preferred (idempotent upsert by user_email); this
-  // mirror is the safety net that lets the next sync upload any offline edits.
-  useEffect(() => {
-    if (!isUnlocked) return;
-    const t = window.setTimeout(() => saveStateToStorage(state), 1500);
-    return () => window.clearTimeout(t);
-  }, [state, isUnlocked]);
-
-  // Update-state and toast are recreated every render, so capture the current
-  // versions in refs — the rollover interval can then stay mounted without
-  // re-subscribing on every render while still writing through fresh versions.
-  const updateStateRef = useRef(updateState);
-  updateStateRef.current = updateState;
-  const showToastRef = useRef(showToast);
-  showToastRef.current = showToast;
-
-  // Automatic credit-card cycle rollover. On the deduction day — the 15th of
-  // the month that contains the card's due date (see DEDUCTION_DAY) — the
-  // ended cycle closes: revolving interest is applied to any carried balance
-  // and the Sampath late fee (Rs. 1,200 or 5% of the minimum) is added when the
-  // minimum went unpaid. The due date advances one month, the minimum is
-  // recomputed on the new balance, and the charges are recorded as
-  // credit_card_charge transactions. Each card + deduction date rolls exactly
-  // once (deduplicated via the rollover referenceId embedded in those
-  // transactions).
-  useEffect(() => {
-    if (!isUnlocked || !isOnline || !isSupabaseReachable) return;
-
-    const applyRollovers = () => {
-      const today = todayLocal();
-      const seen = new Set(
-        (state.transactions || [])
-          .filter(t => t.type === 'credit_card_charge' && t.referenceId)
-          .map(t => t.referenceId)
-      );
-
-      const nowIso = new Date().toISOString();
-      const nextTransactions: Transaction[] = [];
-      let cards = state.cards;
-      const cycledNames: string[] = [];
-      let hadLateFee = false;
-
-      for (const card of state.cards) {
-        if (!card.dueDate) continue;
-        const cycleEnd = deductionDate(card.dueDate);
-        if (seen.has(`rollover::${card.id}::${cycleEnd}`)) continue;
-        const roll = runCycleRollover(card, state.transactions, today);
-        if (!roll || roll.charges.length === 0) continue;
-
-        seen.add(`rollover::${card.id}::${cycleEnd}`);
-        const charges = roll.charges.map((c, i) => ({ ...c, id: `chg::${card.id}::${cycleEnd}::${i}` }));
-
-        for (const c of charges) {
-          nextTransactions.push({
-            id: generateUniqueId('trans'),
-            type: 'credit_card_charge',
-            title: c.name,
-            amount: c.amount,
-            date: c.appliedDate,
-            category: 'Bank Charges & Interest',
-            accountId: card.id,
-            accountType: 'card',
-            referenceId: `rollover::${card.id}::${cycleEnd}`,
-            updated_at: nowIso,
-            updatedAt: nowIso,
-          });
-        }
-
-        if (roll.charges.some(c => c.type === 'Late Payment Fee')) hadLateFee = true;
-        cycledNames.push(card.cardName || card.id);
-
-        cards = cards.map(c =>
-          c.id === card.id
-            ? {
-                ...c,
-                currentBalance: roll.currentBalance,
-                dueDate: roll.dueDate,
-                minPayment: roll.minPayment,
-                charges: [...(c.charges || []), ...charges],
-              }
-            : c
-        );
-      }
-
-      if (nextTransactions.length === 0) return;
-
-      updateStateRef.current(prev => {
-        const prevSeen = new Set(
-          (prev.transactions || [])
-            .filter(t => t.type === 'credit_card_charge' && t.referenceId)
-            .map(t => t.referenceId)
-        );
-        if (nextTransactions.every(t => prevSeen.has(t.referenceId || ''))) return prev;
-        return { ...prev, cards, transactions: [...nextTransactions, ...prev.transactions] };
-      });
-
-      showToastRef.current('info', hadLateFee
-        ? `Cycles closed: ${cycledNames.join(', ')} — revolving interest and late fees applied.`
-        : `Cycles closed: ${cycledNames.join(', ')} — revolving interest applied.`);
-    };
-
-    applyRollovers();
-    const interval = window.setInterval(applyRollovers, 60000);
-
-    return () => window.clearInterval(interval);
-  }, [state, isUnlocked, isOnline, isSupabaseReachable]);
-
-  // Best-effort flush on leave: persist locally AND fire one final Supabase
-  // sync so a quick close doesn't drop the latest edit. Supabase upsert is
-  // idempotent, so re-running it cannot create duplicate rows.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handler = (_e: BeforeUnloadEvent) => {
-      if (!isUnlocked) return;
-      saveStateToStorage(state);
-      if (userEmail && isOnline && isSupabaseReachable) {
-        void syncStateToSupabase(userEmail, state).catch(() => {});
-      }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [state, isUnlocked, userEmail, isOnline, isSupabaseReachable]);
+  }, [state, isSettingsOpen, isUnlocked, userEmail]);
 
   // Budgets & Savings goals action logic
   const handleUpdateBudgetLimit = (id: string, limit: number) => {
     updateState(prev => {
       const updatedBudgets = (prev.budgets || []).map(b => b.id === id ? { ...b, limit } : b);
+      showToast('Budget allocation limit adjusted successfully', 'success');
       return { ...prev, budgets: updatedBudgets };
     });
-    showToast('Budget allocation limit adjusted successfully', 'success');
   };
 
   const handleAddBudget = (category: CategoryExpense, limit: number, icon: string) => {
-    const existing = (state.budgets || []).find(b => b.category === category);
-    if (existing) {
-      showToast(`Budget allocation for ${category} already exists. Adjusting limit.`, 'warning');
-      return;
-    }
-    const newBudget = {
-      id: 'b' + Date.now(),
-      category,
-      limit,
-      spent: 0,
-      icon,
-      subBreakdown: []
-    };
-    updateState(prev => ({
-      ...prev,
-      budgets: [...(prev.budgets || []), newBudget],
-    }));
-    showToast(`Monitoring created for category: ${category}`, 'success');
+    updateState(prev => {
+      const existing = (prev.budgets || []).find(b => b.category === category);
+      if (existing) {
+        showToast(`Budget allocation for ${category} already exists. Adjusting limit.`, 'warning');
+        return prev;
+      }
+      const newBudget = {
+        id: 'b' + Date.now(),
+        category,
+        limit,
+        spent: 0,
+        icon,
+        subBreakdown: []
+      };
+      showToast(`Monitoring created for category: ${category}`, 'success');
+      return { ...prev, budgets: [...(prev.budgets || []), newBudget] };
+    });
   };
 
   const handleRemoveBudget = (id: string) => {
     updateState(prev => {
       const updatedBudgets = (prev.budgets || []).filter(b => b.id !== id);
+      showToast('Budget category deleted successfully', 'success');
       return { ...prev, budgets: updatedBudgets };
     });
-    showToast('Budget category deleted successfully', 'success');
   };
 
   const handleAddGoal = (name: string, target: number, targetDate: string) => {
-    const newGoal = {
-      id: 'g' + Date.now(),
-      name,
-      target,
-      current: 0,
-      targetDate
-    };
-    updateState(prev => ({
-      ...prev,
-      savingsGoals: [...(prev.savingsGoals || []), newGoal],
-    }));
-    showToast(`Savings Jar: ${name} established!`, 'success');
+    updateState(prev => {
+      const newGoal = {
+        id: 'g' + Date.now(),
+        name,
+        target,
+        current: 0,
+        targetDate
+      };
+      showToast(`Savings Jar: ${name} established!`, 'success');
+      return { ...prev, savingsGoals: [...(prev.savingsGoals || []), newGoal] };
+    });
   };
 
   const handleModifyGoalFunds = (id: string, amount: number, cashAccountId: string | null) => {
-    const factor = amount > 0 ? -1 : 1; // saving (amount > 0) decrements wallet, withdrawing (amount < 0) increments wallet
-    const absAmount = Math.abs(amount);
-
-    const targetGoal = (state.savingsGoals || []).find(g => g.id === id);
-    if (!targetGoal) return;
-
-    if (cashAccountId) {
-      const account = state.cashAccounts.find(a => a.id === cashAccountId);
-      if (account && factor < 0 && compareMoney(account.balance, absAmount) < 0) {
-        showToast('Insufficient wallet reserves for allocation transfer', 'error');
-        return;
-      }
-    }
-
     updateState(prev => {
+      const targetGoal = (prev.savingsGoals || []).find(g => g.id === id);
+      if (!targetGoal) return prev;
+
       let finalCashAccounts = prev.cashAccounts;
       if (cashAccountId) {
         const account = prev.cashAccounts.find(a => a.id === cashAccountId);
         if (account) {
-          const newBal = addMoney(account.balance, amount);
+          const factor = amount > 0 ? -1 : 1; // saving (amount > 0) decrements wallet, withdrawing (amount < 0) increments wallet
+          const absAmount = Math.abs(amount);
+          if (factor < 0 && compareMoney(account.balance, absAmount) < 0) {
+            showToast('Insufficient wallet reserves for allocation transfer', 'error');
+            return prev;
+          }
+          const newBal = (toMinorUnits(account.balance) + (toMinorUnits(absAmount) * factor)) / 100;
           finalCashAccounts = prev.cashAccounts.map(a => a.id === cashAccountId ? { ...a, balance: newBal } : a);
         }
       }
 
       const updatedGoals = (prev.savingsGoals || []).map(g => {
         if (g.id === id) {
-          const newCurrent = Math.max(0, addMoney(g.current, amount));
+          const newCurrent = Math.max(0, (toMinorUnits(g.current) + toMinorUnits(amount)) / 100);
           return { ...g, current: newCurrent };
         }
         return g;
       });
 
-      return {
-        ...prev,
+      showToast(amount > 0 ? 'Reserves transferred into savings jar' : 'Reserves returned back to liquid wallet', 'success');
+      return { 
+        ...prev, 
         cashAccounts: finalCashAccounts,
-        savingsGoals: updatedGoals
+        savingsGoals: updatedGoals 
       };
     });
-
-    showToast(amount > 0 ? 'Reserves transferred into savings jar' : 'Reserves returned back to liquid wallet', 'success');
   };
 
   const handleRemoveGoal = (id: string) => {
     updateState(prev => {
       const updatedGoals = (prev.savingsGoals || []).filter(g => g.id !== id);
+      showToast('Savings jar goal deleted successfully', 'success');
       return { ...prev, savingsGoals: updatedGoals };
     });
-    showToast('Savings jar goal deleted successfully', 'success');
   };
 
   const handleClearAllBudgets = () => {
@@ -775,10 +471,6 @@ export default function App() {
     targetAccountId: string,
     targetType: 'cash' | 'card'
   ) => {
-    if (!validateMoneyAmount(amount)) {
-      showToast('error', 'Income amount must be a positive number.');
-      return;
-    }
     const incomeId = generateUniqueId('inc');
     const transactionId = generateUniqueId('trans');
 
@@ -881,10 +573,6 @@ export default function App() {
     paymentMethodType: 'cash' | 'card',
     bankCharge: number = 0
   ) => {
-    if (!validateMoneyAmount(amount) || !validateOptionalCharge(bankCharge)) {
-      showToast('error', 'Expense amount must be a positive number and charges cannot be negative.');
-      return;
-    }
     const expenseId = generateUniqueId('exp');
     const transactionId = generateUniqueId('trans');
 
@@ -931,6 +619,7 @@ export default function App() {
       const newAlertNotifications: AppNotification[] = [];
 
       const totalDeductionCents = toMinorUnits(amount) + toMinorUnits(bankCharge);
+      const totalDeduction = totalDeductionCents / 100;
 
       if (paymentMethodType === 'cash') {
         updatedCash = updatedCash.map(c => {
@@ -1044,10 +733,6 @@ export default function App() {
 
   // Rule: Debt Registered
   const handleAddDebt = (debtData: Omit<Debt, 'id' | 'payments' | 'remainingAmount'>) => {
-    if (!validateMoneyAmount(debtData.totalAmount)) {
-      showToast('error', 'Debt amount must be a positive number.');
-      return;
-    }
     const debtId = `debt-${Date.now()}`;
     const nowIso = new Date().toISOString();
     const newDebt: Debt = {
@@ -1074,11 +759,11 @@ export default function App() {
       if (debtData.accountId && debtData.accountType) {
         if (debtData.accountType === 'cash') {
           updatedCash = updatedCash.map(c =>
-            c.id === debtData.accountId ? { ...c, balance: addMoney(c.balance, debtData.totalAmount) } : c
+            c.id === debtData.accountId ? { ...c, balance: c.balance + debtData.totalAmount } : c
           );
         } else {
           updatedCards = updatedCards.map(c =>
-            c.id === debtData.accountId ? { ...c, currentBalance: addMoney(c.currentBalance, debtData.totalAmount) } : c
+            c.id === debtData.accountId ? { ...c, currentBalance: c.currentBalance + debtData.totalAmount } : c
           );
         }
 
@@ -1131,11 +816,11 @@ export default function App() {
       if (debtToDelete.accountId && debtToDelete.accountType) {
         if (debtToDelete.accountType === 'cash') {
           updatedCash = updatedCash.map(c =>
-            c.id === debtToDelete.accountId ? { ...c, balance: subtractMoney(c.balance, debtToDelete.totalAmount) } : c
+            c.id === debtToDelete.accountId ? { ...c, balance: c.balance - debtToDelete.totalAmount } : c
           );
         } else {
           updatedCards = updatedCards.map(c =>
-            c.id === debtToDelete.accountId ? { ...c, currentBalance: subtractMoney(c.currentBalance, debtToDelete.totalAmount) } : c
+            c.id === debtToDelete.accountId ? { ...c, currentBalance: c.currentBalance - debtToDelete.totalAmount } : c
           );
         }
       }
@@ -1145,11 +830,11 @@ export default function App() {
         debtToDelete.payments.forEach(p => {
           if (p.paidFromType === 'cash') {
             updatedCash = updatedCash.map(c =>
-              c.id === p.paidFromId ? { ...c, balance: addMoney(c.balance, p.amount) } : c
+              c.id === p.paidFromId ? { ...c, balance: c.balance + p.amount } : c
             );
           } else {
             updatedCards = updatedCards.map(c =>
-              c.id === p.paidFromId ? { ...c, currentBalance: addMoney(c.currentBalance, p.amount) } : c
+              c.id === p.paidFromId ? { ...c, currentBalance: c.currentBalance + p.amount } : c
             );
           }
         });
@@ -1185,10 +870,6 @@ export default function App() {
     loanData: Omit<LoanGiven, 'id' | 'remainingAmount' | 'status' | 'settlements'>,
     bankCharge: number = 0
   ) => {
-    if (!validateMoneyAmount(loanData.totalAmount) || !validateOptionalCharge(bankCharge)) {
-      showToast('error', 'Loan amount must be a positive number and charges cannot be negative.');
-      return;
-    }
     const loanId = `loan_given_${Date.now()}`;
     const nowIso = new Date().toISOString();
     const newLoan: LoanGiven = {
@@ -1210,11 +891,11 @@ export default function App() {
 
       if (loanData.sourceAccountType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === loanData.sourceAccountId ? { ...c, balance: subtractMoney(c.balance, totalDeduction) } : c
+          c.id === loanData.sourceAccountId ? { ...c, balance: c.balance - totalDeduction } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === loanData.sourceAccountId ? { ...c, currentBalance: subtractMoney(c.currentBalance, totalDeduction) } : c
+          c.id === loanData.sourceAccountId ? { ...c, currentBalance: c.currentBalance - totalDeduction } : c
         );
       }
 
@@ -1316,10 +997,6 @@ export default function App() {
     receivedInName: string,
     bankCharge: number = 0
   ) => {
-    if (!validateMoneyAmount(amount) || !validateOptionalCharge(bankCharge) || bankCharge > amount) {
-      showToast('Settlement amount must be a positive number and charges cannot exceed the amount.', 'error');
-      return;
-    }
     const settlementId = `setl_${Date.now()}`;
     const settlementDate = todayLocal();
     const nowIso = new Date().toISOString();
@@ -1337,11 +1014,11 @@ export default function App() {
 
       if (receivedInType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === receivedInId ? { ...c, balance: addMoney(c.balance, netCredited) } : c
+          c.id === receivedInId ? { ...c, balance: c.balance + netCredited } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === receivedInId ? { ...c, currentBalance: addMoney(c.currentBalance, netCredited) } : c
+          c.id === receivedInId ? { ...c, currentBalance: c.currentBalance + netCredited } : c
         );
       }
 
@@ -1481,11 +1158,11 @@ export default function App() {
 
       if (loanToDelete.sourceAccountType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === loanToDelete.sourceAccountId ? { ...c, balance: addMoney(c.balance, totalRefund) } : c
+          c.id === loanToDelete.sourceAccountId ? { ...c, balance: c.balance + totalRefund } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === loanToDelete.sourceAccountId ? { ...c, currentBalance: addMoney(c.currentBalance, totalRefund) } : c
+          c.id === loanToDelete.sourceAccountId ? { ...c, currentBalance: c.currentBalance + totalRefund } : c
         );
       }
 
@@ -1495,11 +1172,11 @@ export default function App() {
           const netCredited = settlement.amount; // The settlement amount credited to the account
           if (settlement.receivedInType === 'cash') {
             updatedCash = updatedCash.map(c =>
-              c.id === settlement.receivedInId ? { ...c, balance: subtractMoney(c.balance, netCredited) } : c
+              c.id === settlement.receivedInId ? { ...c, balance: c.balance - netCredited } : c
             );
           } else {
             updatedCards = updatedCards.map(c =>
-              c.id === settlement.receivedInId ? { ...c, currentBalance: subtractMoney(c.currentBalance, netCredited) } : c
+              c.id === settlement.receivedInId ? { ...c, currentBalance: c.currentBalance - netCredited } : c
             );
           }
         }
@@ -1559,11 +1236,11 @@ export default function App() {
 
       if (sourceAccountType === 'cash') {
         updatedCash = updatedCash.map(c =>
-          c.id === sourceAccountId ? { ...c, balance: subtractMoney(c.balance, totalDeduction) } : c
+          c.id === sourceAccountId ? { ...c, balance: c.balance - totalDeduction } : c
         );
       } else {
         updatedCards = updatedCards.map(c =>
-          c.id === sourceAccountId ? { ...c, currentBalance: subtractMoney(c.currentBalance, totalDeduction) } : c
+          c.id === sourceAccountId ? { ...c, currentBalance: c.currentBalance - totalDeduction } : c
         );
       }
 
@@ -1573,8 +1250,8 @@ export default function App() {
           const freshNotes = loan.notes 
             ? `${loan.notes} | Added Lent Amount: ${notes}` 
             : `Added Lent Amount: ${notes}`;
-          const newTotal = addMoney(loan.totalAmount, amount);
-          const newRemaining = addMoney(loan.remainingAmount, amount);
+          const newTotal = loan.totalAmount + amount;
+          const newRemaining = loan.remainingAmount + amount;
           const newStatus = newRemaining <= 0 ? 'Settled' : 'Partially Settled';
           return {
             ...loan,
@@ -1678,6 +1355,13 @@ export default function App() {
     });
   };
 
+  const handleAddCreditCard = (card: Omit<DbCreditCard, 'id'>) => {
+      updateState(prev => ({
+          ...prev,
+          creditCards: [...prev.creditCards, { ...card, id: `cc-${Date.now()}` } as DbCreditCard]
+      }));
+  };
+
   const handleUpdateCard = (updatedCard: BankCard) => {
     updateState(prev => ({
       ...prev,
@@ -1708,7 +1392,7 @@ export default function App() {
           const nextCharges = c.charges ? [...c.charges, charge] : [charge];
           return {
             ...c,
-            currentBalance: subtractMoney(c.currentBalance, charge.amount),
+            currentBalance: c.currentBalance - charge.amount,
             charges: nextCharges
           };
         }
@@ -1736,7 +1420,7 @@ export default function App() {
         if (c.id === cardId) {
           return {
             ...c,
-            currentBalance: addMoney(c.currentBalance, chargeToDelete.amount),
+            currentBalance: c.currentBalance + chargeToDelete.amount,
             charges: (c.charges || []).filter(ch => ch.id !== chargeId)
           };
         }
@@ -1830,6 +1514,7 @@ export default function App() {
       const newAlertNotifications: AppNotification[] = [];
 
       const totalDeductionCents = toMinorUnits(sub.amount) + toMinorUnits(bankCharge);
+      const totalDeduction = totalDeductionCents / 100;
 
       let accountName = '';
       if (accountType === 'cash') {
@@ -1986,7 +1671,7 @@ export default function App() {
 
   const handleAddCreditCardPurchase = (purchase: Omit<CreditCardPurchase, 'id'>) => {
     updateState(prev => {
-        const updatedCards = prev.cards.map(c => c.id === purchase.cardId ? { ...c, currentBalance: subtractMoney(c.currentBalance, purchase.amount) } : c);
+        const updatedCards = prev.cards.map(c => c.id === purchase.cardId ? { ...c, currentBalance: c.currentBalance - purchase.amount } : c);
         
         const nowIso = new Date().toISOString();
         const newTransaction: Transaction = {
@@ -2017,13 +1702,7 @@ export default function App() {
         showToast('Cannot pay a credit card using the same card as source.', 'error');
         return;
       }
-      if (!validateMoneyAmount(amount)) {
-        showToast('Payment amount must be a positive number.', 'error');
-        return;
-      }
       let overpaymentMsg = '';
-      const rollSourceCard = state.cards.find(c => c.id === cardId);
-      const rollResult = rollSourceCard ? maybeRollCard(rollSourceCard, state.transactions, amount) : {};
       updateState(prev => {
           const updatedCash = prev.cashAccounts.map(c => 
             (fromType === 'cash' && c.id === fromId) ? { ...c, balance: subtractMoney(c.balance, amount) } : c
@@ -2041,7 +1720,7 @@ export default function App() {
                 }
                 cBal = addMoney(cBal, amount); // We paid off this card
             }
-            return { ...c, currentBalance: cBal, lastPaymentDate: c.id === cardId ? todayLocal() : c.lastPaymentDate, ...(c.id === cardId ? rollResult : {}) };
+            return { ...c, currentBalance: cBal };
           });
           
           const targetCard = prev.cards.find(c => c.id === cardId);
@@ -2055,8 +1734,6 @@ export default function App() {
             category: 'Debt Repayment',
             accountId: fromId,
             accountType: fromType,
-            targetAccountId: targetCard?.id || cardId,
-            targetAccountType: 'card',
             updated_at: nowIso,
             updatedAt: nowIso,
           };
@@ -2068,260 +1745,10 @@ export default function App() {
               transactions: [newTransaction, ...prev.transactions]
           };
       });
-      if (overpaymentMsg) {
-        showToast('success', `Payment recorded! ${overpaymentMsg}`);
-      } else if ('dueDate' in rollResult && rollResult.dueDate === undefined) {
-        showToast('success', 'Card fully settled — no further minimum due.');
-      } else if (
-        rollSourceCard &&
-        rollSourceCard.dueDate &&
-        rollSourceCard.minPayment &&
-        paymentsInCycle(state.transactions, cardId, rollSourceCard.dueDate, cycleAnchor(rollSourceCard)) + amount >= rollSourceCard.minPayment
-      ) {
-        showToast('success', 'Payment recorded! Minimum satisfied for this cycle — revolving interest applies to the remaining balance at cycle end.');
-      } else {
-        showToast('success', 'Payment recorded successfully!');
-      }
-  };
-
-  const handleCreateInstallmentPlan = (cardId: string, purchaseId: string, tenureMonths: 6 | 12 | 24 | 48) => {
-    const purchase = state.creditCardPurchases.find(p => p.id === purchaseId);
-    const card = state.cards.find(c => c.id === cardId);
-    if (!purchase || !card) {
-      showToast('error', 'Card or purchase not found');
-      return;
-    }
-
-    const eligibility = isCardEligibleForInstallment(card, purchase.amount);
-    if (!eligibility.eligible) {
-      showToast(eligibility.reason || 'Card is not eligible for installment plans', 'error');
-      return;
-    }
-
-    const processingFee = calculateInstallmentFee(purchase.amount, tenureMonths);
-    const monthlyPayment = calculateMonthlyPayment(purchase.amount, tenureMonths);
-    const installmentId = `inst-${Date.now()}`;
-    const startDate = todayLocal();
-    const nextPaymentDate = new Date(startDate);
-    nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-
-    const newInstallment = {
-      id: installmentId,
-      cardId,
-      purchaseId,
-      originalAmount: purchase.amount,
-      tenureMonths,
-      processingFee,
-      monthlyPayment,
-      startDate,
-      status: 'active' as const,
-      nextPaymentDate: nextPaymentDate.toISOString().split('T')[0],
-      paymentsMade: 0,
-    };
-
-    const schedulePayments = generateInstallmentSchedule(installmentId, monthlyPayment, tenureMonths, startDate, purchase.amount);
-
-    updateState(prev => {
-      const nowIso = new Date().toISOString();
-      const newExpenses = [...prev.expenses];
-      const newTransactions: Transaction[] = [];
-
-      if (processingFee > 0) {
-        const feeExpenseId = `exp-inst-fee-${Date.now()}`;
-        const feeTransactionId = `trans-inst-fee-${Date.now()}`;
-
-        const feeExpense: Expense = {
-          id: feeExpenseId,
-          title: `Installment Processing Fee`,
-          description: `Bank processing fee for ${tenureMonths}-month installment plan`,
-          amount: processingFee,
-          date: todayLocal(),
-          category: 'Bank Charges & Interest',
-          paymentMethodId: cardId,
-          paymentMethodType: 'card',
-          updated_at: nowIso,
-          updatedAt: nowIso,
-        };
-
-        const feeTransaction: Transaction = {
-          id: feeTransactionId,
-          type: 'expense',
-          title: `Installment Processing Fee`,
-          amount: processingFee,
-          date: todayLocal(),
-          category: 'Bank Charges & Interest',
-          accountId: cardId,
-          accountType: 'card',
-          referenceId: feeExpenseId,
-          updated_at: nowIso,
-          updatedAt: nowIso,
-        };
-
-        newExpenses.push(feeExpense);
-        newTransactions.push(feeTransaction);
-      }
-
-      return {
-        ...prev,
-        cards: prev.cards.map(c =>
-          c.id === cardId ? { ...c, currentBalance: subtractMoney(c.currentBalance, processingFee) } : c
-        ),
-        creditCardInstallments: [...prev.creditCardInstallments, newInstallment],
-        creditCardInstallmentPayments: [
-          ...prev.creditCardInstallmentPayments,
-          ...schedulePayments.map((p: any, i: number) => ({ ...p, id: `instpay-${Date.now()}-${i}` })),
-        ],
-        transactions: [...newTransactions, ...prev.transactions],
-        expenses: newExpenses,
-      };
-    });
-
-    showToast('success', `${tenureMonths}-month installment plan created!`);
-  };
-
-  const handlePayInstallmentPayment = (
-    installmentId: string,
-    paymentId: string,
-    amount: number,
-    paidFromId: string,
-    paidFromType: 'cash' | 'card',
-    bankCharge: number = 0
-  ) => {
-    if (!validateMoneyAmount(amount) || !validateOptionalCharge(bankCharge)) {
-      showToast('Installment payment amount must be a positive number and charges cannot be negative.', 'error');
-      return;
-    }
-    updateState(prev => {
-      const installment = prev.creditCardInstallments.find(i => i.id === installmentId);
-      if (!installment) return prev;
-
-      const totalDeduction = amount + bankCharge;
-
-      const updatedPayments = prev.creditCardInstallmentPayments.map(p =>
-        p.id === paymentId
-          ? { ...p, amountPaid: amount, paidDate: todayLocal(), status: 'paid' as const }
-          : p
-      );
-
-      const paidCount = updatedPayments
-        .filter(p => p.installmentId === installmentId && p.status === 'paid')
-        .length;
-
-      const totalPayments = updatedPayments
-        .filter(p => p.installmentId === installmentId)
-        .length;
-
-      const isComplete = paidCount >= totalPayments;
-
-      const updatedInstallments = prev.creditCardInstallments.map(i =>
-        i.id === installmentId
-          ? {
-              ...i,
-              paymentsMade: paidCount,
-              status: (isComplete ? 'completed' : 'active') as 'completed' | 'active',
-              nextPaymentDate: isComplete
-                ? ''
-                : updatedPayments
-                    .filter(p => p.installmentId === installmentId && p.status === 'pending')
-                    .sort((a, b) => a.paymentNumber - b.paymentNumber)[0]?.dueDate || '',
-            }
-          : i
-      );
-
-      let updatedCash = [...prev.cashAccounts];
-      let updatedCards = [...prev.cards];
-
-      // Debit the funding source (cash balance or card currentBalance).
-      if (paidFromType === 'cash') {
-        updatedCash = updatedCash.map(acc =>
-          acc.id === paidFromId ? { ...acc, balance: subtractMoney(acc.balance, totalDeduction) } : acc
-        );
-      } else {
-        updatedCards = updatedCards.map(c =>
-          c.id === paidFromId ? { ...c, currentBalance: subtractMoney(c.currentBalance, totalDeduction) } : c
-        );
-      }
-
-      // Credit the installment card with the principal payment.
-      updatedCards = updatedCards.map(c =>
-        c.id === installment.cardId
-          ? { ...c, currentBalance: addMoney(c.currentBalance, amount) }
-          : c
-      );
-
-      const nowIso = new Date().toISOString();
-
-      const newTransaction: Transaction = {
-        id: `trans-${Date.now()}`,
-        type: 'debt_payment' as const,
-        title: `Installment Payment: ${installment.tenureMonths}-mo plan`,
-        amount,
-        date: todayLocal(),
-        category: 'Debt Repayment',
-        accountId: paidFromId,
-        accountType: paidFromType,
-        referenceId: paymentId,
-        charge: bankCharge > 0 ? bankCharge : undefined,
-        updated_at: nowIso,
-        updatedAt: nowIso,
-      };
-
-      const newExpenses = [...prev.expenses];
-      const newTransactions = [newTransaction];
-
-      if (bankCharge > 0) {
-        const chargeExpenseId = `exp-charge-${Date.now()}`;
-        const chargeTransactionId = `trans-charge-${Date.now()}`;
-
-        const chargeExpense: Expense = {
-          id: chargeExpenseId,
-          title: `Bank Charge: Installment Plan`,
-          description: `Automatic bank charge fee for installment payment`,
-          amount: bankCharge,
-          date: todayLocal(),
-          category: 'Bank Charges & Interest',
-          paymentMethodId: paidFromId,
-          paymentMethodType: paidFromType,
-          updated_at: nowIso,
-          updatedAt: nowIso,
-        };
-
-        const chargeTransaction: Transaction = {
-          id: chargeTransactionId,
-          type: 'expense',
-          title: `Bank Charge: Installment Plan`,
-          amount: bankCharge,
-          date: todayLocal(),
-          category: 'Bank Charges & Interest',
-          accountId: paidFromId,
-          accountType: paidFromType,
-          referenceId: chargeExpenseId,
-          updated_at: nowIso,
-          updatedAt: nowIso,
-        };
-
-        newExpenses.push(chargeExpense);
-        newTransactions.push(chargeTransaction);
-      }
-
-      return {
-        ...prev,
-        creditCardInstallments: updatedInstallments,
-        creditCardInstallmentPayments: updatedPayments,
-        cards: updatedCards,
-        cashAccounts: updatedCash,
-        transactions: [...newTransactions, ...prev.transactions],
-        expenses: newExpenses,
-      };
-    });
-    showToast('success', 'Installment payment recorded!');
+      showToast('success', overpaymentMsg ? `Payment recorded! ${overpaymentMsg}` : 'Payment recorded successfully!');
   };
 
   const handleIncreaseDebt = (debtId: string, amount: number, newAccountId?: string, newAccountType?: 'cash' | 'card') => {
-    if (!validateMoneyAmount(amount)) {
-      showToast('Increase amount must be a positive number.', 'error');
-      return;
-    }
     updateState(prev => {
       const debt = prev.debts.find(d => d.id === debtId);
       if (!debt) return prev;
@@ -2399,10 +1826,6 @@ export default function App() {
     paidFromType: 'cash' | 'card',
     bankCharge: number = 0
   ) => {
-    if (!validateMoneyAmount(amount) || !validateOptionalCharge(bankCharge)) {
-      showToast('Debt payment amount must be a positive number and charges cannot be negative.', 'error');
-      return;
-    }
     const paymentId = `dp-${Date.now()}`;
     const transactionId = `trans-${Date.now()}`;
     const paymentDate = todayLocal();
@@ -2416,11 +1839,11 @@ export default function App() {
 
       if (paidFromType === 'cash') {
         updatedCash = updatedCash.map(c => 
-          c.id === paidFromId ? { ...c, balance: subtractMoney(c.balance, totalDeduction) } : c
+          c.id === paidFromId ? { ...c, balance: c.balance - totalDeduction } : c
         );
       } else {
         updatedCards = updatedCards.map(c => 
-          c.id === paidFromId ? { ...c, currentBalance: subtractMoney(c.currentBalance, totalDeduction) } : c
+          c.id === paidFromId ? { ...c, currentBalance: c.currentBalance - totalDeduction } : c
         );
       }
 
@@ -2574,7 +1997,7 @@ export default function App() {
     });
   };
 
-  const handleAddCard = (newCardData: Omit<BankCard, 'id'>): boolean => {
+  const handleAddCard = (newCardData: Omit<BankCard, 'id'>) => {
     const rawCard: BankCard = {
       ...newCardData,
       id: generateUniqueId('card'),
@@ -2582,13 +2005,12 @@ export default function App() {
     const validation = validateData(BankCardSchema, rawCard);
     if (!validation.success) {
       showToast(validation.error, 'error');
-      return false;
+      return;
     }
     updateState(prev => ({
       ...prev,
       cards: [...prev.cards, validation.data],
     }));
-    return true;
   };
 
   const handleDeleteCard = async (idToDelete: string) => {
@@ -2617,32 +2039,34 @@ export default function App() {
   };
 
   const handleDeleteCashAccount = (id: string) => {
-    // Guard computed from current state (B5: no side effects inside updater)
-    const accountToDelete = state.cashAccounts.find(c => c.id === id);
-    if (accountToDelete && accountToDelete.balance !== 0) {
-      showToast('error', `Cannot delete account "${accountToDelete.name}" with balance ${state.currency} ${accountToDelete.balance.toLocaleString()}. Please clear funds first.`);
-      return;
-    }
-    if (!accountToDelete) return;
+    updateState(prev => {
+      const accountToDelete = prev.cashAccounts.find(c => c.id === id);
+      if (accountToDelete && accountToDelete.balance !== 0) {
+        showToast('error', `Cannot delete account "${accountToDelete.name}" with balance ${prev.currency} ${accountToDelete.balance.toLocaleString()}. Please clear funds first.`);
+        return prev;
+      }
+      
+      if (!accountToDelete) return prev;
+      
+      const nowIso = new Date().toISOString();
+      const auditTransaction: Transaction = {
+        id: `trans-cash-del-${Date.now()}`,
+        type: 'expense',
+        title: `Cash Account Deleted: ${accountToDelete.name}`,
+        amount: 0,
+        date: todayLocal(),
+        category: 'Account Deletion',
+        referenceId: id,
+        updated_at: nowIso,
+        updatedAt: nowIso,
+      };
 
-    const nowIso = new Date().toISOString();
-    const auditTransaction: Transaction = {
-      id: `trans-cash-del-${Date.now()}`,
-      type: 'expense',
-      title: `Cash Account Deleted: ${accountToDelete.name}`,
-      amount: 0,
-      date: todayLocal(),
-      category: 'Account Deletion',
-      referenceId: id,
-      updated_at: nowIso,
-      updatedAt: nowIso,
-    };
-
-    updateState(prev => ({
-      ...prev,
-      cashAccounts: prev.cashAccounts.filter(c => c.id !== id),
-      transactions: [auditTransaction, ...prev.transactions],
-    }));
+      return {
+        ...prev,
+        cashAccounts: prev.cashAccounts.filter(c => c.id !== id),
+        transactions: [auditTransaction, ...prev.transactions],
+      };
+    });
   };
 
   // Notification Modifiers
@@ -2657,17 +2081,15 @@ export default function App() {
       let updatedExpenses = [...prev.expenses];
       let updatedDebts = [...prev.debts];
       let updatedCreditCardPurchases = [...prev.creditCardPurchases];
-      let updatedCreditCardInstallments = [...prev.creditCardInstallments];
-      let updatedCreditCardInstallmentPayments = [...prev.creditCardInstallmentPayments];
 
       const reverseAmount = (amount: number, accountId: string, accountType: string, isIncome: boolean) => {
         if (accountType === 'cash') {
           updatedCash = updatedCash.map(c => 
-            c.id === accountId ? { ...c, balance: isIncome ? subtractMoney(c.balance, amount) : addMoney(c.balance, amount) } : c
+            c.id === accountId ? { ...c, balance: c.balance + (isIncome ? -amount : amount) } : c
           );
         } else if (accountType === 'card') {
           updatedCards = updatedCards.map(c => 
-            c.id === accountId ? { ...c, currentBalance: isIncome ? subtractMoney(c.currentBalance, amount) : addMoney(c.currentBalance, amount) } : c
+            c.id === accountId ? { ...c, currentBalance: c.currentBalance + (isIncome ? -amount : amount) } : c
           );
         }
       };
@@ -2678,7 +2100,7 @@ export default function App() {
       } else if (tx.type === 'expense') {
         if (tx.title.startsWith('Credit Card Purchase:')) {
           // Liability purchase: previously subtracted from balance, need to add back
-          updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: addMoney(c.currentBalance, tx.amount) } : c);
+          updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: c.currentBalance + tx.amount } : c);
           updatedCreditCardPurchases = updatedCreditCardPurchases.filter(p => p.id !== tx.referenceId);
         } else {
           updatedExpenses = updatedExpenses.filter(e => e.id !== tx.referenceId);
@@ -2687,7 +2109,7 @@ export default function App() {
       } else if (tx.type === 'credit_card_charge') {
         updatedCards = updatedCards.map(c => c.id === tx.accountId ? {
           ...c,
-          currentBalance: addMoney(c.currentBalance, tx.amount),
+          currentBalance: c.currentBalance + tx.amount,
           charges: (c.charges || []).filter(ch => ch.id !== tx.referenceId)
         } : c);
       } else if (tx.type === 'debt_payment') {
@@ -2697,61 +2119,17 @@ export default function App() {
             reverseAmount(tx.amount, tx.accountId, tx.accountType, false);
           }
           // Restore the outstanding balance of the settled credit card (subtract the settled amount from the card)
-          // Prefer the explicit target card id recorded at creation time; fall back to
-          // the historical cardName match for legacy transactions that predate it.
-          let targetCc: BankCard | undefined = undefined;
-          if (tx.targetAccountId && tx.targetAccountType === 'card') {
-            targetCc = prev.cards.find(c => c.id === tx.targetAccountId);
-          }
-          if (!targetCc) {
-            const cardNamePart = tx.title.replace('Credit Card Settlement:', '').trim();
-            targetCc = prev.cards.find(c => c.cardName === cardNamePart && c.cardType === 'Credit');
-          }
+          const cardNamePart = tx.title.replace('Credit Card Settlement:', '').trim();
+          const targetCc = prev.cards.find(c => c.cardName === cardNamePart && c.cardType === 'Credit');
           if (targetCc) {
-            updatedCards = updatedCards.map(c => c.id === targetCc.id ? { ...c, currentBalance: subtractMoney(c.currentBalance, tx.amount) } : c);
-          }
-        } else if (tx.referenceId && prev.creditCardInstallmentPayments.some(p => p.id === tx.referenceId)) {
-          // Installment payment: refund the funding source (below), revert the payment
-          // record, and remove the credit that was applied to the installment card.
-          if (tx.accountId && tx.accountType) reverseAmount(tx.amount, tx.accountId, tx.accountType, false);
-          const revertedPaymentId = tx.referenceId;
-          updatedCreditCardInstallmentPayments = prev.creditCardInstallmentPayments.map(p =>
-            p.id === revertedPaymentId
-              ? { ...p, amountPaid: 0, paidDate: undefined, status: 'pending' as const }
-              : p
-          );
-          const instPay = prev.creditCardInstallmentPayments.find(p => p.id === revertedPaymentId);
-          if (instPay) {
-            const installment = prev.creditCardInstallments.find(i => i.id === instPay.installmentId);
-            if (installment) {
-              const instPaymentRecords = updatedCreditCardInstallmentPayments.filter(p => p.installmentId === installment.id);
-              const paidCount = instPaymentRecords.filter(p => p.status === 'paid').length;
-              const nextPending = instPaymentRecords
-                .filter(p => p.status === 'pending')
-                .sort((a, b) => a.paymentNumber - b.paymentNumber)[0];
-              updatedCreditCardInstallments = prev.creditCardInstallments.map(i =>
-                i.id === installment.id
-                  ? {
-                      ...i,
-                      paymentsMade: paidCount,
-                      status: paidCount >= i.tenureMonths ? ('completed' as const) : ('active' as const),
-                      nextPaymentDate: nextPending?.dueDate || '',
-                    }
-                  : i
-              );
-              updatedCards = updatedCards.map(c =>
-                c.id === installment.cardId
-                  ? { ...c, currentBalance: subtractMoney(c.currentBalance, tx.amount) }
-                  : c
-              );
-            }
+            updatedCards = updatedCards.map(c => c.id === targetCc.id ? { ...c, currentBalance: c.currentBalance - tx.amount } : c);
           }
         } else {
           if (tx.accountId && tx.accountType) reverseAmount(tx.amount, tx.accountId, tx.accountType, false);
           updatedDebts = updatedDebts.map(d => {
             const removedPayment = d.payments?.find(p => p.id === tx.referenceId);
             if (removedPayment) {
-              const nextRemaining = addMoney(d.remainingAmount, Math.abs(removedPayment.amount));
+              const nextRemaining = d.remainingAmount + Math.abs(removedPayment.amount);
               return {
                 ...d,
                 remainingAmount: nextRemaining,
@@ -2766,39 +2144,6 @@ export default function App() {
         if (tx.accountId) reverseAmount(tx.amount, tx.accountId, 'cash', true);
       } else if (tx.type === 'withdrawal') {
         if (tx.accountId) reverseAmount(tx.amount, tx.accountId, 'cash', false);
-      } else if (tx.type === 'financing') {
-        // Financing credited funds to the account; reverse by taking them out.
-        if (tx.accountId && tx.accountType) {
-          if (tx.accountType === 'cash') {
-            updatedCash = updatedCash.map(c => c.id === tx.accountId ? { ...c, balance: subtractMoney(c.balance, tx.amount) } : c);
-          } else {
-            updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: subtractMoney(c.currentBalance, tx.amount) } : c);
-          }
-        }
-      } else if (tx.type === 'transfer') {
-        // A transfer creates a pair of transactions sharing referenceId:
-        //   OUT: amount negative, deducted from source account
-        //   IN : amount positive, credited to destination account.
-        // Deleting either one reverses only that leg's balance effect.
-        if (tx.accountId && tx.accountType) {
-          // OUT leg (negative) flowed OUT of the account -> add back;
-          // IN leg (positive) flowed INTO the account -> subtract back.
-          if (tx.amount < 0) {
-            if (tx.accountType === 'cash') {
-              updatedCash = updatedCash.map(c => c.id === tx.accountId ? { ...c, balance: addMoney(c.balance, Math.abs(tx.amount)) } : c);
-            } else {
-              updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: addMoney(c.currentBalance, Math.abs(tx.amount)) } : c);
-            }
-          } else {
-            if (tx.accountType === 'cash') {
-              updatedCash = updatedCash.map(c => c.id === tx.accountId ? { ...c, balance: subtractMoney(c.balance, tx.amount) } : c);
-            } else {
-              updatedCards = updatedCards.map(c => c.id === tx.accountId ? { ...c, currentBalance: subtractMoney(c.currentBalance, tx.amount) } : c);
-            }
-          }
-        }
-        // Transfer charges are recorded as their own 'expense' transaction, so they
-        // are reversed by the general expense branch, not here.
       }
 
       const nowIso = new Date().toISOString();
@@ -2822,9 +2167,7 @@ export default function App() {
         incomes: updatedIncomes,
         expenses: updatedExpenses,
         debts: updatedDebts,
-        creditCardPurchases: updatedCreditCardPurchases,
-        creditCardInstallments: updatedCreditCardInstallments,
-        creditCardInstallmentPayments: updatedCreditCardInstallmentPayments
+        creditCardPurchases: updatedCreditCardPurchases
       };
     });
     setEditingTransactionId(null);
@@ -2846,45 +2189,40 @@ export default function App() {
       return;
     }
 
-    if (!validateMoneyAmount(amount) || !validateOptionalCharge(charge)) {
-      showToast('error', 'Transfer amount must be a positive number and charges cannot be negative.');
-      return;
-    }
-
     const transferId = `trans-grp-${Date.now()}`;
     const transOutId = `trans-${Date.now()}-out`;
     const transInId = `trans-${Date.now()}-in`;
 
-    // 1. Validate balance (computed from current state; B5: no side effects inside updater)
-    let sourceAccountBalance = 0;
-    if (fromType === 'cash') {
-      sourceAccountBalance = state.cashAccounts.find(c => c.id === fromId)?.balance || 0;
-    } else {
-      sourceAccountBalance = state.cards.find(c => c.id === fromId)?.currentBalance || 0;
-    }
-
-    if (compareMoney(sourceAccountBalance, addMoney(amount, charge)) < 0) {
-      showToast('error', "Insufficient balance in the source account including transfer charges.");
-      return;
-    }
-
     updateState(prev => {
+      // 1. Validate balance
+      let sourceAccountBalance = 0;
+      if (fromType === 'cash') {
+        sourceAccountBalance = prev.cashAccounts.find(c => c.id === fromId)?.balance || 0;
+      } else {
+        sourceAccountBalance = prev.cards.find(c => c.id === fromId)?.currentBalance || 0;
+      }
+
+      if (sourceAccountBalance < amount + charge) {
+        showToast('error', "Insufficient balance in the source account including transfer charges.");
+        return prev;
+      }
+
       // 2. Perform transfer
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
 
       // Deduct from source (amount + charge)
       if (fromType === 'cash') {
-        updatedCash = updatedCash.map(c => c.id === fromId ? { ...c, balance: subtractMoney(c.balance, addMoney(amount, charge)) } : c);
+        updatedCash = updatedCash.map(c => c.id === fromId ? { ...c, balance: (toMinorUnits(c.balance) - toMinorUnits(amount) - toMinorUnits(charge)) / 100 } : c);
       } else {
-        updatedCards = updatedCards.map(c => c.id === fromId ? { ...c, currentBalance: subtractMoney(c.currentBalance, addMoney(amount, charge)) } : c);
+        updatedCards = updatedCards.map(c => c.id === fromId ? { ...c, currentBalance: (toMinorUnits(c.currentBalance) - toMinorUnits(amount) - toMinorUnits(charge)) / 100 } : c);
       }
 
       // Add to destination
       if (toType === 'cash') {
-        updatedCash = updatedCash.map(c => c.id === toId ? { ...c, balance: addMoney(c.balance, amount) } : c);
+        updatedCash = updatedCash.map(c => c.id === toId ? { ...c, balance: (toMinorUnits(c.balance) + toMinorUnits(amount)) / 100 } : c);
       } else {
-        updatedCards = updatedCards.map(c => c.id === toId ? { ...c, currentBalance: addMoney(c.currentBalance, amount) } : c);
+        updatedCards = updatedCards.map(c => c.id === toId ? { ...c, currentBalance: (toMinorUnits(c.currentBalance) + toMinorUnits(amount)) / 100 } : c);
       }
 
       // 3. Transactions
@@ -2966,11 +2304,11 @@ export default function App() {
       const changeBalance = (amountAdded: number, accountId: string, accountType: string) => {
         if (accountType === 'cash') {
           updatedCash = updatedCash.map(c => 
-            c.id === accountId ? { ...c, balance: addMoney(c.balance, amountAdded) } : c
+            c.id === accountId ? { ...c, balance: c.balance + amountAdded } : c
           );
         } else if (accountType === 'card') {
           updatedCards = updatedCards.map(c => 
-            c.id === accountId ? { ...c, currentBalance: addMoney(c.currentBalance, amountAdded) } : c
+            c.id === accountId ? { ...c, currentBalance: c.currentBalance + amountAdded } : c
           );
         }
       };
@@ -3007,8 +2345,8 @@ export default function App() {
         updatedDebts = updatedDebts.map(d => {
           const removedPayment = d.payments?.find(p => p.id === tx.referenceId);
           if (removedPayment) {
-            const difference = subtractMoney(newData.amount, tx.amount);
-            const nextRemaining = Math.max(0, subtractMoney(d.remainingAmount, difference));
+            const difference = newData.amount - tx.amount;
+            const nextRemaining = Math.max(0, d.remainingAmount - difference);
             return {
               ...d,
               remainingAmount: nextRemaining,
@@ -3057,6 +2395,17 @@ export default function App() {
     }));
   };
 
+  // Reset demo setup
+  const triggerResetDemo = () => {
+    showConfirm({
+      message: 'Are you sure you want to restore all ledger books to initial demo genesis states? This replaces modifications.',
+      onConfirm: () => {
+        updateState(() => DEFAULT_APP_STATE);
+        showToast('success', 'Ledger re-seeded beautifully.');
+      }
+    });
+  };
+
   // JSON state upload restoration
   const handleJSONRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -3065,64 +2414,48 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const loaded = JSON.parse(event.target?.result as string);
-        const validation = validateData(LedgerRestorePayloadSchema, loaded);
-        if (!validation.success) {
-          showToast('error', 'Invalid backup file. Expected a ledger export object.');
-          return;
-        }
-        const loadedJson = loaded as any;
-
+        const loadedJson = JSON.parse(event.target?.result as string);
+        
         let stateToLoad: any = null;
         let originalOwner = '';
-
-        if ('data' in validation.data) {
+        
+        if (loadedJson.version === 'EM_BUDGET_SECURE_EX_V1' && loadedJson.data) {
           stateToLoad = loadedJson.data;
           originalOwner = loadedJson.exportedBy || '';
-        } else {
-          // A bare state object must prove content in a critical collection;
-          // an empty doppelganger would silently wipe local + cloud data.
-          const hasContent =
-            validation.data.cashAccounts.length > 0 ||
-            validation.data.cards.length > 0 ||
-            validation.data.transactions.length > 0;
-          if (hasContent) {
-            stateToLoad = loadedJson;
-          }
+        } else if (loadedJson.cashAccounts && loadedJson.cards && loadedJson.transactions) {
+          stateToLoad = loadedJson;
         }
 
         if (stateToLoad) {
-          const sanitizedState: any = { ...DEFAULT_APP_STATE };
-          let droppedTotal = 0;
-          for (const field of LEDGER_COLLECTION_FIELDS) {
-            if (stateToLoad[field] === undefined) continue;
-            const { records, dropped } = sanitizeImportedList(stateToLoad[field]);
-            droppedTotal += dropped;
-            sanitizedState[field] = records;
-          }
-          // Carry over any remaining non-collection fields (pinCode, pinEnabled,
-          // currency, version, timestamps, etc.).
-          for (const key of Object.keys(stateToLoad)) {
-            if (!(LEDGER_COLLECTION_FIELDS as readonly string[]).includes(key)) {
-              sanitizedState[key] = stateToLoad[key];
-            }
-          }
-
-          savePreRestoreBackup(state);
-          updateState(() => sanitizedState as AppState);
-
-          if (droppedTotal > 0) {
-            showToast('warning', `Backup imported with ${droppedTotal} invalid record(s) skipped.`);
+          const sanitizedState: AppState = {
+            ...DEFAULT_APP_STATE,
+            ...stateToLoad,
+            cashAccounts: stateToLoad.cashAccounts || [],
+            cards: stateToLoad.cards || [],
+            creditCards: stateToLoad.creditCards || [],
+            creditCardPurchases: stateToLoad.creditCardPurchases || [],
+            incomes: stateToLoad.incomes || [],
+            expenses: stateToLoad.expenses || [],
+            debts: stateToLoad.debts || [],
+            transactions: stateToLoad.transactions || [],
+            notifications: stateToLoad.notifications || [],
+            subscriptions: stateToLoad.subscriptions || [],
+            loansGiven: stateToLoad.loansGiven || [],
+            budgets: stateToLoad.budgets || DEFAULT_APP_STATE.budgets || [],
+            savingsGoals: stateToLoad.savingsGoals || DEFAULT_APP_STATE.savingsGoals || [],
+          };
+          updateState(() => sanitizedState);
+          
+          if (originalOwner && originalOwner !== 'Anonymous') {
+            showToast('success', `Personal ledger belonging to ${originalOwner} imported successfully! All records linked to your active identity.`);
           } else {
-            showToast('success', originalOwner && originalOwner !== 'Anonymous'
-              ? `Personal ledger belonging to ${originalOwner} imported successfully! All records linked to your active identity.`
-              : 'Database restored successfully! Ledger tracks have re-balanced.');
+            showToast('success', 'Database restored successfully! Ledger tracks have re-balanced.');
           }
 
           // Trigger manual push to ensure data is synced to cloud immediately
           const { autoSync } = getSupabaseConfig();
           if (autoSync && userEmail) {
-            syncStateToSupabase(userEmail, sanitizedState as AppState, true).then(res => {
+            syncStateToSupabase(userEmail, stateToLoad, true).then(res => {
               if (res.success) {
                 showToast('success', 'Imported data pushed to cloud automatically!');
               } else {
@@ -3134,7 +2467,7 @@ export default function App() {
         } else {
           showToast('error', 'Invalid backup file. Requisite database structures were missing.');
         }
-      } catch {
+      } catch (err) {
         showToast('error', 'File decode failure. Try with a valid export JSON backup.');
       }
     };
@@ -3149,6 +2482,9 @@ export default function App() {
   const netWorthBreakdown = calculateNetWorth(state);
   const totalCashAmount = netWorthBreakdown.cash;
   const totalDebitCardsAmount = netWorthBreakdown.debitCards;
+  const totalCreditCardsAmount = netWorthBreakdown.creditCardLiabilities;
+  const totalDebtsAmount = netWorthBreakdown.debts;
+  const totalLoansGiven = netWorthBreakdown.loansGiven;
   const aggregateActiveWealth = netWorthBreakdown.netWorth;
 
   const currentMonthInflow = state.transactions
@@ -3202,14 +2538,45 @@ export default function App() {
     };
   });
 
+  // 4. TRANSACTION FILTERING METHOD
+  const filteredHistory = [...state.transactions]
+    .filter(t => {
+      const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            t.category.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesType = filterType === 'all' || t.type === filterType;
+      const matchesAccount = filterAccount === 'all' || t.accountId === filterAccount;
+
+      return matchesSearch && matchesType && matchesAccount;
+    })
+    .sort((a, b) => {
+      const getTs = (item: any): number => {
+        const raw = item.updated_at || item.updatedAt || item.created_at || item.createdAt || item.date;
+        if (!raw) return 0;
+        const time = new Date(raw).getTime();
+        return isNaN(time) ? 0 : time;
+      };
+
+      const timeA = getTs(a);
+      const timeB = getTs(b);
+      if (timeA !== timeB) return timeB - timeA;
+
+      const dateCompare = b.date.localeCompare(a.date);
+      if (dateCompare !== 0) return dateCompare;
+      const aNum = parseInt(a.id.replace(/\D/g, ''), 10);
+      const bNum = parseInt(b.id.replace(/\D/g, ''), 10);
+      if (!isNaN(aNum) && !isNaN(bNum)) return bNum - aNum;
+      return b.id.localeCompare(a.id);
+    });
+
   // Minimal auth gate — center card with mono
-  if (isCheckingAuth || isAppLockInit) {
+  if (isCheckingAuth) {
     return (
       <div id="auth-loading-screen" className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-6">
         <div className="card p-8 text-center w-full max-w-[360px]">
           <div className="w-7 h-7 rounded-full border border-[var(--line)] border-t-[var(--ink)] animate-spin mx-auto motion-reduce:animate-none" aria-hidden />
-          <p className="eyebrow mt-4">{isCheckingAuth ? 'Checking session' : 'Unlocking vault'}</p>
-          <p className="mono text-[12px] text-[var(--ink-2)] mt-1.5">{isCheckingAuth ? 'Verifying secure device…' : 'Checking app locks…'}</p>
+          <p className="eyebrow mt-4">Checking session</p>
+          <p className="mono text-[12px] text-[var(--ink-2)] mt-1.5">Verifying secure device…</p>
         </div>
       </div>
     );
@@ -3222,6 +2589,17 @@ export default function App() {
     .forEach(t => {
       expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + Math.abs(t.amount);
     });
+
+  const totalExpenseCategorySum = Object.values(expensesByCategory).reduce((s, v) => s + v, 0) || 1;
+  const appCategoryChartList = Object.entries(expensesByCategory).map(([name, val]) => {
+    const percentage = Math.round((val / totalExpenseCategorySum) * 100);
+    return {
+      name,
+      value: val,
+      percentage,
+      color: EXPENSE_COLORS[name] || '#6B7280',
+    };
+  }).sort((a, b) => b.value - a.value).slice(0, 4);
 
   return (
     <div id="full-workspace-view" className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-[var(--bg)] text-[var(--ink)] flex flex-col lg:flex-row font-sans selection:bg-[var(--ink)] selection:text-[var(--bg)] antialiased relative">
@@ -3335,7 +2713,12 @@ export default function App() {
                   <button
                     onClick={() => {
                       setIsMoreMenuOpen(false);
-                      handleLogout();
+                      localStorage.removeItem('auth_user_email');
+                      localStorage.removeItem('auth_session_token');
+                      localStorage.removeItem('auth_device_token');
+                      resetLoadedFromCloud();
+                      setState(DEFAULT_APP_STATE);
+                      setIsUnlocked(false);
                     }}
                     className="w-full text-left py-2 px-2.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-[var(--danger)] hover:text-rose-600 dark:hover:text-rose-400 rounded-xl text-xs font-semibold transition-all flex items-center gap-2.5 cursor-pointer border-t border-[var(--line)] pt-2 mt-1"
                   >
@@ -3427,30 +2810,8 @@ export default function App() {
           {/* center: sync pill */}
           <div className="hidden md:flex items-center justify-center flex-1 px-4">
             {(() => {
-              let label: string;
-              let dot: string;
-              if (!isOnline) {
-                label = 'No internet';
-                dot = 'bg-[var(--danger)] animate-pulse';
-              } else if (!isSupabaseReachable) {
-                label = 'Cloud unreachable';
-                dot = 'bg-amber-500 animate-pulse';
-              } else if (realtimeSyncStatus === 'syncing') {
-                label = 'Syncing';
-                dot = 'bg-amber-500 animate-pulse';
-              } else if (realtimeSyncStatus === 'synced') {
-                label = 'Synced';
-                dot = 'bg-[var(--success)]';
-              } else if (realtimeSyncStatus === 'error') {
-                label = 'Sync error';
-                dot = 'bg-[var(--danger)] animate-pulse';
-              } else if (realtimeSyncStatus === 'disabled') {
-                label = 'Offline';
-                dot = 'bg-[var(--ink-3)]';
-              } else {
-                label = 'Idle';
-                dot = 'bg-[var(--ink-3)]';
-              }
+              const label = realtimeSyncStatus === 'syncing' ? 'Syncing' : realtimeSyncStatus === 'synced' ? 'Synced' : realtimeSyncStatus === 'error' ? 'Sync error' : realtimeSyncStatus === 'disabled' ? 'Offline' : 'Idle';
+              const dot = realtimeSyncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : realtimeSyncStatus === 'synced' ? 'bg-[var(--success)]' : realtimeSyncStatus === 'error' ? 'bg-[var(--danger)] animate-pulse' : 'bg-[var(--ink-3)]';
               return (
                 <span className="mono text-[11px] inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]" title={realtimeSyncError || label}>
                   <span className={`w-1.5 h-1.5 rounded-full ${dot} motion-reduce:animate-none`} aria-hidden />
@@ -3538,7 +2899,14 @@ export default function App() {
                 updateState={updateState}
                 onOpenSettings={() => { setIsProfileOpen(false); setIsSettingsOpen(true); }}
                 onLogout={() => {
-                  handleLogout();
+                  localStorage.removeItem('auth_user_email');
+                  localStorage.removeItem('auth_session_token');
+                  localStorage.removeItem('auth_device_token');
+                  authSession.clear();
+                  resetLoadedFromCloud();
+                  setState(DEFAULT_APP_STATE);
+                  setIsUnlocked(false);
+                  setIsProfileOpen(false);
                 }}
                 onClose={() => setIsProfileOpen(false)}
               />
@@ -3552,7 +2920,10 @@ export default function App() {
             onUnlocked={async (email, token, rememberMe, deviceToken) => {
               authSession.setToken(token);
               authSession.setEmail(email);
+              localStorage.setItem('auth_user_email', email);
+              localStorage.setItem('auth_session_token', token);
               if (rememberMe && deviceToken) {
+                localStorage.setItem('auth_device_token', deviceToken);
                 authSession.setDeviceToken(deviceToken);
               }
               setUserEmail(email);
@@ -3571,28 +2942,7 @@ export default function App() {
               }
               setIsUnlocked(true);
               setActiveTab('dashboard');
-              // App-lock is intentionally NOT gated here: after a fresh password
-              // login the user goes straight into the app. The lock screen is
-              // shown only on reload/app-reopen (see verifyDevice mount gate) or
-              // after the 60-second idle timeout (see idle re-lock effect below).
-              // Remember this device for future app-lock skips
-              if (rememberMe) {
-                try { await issueTrustedDevice(email); } catch (err) { console.warn("Could not issue trusted-device cookie:", err); }
-              }
             }}
-          />
-        )}
-
-        {/* ======================= APP-LOCK GATE ======================= */}
-        {isUnlocked && isAppLocked && (
-          <LockScreen
-            email={userEmail}
-            appLockEnabled={!!appLockStatus?.appLockEnabled}
-            pinEnabled={!!appLockStatus?.pinEnabled}
-            hasBiometric={(appLockStatus?.biometricCount || 0) > 0}
-            onUnlocked={() => setIsAppLocked(false)}
-            onSwitchAccount={() => handleLogout()}
-            onForgotPin={() => handleLogout()}
           />
         )}
 
@@ -3604,7 +2954,7 @@ export default function App() {
           
           {/* Header block for current active tab */}
           {activeTab !== 'dashboard' && (
-            <div className="card flex justify-between items-center p-6" id="tab-header-block">
+            <div className="card flex justify-between items-center p-6">
               <div className="min-w-0 pr-3 space-y-1">
                 <span className="eyebrow">
                   {activeTab === 'accounts' ? 'Wallets Core' :
@@ -3672,180 +3022,161 @@ export default function App() {
 
               {/* =================== CASE: TAB: DASHBOARD =================== */}
               {activeTab === 'dashboard' && (
-                <LazyTab>
-                  <Dashboard 
-                    state={state} 
-                    userEmail={userEmail}
-                    aggregateActiveWealth={aggregateActiveWealth}
-                    totalCashAmount={totalCashAmount}
-                    totalDebitCardsAmount={totalDebitCardsAmount}
-                    currentMonthLabel={currentMonthLabel}
-                    currentMonthInflow={currentMonthInflow}
-                    currentMonthOutflow={currentMonthOutflow}
-                    setActiveTab={setActiveTab}
-                    setEditingTransactionId={setEditingTransactionId}
-                    onProfileClick={() => setIsProfileOpen(true)}
-                    onNotificationClick={() => setIsNotifOpen(true)}
-                    onAddIncome={handleAddIncome}
-                    onAddExpense={handleAddExpense}
-                  />
-                </LazyTab>
+                <Dashboard 
+                  state={state} 
+                  userEmail={userEmail}
+                  aggregateActiveWealth={aggregateActiveWealth}
+                  totalCashAmount={totalCashAmount}
+                  totalDebitCardsAmount={totalDebitCardsAmount}
+                  totalCreditCardsAmount={totalCreditCardsAmount}
+                  totalDebtsAmount={totalDebtsAmount}
+                  totalLoansGiven={totalLoansGiven}
+                  currentMonthLabel={currentMonthLabel}
+                  currentMonthInflow={currentMonthInflow}
+                  currentMonthOutflow={currentMonthOutflow}
+                  setActiveTab={setActiveTab}
+                  setEditingTransactionId={setEditingTransactionId}
+                  onProfileClick={() => setIsProfileOpen(true)}
+                  onNotificationClick={() => setIsNotifOpen(true)}
+                  onAddIncome={handleAddIncome}
+                  onAddExpense={handleAddExpense}
+                />
               )}
 
               {/* =================== CASE: TAB: BUDGETS =================== */}
               {activeTab === 'budgets' && (
-                <LazyTab>
-                  <BudgetsSection 
-                    budgets={computedBudgets}
-                    currency={state.currency}
-                    onUpdateBudgetLimit={handleUpdateBudgetLimit}
-                    onAddBudget={handleAddBudget}
-                    onRemoveBudget={handleRemoveBudget}
-                    onClearAllBudgets={handleClearAllBudgets}
-                  />
-                </LazyTab>
+                <BudgetsSection 
+                  budgets={computedBudgets}
+                  currency={state.currency}
+                  onUpdateBudgetLimit={handleUpdateBudgetLimit}
+                  onAddBudget={handleAddBudget}
+                  onRemoveBudget={handleRemoveBudget}
+                  onClearAllBudgets={handleClearAllBudgets}
+                />
               )}
 
               {/* =================== CASE: TAB: GOALS =================== */}
               {activeTab === 'goals' && (
-                <LazyTab>
-                  <GoalsSection 
-                    goals={state.savingsGoals || []}
-                    currency={state.currency}
-                    cashAccounts={state.cashAccounts}
-                    onAddGoal={handleAddGoal}
-                    onModifyGoalFunds={handleModifyGoalFunds}
-                    onRemoveGoal={handleRemoveGoal}
-                    onClearAllGoals={handleClearAllGoals}
-                  />
-                </LazyTab>
+                <GoalsSection 
+                  goals={state.savingsGoals || []}
+                  currency={state.currency}
+                  cashAccounts={state.cashAccounts}
+                  onAddGoal={handleAddGoal}
+                  onModifyGoalFunds={handleModifyGoalFunds}
+                  onRemoveGoal={handleRemoveGoal}
+                  onClearAllGoals={handleClearAllGoals}
+                />
               )}
 
               {/* =================== CASE: TAB: ACCOUNTS =================== */}
               {activeTab === 'accounts' && (
-                <LazyTab>
-                  <div className="space-y-6">
-                    <CashCardManagement
-                      cashAccounts={state.cashAccounts}
-                      cards={state.cards}
-                      onAddCashAccount={handleAddCashAccount}
-                      onEditCashAccount={handleEditCashAccount}
-                      onAddCard={handleAddCard}
-                      onDeleteCard={handleDeleteCard}
-                      onDeleteCashAccount={handleDeleteCashAccount}
-                      currency={state.currency}
-                      onUpdateCard={handleUpdateCard}
-                      onApplyCardCharge={handleApplyCardCharge}
-                      onDeleteCardCharge={handleDeleteCardCharge}
-                    />
-                    <TransferFunds
-                      cashAccounts={state.cashAccounts}
-                      cards={state.cards}
-                      currency={state.currency}
-                      onTransferFunds={handleTransferFunds}
-                    />
-                  </div>
-                </LazyTab>
+                <div className="space-y-6">
+                  <CashCardManagement
+                    cashAccounts={state.cashAccounts}
+                    cards={state.cards}
+                    onAddCashAccount={handleAddCashAccount}
+                    onEditCashAccount={handleEditCashAccount}
+                    onAddCard={handleAddCard}
+                    onDeleteCard={handleDeleteCard}
+                    onDeleteCashAccount={handleDeleteCashAccount}
+                    currency={state.currency}
+                    onUpdateCard={handleUpdateCard}
+                    onApplyCardCharge={handleApplyCardCharge}
+                    onDeleteCardCharge={handleDeleteCardCharge}
+                  />
+                  <TransferFunds
+                    cashAccounts={state.cashAccounts}
+                    cards={state.cards}
+                    currency={state.currency}
+                    onTransferFunds={handleTransferFunds}
+                  />
+                </div>
               )}
 
               {/* =================== CASE: TAB: INFLOWS_OUTFLOWS =================== */}
               {activeTab === 'inflow_outflow' && (
-                <LazyTab>
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                    <div className="col-span-1 lg:col-span-5 xl:col-span-4 w-full">
-                      <InflowsOutflows
-                        cashAccounts={state.cashAccounts}
-                        cards={state.cards}
-                        onAddIncome={handleAddIncome}
-                        onAddExpense={handleAddExpense}
-                        currency={state.currency}
-                      />
-                    </div>
-                    <div className="col-span-1 lg:col-span-7 xl:col-span-8 w-full">
-                      <SubscriptionManagement
-                        subscriptions={state.subscriptions || []}
-                        cashAccounts={state.cashAccounts}
-                        cards={state.cards}
-                        currency={state.currency}
-                        onAddSubscription={handleAddSubscription}
-                        onDeleteSubscription={handleDeleteSubscription}
-                        onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
-                        onPaySubscription={handlePaySubscription}
-                      />
-                    </div>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  <div className="col-span-1 lg:col-span-5 xl:col-span-4 w-full">
+                    <InflowsOutflows
+                      cashAccounts={state.cashAccounts}
+                      cards={state.cards}
+                      onAddIncome={handleAddIncome}
+                      onAddExpense={handleAddExpense}
+                      currency={state.currency}
+                    />
                   </div>
-                </LazyTab>
+                  <div className="col-span-1 lg:col-span-7 xl:col-span-8 w-full">
+                    <SubscriptionManagement
+                      subscriptions={state.subscriptions || []}
+                      cashAccounts={state.cashAccounts}
+                      cards={state.cards}
+                      currency={state.currency}
+                      onAddSubscription={handleAddSubscription}
+                      onDeleteSubscription={handleDeleteSubscription}
+                      onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
+                      onPaySubscription={handlePaySubscription}
+                    />
+                  </div>
+                </div>
               )}
 
               {/* =================== CASE: TAB: DEBTS =================== */}
               {activeTab === 'debts' && (
-                <LazyTab>
-                  <div className="space-y-6">
-                    <DebtTracker
-                      debts={state.debts}
-                      cashAccounts={state.cashAccounts}
-                      cards={state.cards}
-                      onAddDebt={handleAddDebt}
-                      onIncreaseDebt={handleIncreaseDebt}
-                      onMakeDebtPayment={handleMakeDebtPayment}
-                      onDeleteDebt={handleDeleteDebt}
-                      currency={state.currency}
-                    />
-                    <CreditCardManagement
-                      creditCards={state.cards.filter(c => c.cardType === 'Credit')}
-                      cashAccounts={state.cashAccounts}
-                      cards={state.cards}
-                      currency={state.currency}
-                      transactions={state.transactions}
-                      creditCardPurchases={state.creditCardPurchases}
-                      creditCardInstallments={state.creditCardInstallments}
-                      creditCardInstallmentPayments={state.creditCardInstallmentPayments}
-                      onPayCard={handlePayCreditCard}
-                      onAddPurchase={handleAddCreditCardPurchase}
-                      onUpdateCard={handleUpdateCard}
-                      onCreateInstallmentPlan={handleCreateInstallmentPlan}
-                      onPayInstallmentPayment={handlePayInstallmentPayment}
-                    />
-                  </div>
-                </LazyTab>
+                <div className="space-y-6">
+                  <DebtTracker
+                    debts={state.debts}
+                    cashAccounts={state.cashAccounts}
+                    cards={state.cards}
+                    onAddDebt={handleAddDebt}
+                    onIncreaseDebt={handleIncreaseDebt}
+                    onMakeDebtPayment={handleMakeDebtPayment}
+                    onDeleteDebt={handleDeleteDebt}
+                    currency={state.currency}
+                  />
+                  <CreditCardManagement
+                    creditCards={state.cards.filter(c => c.cardType === 'Credit')}
+                    cashAccounts={state.cashAccounts}
+                    cards={state.cards}
+                    currency={state.currency}
+                    onPayCard={handlePayCreditCard}
+                    onAddPurchase={handleAddCreditCardPurchase}
+                    onUpdateCard={handleUpdateCard}
+                  />
+                </div>
               )}
 
               {/* =================== CASE: TAB: LOANS =================== */}
               {activeTab === 'loans' && (
-                <LazyTab>
-                  <div className="space-y-6">
-                    <LoansTracker
-                      loans={state.loansGiven || []}
-                      cashAccounts={state.cashAccounts}
-                      cards={state.cards}
-                      onAddLoan={handleAddLoan}
-                      onAddSettlement={handleMakeLoanSettlement}
-                      onDeleteLoan={handleDeleteLoan}
-                      onIncreaseLoan={handleIncreaseLoan}
-                      currency={state.currency}
-                    />
-                  </div>
-                </LazyTab>
+                <div className="space-y-6">
+                  <LoansTracker
+                    loans={state.loansGiven || []}
+                    cashAccounts={state.cashAccounts}
+                    cards={state.cards}
+                    onAddLoan={handleAddLoan}
+                    onAddSettlement={handleMakeLoanSettlement}
+                    onDeleteLoan={handleDeleteLoan}
+                    onIncreaseLoan={handleIncreaseLoan}
+                    currency={state.currency}
+                  />
+                </div>
               )}
 
               {/* =================== CASE: TAB: REPORTS =================== */}
               {activeTab === 'reports' && (
-                <LazyTab>
-                  <ReportsCentre
-                    transactions={state.transactions}
-                    incomes={state.incomes}
-                    expenses={state.expenses}
-                    debts={state.debts}
-                    loansGiven={state.loansGiven || []}
-                    currency={state.currency}
-                    cashAccounts={state.cashAccounts}
-                    cards={state.cards}
-                    onSelectTransaction={(id) => setEditingTransactionId(id)}
-                    subscriptions={state.subscriptions || []}
-                    onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
-                    onPaySubscription={handlePaySubscription}
-                  />
-                </LazyTab>
+                <ReportsCentre
+                  transactions={state.transactions}
+                  incomes={state.incomes}
+                  expenses={state.expenses}
+                  debts={state.debts}
+                  loansGiven={state.loansGiven || []}
+                  currency={state.currency}
+                  cashAccounts={state.cashAccounts}
+                  cards={state.cards}
+                  onSelectTransaction={(id) => setEditingTransactionId(id)}
+                  subscriptions={state.subscriptions || []}
+                  onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
+                  onPaySubscription={handlePaySubscription}
+                />
               )}
 
             </div>
@@ -4019,7 +3350,13 @@ export default function App() {
               isOpen={isSettingsOpen}
               onClose={() => setIsSettingsOpen(false)}
               onLogout={() => {
-                handleLogout();
+                localStorage.removeItem('auth_user_email');
+                localStorage.removeItem('auth_session_token');
+                localStorage.removeItem('auth_device_token');
+                resetLoadedFromCloud();
+                setState(DEFAULT_APP_STATE);
+                setIsUnlocked(false);
+                setIsSettingsOpen(false);
               }}
             />
 
@@ -4027,9 +3364,9 @@ export default function App() {
 
       </main>
 
-      {editingTransactionId && state.transactions.some(t => t.id === editingTransactionId) && (
+      {editingTransactionId && (
         <TransactionEditModal
-          transaction={state.transactions.find(t => t.id === editingTransactionId)!}
+          transaction={state.transactions.find(t => t.id === editingTransactionId) || null}
           cashAccounts={state.cashAccounts}
           cards={state.cards}
           onClose={() => setEditingTransactionId(null)}
@@ -4086,26 +3423,8 @@ export default function App() {
       {/* 3. WORKSPACE FOOTER CORE STATUS */}
         <footer className="bg-[var(--surface)] border-t border-[var(--line)] px-6 py-3.5 z-10 flex flex-col md:flex-row justify-between items-center text-[11px] text-[var(--ink-2)] mono gap-3">
         <div className="flex items-center gap-2">
-          <CircleDot
-            size={12}
-            className={
-              !isOnline ? 'text-[var(--danger)] animate-pulse'
-              : !isSupabaseReachable ? 'text-amber-500 animate-pulse'
-              : realtimeSyncStatus === 'syncing' ? 'text-amber-500 animate-pulse'
-              : realtimeSyncStatus === 'synced' ? 'text-emerald-400'
-              : realtimeSyncStatus === 'error' ? 'text-[var(--danger)] animate-pulse'
-              : 'text-[var(--ink-3)]'
-            }
-          />
-          <span title={realtimeSyncError || undefined}>
-            {!isOnline ? 'Offline — no internet connection.'
-              : !isSupabaseReachable ? 'Online — cloud unreachable.'
-              : realtimeSyncStatus === 'syncing' ? 'Syncing with cloud…'
-              : realtimeSyncStatus === 'synced' ? 'Local database mirror synchronized fully.'
-              : realtimeSyncStatus === 'error' ? `Sync error — ${realtimeSyncError || 'will retry'}.`
-              : realtimeSyncStatus === 'disabled' ? 'Offline — auto-sync disabled.'
-              : 'Ready to sync.'}
-          </span>
+          <CircleDot size={12} className="text-emerald-400 animate-pulse" />
+          <span>Local database mirror synchronized fully.</span>
         </div>
         <div className="flex gap-4">
           <span>© 2026 — Designed & Developed by <a href="https://emalyaditha.com/" target="_blank" rel="noopener noreferrer" className="text-[var(--ink)] hover:underline transition-colors">Emal Yaditha</a>. All rights reserved.</span>
