@@ -23,5 +23,7 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "types": ["vite/client"]
-  }
+  },
+  "include": ["src/**/*", "server.ts"],
+  "exclude": ["node_modules", "dist", "e2e", "api", "api-src", "**/*.test.ts", "**/*.test.tsx", "playwright.config.ts"]
 }

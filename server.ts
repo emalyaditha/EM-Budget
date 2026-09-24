@@ -16,7 +16,7 @@ export async function createApp(): Promise<express.Express> {
   app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
   // Cryptographic Signature Vault Systems (OWASP Level Protection)
-  const SESSION_SECRET = process.env.SESSION_SECRET;
+  const SESSION_SECRET = process.env.SESSION_SECRET || (IS_PRODUCTION ? "" : "e3f39806ee7e79681b37e26ff2461d9685b29b599e4f650c61ff9b5a9b8cea1c");
   if (!SESSION_SECRET) {
     if (process.env.VERCEL) {
       throw new Error("SESSION_SECRET environment variable is missing.");
@@ -419,10 +419,10 @@ export async function createApp(): Promise<express.Express> {
 
   // Custom HTTP Security Headers Middleware (Capping Clickjacking, XSS, MIME-sniffing, HSTS)
   app.use((req, res, next) => {
-    // 1. Strict Content Security Policy - tightened: no unsafe-eval, no wildcard frame-ancestors
+    // 1. Strict Content Security Policy - allow framing in AI Studio preview iframe
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self' https://*.google.com https://*.googleusercontent.com https://*.run.app https://aistudio.google.com; object-src 'none'; base-uri 'self'; form-action 'self'"
     );
 
     // 2. Prevent dynamic MIME Sniffing attacks
@@ -434,7 +434,6 @@ export async function createApp(): Promise<express.Express> {
     // 4. Referrer & Permissions constraints
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-    res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("X-XSS-Protection", "0");
     // HTTPS redirect in production (if behind proxy, requires trust proxy)
     if (IS_PRODUCTION && req.headers["x-forwarded-proto"] === "http") {
@@ -1444,6 +1443,11 @@ Return a JSON object matching this schema:
     }
   });
 
+  // API 404 fallback: no matched API route => JSON, never an empty/HTML response
+  app.use("/api", (req, res) => {
+    res.status(404).json({ success: false, error: `Route not found: ${req.method} ${req.originalUrl}` });
+  });
+
   // Vite middleware for development or Static Asset hosting for production
   // Skip static handling on Vercel - Vercel serves dist/ as static output
   if (!process.env.VERCEL) {
@@ -1451,10 +1455,21 @@ Return a JSON object matching this schema:
       try {
         const { createServer: createViteServer } = await import("vite");
         const vite = await createViteServer({
-          server: { middlewareMode: true },
+          server: { middlewareMode: true, hmr: false },
           appType: "spa",
         });
         app.use(vite.middlewares);
+        app.use("*", async (req, res, next) => {
+          const url = req.originalUrl;
+          try {
+            let template = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
+            template = await vite.transformIndexHtml(url, template);
+            res.status(200).set({ "Content-Type": "text/html" }).end(template);
+          } catch (e) {
+            vite.ssrFixStacktrace(e as Error);
+            next(e);
+          }
+        });
       } catch {
         console.warn("[Server] Vite dynamic module not found. Falling back to static asset serving.");
         const distPath = path.join(process.cwd(), "dist");
@@ -1471,11 +1486,6 @@ Return a JSON object matching this schema:
       });
     }
   }
-
-  // API 404 fallback: no matched API route => JSON, never an empty/HTML response
-  app.use("/api", (req, res) => {
-    res.status(404).json({ success: false, error: `Route not found: ${req.method} ${req.originalUrl}` });
-  });
 
   // JSON error handler: ensures async/middleware errors return JSON, never an empty 500 body
   app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -1499,7 +1509,7 @@ export async function getApp(): Promise<express.Express> {
 export async function startServer(): Promise<express.Express> {
   const app = await getApp();
   if (!process.env.VERCEL) {
-    const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+    const PORT = 3000;
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`[Express Backend] Running on http://0.0.0.0:${PORT}`);
     });

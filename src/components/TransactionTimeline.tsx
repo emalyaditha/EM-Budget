@@ -43,7 +43,7 @@ export function TransactionTimeline({ transactions, cashAccounts, cards, currenc
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50" />
             <input placeholder="Search transactions…" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} className="input !pl-9 !bg-white/10 !border-white/15 !text-white placeholder:!text-white/40" />
           </div>
-          <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)} className="input !text-xs !py-2.5 !bg-white/10 !border-white/15 !text-white">
+          <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value as any)} className="input !text-xs !py-2.5 !bg-white/10 !border-white/15 !text-white">
             <option value="all">All types</option><option value="income">Incomes</option><option value="expense">Expenses</option><option value="transfer">Transfers</option><option value="debt_payment">Debt repayments</option>
           </select>
           <select value={accountFilter} onChange={e=>setAccountFilter(e.target.value)} className="input !text-xs !py-2.5 !bg-white/10 !border-white/15 !text-white">

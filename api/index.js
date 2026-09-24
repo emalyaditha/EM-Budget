@@ -917,9 +917,9 @@ var require_http_errors = __commonJS({
   }
 });
 
-// node_modules/body-parser/node_modules/ms/index.js
+// node_modules/body-parser/node_modules/debug/node_modules/ms/index.js
 var require_ms = __commonJS({
-  "node_modules/body-parser/node_modules/ms/index.js"(exports2, module2) {
+  "node_modules/body-parser/node_modules/debug/node_modules/ms/index.js"(exports2, module2) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -17300,9 +17300,9 @@ var require_merge_descriptors = __commonJS({
   }
 });
 
-// node_modules/finalhandler/node_modules/ms/index.js
+// node_modules/finalhandler/node_modules/debug/node_modules/ms/index.js
 var require_ms2 = __commonJS({
-  "node_modules/finalhandler/node_modules/ms/index.js"(exports2, module2) {
+  "node_modules/finalhandler/node_modules/debug/node_modules/ms/index.js"(exports2, module2) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -18019,9 +18019,9 @@ var require_finalhandler = __commonJS({
   }
 });
 
-// node_modules/express/node_modules/ms/index.js
+// node_modules/express/node_modules/debug/node_modules/ms/index.js
 var require_ms3 = __commonJS({
-  "node_modules/express/node_modules/ms/index.js"(exports2, module2) {
+  "node_modules/express/node_modules/debug/node_modules/ms/index.js"(exports2, module2) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -60257,7 +60257,7 @@ async function createApp() {
   app.set("trust proxy", 1);
   app.use(import_express.default.json({ limit: "20mb" }));
   app.use(import_express.default.urlencoded({ limit: "20mb", extended: true }));
-  const SESSION_SECRET = process.env.SESSION_SECRET;
+  const SESSION_SECRET = process.env.SESSION_SECRET || (IS_PRODUCTION ? "" : "e3f39806ee7e79681b37e26ff2461d9685b29b599e4f650c61ff9b5a9b8cea1c");
   if (!SESSION_SECRET) {
     if (process.env.VERCEL) {
       throw new Error("SESSION_SECRET environment variable is missing.");
@@ -60611,13 +60611,12 @@ async function createApp() {
   app.use((req, res, next) => {
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self' https://*.google.com https://*.googleusercontent.com https://*.run.app https://aistudio.google.com; object-src 'none'; base-uri 'self'; form-action 'self'"
     );
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-    res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("X-XSS-Protection", "0");
     if (IS_PRODUCTION && req.headers["x-forwarded-proto"] === "http") {
       res.redirect(301, "https://" + req.headers.host + req.url);
@@ -61473,15 +61472,29 @@ Return a JSON object matching this schema:
       res.status(500).json({ success: false, error: err?.message || "Failed to scan image using Server OCR." });
     }
   });
+  app.use("/api", (req, res) => {
+    res.status(404).json({ success: false, error: `Route not found: ${req.method} ${req.originalUrl}` });
+  });
   if (!process.env.VERCEL) {
     if (process.env.NODE_ENV !== "production") {
       try {
         const { createServer: createViteServer } = await import("vite");
         const vite = await createViteServer({
-          server: { middlewareMode: true },
+          server: { middlewareMode: true, hmr: false },
           appType: "spa"
         });
         app.use(vite.middlewares);
+        app.use("*", async (req, res, next) => {
+          const url = req.originalUrl;
+          try {
+            let template = import_fs.default.readFileSync(import_path.default.resolve(process.cwd(), "index.html"), "utf-8");
+            template = await vite.transformIndexHtml(url, template);
+            res.status(200).set({ "Content-Type": "text/html" }).end(template);
+          } catch (e) {
+            vite.ssrFixStacktrace(e);
+            next(e);
+          }
+        });
       } catch {
         console.warn("[Server] Vite dynamic module not found. Falling back to static asset serving.");
         const distPath = import_path.default.join(process.cwd(), "dist");
@@ -61498,9 +61511,6 @@ Return a JSON object matching this schema:
       });
     }
   }
-  app.use("/api", (req, res) => {
-    res.status(404).json({ success: false, error: `Route not found: ${req.method} ${req.originalUrl}` });
-  });
   app.use((err, req, res, _next) => {
     console.error("[Unhandled Error]", err?.message || err);
     if (res.headersSent) return;
@@ -61517,7 +61527,7 @@ async function getApp() {
 async function startServer() {
   const app = await getApp();
   if (!process.env.VERCEL) {
-    const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
+    const PORT = 3e3;
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`[Express Backend] Running on http://0.0.0.0:${PORT}`);
     });
