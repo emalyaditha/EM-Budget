@@ -41,7 +41,10 @@ export function BottomNavigation({
       </div>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav aria-label="Bottom Navigation" className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--surface)]/95 backdrop-blur-xl border-t border-[var(--line)] md:hidden px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
+      <nav
+        aria-label="Bottom Navigation"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--surface)]/95 backdrop-blur-xl border-t border-[var(--line)] md:hidden px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]"
+      >
         <div className="flex items-center justify-around max-w-md mx-auto">
           {tabs.map((tab) => {
             const isActive = tab.id === 'more' ? isMoreOpen : activeTab === tab.id && !isMoreOpen;

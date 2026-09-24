@@ -1,5 +1,5 @@
-import { Plus, Plane, Target, Wallet } from "lucide-react";
-import { SavingsGoal } from "../../types";
+import { Plus, Plane, Target, Wallet } from 'lucide-react';
+import type { SavingsGoal } from '../../types';
 
 interface EnvelopeItem {
   id: string;
@@ -42,7 +42,9 @@ export function DashboardMetricsGrid({
   return (
     <div className="card p-5 sm:p-6 flex flex-col gap-5 rounded-[20px] text-left overflow-hidden">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-[18px] sm:text-[20px] font-bold tracking-tight leading-none text-[var(--ink)]">My savings goals</h2>
+        <h2 className="text-[18px] sm:text-[20px] font-bold tracking-tight leading-none text-[var(--ink)]">
+          My savings goals
+        </h2>
         <span className="mono text-[10px] px-2.5 py-1 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]">
           {goals.length} active
         </span>
@@ -68,13 +70,18 @@ export function DashboardMetricsGrid({
           {goals.length === 0 ? (
             <div className="py-10 text-center border border-dashed border-[var(--line)] rounded-xl bg-[var(--surface-2)]/40 px-4">
               <p className="eyebrow">No goals yet</p>
-              <p className="mono text-[11px] text-[var(--ink-2)] mt-1">Tap New goal to start — esta tarjeta queda como pin Janvis (empty state elegante).</p>
+              <p className="mono text-[11px] text-[var(--ink-2)] mt-1">
+                Tap New goal to start — esta tarjeta queda como pin Janvis (empty state elegante).
+              </p>
             </div>
           ) : (
             goals.map((g) => {
               const pct = Math.min(100, Math.round((g.current / g.target) * 100));
               return (
-                <div key={g.id} className="bg-[var(--surface-2)] border border-[var(--line)] rounded-[16px] p-4 flex flex-col gap-3">
+                <div
+                  key={g.id}
+                  className="bg-[var(--surface-2)] border border-[var(--line)] rounded-[16px] p-4 flex flex-col gap-3"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-7 h-7 rounded-full bg-[var(--surface)] border border-[var(--line)] grid place-items-center shrink-0 text-[var(--ink-2)]">
@@ -90,11 +97,17 @@ export function DashboardMetricsGrid({
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <p className="eyebrow !text-[8px]">Target</p>
-                      <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">{currency}{g.target.toLocaleString()}</p>
+                      <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
+                        {currency}
+                        {g.target.toLocaleString()}
+                      </p>
                     </div>
                     <div>
                       <p className="eyebrow !text-[8px]">Saved</p>
-                      <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">{currency}{g.current.toLocaleString()}</p>
+                      <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
+                        {currency}
+                        {g.current.toLocaleString()}
+                      </p>
                     </div>
                     <div>
                       <p className="eyebrow !text-[8px]">Progress</p>

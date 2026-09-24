@@ -4,6 +4,7 @@ dist/
 coverage/
 .DS_Store
 *.log
+*.pid
 server.err
 bun.lock
 start-dev.ps1
@@ -12,3 +13,7 @@ start-dev.ps1
 
 # Vercel serverless build output
 api/index.js.map
+.vercel
+
+# SDD plan execution workspace (superpowers)
+.superpowers/

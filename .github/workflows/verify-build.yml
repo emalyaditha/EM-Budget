@@ -1,39 +1,54 @@
-name: 🛡️ Enterprise Production Quality CI
+name: Enterprise Production Quality CI
 
 on:
   push:
-    branches: [ main, master, development ]
+    branches: [main, master, development]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-    name: Codebase Health, Style and Security Audit
-    
     steps:
-    - name: Clone Repository Footprints
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Dependency vulnerability audit
+        run: npm audit --audit-level=high
+      - name: Lint + typecheck (zero warnings)
+        run: npm run lint
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+      - name: Format check
+        run: npx prettier --check .
+      - name: Build
+        run: npm run build
 
-    - name: Bootstrap Hardened Node runtime
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22
-        cache: 'npm'
-
-    - name: Secret Scan (gitleaks)
-      uses: gitleaks/gitleaks-action@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Restore/Assemble Packages Cache
-      run: npm ci
-
-    - name: Run Syntax & Typecheck Audit
-      run: npm run lint
-
-    - name: Run Test Suite
-      run: npx vitest run
-
-    - name: Run Build Target Compile
-      run: npm run build
+  e2e:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Google Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Run end-to-end tests
+        env:
+          DEV_OTP_RESPONSE: 'true'
+        run: npm run e2e

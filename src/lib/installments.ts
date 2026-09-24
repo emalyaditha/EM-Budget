@@ -1,4 +1,4 @@
-import { BankCard, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
+import type { BankCard, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
 
 const SAMPATH_ESP_FEES: Record<number, number> = {
   6: 0,
@@ -9,11 +9,11 @@ const SAMPATH_ESP_FEES: Record<number, number> = {
 
 export function calculateInstallmentFee(amount: number, tenureMonths: number): number {
   const feePercent = SAMPATH_ESP_FEES[tenureMonths] || 0;
-  return Math.round(amount * feePercent / 100 * 100) / 100;
+  return Math.round(((amount * feePercent) / 100) * 100) / 100;
 }
 
 export function calculateMonthlyPayment(amount: number, tenureMonths: number): number {
-  return Math.round(amount / tenureMonths * 100) / 100;
+  return Math.round((amount / tenureMonths) * 100) / 100;
 }
 
 export function generateInstallmentSchedule(
@@ -21,7 +21,7 @@ export function generateInstallmentSchedule(
   monthlyPayment: number,
   tenureMonths: number,
   startDate: string,
-  originalAmount?: number
+  originalAmount?: number,
 ): Omit<CreditCardInstallmentPayment, 'id'>[] {
   const payments: Omit<CreditCardInstallmentPayment, 'id'>[] = [];
   const start = new Date(startDate);
@@ -56,7 +56,7 @@ export function generateInstallmentSchedule(
 
 export function isCardEligibleForInstallment(
   card: BankCard,
-  purchaseAmount: number
+  purchaseAmount: number,
 ): { eligible: boolean; reason?: string } {
   if (card.cardType !== 'Credit') {
     return { eligible: false, reason: 'Only credit cards support installment plans' };
@@ -86,16 +86,16 @@ export function isCardEligibleForInstallment(
 
 export function getInstallmentProgress(
   installment: CreditCardInstallment,
-  payments: CreditCardInstallmentPayment[]
+  payments: CreditCardInstallmentPayment[],
 ): { paid: number; total: number; percentage: number; nextDue: string | null } {
   const sorted = payments
-    .filter(p => p.installmentId === installment.id)
+    .filter((p) => p.installmentId === installment.id)
     .sort((a, b) => a.paymentNumber - b.paymentNumber);
 
-  const paid = sorted.filter(p => p.status === 'paid').length;
+  const paid = sorted.filter((p) => p.status === 'paid').length;
   const total = sorted.length;
   const percentage = total > 0 ? Math.round((paid / total) * 100) : 0;
-  const nextPending = sorted.find(p => p.status === 'pending');
+  const nextPending = sorted.find((p) => p.status === 'pending');
 
   return {
     paid,
@@ -105,7 +105,10 @@ export function getInstallmentProgress(
   };
 }
 
-export function formatFeeBreakdown(amount: number, tenureMonths: number): {
+export function formatFeeBreakdown(
+  amount: number,
+  tenureMonths: number,
+): {
   processingFee: number;
   monthlyPayment: number;
   totalCost: number;

@@ -14,7 +14,11 @@ vi.mock('../lib/api', () => ({
   safeJson: vi.fn(async (res: Response) => {
     const text = await res.text();
     if (!text) return null;
-    try { return JSON.parse(text); } catch { return null; }
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
   }),
   fetchWithTimeout: vi.fn(),
 }));
@@ -25,7 +29,7 @@ import { fetchWithTimeout } from './api';
 
 const mockFetchWithTimeout = fetchWithTimeout as ReturnType<typeof vi.fn>;
 
-function makeResponse(body: any, status = 200): Response {
+function makeResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
@@ -115,9 +119,7 @@ describe('appLock.ts — verifyPin', () => {
   });
 
   it('passes attemptsRemaining from server', async () => {
-    mockFetchWithTimeout.mockResolvedValue(
-      makeResponse({ success: false, error: 'Wrong PIN', attemptsRemaining: 2 }),
-    );
+    mockFetchWithTimeout.mockResolvedValue(makeResponse({ success: false, error: 'Wrong PIN', attemptsRemaining: 2 }));
 
     const result = await verifyPin('user@test.com', 'wrong');
 
@@ -195,17 +197,19 @@ describe('appLock.ts — getAppLockStatus', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns status data on success', async () => {
-    mockFetchWithTimeout.mockResolvedValue(makeResponse({
-      success: true,
-      appLockEnabled: true,
-      pinEnabled: true,
-      hasPin: true,
-      biometricCount: 1,
-      failedAttempts: 0,
-      lockedUntil: null,
-      lockOnOpen: false,
-      lockIdleMinutes: null,
-    }));
+    mockFetchWithTimeout.mockResolvedValue(
+      makeResponse({
+        success: true,
+        appLockEnabled: true,
+        pinEnabled: true,
+        hasPin: true,
+        biometricCount: 1,
+        failedAttempts: 0,
+        lockedUntil: null,
+        lockOnOpen: false,
+        lockIdleMinutes: null,
+      }),
+    );
 
     const result = await getAppLockStatus('user@test.com');
     expect(result).not.toBeNull();

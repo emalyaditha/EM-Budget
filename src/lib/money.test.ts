@@ -1,13 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  toMinorUnits,
-  toMajorUnits,
-  addMoney,
-  subtractMoney,
-  sumMoney,
-  compareMoney,
-  multiplyMoney,
-} from './money';
+import { toMinorUnits, toMajorUnits, addMoney, subtractMoney, sumMoney, compareMoney, multiplyMoney } from './money';
 
 describe('money helpers (B6)', () => {
   describe('toMinorUnits', () => {

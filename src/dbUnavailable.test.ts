@@ -9,9 +9,7 @@ import { DatabaseUnavailableError, failClosedOnDbError } from '../api-src/db-una
 // never need to mutate NODE_ENV.
 describe('failClosedOnDbError (A3)', () => {
   it('throws DatabaseUnavailableError in production', () => {
-    expect(() => failClosedOnDbError(true, new Error('Supabase exploded'))).toThrow(
-      DatabaseUnavailableError,
-    );
+    expect(() => failClosedOnDbError(true, new Error('Supabase exploded'))).toThrow(DatabaseUnavailableError);
   });
 
   it('preserves the underlying Supabase error message', () => {
@@ -41,9 +39,7 @@ describe('failClosedOnDbError (A3)', () => {
   });
 
   it('does not throw for non-Error details in production (string detail tolerated)', () => {
-    expect(() => failClosedOnDbError(true, 'plain string detail')).toThrow(
-      DatabaseUnavailableError,
-    );
+    expect(() => failClosedOnDbError(true, 'plain string detail')).toThrow(DatabaseUnavailableError);
   });
 
   it('sets the error name for route-level instanceof-free mapping', () => {

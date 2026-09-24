@@ -19,5 +19,5 @@ export const authSession = {
     inMemorySessionToken = null;
     inMemoryUserEmail = null;
     inMemoryDeviceToken = null;
-  }
+  },
 };

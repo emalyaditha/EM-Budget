@@ -1,5 +1,17 @@
 export type CategoryIncome = 'Salary' | 'Freelance' | 'Business' | 'Bonus' | 'Commission' | 'Loan Settle' | 'Other';
-export type CategoryExpense = 'Food' | 'Transport' | 'Shopping' | 'Utilities' | 'Rent' | 'Entertainment' | 'Medical' | 'Education' | 'Insurance' | 'Loan' | 'Bank Charges & Interest' | 'Other';
+export type CategoryExpense =
+  | 'Food'
+  | 'Transport'
+  | 'Shopping'
+  | 'Utilities'
+  | 'Rent'
+  | 'Entertainment'
+  | 'Medical'
+  | 'Education'
+  | 'Insurance'
+  | 'Loan'
+  | 'Bank Charges & Interest'
+  | 'Other';
 
 export interface CashAccount {
   id: string;
@@ -119,7 +131,8 @@ export interface Debt {
 
 export interface Transaction {
   id: string;
-  type: 'income' | 'expense' | 'debt_payment' | 'deposit' | 'withdrawal' | 'transfer' | 'credit_card_charge' | 'financing';
+  type:
+    'income' | 'expense' | 'debt_payment' | 'deposit' | 'withdrawal' | 'transfer' | 'credit_card_charge' | 'financing';
   title: string;
   amount: number;
   charge?: number; // Optional transfer fee / charge
@@ -230,6 +243,17 @@ export interface CreditCardInstallmentPayment {
   dueDate: string;
   paidDate?: string;
   status: 'pending' | 'paid' | 'overdue';
+}
+
+export type AppTab = 'dashboard' | 'accounts' | 'inflow_outflow' | 'budgets' | 'goals' | 'debts' | 'loans' | 'reports';
+
+export interface TransactionUpdate {
+  title: string;
+  amount: number;
+  date: string;
+  category: string;
+  accountId: string;
+  accountType: 'cash' | 'card';
 }
 
 interface UserProfile {

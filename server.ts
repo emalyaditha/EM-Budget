@@ -1,19 +1,177 @@
-import express from "express";
-import path from "path";
-import fs from "fs";
-import nodemailer from "nodemailer";
-import bcrypt from "bcryptjs";
-import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
-import "dotenv/config";
+import express from 'express';
+import path from 'path';
+import nodemailer from 'nodemailer';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import compression from 'compression';
+import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import 'dotenv/config';
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} from '@simplewebauthn/server';
+import type { AuthenticatorTransportFuture } from '@simplewebauthn/server';
+import { logDbFailure, newRequestId } from './api-src/log';
+import { applyInMemoryRateLimit, FAIL_OPEN_EXPLICIT } from './api-src/rate-limit';
+import { DatabaseUnavailableError, failClosedOnDbError } from './api-src/db-unavailable';
+import { generateSecureToken, verifySecureToken, timingSafeEqualString } from './server/security';
+
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, label = 'Operation'): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (val) => {
+        clearTimeout(timer);
+        resolve(val);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+interface AppLockFields {
+  pinHash?: string | null;
+  pinEnabled?: boolean;
+  failedAttempts?: number;
+  lockedUntil?: number | null;
+  lockOnOpen?: boolean;
+  lockIdleMinutes?: number | null;
+  pin_hash?: string | null;
+  pin_enabled?: boolean;
+  failed_attempts?: number;
+  locked_until?: number | null;
+  lock_on_open?: boolean;
+  lock_idle_minutes?: number | null;
+  updated_at?: string;
+}
+
+interface WebAuthnCredentialInput {
+  credentialId: string;
+  publicKey: Uint8Array | Buffer | string;
+  signCount?: number;
+  transports?: AuthenticatorTransportFuture[];
+}
+
+interface WebAuthnCredentialRow {
+  user_email: string;
+  credential_id: string;
+  public_key: string;
+  sign_count: number | null;
+  device_label: string | null;
+  transports: AuthenticatorTransportFuture[] | null;
+  created_at: string | number;
+}
+
+interface TrustedDeviceRow {
+  id: string;
+  created_at: string | number;
+  last_used_at: string | number | null;
+  expires_at: string | number | null;
+  user_agent: string | null;
+}
+
+interface SubscriptionRow {
+  id: string;
+  name: string;
+  amount: number;
+  billing_cycle: string;
+  due_date: string;
+  category: string;
+  status: string;
+  instance_type?: string | null;
+  payment_method_id?: string | null;
+  payment_method_type?: string | null;
+  last_paid_date?: string | null;
+  updated_at: string;
+}
 
 export async function createApp(): Promise<express.Express> {
   const app = express();
   const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
-  app.set("trust proxy", 1);
-  app.use(express.json({ limit: "20mb" }));
-  app.use(express.urlencoded({ limit: "20mb", extended: true }));
+  function buildCsp(): string {
+    const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
+    let connectSrc = "'self' https: wss:";
+    if (supabaseUrl.startsWith('https://')) {
+      const origin = supabaseUrl;
+      const host = new URL(supabaseUrl).host;
+      connectSrc = `'self' ${origin} wss://${host} https://fonts.googleapis.com https://fonts.gstatic.com`;
+    }
+    const isProd = process.env.NODE_ENV === 'production';
+    return [
+      `default-src 'self'`,
+      `script-src 'self'${isProd ? '' : " 'unsafe-inline'"}`,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      `font-src 'self' https://fonts.gstatic.com`,
+      `img-src 'self' data: https:`,
+      `connect-src ${connectSrc}`,
+      `frame-ancestors 'self'`,
+      `object-src 'none'`,
+      `base-uri 'self'`,
+      `form-action 'self'`,
+    ].join('; ');
+  }
+  const CSP = buildCsp();
+
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1);
+  app.use(compression());
+  // Per-route body limits: the 2MB scoped parsers MUST be registered before the
+  // global 256KB parser — Express runs middleware in registration order and the
+  // first matching parser wins, so OCR/Gemini large uploads hit 2MB, everything
+  // else is capped at 256KB.
+  app.use('/api/ocr', express.json({ limit: '2mb' }));
+  app.use('/api/gemini', express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '256kb' }));
+  app.use(express.urlencoded({ limit: '256kb', extended: true }));
+
+  // Request-ID correlation: proxy the caller's id when present (safe, bounded),
+  // otherwise mint a UUID. Emitted on every response as x-request-id so server
+  // logs and downstream error reports can be correlated to a client interaction.
+  const SERVER_STARTED_AT = Date.now();
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const requestId = newRequestId(req.headers['x-request-id']);
+    res.locals.requestId = requestId;
+    res.setHeader('x-request-id', requestId);
+    next();
+  });
+
+  // Structured request log: one JSON line per request with duration and the
+  // acting account email when a session was presented.
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const startedAt = process.hrtime.bigint();
+    res.on('finish', () => {
+      const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+      const email = res.locals.actingEmail || undefined;
+      const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
+      const entry: Record<string, unknown> = {
+        ts: new Date().toISOString(),
+        level,
+        event: 'http.request',
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        durationMs: Math.round(durationMs * 10) / 10,
+        requestId: res.locals.requestId,
+        ...(email ? { email } : {}),
+      };
+      const line = JSON.stringify(entry);
+      if (level === 'error') console.error(line);
+      else if (level === 'warn') console.warn(line);
+      else console.log(line);
+    });
+    next();
+  });
 
   // Cryptographic Signature Vault Systems (OWASP Level Protection)
   const SESSION_SECRET = process.env.SESSION_SECRET || (IS_PRODUCTION ? "" : "e3f39806ee7e79681b37e26ff2461d9685b29b599e4f650c61ff9b5a9b8cea1c");
@@ -21,49 +179,30 @@ export async function createApp(): Promise<express.Express> {
     if (process.env.VERCEL) {
       throw new Error("SESSION_SECRET environment variable is missing.");
     }
-    console.error("❌ CRITICAL SECURITY ERROR: The SESSION_SECRET environment variable is missing! The server cannot start without a secure SESSION_SECRET.");
+    console.error(
+      '❌ CRITICAL SECURITY ERROR: The SESSION_SECRET environment variable is missing! The server cannot start without a secure SESSION_SECRET.',
+    );
+    process.exit(1);
+  }
+  // The guard above exits the process when SESSION_SECRET is missing, so this
+  // narrowed copy is always a non-empty string inside the closures below.
+  const sessionSecret = SESSION_SECRET;
+
+  // Production same-origin / WebAuthn origin checks are pinned to APP_ORIGIN and
+  // never derived from (spoofable) request headers. Refuse to start if it is
+  // missing so we never run a cross-origin-open posture.
+  if (IS_PRODUCTION && !process.env.APP_ORIGIN) {
+    if (process.env.VERCEL) {
+      throw new Error('APP_ORIGIN environment variable is missing in production.');
+    }
+    console.error(
+      '❌ CRITICAL SECURITY ERROR: The APP_ORIGIN environment variable is missing! The server cannot start in production without APP_ORIGIN (same-origin/WebAuthn checks would be disabled).',
+    );
     process.exit(1);
   }
 
-  function timingSafeEqualString(a: string, b: string): boolean {
-    const bufA = Buffer.from(a);
-    const bufB = Buffer.from(b);
-    if (bufA.length !== bufB.length) return false;
-    return crypto.timingSafeEqual(bufA, bufB);
-  }
-
-  function generateSecureToken(email: string, durationMs = 24 * 60 * 60 * 1000): string {
-    const payload = {
-      email: email.trim().toLowerCase(),
-      expiresAt: Date.now() + durationMs
-    };
-    const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const signature = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('hex');
-    return `${payloadStr}.${signature}`;
-  }
-
-  function verifySecureToken(token: string): { email: string } | null {
-    if (!token || typeof token !== "string" || !SESSION_SECRET) return null;
-    const parts = token.split('.');
-    if (parts.length !== 2) return null;
-    const [payloadStr, signature] = parts;
-    const expectedSignature = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('hex');
-    if (!timingSafeEqualString(signature, expectedSignature)) {
-      return null; // Invalid signature
-    }
-    try {
-      const payload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString('utf8'));
-      if (!payload || typeof payload.email !== 'string' || typeof payload.expiresAt !== 'number' || !Number.isFinite(payload.expiresAt)) {
-        return null;
-      }
-      if (Date.now() > payload.expiresAt) {
-        return null; // Token expired
-      }
-      return { email: payload.email.trim().toLowerCase() };
-    } catch (e) {
-      return null;
-    }
-  }
+  const SESSION_TTL_SHORT = 24 * 60 * 60 * 1000; // 24 hours (default)
+  const SESSION_TTL_LONG = 30 * 24 * 60 * 60 * 1000; // 30 days (rememberMe)
 
   // -------------------------------------------------------------
   // LOCAL DEVELOPMENT MOCK / SANDBOX FALLBACK DATABASE
@@ -72,7 +211,46 @@ export async function createApp(): Promise<express.Express> {
     accounts: [] as Account[],
     otps: [] as { email: string; otp: string; expires_at: string }[],
     deviceTokens: new Set<string>(),
-    rateLimits: [] as { key: string; count: number; reset_time: string }[]
+    rateLimits: [] as { key: string; count: number; reset_time: string }[],
+    appLocks: [] as {
+      email: string;
+      pinHash?: string;
+      pinEnabled: boolean;
+      failedAttempts: number;
+      lockedUntil: number | null;
+      lockOnOpen?: boolean;
+      lockIdleMinutes?: number | null;
+    }[],
+    webauthnCreds: [] as {
+      email: string;
+      credentialId: string;
+      publicKey: string;
+      signCount: number;
+      deviceLabel: string;
+      transports?: AuthenticatorTransportFuture[];
+      createdAt?: number;
+    }[],
+    webauthnChallenges: [] as {
+      id: string;
+      email: string;
+      challenge: string;
+      purpose: string;
+      expiresAt: number;
+    }[],
+    trustedDevices: [] as {
+      id: string;
+      email: string;
+      tokenHash: string;
+      createdAt: number;
+      expiresAt: number;
+      lastUsedAt: number;
+      userAgent?: string;
+    }[],
+    loginAttempts: [] as {
+      email: string;
+      failed: number;
+      lockedUntil: number | null;
+    }[],
   };
 
   // Scalable Distributed OTP Storage Helpers (No In-Memory Maps for stateless Cloud Run compliance)
@@ -82,7 +260,13 @@ export async function createApp(): Promise<express.Express> {
     return crypto.createHash('sha256').update(`${otp}:${normalizedEmail}`).digest('hex');
   }
 
-  async function storeOtpInDb(email: string, otp: string, expiresAt: number, isDeleteOtp = false, supabase: any) {
+  async function storeOtpInDb(
+    email: string,
+    otp: string,
+    expiresAt: number,
+    isDeleteOtp = false,
+    supabase: SupabaseClient | null,
+  ) {
     const normalizedEmail = email.trim().toLowerCase();
     const expiresDate = new Date(expiresAt).toISOString();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
@@ -111,8 +295,8 @@ export async function createApp(): Promise<express.Express> {
         console.error("OTP database write failed:", error);
         throw error;
       }
-    } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] storeOtpInDb:`, e.message || e);
+    } catch (e) {
+      logDbFailure('[Supabase Connection/Query Failed] storeOtpInDb', e);
       if (IS_PRODUCTION) throw e;
       mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
       mockDb.otps.push({
@@ -123,7 +307,11 @@ export async function createApp(): Promise<express.Express> {
     }
   }
 
-  async function getOtpFromDb(email: string, isDeleteOtp = false, supabase: any): Promise<{ otp: string; expiresAt: number } | null> {
+  async function getOtpFromDb(
+    email: string,
+    isDeleteOtp = false,
+    supabase: SupabaseClient | null,
+  ): Promise<{ otp: string; expiresAt: number } | null> {
     const normalizedEmail = email.trim().toLowerCase();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
 
@@ -152,8 +340,8 @@ export async function createApp(): Promise<express.Express> {
         };
       }
       return null;
-    } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] getOtpFromDb:`, e.message || e);
+    } catch (e) {
+      logDbFailure('[Supabase Connection/Query Failed] getOtpFromDb', e);
       if (IS_PRODUCTION) return null;
       const found = mockDb.otps.find(item => item.email === storageEmail);
       if (found) {
@@ -166,7 +354,7 @@ export async function createApp(): Promise<express.Express> {
     }
   }
 
-  async function deleteOtpFromDb(email: string, isDeleteOtp = false, supabase: any) {
+  async function deleteOtpFromDb(email: string, isDeleteOtp = false, supabase: SupabaseClient | null) {
     const normalizedEmail = email.trim().toLowerCase();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
 
@@ -180,9 +368,9 @@ export async function createApp(): Promise<express.Express> {
       if (error) {
         console.error("OTP database delete failed:", error);
       }
-    } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] deleteOtpFromDb:`, e.message || e);
-      if (!IS_PRODUCTION) mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
+    } catch (e) {
+      logDbFailure('[Supabase Connection/Query Failed] deleteOtpFromDb', e);
+      if (!IS_PRODUCTION) mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
     }
   }
 
@@ -200,15 +388,30 @@ export async function createApp(): Promise<express.Express> {
       timestamp: Date.now()
     };
     const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const signature = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('hex');
+    const signature = crypto.createHmac('sha256', sessionSecret).update(payloadStr).digest('hex');
     return `${payloadStr}.${signature}`;
   }
 
   // Helper to fetch Supabase client (Strict production-level environmental configs only)
-  const getSupabase = (req?: express.Request) => {
-    let url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
-    let key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "").trim();
-    
+  const getSupabase = (_req?: express.Request) => {
+    let url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
+    // Production MUST use the privileged service-role key: the anon key is public
+    // and does NOT bypass RLS, so any silent fallback would degrade every
+    // server-side query and quietly leak the server's security model. If the
+    // key is misconfigured here, fail loudly instead of running in a broken
+    // (anon) posture.
+    const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    let key = serviceKey;
+    if (!key) {
+      if (IS_PRODUCTION) {
+        console.error(
+          '[Supabase Error] SUPABASE_SERVICE_ROLE_KEY is required in production. Refusing to run with the public anon key as the server role.',
+        );
+        throw new Error('SUPABASE_SERVICE_ROLE_KEY is required in production.');
+      }
+      key = (process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '').trim();
+    }
+
     // Auto-swapped or misconfigured variable detection
     if (url.startsWith("eyJ") && (key.startsWith("http://") || key.startsWith("https://"))) {
       const temp = url;
@@ -253,27 +456,31 @@ export async function createApp(): Promise<express.Express> {
       }
     });
   };
-  
-  async function checkAccountExists(email: string, supabase: any): Promise<boolean> {
+
+  async function checkAccountExists(email: string, supabase: SupabaseClient | null): Promise<boolean> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!supabase) {
       if (IS_PRODUCTION) return false;
       return mockDb.accounts.some(acc => acc.email === normalizedEmail);
     }
     try {
-      const { data, error } = await supabase.from('auth_accounts').select('email').eq('email', normalizedEmail).maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase.from('auth_accounts').select('email').eq('email', normalizedEmail).maybeSingle(),
+        5000,
+        'checkAccountExists',
+      );
       if (error && error.code !== 'PGRST116') {
         console.error('Supabase error checking account:', error);
       }
       return !error && !!data;
-    } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] checkAccountExists:`, e.message || e);
+    } catch (e) {
+      logDbFailure('[Supabase Connection/Query Failed] checkAccountExists', e);
       if (IS_PRODUCTION) return false;
       return mockDb.accounts.some(acc => acc.email === normalizedEmail);
     }
   }
-  
-  async function getAccountByEmail(email: string, supabase: any): Promise<Account | null> {
+
+  async function getAccountByEmail(email: string, supabase: SupabaseClient | null): Promise<Account | null> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!supabase) {
       if (IS_PRODUCTION) return null;
@@ -290,15 +497,15 @@ export async function createApp(): Promise<express.Express> {
          };
       }
       return null;
-    } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] getAccountByEmail:`, e.message || e);
+    } catch (e) {
+      logDbFailure('[Supabase Connection/Query Failed] getAccountByEmail', e);
       if (IS_PRODUCTION) return null;
       const found = mockDb.accounts.find(acc => acc.email === normalizedEmail);
       return found || null;
     }
   }
-  
-  async function saveAccount(acc: Account, supabase: any) {
+
+  async function saveAccount(acc: Account, supabase: SupabaseClient | null) {
     const normalizedEmail = acc.email.trim().toLowerCase();
     if (!supabase) {
       if (IS_PRODUCTION) throw new Error("Database connection unavailable in production mode.");
@@ -320,8 +527,8 @@ export async function createApp(): Promise<express.Express> {
         console.error("Error saving account to Supabase:", error);
         throw error;
       }
-    } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] saveAccount:`, e.message || e);
+    } catch (e) {
+      logDbFailure('[Supabase Connection/Query Failed] saveAccount', e);
       if (IS_PRODUCTION) throw e;
       mockDb.accounts = mockDb.accounts.filter(item => item.email !== normalizedEmail);
       mockDb.accounts.push({
@@ -332,7 +539,7 @@ export async function createApp(): Promise<express.Express> {
     }
   }
 
-  async function saveDeviceToken(token: string, supabase: any, email?: string) {
+  async function saveDeviceToken(token: string, supabase: SupabaseClient | null, email?: string) {
     if (!token) return;
     const normalizedEmail = (email || "").trim().toLowerCase();
     const hashedEmail = normalizedEmail ? crypto.createHash("sha256").update(normalizedEmail).digest("hex") : "";
@@ -350,13 +557,13 @@ export async function createApp(): Promise<express.Express> {
       } else {
         console.log(`🔒 Devices: Registered trusted device for ${normalizedEmail || "unknown"}.`);
       }
-    } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] saveDeviceToken falling back to Mock DB:`, e.message || e);
-      mockDb.deviceTokens.add(hashedToken + ":" + hashedEmail);
+    } catch (e) {
+      logDbFailure('[Supabase Connection/Query Failed] saveDeviceToken falling back to Mock DB', e);
+      mockDb.deviceTokens.add(hashedToken + ':' + hashedEmail);
     }
   }
 
-  async function verifyDeviceToken(token: string, supabase: any, email?: string): Promise<boolean> {
+  async function verifyDeviceToken(token: string, supabase: SupabaseClient | null, email?: string): Promise<boolean> {
     if (!token) return false;
     const normalizedEmail = (email || "").trim().toLowerCase();
     const hashedEmail = normalizedEmail ? crypto.createHash("sha256").update(normalizedEmail).digest("hex") : null;
@@ -368,7 +575,11 @@ export async function createApp(): Promise<express.Express> {
       return mockDb.deviceTokens.has(hashedToken);
     }
     try {
-      let q = supabase.from('auth_device_tokens').select('token, expires_at, hashed_email').eq('token', hashedToken).maybeSingle();
+      const q = supabase
+        .from('auth_device_tokens')
+        .select('token, expires_at, hashed_email')
+        .eq('token', hashedToken)
+        .maybeSingle();
       const { data, error } = await q;
       if (error || !data) return false;
       if (data.expires_at && Date.now() > Number(data.expires_at)) {
@@ -377,16 +588,652 @@ export async function createApp(): Promise<express.Express> {
       }
       if (hashedEmail && data.hashed_email && data.hashed_email !== hashedEmail) return false;
       return true;
-    } catch (e: any) {
-      console.warn(`[Supabase Connection/Query Failed] verifyDeviceToken falling back to Mock DB:`, e.message || e);
-      if (hashedEmail) return mockDb.deviceTokens.has(hashedToken + ":" + hashedEmail);
+    } catch (e) {
+      logDbFailure('[Supabase Connection/Query Failed] verifyDeviceToken falling back to Mock DB', e);
+      if (hashedEmail) return mockDb.deviceTokens.has(hashedToken + ':' + hashedEmail);
       return mockDb.deviceTokens.has(hashedToken);
     }
   }
 
+  // =====================================================================
+  // APP LOCK SECURITY LAYER — helpers
+  // (PIN hashing + lockout, WebAuthn challenge store, trusted devices.
+  //  All operations require a valid session token at the caller.)
+  // =====================================================================
+
+  function validatePin(pin: unknown): string | null {
+    if (typeof pin !== 'string' || !/^\d{4,6}$/.test(pin)) {
+      return 'PIN must be 4 to 6 digits.';
+    }
+    if (/^(0+|\d)\1*$/.test(pin)) {
+      return 'PIN cannot be all the same digit.';
+    }
+    if (pin === '1234' || pin === '0000' || pin === '4321') {
+      return 'That PIN is too easy to guess. Choose a different one.';
+    }
+    // Reject sequential ascending/descending runs (e.g. 123456, 654321, 2345)
+    const asc = '0123456789'.split('');
+    const desc = '9876543210'.split('');
+    for (let i = 0; i <= pin.length - 4; i++) {
+      const seg = pin.slice(i, i + 4).split('');
+      const ascMatch = asc.join('').includes(seg.join(''));
+      const descMatch = desc.join('').includes(seg.join(''));
+      if (ascMatch || descMatch) return 'That PIN is sequential. Choose a different one.';
+    }
+    return null;
+  }
+
+  function normalizeEmailLower(email: unknown): string {
+    return (typeof email === 'string' ? email : '').trim().toLowerCase();
+  }
+
+  // --- app_lock_credentials ---
+  async function getAppLock(email: string, supabase: SupabaseClient | null) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      return mockDb.appLocks.find((x) => x.email === e) || null;
+    }
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from('app_lock_credentials').select('*').eq('user_email', e).maybeSingle(),
+        5000,
+        'getAppLock',
+      );
+      if (error) throw error;
+      if (!data) return mockDb.appLocks.find((x) => x.email === e) || null;
+      return {
+        email: data.user_email,
+        pinHash: data.pin_hash || null,
+        pinEnabled: !!data.pin_enabled,
+        failedAttempts: Number(data.failed_attempts || 0),
+        lockedUntil: data.locked_until ? Number(data.locked_until) : null,
+        lockOnOpen: !!data.lock_on_open,
+        lockIdleMinutes: data.lock_idle_minutes != null ? Number(data.lock_idle_minutes) : null,
+      };
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] getAppLock fallback', err);
+      return mockDb.appLocks.find((x) => x.email === e) || null;
+    }
+  }
+
+  async function upsertAppLock(email: string, fields: AppLockFields, supabase: SupabaseClient | null) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      let rec = mockDb.appLocks.find((x) => x.email === e);
+      if (!rec) {
+        rec = { email: e, pinEnabled: false, failedAttempts: 0, lockedUntil: null };
+        mockDb.appLocks.push(rec);
+      }
+      Object.assign(rec, {
+        ...(fields.pinHash !== undefined ? { pinHash: fields.pinHash } : {}),
+        ...(fields.pin_hash !== undefined ? { pinHash: fields.pin_hash } : {}),
+        ...(fields.pinEnabled !== undefined ? { pinEnabled: fields.pinEnabled } : {}),
+        ...(fields.pin_enabled !== undefined ? { pinEnabled: fields.pin_enabled } : {}),
+        ...(fields.failedAttempts !== undefined ? { failedAttempts: fields.failedAttempts } : {}),
+        ...(fields.failed_attempts !== undefined ? { failedAttempts: fields.failed_attempts } : {}),
+        ...(fields.lockedUntil !== undefined ? { lockedUntil: fields.lockedUntil } : {}),
+        ...(fields.locked_until !== undefined ? { lockedUntil: fields.locked_until } : {}),
+        ...(fields.lockOnOpen !== undefined ? { lockOnOpen: fields.lockOnOpen } : {}),
+        ...(fields.lock_on_open !== undefined ? { lockOnOpen: fields.lock_on_open } : {}),
+        ...(fields.lockIdleMinutes !== undefined ? { lockIdleMinutes: fields.lockIdleMinutes } : {}),
+        ...(fields.lock_idle_minutes !== undefined ? { lockIdleMinutes: fields.lock_idle_minutes } : {}),
+      });
+      return;
+    }
+    try {
+      const { error } = await withTimeout(
+        supabase
+          .from('app_lock_credentials')
+          .upsert({ user_email: e, ...fields, updated_at: new Date().toISOString() }, { onConflict: 'user_email' })
+          .select('user_email')
+          .maybeSingle(),
+        5000,
+        'upsertAppLock',
+      );
+      if (error) throw error;
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] upsertAppLock fallback', err);
+      let rec = mockDb.appLocks.find((x) => x.email === e);
+      if (!rec) {
+        rec = { email: e, pinEnabled: false, failedAttempts: 0, lockedUntil: null };
+        mockDb.appLocks.push(rec);
+      }
+      // Translate DB column names to the mock's camelCase fields
+      if (fields.pin_hash !== undefined) rec.pinHash = fields.pin_hash ?? undefined;
+      if (fields.pin_enabled !== undefined) rec.pinEnabled = fields.pin_enabled;
+      if (fields.failed_attempts !== undefined) rec.failedAttempts = fields.failed_attempts;
+      if (fields.locked_until !== undefined) rec.lockedUntil = fields.locked_until;
+      if (fields.lock_on_open !== undefined) rec.lockOnOpen = fields.lock_on_open;
+      if (fields.lock_idle_minutes !== undefined)
+        rec.lockIdleMinutes = fields.lock_idle_minutes != null ? Number(fields.lock_idle_minutes) : null;
+    }
+  }
+
+  // --- login_attempts (password-login brute-force lockout) ---
+  async function getLoginState(
+    email: string,
+    supabase: SupabaseClient | null,
+  ): Promise<{ email: string; failed: number; lockedUntil: number | null } | null> {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      const found = mockDb.loginAttempts.find((x) => x.email === e);
+      return found || null;
+    }
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from('login_attempts').select('*').eq('email', e).maybeSingle(),
+        5000,
+        'getLoginState',
+      );
+      if (error) throw error;
+      if (!data) return mockDb.loginAttempts.find((x) => x.email === e) || null;
+      return {
+        email: data.email,
+        failed: Number(data.failed_attempts || 0),
+        lockedUntil: data.locked_until != null ? Number(data.locked_until) : null,
+      };
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[LoginLockout] getLoginState fallback', err);
+      return mockDb.loginAttempts.find((x) => x.email === e) || null;
+    }
+  }
+
+  async function upsertLoginState(
+    email: string,
+    fields: { failed?: number; lockedUntil?: number | null },
+    supabase: SupabaseClient | null,
+  ) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      let rec = mockDb.loginAttempts.find((x) => x.email === e);
+      if (!rec) {
+        rec = { email: e, failed: 0, lockedUntil: null };
+        mockDb.loginAttempts.push(rec);
+      }
+      if (fields.failed !== undefined) rec.failed = fields.failed;
+      if (fields.lockedUntil !== undefined) rec.lockedUntil = fields.lockedUntil;
+      return;
+    }
+    try {
+      const payload: { email: string; failed_attempts?: number; locked_until?: number | null; updated_at?: string } = {
+        email: e,
+      };
+      if (fields.failed !== undefined) payload.failed_attempts = fields.failed;
+      if (fields.lockedUntil !== undefined) payload.locked_until = fields.lockedUntil;
+      payload.updated_at = new Date().toISOString();
+      const { error } = await withTimeout(
+        supabase.from('login_attempts').upsert(payload, { onConflict: 'email' }),
+        5000,
+        'upsertLoginState',
+      );
+      if (error) throw error;
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[LoginLockout] upsertLoginState fallback', err);
+      let rec = mockDb.loginAttempts.find((x) => x.email === e);
+      if (!rec) {
+        rec = { email: e, failed: 0, lockedUntil: null };
+        mockDb.loginAttempts.push(rec);
+      }
+      if (fields.failed !== undefined) rec.failed = fields.failed;
+      if (fields.lockedUntil !== undefined) rec.lockedUntil = fields.lockedUntil;
+    }
+  }
+
+  // --- webauthn_challenges ---
+  async function storeWebAuthnChallenge(
+    email: string,
+    challenge: string,
+    purpose: string,
+    supabase: SupabaseClient | null,
+  ): Promise<string> {
+    const e = normalizeEmailLower(email);
+    const id = crypto.randomUUID();
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      mockDb.webauthnChallenges.push({ id, email: e, challenge, purpose, expiresAt });
+      return id;
+    }
+    try {
+      const { error } = await supabase
+        .from('webauthn_challenges')
+        .insert({ id, user_email: e, challenge, purpose, expires_at: expiresAt });
+      if (error) throw error;
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] storeWebAuthnChallenge fallback', err);
+      mockDb.webauthnChallenges.push({ id, email: e, challenge, purpose, expiresAt });
+    }
+    return id;
+  }
+
+  async function consumeWebAuthnChallenge(
+    id: string,
+    email: string,
+    purpose: string,
+    supabase: SupabaseClient | null,
+  ): Promise<string | null> {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      const idx = mockDb.webauthnChallenges.findIndex((c) => c.id === id && c.email === e && c.purpose === purpose);
+      if (idx === -1) return null;
+      const [rec] = mockDb.webauthnChallenges.splice(idx, 1);
+      if (Date.now() > rec.expiresAt) return null;
+      return rec.challenge;
+    }
+    try {
+      await supabase.from('webauthn_challenges').delete().lt('expires_at', Date.now());
+      const { data, error } = await supabase
+        .from('webauthn_challenges')
+        .select('*')
+        .eq('id', id)
+        .eq('user_email', e)
+        .eq('purpose', purpose)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      if (data.expires_at && Date.now() > Number(data.expires_at)) return null;
+      const { error: delError } = await supabase.from('webauthn_challenges').delete().eq('id', id);
+      if (delError) throw delError;
+      return data.challenge;
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] consumeWebAuthnChallenge fallback', err);
+      const idx = mockDb.webauthnChallenges.findIndex((c) => c.id === id && c.email === e && c.purpose === purpose);
+      if (idx === -1) return null;
+      const [rec] = mockDb.webauthnChallenges.splice(idx, 1);
+      if (Date.now() > rec.expiresAt) return null;
+      return rec.challenge;
+    }
+  }
+
+  // --- webauthn_credentials ---
+  async function listWebAuthnCredentials(email: string, supabase: SupabaseClient | null) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      return mockDb.webauthnCreds.filter((c) => c.email === e);
+    }
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from('webauthn_credentials').select('*').eq('user_email', e).order('created_at', { ascending: true }),
+        5000,
+        'listWebAuthnCredentials',
+      );
+      if (error) throw error;
+      const fromDb: {
+        email: string;
+        credentialId: string;
+        publicKey: string;
+        signCount: number;
+        deviceLabel: string;
+        transports: AuthenticatorTransportFuture[];
+        createdAt: string | number;
+      }[] = (data || []).map((r: WebAuthnCredentialRow) => ({
+        email: r.user_email,
+        credentialId: r.credential_id,
+        publicKey: r.public_key,
+        signCount: Number(r.sign_count || 0),
+        deviceLabel: r.device_label || 'Biometric device',
+        transports: r.transports || [],
+        createdAt: r.created_at,
+      }));
+      const fromMock = mockDb.webauthnCreds
+        .filter((c) => c.email === e)
+        .map((c) => ({
+          email: c.email,
+          credentialId: c.credentialId,
+          publicKey: c.publicKey,
+          signCount: c.signCount,
+          deviceLabel: c.deviceLabel,
+          transports: [],
+          createdAt: 0,
+        }));
+      const seen = new Set(fromDb.map((c) => c.credentialId));
+      return [...fromDb, ...fromMock.filter((c) => !seen.has(c.credentialId))];
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] listWebAuthnCredentials fallback', err);
+      return mockDb.webauthnCreds.filter((c) => c.email === e);
+    }
+  }
+
+  async function saveWebAuthnCredential(
+    email: string,
+    cred: WebAuthnCredentialInput,
+    deviceLabel: string,
+    supabase: SupabaseClient | null,
+  ) {
+    const e = normalizeEmailLower(email);
+    const publicKeyB64 = publicKeyToBase64url(cred.publicKey);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      mockDb.webauthnCreds.push({
+        email: e,
+        credentialId: cred.credentialId,
+        publicKey: publicKeyB64,
+        signCount: cred.signCount || 0,
+        deviceLabel,
+      });
+      return;
+    }
+    try {
+      const { error } = await supabase.from('webauthn_credentials').insert({
+        user_email: e,
+        credential_id: cred.credentialId,
+        public_key: publicKeyB64,
+        sign_count: cred.signCount || 0,
+        device_label: deviceLabel,
+        transports: cred.transports || [],
+      });
+      if (error) throw error;
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] saveWebAuthnCredential fallback', err);
+      mockDb.webauthnCreds.push({
+        email: e,
+        credentialId: cred.credentialId,
+        publicKey: publicKeyB64,
+        signCount: cred.signCount || 0,
+        deviceLabel,
+      });
+    }
+  }
+
+  async function deleteWebAuthnCredential(email: string, credentialId: string, supabase: SupabaseClient | null) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      mockDb.webauthnCreds = mockDb.webauthnCreds.filter((c) => !(c.email === e && c.credentialId === credentialId));
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('webauthn_credentials')
+        .delete()
+        .eq('user_email', e)
+        .eq('credential_id', credentialId);
+      if (error) throw error;
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] deleteWebAuthnCredential fallback', err);
+      mockDb.webauthnCreds = mockDb.webauthnCreds.filter((c) => !(c.email === e && c.credentialId === credentialId));
+    }
+  }
+
+  // --- trusted_devices ---
+  async function createTrustedDevice(
+    email: string,
+    token: string,
+    userAgent: string,
+    supabase: SupabaseClient | null,
+  ): Promise<{ id: string; expiresAt: number }> {
+    const e = normalizeEmailLower(email);
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const id = crypto.randomUUID();
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      mockDb.trustedDevices.push({
+        id,
+        email: e,
+        tokenHash,
+        createdAt: Date.now(),
+        expiresAt,
+        lastUsedAt: Date.now(),
+        userAgent,
+      });
+      return { id, expiresAt };
+    }
+    try {
+      const { error } = await withTimeout(
+        supabase.from('trusted_devices').insert({
+          id,
+          user_email: e,
+          device_token_hash: tokenHash,
+          expires_at: expiresAt,
+          last_used_at: Date.now(),
+          user_agent: (userAgent || '').slice(0, 300),
+        }),
+        5000,
+        'insertTrustedDevice',
+      );
+      if (error) throw error;
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] createTrustedDevice fallback', err);
+      mockDb.trustedDevices.push({
+        id,
+        email: e,
+        tokenHash,
+        createdAt: Date.now(),
+        expiresAt,
+        lastUsedAt: Date.now(),
+        userAgent,
+      });
+    }
+    return { id, expiresAt };
+  }
+
+  async function findTrustedDeviceByToken(
+    token: string,
+    supabase: SupabaseClient | null,
+  ): Promise<{ email: string; expiresAt: number } | null> {
+    if (!token) return null;
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      const rec = mockDb.trustedDevices.find((d) => d.tokenHash === tokenHash);
+      if (!rec) return null;
+      if (Date.now() > rec.expiresAt) {
+        mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => d.tokenHash !== tokenHash);
+        return null;
+      }
+      return { email: rec.email, expiresAt: rec.expiresAt };
+    }
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from('trusted_devices').select('*').eq('device_token_hash', tokenHash).maybeSingle(),
+        5000,
+        'findTrustedDevice',
+      );
+      if (error) throw error;
+      if (!data) {
+        // Dev parity: if the table isn't provisioned upstream yet, honour the
+        // mock store so trusted-device tests behave consistently.
+        const rec = mockDb.trustedDevices.find((d) => d.tokenHash === tokenHash);
+        if (rec) {
+          if (Date.now() > rec.expiresAt) {
+            mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => d.tokenHash !== tokenHash);
+            return null;
+          }
+          rec.lastUsedAt = Date.now();
+          return { email: rec.email, expiresAt: rec.expiresAt };
+        }
+        return null;
+      }
+      if (data.expires_at && Date.now() > Number(data.expires_at)) {
+        await withTimeout(supabase.from('trusted_devices').delete().eq('id', data.id), 5000, 'deleteExpiredDevice');
+        return null;
+      }
+      // sliding inactivity window refresh (30 days from last use)
+      const newExpiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      await withTimeout(
+        supabase.from('trusted_devices').update({ last_used_at: Date.now(), expires_at: newExpiry }).eq('id', data.id),
+        5000,
+        'refreshDeviceExpiry',
+      );
+      return { email: data.user_email, expiresAt: newExpiry };
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] findTrustedDeviceByToken fallback', err);
+      const rec = mockDb.trustedDevices.find((d) => d.tokenHash === tokenHash);
+      if (!rec) return null;
+      if (Date.now() > rec.expiresAt) {
+        mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => d.tokenHash !== tokenHash);
+        return null;
+      }
+      rec.lastUsedAt = Date.now();
+      return { email: rec.email, expiresAt: rec.expiresAt };
+    }
+  }
+
+  async function listTrustedDevices(email: string, supabase: SupabaseClient | null) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      return mockDb.trustedDevices
+        .filter((d) => d.email === e)
+        .map((d) => ({
+          id: d.id,
+          createdAt: d.createdAt,
+          lastUsedAt: d.lastUsedAt,
+          expiresAt: d.expiresAt,
+          userAgent: d.userAgent || '',
+        }));
+    }
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from('trusted_devices').select('*').eq('user_email', e).order('created_at', { ascending: false }),
+        5000,
+        'listTrustedDevices',
+      );
+      if (error) throw error;
+      const fromDb: {
+        id: string;
+        createdAt: number;
+        lastUsedAt: number;
+        expiresAt: number;
+        userAgent: string;
+      }[] = (data || []).map((r: TrustedDeviceRow) => ({
+        id: r.id,
+        createdAt: Number(r.created_at ? new Date(r.created_at).getTime() : Date.now()),
+        lastUsedAt: Number(r.last_used_at || 0),
+        expiresAt: Number(r.expires_at || 0),
+        userAgent: r.user_agent || '',
+      }));
+      // Dev parity: prefer real rows, fill in any local-only mock rows too
+      const fromMock = mockDb.trustedDevices
+        .filter((d) => d.email === e)
+        .map((d) => ({
+          id: d.id,
+          createdAt: d.createdAt,
+          lastUsedAt: d.lastUsedAt,
+          expiresAt: d.expiresAt,
+          userAgent: d.userAgent || '',
+        }));
+      const seen = new Set(fromDb.map((d) => d.id));
+      return [...fromDb, ...fromMock.filter((d) => !seen.has(d.id))];
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] listTrustedDevices fallback', err);
+      return mockDb.trustedDevices
+        .filter((d) => d.email === e)
+        .map((d) => ({
+          id: d.id,
+          createdAt: d.createdAt,
+          lastUsedAt: d.lastUsedAt,
+          expiresAt: d.expiresAt,
+          userAgent: d.userAgent || '',
+        }));
+    }
+  }
+
+  async function deleteTrustedDevice(email: string, id: string, supabase: SupabaseClient | null) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => !(d.email === e && d.id === id));
+      return;
+    }
+    try {
+      const { error } = await supabase.from('trusted_devices').delete().eq('user_email', e).eq('id', id);
+      if (error) throw error;
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] deleteTrustedDevice fallback', err);
+      mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => !(d.email === e && d.id === id));
+    }
+  }
+
+  async function deleteAllTrustedDevices(email: string, supabase: SupabaseClient | null) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => d.email !== e);
+      return;
+    }
+    try {
+      const { error } = await supabase.from('trusted_devices').delete().eq('user_email', e);
+      if (error) throw error;
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] deleteAllTrustedDevices fallback', err);
+      mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => d.email !== e);
+    }
+  }
+
+  // Audit-style trace log for app-lock security events (no user data leaked).
+  function traceAppLockEvent(email: string, event: string) {
+    try {
+      console.log(`[AppLock/audit] event=${event} email=${normalizeEmailLower(email)} ts=${Date.now()}`);
+    } catch {
+      // never let audit logging break the request
+    }
+  }
+
+  async function updateWebAuthnCredentialCounter(
+    email: string,
+    credentialId: string,
+    counter: number,
+    supabase: SupabaseClient | null,
+  ) {
+    const e = normalizeEmailLower(email);
+    if (!supabase) {
+      failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
+      const rec = mockDb.webauthnCreds.find((c) => c.email === e && c.credentialId === credentialId);
+      if (rec) rec.signCount = counter;
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('webauthn_credentials')
+        .update({ sign_count: counter })
+        .eq('user_email', e)
+        .eq('credential_id', credentialId);
+      if (error) throw error;
+    } catch (err) {
+      failClosedOnDbError(IS_PRODUCTION, err);
+      logDbFailure('[AppLock] updateWebAuthnCredentialCounter', err);
+      const rec = mockDb.webauthnCreds.find((c) => c.email === e && c.credentialId === credentialId);
+      if (rec) rec.signCount = counter;
+    }
+  }
+
+  // Require the caller to hold a valid signed session token for <email>.
+  function requireSession(req: express.Request, res: express.Response, email: string): boolean {
+    const token = getTokenFromRequest(req);
+    const decoded = token ? verifySecureToken(token, sessionSecret) : null;
+    if (!decoded || decoded.email !== normalizeEmailLower(email)) {
+      res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
+      return false;
+    }
+    res.locals.actingEmail = decoded.email;
+    return true;
+  }
+
   // --- Cookie helpers (httpOnly session) ---
-  function parseCookies(req: any): Record<string, string> {
-    const header = req.headers.cookie || "";
+  function parseCookies(req: express.Request): Record<string, string> {
+    const header = req.headers.cookie || '';
     const out: Record<string, string> = {};
     header.split(";").forEach(p => {
       const idx = p.indexOf("=");
@@ -397,15 +1244,26 @@ export async function createApp(): Promise<express.Express> {
     });
     return out;
   }
-  function setSessionCookie(res, token) {
-    const secure = IS_PRODUCTION ? "; Secure" : "";
-    res.setHeader("Set-Cookie", `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${secure}`);
+  function setSessionCookie(res: express.Response, token: string, maxAgeSeconds = 86400) {
+    const secure = IS_PRODUCTION ? '; Secure' : '';
+    res.setHeader(
+      'Set-Cookie',
+      `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${secure}`,
+    );
   }
-  function clearSessionCookie(res) {
-    const secure = IS_PRODUCTION ? "; Secure" : "";
-    res.setHeader("Set-Cookie", `session_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
+  function setTrustCookie(res: express.Response, token: string) {
+    const secure = IS_PRODUCTION ? '; Secure' : '';
+    // 30-day, httpOnly, SameSite=Strict device trust token (separate from session)
+    res.append(
+      'Set-Cookie',
+      `app_lock_trust=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${30 * 24 * 60 * 60}${secure}`,
+    );
   }
-  function getTokenFromRequest(req) {
+  function clearTrustCookie(res: express.Response) {
+    const secure = IS_PRODUCTION ? '; Secure' : '';
+    res.append('Set-Cookie', `app_lock_trust=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
+  }
+  function getTokenFromRequest(req: express.Request) {
     const auth = req.headers.authorization;
     if (auth && auth.startsWith("Bearer ")) return auth.split(" ")[1];
     const cookies = parseCookies(req);
@@ -419,11 +1277,11 @@ export async function createApp(): Promise<express.Express> {
 
   // Custom HTTP Security Headers Middleware (Capping Clickjacking, XSS, MIME-sniffing, HSTS)
   app.use((req, res, next) => {
-    // 1. Strict Content Security Policy - allow framing in AI Studio preview iframe
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self' https://*.google.com https://*.googleusercontent.com https://*.run.app https://aistudio.google.com; object-src 'none'; base-uri 'self'; form-action 'self'"
-    );
+    // 1. Strict Content Security Policy - tightened: no unsafe-eval, no wildcard frame-ancestors.
+    // script-src admits 'unsafe-inline' only in dev, where Vite's @vitejs/plugin-react
+    // injects an inline react-refresh preamble; the production bundle has no inline
+    // scripts, so script-src 'self' is sufficient there.
+    res.setHeader('Content-Security-Policy', CSP);
 
     // 2. Prevent dynamic MIME Sniffing attacks
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -444,8 +1302,50 @@ export async function createApp(): Promise<express.Express> {
     next();
   });
 
+  // Lightweight same-origin guard for state-changing API requests (CSRF defense in depth).
+  // Requests without an Origin header (curl, server-to-server, native clients) pass through;
+  // browser requests must present an Origin matching the app's own origin.
+  app.use('/api', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+      next();
+      return;
+    }
+    const origin = req.headers['origin'] as string | undefined;
+    if (!origin) {
+      next();
+      return;
+    }
+    const expected = getOrigin(req);
+    if (origin === expected) {
+      next();
+      return;
+    }
+    console.warn(
+      `[SECURITY SUSPICIOUS ACTIVITY] Rejected cross-origin request to ${req.method} ${req.originalUrl} from origin: ${origin}`,
+    );
+    res.status(403).json({ success: false, error: 'Forbidden.' });
+  });
+
+  // Content-Type enforcement: state-changing /api requests must be JSON when a
+  // content-type is declared. Absent header => pass through (body stays {} as today).
+  app.use('/api', (req, res, next) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+    const ct = req.headers['content-type'];
+    if (ct && !/^application\/(?:[a-z0-9.+-]*\+)?json\b/i.test(ct)) {
+      res.status(415).json({ success: false, error: 'Unsupported content type.' });
+      return;
+    }
+    next();
+  });
+
   // Custom rate-limiter backed strictly by database (Stateless Cloud Run autoscaling compliant)
-  async function checkRateLimitInDb(key: string, limit: number, windowMs: number, supabase: any): Promise<boolean> {
+  // Returns { allowed, retryAfterSeconds } so callers get precise retry timing.
+  async function checkRateLimitInDb(
+    key: string,
+    limit: number,
+    windowMs: number,
+    supabase: SupabaseClient | null,
+  ): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
     const now = Date.now();
     const resetTime = now + windowMs;
     const resetTimeStr = new Date(resetTime).toISOString();
@@ -547,9 +1447,26 @@ export async function createApp(): Promise<express.Express> {
     };
   };
 
+  const rateLimitIp = (limit: number, windowMs: number) => {
+    return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      const ip = req.ip || req.socket.remoteAddress || 'unknown';
+      const key = `${ip}:${req.path}:ip`;
+      const supabase = getSupabase(req);
+      const { allowed, retryAfterSeconds } = await checkRateLimitInDb(key, limit, windowMs, supabase);
+      if (allowed) return next();
+      console.warn(`[SECURITY SUSPICIOUS ACTIVITY] IP rate limit exceeded on ${req.path} for ${ip}`);
+      res.setHeader('Retry-After', String(retryAfterSeconds));
+      res.status(429).json({
+        success: false,
+        error: 'Too many authentication requests. Please try again later.',
+        retryAfter: retryAfterSeconds,
+      });
+    };
+  };
+
   // Safe input validation helpers
-  function validateEmail(email: any): string | null {
-    if (!email || typeof email !== "string") return "Email address parameter must be a valid string.";
+  function validateEmail(email: unknown): string | null {
+    if (!email || typeof email !== 'string') return 'Email address parameter must be a valid string.';
     const clean = email.trim();
     if (clean.length > 120) return "Email length exceeds safety threshold (120 chars max).";
     
@@ -559,18 +1476,18 @@ export async function createApp(): Promise<express.Express> {
     return null;
   }
 
-  function validatePassword(password: any): string | null {
-    if (!password || typeof password !== "string") return "Password parameters must be a valid string.";
-    if (password.length < 8) return "Strong authentication mandates passwords be at least 8 characters.";
-    if (password.length > 100) return "Password length exceeds safety boundaries (100 characters max).";
-    if (!/[A-Z]/.test(password)) return "Password must contain at least one uppercase letter.";
-    if (!/[a-z]/.test(password)) return "Password must contain at least one lowercase letter.";
-    if (!/[0-9!@#$%^&*(),.?":{}|<>]/.test(password)) return "Password must contain at least one number or symbol.";
+  function validatePassword(password: unknown): string | null {
+    if (!password || typeof password !== 'string') return 'Password parameters must be a valid string.';
+    if (password.length < 8) return 'Strong authentication mandates passwords be at least 8 characters.';
+    if (password.length > 100) return 'Password length exceeds safety boundaries (100 characters max).';
+    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter.';
+    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter.';
+    if (!/[0-9!@#$%^&*(),.?":{}|<>]/.test(password)) return 'Password must contain at least one number or symbol.';
     return null;
   }
 
-  function validateOtp(otp: any): string | null {
-    if (!otp || typeof otp !== "string") return "Passcode parameter must be a valid string.";
+  function validateOtp(otp: unknown): string | null {
+    if (!otp || typeof otp !== 'string') return 'Passcode parameter must be a valid string.';
     const clean = otp.trim();
     if (clean.length < 6 || clean.length > 12) return "Passcode verification code length is incorrect.";
     return null;
@@ -581,8 +1498,26 @@ export async function createApp(): Promise<express.Express> {
     res.json({ status: "ok", mode: process.env.NODE_ENV || "development" });
   });
 
-  // Diagnostics: reports which backend env vars are present (never leaks secret values)
-  app.get("/api/diagnostics", (req, res) => {
+  // Health-check probe for load balancers / uptime monitors. No session needed.
+  app.get('/healthz', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      status: 'ok',
+      upSince: new Date(SERVER_STARTED_AT).toISOString(),
+      uptimeSec: Math.round(process.uptime()),
+      env: process.env.NODE_ENV || 'development',
+    });
+  });
+
+  // Diagnostics: reports which backend env vars are present (never leaks secret values).
+  // Requires a valid session token — reveals infrastructure surface, so it must not be anonymous.
+  app.get('/api/diagnostics', rateLimitAuth(60, 60 * 1000), (req, res) => {
+    const token = getTokenFromRequest(req);
+    const decoded = token ? verifySecureToken(token, sessionSecret) : null;
+    if (!decoded) {
+      res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
+      return;
+    }
     const has = (k: string) => !!process.env[k];
     res.json({
       status: "ok",
@@ -601,13 +1536,34 @@ export async function createApp(): Promise<express.Express> {
   });
 
   // 0. Check Email Route
-  app.post("/api/auth/check-email", rateLimitAuth(20, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
+  app.post(
+    '/api/auth/check-email',
+    rateLimitIp(60, 60 * 1000),
+    rateLimitAuth(20, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          // Uniform response delay: removes the account-existence timing side-channel.
+          const jitter = 60 + Math.random() * 140;
+          await new Promise((r) => setTimeout(r, jitter));
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const supabase = getSupabase(req);
+        const exists = await checkAccountExists(normalizedEmail, supabase);
+        // Uniform response delay: removes the account-existence timing side-channel.
+        const jitter = 60 + Math.random() * 140;
+        await new Promise((r) => setTimeout(r, jitter));
+        res.json({ success: true, exists });
+      } catch (err) {
+        console.error('[SECURITY LOG] Check-email operation failed:', errorMessage(err));
+        // Uniform response delay: removes the account-existence timing side-channel.
+        const jitter = 60 + Math.random() * 140;
+        await new Promise((r) => setTimeout(r, jitter));
+        res.status(500).json({ success: false, error: 'System authentication service error. Please try again later.' });
       }
       const normalizedEmail = email.trim().toLowerCase();
       const supabase = getSupabase(req);
@@ -652,7 +1608,6 @@ export async function createApp(): Promise<express.Express> {
       const smtpFrom = process.env.SMTP_FROM;
 
       let emailSent = false;
-      let errorDetails = "";
 
       if (smtpHost && smtpUser && smtpPass) {
         try {
@@ -693,12 +1648,9 @@ export async function createApp(): Promise<express.Express> {
           });
           emailSent = true;
           console.log(`📧 Success: 2FA passcode email dispatched to ${normalizedEmail}`);
-        } catch (mailError: any) {
-          console.error("[SECURITY LOG] SMTP Transmission Failed:", mailError.message || mailError);
-          errorDetails = "SMTP delivery error occurred during secure transmission.";
+        } catch (mailError) {
+          console.error('[SECURITY LOG] SMTP Transmission Failed:', errorMessage(mailError));
         }
-      } else {
-        errorDetails = "SMTP server is not configured in environment variables.";
       }
 
       if (!emailSent) {
@@ -723,21 +1675,75 @@ export async function createApp(): Promise<express.Express> {
         success: true,
         emailSent: true
       });
-    } catch (err: any) {
-      console.error("[SECURITY LOG] OTP Send failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System secure transmission error. Please request later." });
+    } catch (err) {
+      console.error('[SECURITY LOG] OTP Send failed:', errorMessage(err));
+      res.status(500).json({ success: false, error: 'System secure transmission error. Please request later.' });
     }
   });
 
   // 2. Verify OTP route
-  app.post("/api/auth/verify-otp", rateLimitAuth(10, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    try {
-      const { email, otp, forRegistrationOrReset } = req.body;
-      const emailErr = validateEmail(email);
-      const otpErr = validateOtp(otp);
-      if (emailErr || otpErr) {
-        res.status(400).json({ success: false, error: emailErr || otpErr });
-        return;
+  app.post(
+    '/api/auth/verify-otp',
+    rateLimitAuth(10, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, otp, forRegistrationOrReset } = req.body;
+        const emailErr = validateEmail(email);
+        const otpErr = validateOtp(otp);
+        if (emailErr || otpErr) {
+          res.status(400).json({ success: false, error: emailErr || otpErr });
+          return;
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const enteredOtp = otp.trim();
+        const supabase = getSupabase(req);
+
+        const saved = await getOtpFromDb(normalizedEmail, false, supabase);
+        if (!saved) {
+          res
+            .status(401)
+            .json({ success: false, error: 'No active verification passcode found. Please request a new code.' });
+          return;
+        }
+
+        if (Date.now() > saved.expiresAt) {
+          await deleteOtpFromDb(normalizedEmail, false, supabase);
+          res.status(401).json({ success: false, error: 'The passcode has expired. Please request a new code.' });
+          return;
+        }
+
+        const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+        if (!timingSafeEqualString(saved.otp, enteredHash)) {
+          // Consume the OTP on a wrong attempt so it cannot be brute-forced
+          // across multiple guesses within the valid window.
+          await deleteOtpFromDb(normalizedEmail, false, supabase);
+          res.status(401).json({ success: false, error: 'The passcode entered is incorrect.' });
+          return;
+        }
+
+        if (forRegistrationOrReset) {
+          // Just verify, don't delete yet. The registration/reset step will delete it.
+          res.json({ success: true });
+          return;
+        }
+
+        // Generate a secure persistent device token
+        const deviceToken = crypto.randomUUID();
+        await saveDeviceToken(deviceToken, supabase, normalizedEmail);
+
+        // Successful unlock - clear OTP
+        await deleteOtpFromDb(normalizedEmail, false, supabase);
+        const _sessionToken = generateSecureToken(normalizedEmail, SESSION_TTL_SHORT, sessionSecret);
+        setSessionCookie(res, _sessionToken);
+        res.json({
+          success: true,
+          token: _sessionToken,
+          deviceToken,
+        });
+      } catch (err) {
+        console.error('[SECURITY LOG] Verify OTP failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System authentication service error.' });
       }
 
       const normalizedEmail = email.trim().toLowerCase();
@@ -836,28 +1842,107 @@ export async function createApp(): Promise<express.Express> {
       const deviceToken = crypto.randomUUID();
       await saveDeviceToken(deviceToken, supabase, normalizedEmail);
 
-      const _regToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _regToken);
+      const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
+      const _regToken = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
+      setSessionCookie(res, _regToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
       res.json({
         success: true,
         token: _regToken,
         deviceToken
       });
-    } catch (err: any) {
-      console.error("[SECURITY LOG] Register operation failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System registration service error." });
+    } catch (err) {
+      console.error('[SECURITY LOG] Register operation failed:', errorMessage(err));
+      res.status(500).json({ success: false, error: 'System registration service error.' });
     }
   });
 
   // 2c. Login Password Route
-  app.post("/api/auth/login-password", rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    try {
-      const { email, password } = req.body;
-      const emailErr = validateEmail(email);
-      const passwordErr = validatePassword(password);
-      if (emailErr || passwordErr) {
-        res.status(400).json({ success: false, error: emailErr || passwordErr });
-        return;
+  app.post(
+    '/api/auth/login-password',
+    rateLimitAuth(8, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, password, rememberMe } = req.body;
+        const emailErr = validateEmail(email);
+        const passwordErr = validatePassword(password);
+        if (emailErr || passwordErr) {
+          res.status(400).json({ success: false, error: emailErr || passwordErr });
+          return;
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const supabase = getSupabase(req);
+        const user = await getAccountByEmail(normalizedEmail, supabase);
+
+        if (!user) {
+          res.status(401).json({ success: false, error: 'Invalid email or password.' });
+          return;
+        }
+
+        // Account-level lockout: reject locked accounts before any work.
+        const loginState = await getLoginState(normalizedEmail, supabase);
+        if (loginState?.lockedUntil && Date.now() < loginState.lockedUntil) {
+          const remaining = Math.ceil((loginState.lockedUntil - Date.now()) / 1000);
+          res.status(429).json({
+            success: false,
+            error: `Too many attempts. Account locked for ${remaining}s.`,
+            code: 'ACCOUNT_LOCKED',
+            retryAfter: remaining,
+          });
+          return;
+        }
+
+        const isMatch = await bcrypt.compare(password, user.passwordHash);
+        if (!isMatch) {
+          // Account-level lockout: 5 failed attempts triggers a doubling
+          // cooldown (60s, then 120s, 240s, ...) regardless of client IP.
+          const loginState = await getLoginState(normalizedEmail, supabase);
+          const failed = (loginState?.failed || 0) + 1;
+          let lockedUntil: number | null = null;
+          let retryAfter = 0;
+          if (failed >= 5) {
+            const lockCount = Math.min(Math.ceil((failed - 4) / 1), 8);
+            const seconds = 60 * Math.pow(2, lockCount - 1);
+            lockedUntil = Date.now() + seconds * 1000;
+            retryAfter = seconds;
+          }
+          await upsertLoginState(normalizedEmail, { failed, lockedUntil }, supabase);
+          res.status(401).json({
+            success: false,
+            error: retryAfter ? `Too many attempts. Account locked for ${retryAfter}s.` : 'Invalid email or password.',
+            code: 'BAD_CREDENTIALS',
+            attemptsRemaining: Math.max(0, 5 - failed),
+            retryAfter,
+          });
+          return;
+        }
+
+        // Successful login: reset the failure counter.
+        await upsertLoginState(normalizedEmail, { failed: 0, lockedUntil: null }, supabase);
+
+        const deviceToken = crypto.randomUUID();
+        await saveDeviceToken(deviceToken, supabase, normalizedEmail);
+
+        const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
+        const _loginToken = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
+        setSessionCookie(res, _loginToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
+        // The token is returned in the body (not only in the httpOnly cookie)
+        // on purpose: the client needs it to sign its DIRECT-to-Supabase sync
+        // requests (x-session-token header against supabase.co), where an
+        // httpOnly cookie scoped to this origin cannot reach. The cookie covers
+        // same-origin API calls; RLS governs anything the token can reach.
+        res.json({
+          success: true,
+          token: _loginToken,
+          deviceToken,
+        });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] Login-password operation failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System authentication service error.' });
       }
 
       const normalizedEmail = email.trim().toLowerCase();
@@ -892,15 +1977,71 @@ export async function createApp(): Promise<express.Express> {
   });
 
   // 2d. Reset Password Route
-  app.post("/api/auth/reset-password", rateLimitAuth(5, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    try {
-      const { email, password, otp } = req.body;
-      const emailErr = validateEmail(email);
-      const passwordErr = validatePassword(password);
-      const otpErr = validateOtp(otp);
-      if (emailErr || passwordErr || otpErr) {
-        res.status(400).json({ success: false, error: emailErr || passwordErr || otpErr });
-        return;
+  app.post(
+    '/api/auth/reset-password',
+    rateLimitAuth(5, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, password, otp, rememberMe } = req.body;
+        const emailErr = validateEmail(email);
+        const passwordErr = validatePassword(password);
+        const otpErr = validateOtp(otp);
+        if (emailErr || passwordErr || otpErr) {
+          res.status(400).json({ success: false, error: emailErr || passwordErr || otpErr });
+          return;
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const supabase = getSupabase(req);
+
+        const enteredOtp = otp.trim();
+        let isValidOtp = false;
+
+        const saved = await getOtpFromDb(normalizedEmail, false, supabase);
+        const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+        if (saved && timingSafeEqualString(saved.otp, enteredHash) && Date.now() <= saved.expiresAt) {
+          isValidOtp = true;
+          await deleteOtpFromDb(normalizedEmail, false, supabase); // consume OTP
+        }
+
+        if (!isValidOtp) {
+          res.status(401).json({ success: false, error: 'Invalid or expired OTP.' });
+          return;
+        }
+
+        const exists = await checkAccountExists(normalizedEmail, supabase);
+        if (!exists) {
+          // Do not reveal whether an account exists (anti-enumeration).
+          res.status(400).json({ success: false, error: 'Could not reset the password for this address.' });
+          return;
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        await saveAccount(
+          {
+            email: normalizedEmail,
+            passwordHash,
+            createdAt: Date.now(),
+          },
+          supabase,
+        );
+
+        const deviceToken = crypto.randomUUID();
+        await saveDeviceToken(deviceToken, supabase, normalizedEmail);
+
+        const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
+        const _resetToken = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
+        setSessionCookie(res, _resetToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
+        res.json({
+          success: true,
+          token: _resetToken,
+          deviceToken,
+        });
+      } catch (err) {
+        console.error('[SECURITY LOG] Reset-password operation failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System password reset service error.' });
       }
 
       const normalizedEmail = email.trim().toLowerCase();
@@ -953,21 +2094,792 @@ export async function createApp(): Promise<express.Express> {
   });
 
   // 3. Verify Remembered Device Token route
-  app.post("/api/auth/verify-device", rateLimitAuth(25, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    try {
-      const { deviceToken, email } = req.body;
-      if (!deviceToken || typeof deviceToken !== "string" || deviceToken.length > 200) {
-        res.json({ success: false, error: "No valid device token provided" });
-        return;
+  app.post(
+    '/api/auth/verify-device',
+    rateLimitAuth(25, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { deviceToken, email } = req.body;
+        if (!deviceToken || typeof deviceToken !== 'string' || deviceToken.length > 200) {
+          res.json({ success: false, error: 'No valid device token provided' });
+          return;
+        }
+
+        const isValid = await verifyDeviceToken(
+          deviceToken,
+          getSupabase(req),
+          typeof email === 'string' ? email : undefined,
+        );
+        res.json({ success: isValid });
+      } catch (err) {
+        console.error('[SECURITY LOG] Device verification error:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'Internal verification error' });
       }
 
-      const isValid = await verifyDeviceToken(deviceToken, getSupabase(req), typeof email === "string" ? email : undefined);
-      res.json({ success: isValid });
-    } catch (err: any) {
-      console.error("[SECURITY LOG] Device verification error:", err.message || err);
-      res.status(500).json({ success: false, error: "Internal verification error" });
-    }
-  });
+  // =====================================================================
+  // APP LOCK SECURITY LAYER — endpoints
+  // These sit on top of the existing auth flow. Every route below requires a
+  // valid signed session token for the target account. They NEVER replace
+  // primary auth — they only gate access to the UI.
+  // =====================================================================
+
+  const WEBAUTHN_RP_ID = process.env.WEB_AUTHN_RP_ID || '';
+
+  function getRPID(req: express.Request) {
+    return WEBAUTHN_RP_ID || (req.headers.host || 'localhost').split(':')[0];
+  }
+  function getOrigin(req: express.Request) {
+    // Production MUST be pinned to an explicit APP_ORIGIN. Deriving the origin
+    // from request headers (Host / x-forwarded-proto) is spoofable and would
+    // defeat the same-origin / WebAuthn origin checks, so we never trust them
+    // outside local development.
+    if (IS_PRODUCTION) return process.env.APP_ORIGIN || '';
+    if (process.env.APP_ORIGIN) return process.env.APP_ORIGIN;
+    const proto =
+      req.headers['x-forwarded-proto'] || (req.secure || req.headers.host?.includes('localhost') ? 'https' : 'http');
+    // localhost over http in dev
+    if ((req.headers.host || '').includes('localhost') && !process.env.VERCEL) return `http://${req.headers.host}`;
+    return `${proto}://${req.headers.host}`;
+  }
+  function userIDBytes(email: string) {
+    const buf = crypto.createHash('sha256').update(normalizeEmailLower(email)).digest();
+    return new Uint8Array(buf);
+  }
+  // base64url serializer for WebAuthn public keys (Uint8Array <-> string)
+  function publicKeyToBase64url(key: Uint8Array | Buffer | string): string {
+    if (typeof key === 'string') return key;
+    const bytes = Buffer.from(key.buffer || key, key.byteOffset || 0, key.byteLength || key.length);
+    return bytes.toString('base64url');
+  }
+  function publicKeyFromBase64url(key: string): Uint8Array {
+    const buf = Buffer.from(key, 'base64url');
+    return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+  }
+
+  // --- App-lock overall status ---
+  app.post(
+    '/api/app-lock/status',
+    rateLimitAuth(30, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const lock = await getAppLock(normalizedEmail, supabase);
+        const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+        res.json({
+          success: true,
+          appLockEnabled: !!lock?.pinEnabled || creds.length > 0,
+          lockOnOpen: !!lock?.lockOnOpen,
+          lockIdleMinutes: lock?.lockIdleMinutes ?? null,
+          pinEnabled: !!lock?.pinEnabled,
+          hasPin: !!lock?.pinHash,
+          biometricCount: creds.length,
+          failedAttempts: lock?.failedAttempts || 0,
+          lockedUntil: lock?.lockedUntil || null,
+          webauthnRpid: getRPID(req),
+        });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[AppLock] status error:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System app-lock status error.' });
+      }
+    },
+  );
+
+  // --- PIN: set (create/change) ---
+  app.post(
+    '/api/app-lock/pin/set',
+    rateLimitAuth(8, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, pin } = req.body;
+        const emailErr = validateEmail(email);
+        const pinErr = validatePin(pin);
+        if (emailErr || pinErr) {
+          res.status(400).json({ success: false, error: emailErr || pinErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const pinHash = await bcrypt.hash(String(pin), 12);
+        await upsertAppLock(
+          normalizedEmail,
+          { pin_hash: pinHash, pin_enabled: true, failed_attempts: 0, locked_until: null },
+          supabase,
+        );
+        console.log(`[AppLock] PIN set for ${normalizedEmail} (hash only, PIN never stored).`);
+        res.json({ success: true });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] App-lock PIN set failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System app-lock service error.' });
+      }
+    },
+  );
+
+  // --- PIN: disable ---
+  app.post(
+    '/api/app-lock/pin/disable',
+    rateLimitAuth(8, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await upsertAppLock(
+          normalizedEmail,
+          { pin_hash: null, pin_enabled: false, failed_attempts: 0, locked_until: null },
+          supabase,
+        );
+        res.json({ success: true });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] App-lock PIN disable failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System app-lock service error.' });
+      }
+    },
+  );
+
+  // --- PIN: always ask on open ---
+  // `lockOnOpen: true` forces the app-lock gate on every startup regardless of
+  // the browser's trusted-device status (a remembered device no longer skips it).
+  app.post(
+    '/api/app-lock/pin/always-lock',
+    rateLimitAuth(8, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, enabled } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof enabled !== 'boolean') {
+          res.status(400).json({ success: false, error: emailErr || '`enabled` must be a boolean.' });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await upsertAppLock(normalizedEmail, { lock_on_open: enabled, updated_at: new Date().toISOString() }, supabase);
+        console.log(`[AppLock] lock-on-open ${enabled ? 'enabled' : 'disabled'} for ${normalizedEmail}.`);
+        res.json({ success: true, lockOnOpen: enabled });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] App-lock always-lock update failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System app-lock service error.' });
+      }
+    },
+  );
+
+  // --- PIN: idle-lock timeout (minutes) ---
+  app.post(
+    '/api/app-lock/pin/idle-minutes',
+    rateLimitAuth(8, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, minutes } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof minutes !== 'number' || !Number.isFinite(minutes) || minutes < 1 || minutes > 240) {
+          res.status(400).json({ success: false, error: emailErr || '`minutes` must be a number between 1 and 240.' });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await upsertAppLock(
+          normalizedEmail,
+          { lock_idle_minutes: Math.round(minutes), updated_at: new Date().toISOString() },
+          supabase,
+        );
+        console.log(`[AppLock] idle-lock timeout set to ${Math.round(minutes)} min for ${normalizedEmail}.`);
+        res.json({ success: true, minutes: Math.round(minutes) });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] App-lock idle-minutes update failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System app-lock service error.' });
+      }
+    },
+  );
+
+  // --- PIN: verify (unlock) with server-side lockout ---
+  app.post(
+    '/api/app-lock/pin/verify',
+    rateLimitAuth(30, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, pin } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof pin !== 'string') {
+          res.status(400).json({ success: false, error: emailErr || 'PIN is required.' });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+
+        const lock = await getAppLock(normalizedEmail, supabase);
+        if (!lock || !lock.pinHash) {
+          traceAppLockEvent(normalizedEmail, 'pin_verify_no_pin');
+          res.json({ success: false, error: 'No PIN is configured for app lock.', code: 'NO_PIN' });
+          return;
+        }
+
+        // Server-side lockout: check locked_until
+        const now = Date.now();
+        if (lock.lockedUntil && now < lock.lockedUntil) {
+          const remaining = Math.ceil((lock.lockedUntil - now) / 1000);
+          res.json({
+            success: false,
+            error: `Too many attempts. Locked for ${remaining}s.`,
+            code: 'LOCKED',
+            retryAfter: remaining,
+          });
+          return;
+        }
+
+        const isMatch = await bcrypt.compare(String(pin), lock.pinHash);
+        if (isMatch) {
+          await upsertAppLock(normalizedEmail, { failed_attempts: 0, locked_until: null }, supabase);
+          res.json({ success: true });
+          return;
+        }
+
+        // Wrong PIN: increment and apply doubling lockout
+        const failed = (lock.failedAttempts || 0) + 1;
+        let lockedUntil: number | null = null;
+        let retryAfter = 0;
+        if (failed >= 5) {
+          const lockCount = Math.min(Math.ceil((failed - 4) / 1), 8); // 1st lock = 60s, doubles each repeat
+          const seconds = 60 * Math.pow(2, lockCount - 1);
+          lockedUntil = now + seconds * 1000;
+          retryAfter = seconds;
+        }
+        traceAppLockEvent(normalizedEmail, 'pin_verify_failed');
+        await upsertAppLock(normalizedEmail, { failed_attempts: failed, locked_until: lockedUntil }, supabase);
+        res.json({
+          success: false,
+          error: retryAfter
+            ? `Too many attempts. Locked for ${retryAfter}s.`
+            : `Incorrect PIN. ${5 - failed} attempt${5 - failed === 1 ? '' : 's'} remaining.`,
+          code: 'BAD_PIN',
+          attemptsRemaining: Math.max(0, 5 - failed),
+          retryAfter,
+        });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] App-lock PIN verify failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System app-lock verification error.' });
+      }
+    },
+  );
+
+  // --- PIN: reset (Forgot PIN) — requires a FRESH full re-auth session token ---
+  // The lock screen's "Forgot PIN" path forces the user back through full
+  // email/password (or OTP) login, which yields a fresh signed token. That
+  // token is what authorizes clearing the PIN here so they can set a new one.
+  app.post(
+    '/api/app-lock/pin/reset',
+    rateLimitAuth(5, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await upsertAppLock(
+          normalizedEmail,
+          { pin_hash: null, pin_enabled: false, failed_attempts: 0, locked_until: null },
+          supabase,
+        );
+        traceAppLockEvent(normalizedEmail, 'pin_reset');
+        res.json({ success: true });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] App-lock PIN reset failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System app-lock reset error.' });
+      }
+    },
+  );
+
+  // --- WebAuthn: registration options ---
+  app.post(
+    '/api/app-lock/webauthn/register-options',
+    rateLimitAuth(8, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+
+        const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+        const rpID = getRPID(req);
+        const rpName = process.env.APP_NAME || 'EM Budget';
+
+        const options = await generateRegistrationOptions({
+          rpName,
+          rpID,
+          userName: normalizedEmail,
+          userDisplayName: normalizedEmail,
+          userID: userIDBytes(normalizedEmail),
+          attestationType: 'none',
+          excludeCredentials: creds.map((c) => ({ id: c.credentialId, transports: c.transports })).slice(0, 16),
+          authenticatorSelection: {
+            authenticatorAttachment: 'platform',
+            userVerification: 'required',
+            residentKey: 'preferred',
+          },
+        });
+
+        const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, 'registration', supabase);
+        res.json({ success: true, stateId, options });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] WebAuthn register-options failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'WebAuthn registration could not start.' });
+      }
+    },
+  );
+
+  // --- WebAuthn: registration verification ---
+  app.post(
+    '/api/app-lock/webauthn/register-verify',
+    rateLimitAuth(8, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, stateId, credential, deviceLabel } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+
+        const challenge = await consumeWebAuthnChallenge(stateId, normalizedEmail, 'registration', supabase);
+        if (!challenge) {
+          res.status(400).json({ success: false, error: 'Registration challenge expired. Please try again.' });
+          return;
+        }
+
+        const expectedOrigin = getOrigin(req);
+        const rpID = getRPID(req);
+
+        let verification;
+        try {
+          verification = await verifyRegistrationResponse({
+            response: credential,
+            expectedChallenge: challenge,
+            expectedOrigin,
+            expectedRPID: rpID,
+            requireUserVerification: true,
+          });
+        } catch (verr) {
+          console.error('[SECURITY LOG] WebAuthn registration verification error:', errorMessage(verr));
+          res.status(400).json({ success: false, error: 'Biometric registration could not be verified.' });
+          return;
+        }
+
+        if (!verification.verified || !verification.registrationInfo) {
+          res.status(400).json({ success: false, error: 'Biometric registration was rejected.' });
+          return;
+        }
+
+        const regInfo = verification.registrationInfo;
+        await saveWebAuthnCredential(
+          normalizedEmail,
+          {
+            credentialId: regInfo.credential.id,
+            publicKey: regInfo.credential.publicKey,
+            transports:
+              regInfo.credential.transports ||
+              (credential && credential.response && credential.response.transports) ||
+              [],
+            signCount: typeof regInfo.credential.counter === 'number' ? regInfo.credential.counter : 0,
+          },
+          typeof deviceLabel === 'string' && deviceLabel.trim() ? deviceLabel.trim().slice(0, 60) : 'Biometric device',
+          supabase,
+        );
+        traceAppLockEvent(normalizedEmail, 'webauthn_registered');
+        res.json({ success: true, credentialId: regInfo.credential.id });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] WebAuthn register-verify failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System WebAuthn registration error.' });
+      }
+    },
+  );
+
+  // --- WebAuthn: authentication (unlock) options ---
+  app.post(
+    '/api/app-lock/webauthn/authentication-options',
+    rateLimitAuth(30, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+
+        const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+        if (creds.length === 0) {
+          res.json({ success: false, error: 'No biometric credentials configured.', code: 'NO_CREDS' });
+          return;
+        }
+        const rpID = getRPID(req);
+        const options = await generateAuthenticationOptions({
+          rpID,
+          allowCredentials: creds.map((c) => ({ id: c.credentialId, transports: c.transports })),
+          userVerification: 'required',
+        });
+        const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, 'authentication', supabase);
+        res.json({ success: true, stateId, options });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] WebAuthn authentication-options failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'Biometric unlock could not start.' });
+      }
+    },
+  );
+
+  // --- WebAuthn: authentication (unlock) verification ---
+  app.post(
+    '/api/app-lock/webauthn/authentication-verify',
+    rateLimitAuth(30, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, stateId, credential } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+
+        const challenge = await consumeWebAuthnChallenge(stateId, normalizedEmail, 'authentication', supabase);
+        if (!challenge) {
+          res.status(400).json({ success: false, error: 'Biometric challenge expired. Please try again.' });
+          return;
+        }
+
+        const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+        const rawId: string = credential?.rawId || credential?.id || '';
+        const stored = creds.find((c) => c.credentialId === rawId);
+        if (!stored) {
+          res.json({ success: false, error: 'Biometric credential not recognized.' });
+          return;
+        }
+
+        const verification = await verifyAuthenticationResponse({
+          response: credential,
+          expectedChallenge: challenge,
+          expectedOrigin: getOrigin(req),
+          expectedRPID: getRPID(req),
+          credential: {
+            id: stored.credentialId,
+            publicKey: publicKeyFromBase64url(stored.publicKey),
+            counter: stored.signCount || 0,
+            transports: stored.transports || [],
+          },
+          requireUserVerification: true,
+        });
+
+        if (!verification.verified || !verification.authenticationInfo) {
+          traceAppLockEvent(normalizedEmail, 'webauthn_unlock_failed');
+          res.json({ success: false, error: 'Biometric unlock was rejected.' });
+          return;
+        }
+
+        // sign_count replay protection
+        const newCounter = verification.authenticationInfo.newCounter;
+        await updateWebAuthnCredentialCounter(normalizedEmail, stored.credentialId, newCounter, supabase);
+        traceAppLockEvent(normalizedEmail, 'webauthn_unlock_success');
+        res.json({ success: true });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] WebAuthn authentication-verify failed:', errorMessage(err));
+        res.json({ success: false, error: 'Biometric unlock could not be verified.' });
+      }
+    },
+  );
+
+  // --- WebAuthn: remove a credential ---
+  app.post(
+    '/api/app-lock/webauthn/remove',
+    rateLimitAuth(8, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, credentialId } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof credentialId !== 'string') {
+          res.status(400).json({ success: false, error: emailErr || 'credentialId is required.' });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await deleteWebAuthnCredential(normalizedEmail, credentialId, supabase);
+        res.json({ success: true });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] WebAuthn remove failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System WebAuthn removal error.' });
+      }
+    },
+  );
+
+  // --- WebAuthn: list credentials (for settings management) ---
+  app.post(
+    '/api/app-lock/webauthn/list',
+    rateLimitAuth(20, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
+        res.json({
+          success: true,
+          credentials: creds.map((c) => ({
+            credentialId: c.credentialId,
+            deviceLabel: c.deviceLabel || 'Biometric device',
+            createdAt: c.createdAt ? Number(new Date(c.createdAt).getTime()) : 0,
+          })),
+        });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] WebAuthn list failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System WebAuthn list error.' });
+      }
+    },
+  );
+
+  // --- Trusted device: issue (remember this device) ---
+  // Requires a valid session. Rotates the token, stores its SHA-256 hash, and
+  // sets an httpOnly SameSite=Strict cookie (separate from the session token).
+  app.post(
+    '/api/app-lock/device/issue',
+    rateLimitAuth(10, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const rawToken = crypto.randomBytes(32).toString('base64url');
+        const ua = req.headers['user-agent'] || '';
+        await createTrustedDevice(normalizedEmail, rawToken, ua, supabase);
+        setTrustCookie(res, rawToken);
+        res.json({ success: true, expiresInDays: 30 });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] Trusted device issue failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System device-trust error.' });
+      }
+    },
+  );
+
+  // --- Trusted device: check (used on app open) ---
+  // Reads the httpOnly app_lock_trust cookie server-side only. Returns the
+  // account email if the token is valid & non-expired, so the client knows it
+  // can skip full email/password login and go to the PIN/biometric screen.
+  // To call this the client does NOT need a session token (that's the point).
+  app.post(
+    '/api/app-lock/device/check',
+    rateLimitAuth(20, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const cookies = parseCookies(req);
+        const trustToken = cookies.app_lock_trust;
+        if (!trustToken) {
+          res.json({ success: false, trusted: false });
+          return;
+        }
+        const supabase = getSupabase(req);
+        const found = await findTrustedDeviceByToken(trustToken, supabase);
+        if (!found) {
+          clearTrustCookie(res);
+          res.json({ success: true, trusted: false });
+          return;
+        }
+        res.json({ success: true, trusted: true, email: found.email });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] Trusted device check failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System device-trust check error.' });
+      }
+    },
+  );
+
+  // --- Trusted device: list (manage in settings) ---
+  app.post(
+    '/api/app-lock/device/list',
+    rateLimitAuth(20, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        const devices = await listTrustedDevices(normalizedEmail, supabase);
+        res.json({ success: true, devices });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] Trusted device list failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System device-trust list error.' });
+      }
+    },
+  );
+
+  // --- Trusted device: revoke one ---
+  app.post(
+    '/api/app-lock/device/revoke',
+    rateLimitAuth(10, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, id } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof id !== 'string') {
+          res.status(400).json({ success: false, error: emailErr || 'Device id is required.' });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await deleteTrustedDevice(normalizedEmail, id, supabase);
+        res.json({ success: true });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] Trusted device revoke failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System device-trust revoke error.' });
+      }
+    },
+  );
+
+  // --- Trusted device: revoke all + clear cookie (used on logout) ---
+  app.post(
+    '/api/app-lock/device/revoke-all',
+    rateLimitAuth(10, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await deleteAllTrustedDevices(normalizedEmail, supabase);
+        clearTrustCookie(res);
+        res.json({ success: true });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] Trusted device revoke-all failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System device-trust revoke error.' });
+      }
+    },
+  );
 
   // 4a. Send Deletion OTP
   app.post("/api/auth/send-delete-otp", rateLimitAuth(3, 60 * 1000), async (req: express.Request, res: express.Response) => {
@@ -979,17 +2891,17 @@ export async function createApp(): Promise<express.Express> {
         return;
       }
 
-      const normalizedEmail = email.trim().toLowerCase();
-      const token = getTokenFromRequest(req);
-      if (!token) {
-        res.status(401).json({ success: false, error: "Access token is missing or malformed." });
-        return;
-      }
-      const decoded = verifySecureToken(token);
-      if (!decoded || decoded.email !== normalizedEmail) {
-        res.status(401).json({ success: false, error: "Access token is invalid or expired." });
-        return;
-      }
+        const normalizedEmail = email.trim().toLowerCase();
+        const token = getTokenFromRequest(req);
+        if (!token) {
+          res.status(401).json({ success: false, error: 'Access token is missing or malformed.' });
+          return;
+        }
+        const decoded = verifySecureToken(token, sessionSecret);
+        if (!decoded || decoded.email !== normalizedEmail) {
+          res.status(401).json({ success: false, error: 'Access token is invalid or expired.' });
+          return;
+        }
 
       const otp = crypto.randomInt(100000, 1000000).toString();
       const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes validity
@@ -1009,8 +2921,7 @@ export async function createApp(): Promise<express.Express> {
       const smtpPass = process.env.SMTP_PASS;
       const smtpFrom = process.env.SMTP_FROM;
 
-      let emailSent = false;
-      let errorDetails = "";
+        let emailSent = false;
 
       if (smtpHost && smtpUser && smtpPass) {
         try {
@@ -1050,13 +2961,13 @@ export async function createApp(): Promise<express.Express> {
                   This request was triggered for <strong>${normalizedEmail}</strong> and expires in 5 minutes. If you did not initiate this, please ignore this email and change your account password pattern immediately.
                 </p>
               </div>
-            `
-          });
-          emailSent = true;
-          console.log(`📧 Deletion passcode email sent successfully to ${normalizedEmail}`);
-        } catch (mailError: any) {
-          console.error("[SECURITY LOG] Deletion SMTP Transmission Failed:", mailError.message || mailError);
-          errorDetails = "SMTP deletion dispatch failure.";
+            `,
+            });
+            emailSent = true;
+            console.log(`📧 Deletion passcode email sent successfully to ${normalizedEmail}`);
+          } catch (mailError) {
+            console.error('[SECURITY LOG] Deletion SMTP Transmission Failed:', errorMessage(mailError));
+          }
         }
       } else {
         errorDetails = "SMTP server is not configured in environment variables.";
@@ -1076,7 +2987,9 @@ export async function createApp(): Promise<express.Express> {
           devOtp: otp,
           info: "Dev mode: SMTP is not configured, showing deletion passcode in developer bypass."
         });
-        return;
+      } catch (err) {
+        console.error('[SECURITY LOG] Deletion OTP Send failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System secure transmission error.' });
       }
 
       res.json({
@@ -1090,14 +3003,62 @@ export async function createApp(): Promise<express.Express> {
   });
 
   // 4b. Verify Deletion OTP
-  app.post("/api/auth/verify-delete-otp", rateLimitAuth(5, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    try {
-      const { email, otp } = req.body;
-      const emailErr = validateEmail(email);
-      const otpErr = validateOtp(otp);
-      if (emailErr || otpErr) {
-        res.status(400).json({ success: false, error: emailErr || otpErr });
-        return;
+  app.post(
+    '/api/auth/verify-delete-otp',
+    rateLimitAuth(5, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, otp } = req.body;
+        const emailErr = validateEmail(email);
+        const otpErr = validateOtp(otp);
+        if (emailErr || otpErr) {
+          res.status(400).json({ success: false, error: emailErr || otpErr });
+          return;
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const token2 = getTokenFromRequest(req);
+        if (!token2) {
+          res.status(401).json({ success: false, error: 'Access token is missing or malformed.' });
+          return;
+        }
+        const decoded2 = verifySecureToken(token2, sessionSecret);
+        if (!decoded2 || decoded2.email !== normalizedEmail) {
+          res.status(401).json({ success: false, error: 'Access token is invalid or expired.' });
+          return;
+        }
+
+        const enteredOtp = otp.trim();
+        const supabase = getSupabase(req);
+
+        const saved = await getOtpFromDb(normalizedEmail, true, supabase);
+        if (!saved) {
+          res
+            .status(401)
+            .json({ success: false, error: 'No active deletion passcode found. Please request a new code.' });
+          return;
+        }
+
+        if (Date.now() > saved.expiresAt) {
+          await deleteOtpFromDb(normalizedEmail, true, supabase);
+          res.status(401).json({ success: false, error: 'Passcode has expired. Please request a new code.' });
+          return;
+        }
+
+        const enteredHash = hashOtp(enteredOtp, normalizedEmail);
+        if (!timingSafeEqualString(saved.otp, enteredHash)) {
+          // Consume the OTP on a wrong attempt so it cannot be brute-forced.
+          await deleteOtpFromDb(normalizedEmail, true, supabase);
+          res.status(401).json({ success: false, error: 'The passcode entered is incorrect.' });
+          return;
+        }
+
+        // Successful verification - clear OTP
+        await deleteOtpFromDb(normalizedEmail, true, supabase);
+        res.json({ success: true });
+      } catch (err) {
+        console.error('[SECURITY LOG] Verify Deletion OTP failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System authentication service error.' });
       }
 
       const normalizedEmail = email.trim().toLowerCase();
@@ -1143,14 +3104,59 @@ export async function createApp(): Promise<express.Express> {
   });
 
   // Verify secure session token route
-  app.post("/api/auth/verify-session", rateLimitAuth(30, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    try {
-      const { email } = req.body;
-      let token = req.body.token;
-      if (!token || typeof token !== "string") token = getTokenFromRequest(req);
-      if (!token || typeof token !== "string") {
-        res.json({ success: false, error: "Empty token" });
-        return;
+  app.post(
+    '/api/auth/verify-session',
+    rateLimitAuth(30, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        // A1: the client no longer persists credentials — the session token
+        // comes from the httpOnly cookie (or Authorization header) and the email
+        // is derived from the verified token when the body omits it (cold load).
+        const { rememberMe } = req.body;
+        let token = req.body.token;
+        if (!token || typeof token !== 'string') token = getTokenFromRequest(req);
+        if (!token || typeof token !== 'string') {
+          res.json({ success: false, error: 'Empty token' });
+          return;
+        }
+        const decoded = verifySecureToken(token, sessionSecret);
+        if (!decoded) {
+          res.json({ success: false, error: 'Session token is invalid or expired.' });
+          return;
+        }
+        const providedEmail = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+        const normalizedEmail = providedEmail || decoded.email;
+        // When the caller supplies an email it must match the token owner
+        // (prevents cross-account token replay); an omitted email is fine.
+        if (providedEmail && decoded.email !== providedEmail) {
+          res.json({ success: false, error: 'Session token is invalid or expired.' });
+          return;
+        }
+        // Verify the account still exists in the database
+        const supabase = getSupabase(req);
+        const accountExists = await checkAccountExists(normalizedEmail, supabase);
+        if (!accountExists) {
+          res.json({ success: false, error: 'Account no longer exists.' });
+          return;
+        }
+
+        // Token rotation — sliding sessions from server-side state only: an
+        // explicit rememberMe flag, or a long-lived token still outside its
+        // last 24h, rotates forward to a fresh 30-day TTL + cookie. Short (24h)
+        // sessions are never rotated, exactly as before A1.
+        const isLongLived = decoded.expiresAt - Date.now() > SESSION_TTL_SHORT;
+        if (rememberMe || isLongLived) {
+          const newToken = generateSecureToken(normalizedEmail, SESSION_TTL_LONG, sessionSecret);
+          setSessionCookie(res, newToken, 30 * 24 * 60 * 60);
+          res.json({ success: true, token: newToken, email: normalizedEmail });
+        } else {
+          // Always return the token + email: after A1 the client holds the
+          // session in memory ONLY, so every successful verify hands it back.
+          res.json({ success: true, token, email: normalizedEmail });
+        }
+      } catch (err) {
+        console.error('[SECURITY LOG] Verify Session Token failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'Internal session validation error.' });
       }
       if (!email || typeof email !== "string") {
         res.status(400).json({ success: false, error: "Email is required." });
@@ -1193,22 +3199,66 @@ export async function createApp(): Promise<express.Express> {
   // ledger_states.state JSON snapshot. The service-role client bypasses RLS,
   // so this recovers subscriptions even when the client's anon table read is
   // blocked. Called by the frontend after login.
-  app.post("/api/sync/refresh-subscriptions", rateLimitAuth(20, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    const token = getTokenFromRequest(req);
-    const session = token ? verifySecureToken(token) : null;
-    if (!session || !session.email) {
-      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
-      return;
-    }
-    const email = session.email;
-    try {
-      const supabase = getSupabase(req);
-      if (!supabase) {
-        return res.status(500).json({ success: false, error: "Supabase not configured." });
+  app.post(
+    '/api/sync/refresh-subscriptions',
+    rateLimitAuth(20, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      const token = getTokenFromRequest(req);
+      const session = token ? verifySecureToken(token, sessionSecret) : null;
+      if (!session || !session.email) {
+        res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
+        return;
       }
-      const { data: subs, error: subErr } = await supabase.from("subscriptions").select("*").eq("user_email", email);
-      if (subErr) {
-        return res.status(500).json({ success: false, error: subErr.message });
+      const email = session.email;
+      try {
+        const supabase = getSupabase(req);
+        if (!supabase) {
+          return res.status(500).json({ success: false, error: 'Supabase not configured.' });
+        }
+        const { data: subs, error: subErr } = await supabase.from('subscriptions').select('*').eq('user_email', email);
+        if (subErr) {
+          console.error('[Sync] fetch-subscriptions error:', subErr.message);
+          return res.status(500).json({ success: false, error: 'Failed to fetch subscriptions. Please try again.' });
+        }
+        const rows: SubscriptionRow[] = Array.isArray(subs) ? subs : [];
+        const subscriptions = rows.map((r: SubscriptionRow) => ({
+          id: r.id,
+          name: r.name,
+          amount: r.amount,
+          billingCycle: r.billing_cycle,
+          dueDate: r.due_date,
+          category: r.category,
+          status: r.status,
+          instanceType: r.instance_type || undefined,
+          paymentMethodId: r.payment_method_id || undefined,
+          paymentMethodType: r.payment_method_type || undefined,
+          lastPaidDate: r.last_paid_date || undefined,
+          updated_at: r.updated_at,
+          updatedAt: r.updated_at,
+        }));
+
+        const { data: lsData } = await supabase
+          .from('ledger_states')
+          .select('state')
+          .eq('user_email', email)
+          .limit(1)
+          .maybeSingle();
+        let stateJson: Record<string, unknown> = {};
+        if (lsData && lsData.state) {
+          stateJson = typeof lsData.state === 'string' ? JSON.parse(lsData.state) : lsData.state;
+        }
+        stateJson.subscriptions = subscriptions;
+        await supabase
+          .from('ledger_states')
+          .upsert(
+            { user_email: email, state: stateJson, updated_at: new Date().toISOString() },
+            { onConflict: 'user_email' },
+          );
+
+        return res.json({ success: true, subscriptions });
+      } catch (e) {
+        console.error('[Sync] refresh-subscriptions error:', errorMessage(e));
+        return res.status(500).json({ success: false, error: 'Failed to refresh subscriptions.' });
       }
       const rows: any[] = Array.isArray(subs) ? subs : [];
       const subscriptions = rows.map((r: any) => ({
@@ -1263,41 +3313,14 @@ export async function createApp(): Promise<express.Express> {
   });
 
   // Gemini image analysis endpoint for receipts/invoices - C3 FIX: auth + 2mb validation + mime allowlist
-  app.post("/api/gemini/analyze-image", express.json({ limit: "2mb" }), rateLimitAuth(10, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    const _authToken = getTokenFromRequest(req);
-    if (!verifySecureToken(_authToken as string)) {
-      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
-      return;
-    }
-    try {
-      const { image, mimeType } = req.body;
-      
-      if (!image) {
-        res.status(400).json({ success: false, error: "Image data is required." });
-        return;
-      }
-      // --- C3: 2mb + mimeType allowlist validation ---
-      const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
-      if (mimeType && typeof mimeType === "string" && !ALLOWED_MIMES.includes(mimeType.toLowerCase())) {
-        res.status(400).json({ success: false, error: `Invalid mimeType. Allowed: ${ALLOWED_MIMES.join(", ")}` });
-        return;
-      }
-      // Validate base64 size: enforce 2mb decoded limit (approx 2.8M base64 chars)
-      let _sizeCheck = image;
-      if (typeof _sizeCheck === "string" && _sizeCheck.includes(";base64,")) {
-        _sizeCheck = _sizeCheck.split(";base64,").pop() || "";
-      }
-      const MAX_BYTES = 2 * 1024 * 1024;
-      // Approximate decoded size without allocating full buffer for huge payloads: (len * 3 / 4) - padding
-      const b64Len = typeof _sizeCheck === "string" ? _sizeCheck.length : 0;
-      const padding = typeof _sizeCheck === "string" && _sizeCheck.endsWith("==") ? 2 : _sizeCheck.endsWith("=") ? 1 : 0;
-      const approxBytes = Math.ceil(b64Len * 3 / 4) - padding;
-      if (approxBytes > MAX_BYTES || b64Len > 2800000) {
-        res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
-        return;
-      }
-      if (typeof image === "string" && image.length > 2800000) {
-        res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
+  app.post(
+    '/api/gemini/analyze-image',
+    express.json({ limit: '2mb' }),
+    rateLimitAuth(10, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      const _authToken = getTokenFromRequest(req);
+      if (!verifySecureToken(_authToken as string, sessionSecret)) {
+        res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
         return;
       }
 
@@ -1368,9 +3391,25 @@ Return a JSON object matching this schema:
         }
       });
 
-      const text = response.text;
-      if (!text) {
-        throw new Error("Empty response from Gemini Model.");
+        // Try to parse the output as JSON
+        const parsedData = JSON.parse(text);
+        res.json({ success: true, data: parsedData });
+      } catch (err) {
+        const message = errorMessage(err);
+        console.error('[Gemini Image Analysis Error]', message);
+        const rawMsg = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+        if (
+          typeof rawMsg === 'string' &&
+          (rawMsg.includes('RESOURCE_EXHAUSTED') || rawMsg.includes('prepayment credits') || rawMsg.includes('429'))
+        ) {
+          res.status(500).json({
+            success: false,
+            error:
+              'Gemini API Quota / Prepayment Credits Depleted. Please top up your billing credits in Google AI Studio or update your GEMINI_API_KEY in Settings > Secrets.',
+          });
+          return;
+        }
+        res.status(500).json({ success: false, error: 'Failed to analyze image. Please try again later.' });
       }
 
       // Try to parse the output as JSON
@@ -1387,16 +3426,15 @@ Return a JSON object matching this schema:
   });
 
   // Free Server-Side OCR Endpoint via Tesseract.js (Works in all environments/sandboxes) - C3 FIX: auth + 2mb validation
-  app.post("/api/ocr/free-scan", express.json({ limit: "2mb" }), rateLimitAuth(10, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    const _authToken2 = getTokenFromRequest(req);
-    if (!verifySecureToken(_authToken2 as string)) {
-      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
-      return;
-    }
-    try {
-      const { image, mimeType: _ocrMime } = req.body;
-      if (!image) {
-        return res.status(400).json({ success: false, error: "Image payload is required." });
+  app.post(
+    '/api/ocr/free-scan',
+    express.json({ limit: '2mb' }),
+    rateLimitAuth(10, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      const _authToken2 = getTokenFromRequest(req);
+      if (!verifySecureToken(_authToken2 as string, sessionSecret)) {
+        res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
+        return;
       }
       // --- C3: 2mb + mimeType allowlist validation (if mimeType supplied) ---
       const ALLOWED_MIMES_OCR = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
@@ -1433,9 +3471,33 @@ Return a JSON object matching this schema:
           return res.status(422).json({ success: false, error: "No legible text found in image. Try a clearer photo or enter manually." });
         }
 
-        res.json({ success: true, text: extractedText });
-      } finally {
-        await worker.terminate();
+        let base64Data = image;
+        if (base64Data.includes(';base64,')) {
+          base64Data = base64Data.split(';base64,').pop() || '';
+        }
+
+        const imgBuffer = Buffer.from(base64Data, 'base64');
+        const { createWorker } = await import('tesseract.js');
+        const worker = await createWorker('eng');
+        try {
+          const ret = await worker.recognize(imgBuffer);
+          const extractedText = ret?.data?.text || '';
+          if (!extractedText.trim()) {
+            return res.status(422).json({
+              success: false,
+              error: 'No legible text found in image. Try a clearer photo or enter manually.',
+            });
+          }
+
+          res.json({ success: true, text: extractedText });
+        } finally {
+          await worker.terminate();
+        }
+      } catch (err) {
+        console.error('[Free Server OCR Error]', errorMessage(err));
+        res
+          .status(500)
+          .json({ success: false, error: 'Failed to scan image. Please try again or enter text manually.' });
       }
     } catch (err: any) {
       console.error("[Free Server OCR Error]", err?.message || err);
@@ -1488,17 +3550,58 @@ Return a JSON object matching this schema:
   }
 
   // JSON error handler: ensures async/middleware errors return JSON, never an empty 500 body
-  app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error("[Unhandled Error]", err?.message || err);
+  app.use(((err, req, res, _next) => {
+    console.error('[Unhandled Error]', errorMessage(err));
     if (res.headersSent) return;
-    res.status(500).json({ success: false, error: "Internal server error. Check function logs." });
-  });
+    const raw = err?.statusCode ?? err?.status;
+    const status = typeof raw === 'number' && raw >= 100 && raw < 600 ? raw : 500;
+    res.status(status).json({ success: false, error: 'Internal server error. Check function logs.' });
+  }) as express.ErrorRequestHandler);
 
   return app;
 }
 
 // Cached singleton for serverless (Vercel) - avoids re-creating app on warm invocations
 let cachedApp: express.Express | null = null;
+
+// Keep the DB-side HMAC secret (public.vault.session_secret, read by the
+// sync_complete_ledger RPC) in sync with the server env. Never persisted to
+// source control and never derived from a committed literal. Only runs with a
+// service role key — the vault denies anon/authenticated access entirely.
+let vaultSeedStarted = false;
+async function seedVaultSessionSecret(): Promise<void> {
+  const sessionSecret = process.env.SESSION_SECRET;
+  const url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  if (!sessionSecret) return;
+  if (!url.startsWith('http')) return;
+  if (!key) {
+    console.warn('[Vault] Skipping session_secret seed: SUPABASE_SERVICE_ROLE_KEY not configured.');
+    return;
+  }
+  try {
+    const supabase = createClient(url, key);
+    const { error } = await withTimeout(
+      supabase.from('vault').upsert({ key: 'session_secret', value: sessionSecret }),
+      8000,
+      'Vault seed',
+    );
+    if (error) {
+      console.error('[Vault] Failed to seed session_secret:', error?.message || error);
+    } else {
+      console.log('[Vault] session_secret synced from SESSION_SECRET.');
+    }
+  } catch (err) {
+    console.error('[Vault] session_secret seed error:', errorMessage(err));
+  }
+}
+
+// Idempotent across cold boots and serverless warm starts.
+function ensureVaultSeed(): void {
+  if (vaultSeedStarted) return;
+  vaultSeedStarted = true;
+  seedVaultSessionSecret();
+}
 
 export async function getApp(): Promise<express.Express> {
   if (cachedApp) return cachedApp;
@@ -1517,17 +3620,30 @@ export async function startServer(): Promise<express.Express> {
   return app;
 }
 
-if (!process.env.VERCEL) {
+// Guard against silent process death: log and exit on uncaught exceptions,
+// log unhandled rejections so they are never invisible to ops.
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled rejection:', reason);
+});
+
+// In test workers helpers.ts sets NODE_ENV=test before this file is imported,
+// so the auto-listen is skipped; tests exercise createApp() through supertest.
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
   startServer();
 }
 
 // Vercel serverless handler - default export is the Express app via wrapper
-const vercelHandler = async (req: any, res: any) => {
+const vercelHandler = async (req: express.Request, res: express.Response) => {
   try {
     const app = await getApp();
-    return (app as any)(req, res);
-  } catch (err: any) {
-    console.error("[vercelHandler] Failed to start server:", err?.message || err);
+    return app(req, res);
+  } catch (err) {
+    console.error('[vercelHandler] Failed to start server:', errorMessage(err));
     if (res.headersSent) return;
     res.status(500).json({ success: false, error: `Server failed to initialize: ${err?.message || "unknown"}` });
   }

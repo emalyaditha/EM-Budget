@@ -1,15 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import {
-  BareRestoreStateSchema,
-  LedgerExportV1Schema,
-  LedgerRestorePayloadSchema
-} from './index';
+import { BareRestoreStateSchema, LedgerExportV1Schema, LedgerRestorePayloadSchema } from './index';
 
 const validEnvelope = {
   version: 'EM_BUDGET_SECURE_EX_V1',
   exportedBy: 'someone@example.com',
   exportedAt: '2026-01-01T00:00:00.000Z',
-  data: { transactions: [{ id: 't1' }], cashAccounts: [] }
+  data: { transactions: [{ id: 't1' }], cashAccounts: [] },
 };
 
 describe('LedgerExportV1Schema', () => {
@@ -27,9 +23,7 @@ describe('LedgerExportV1Schema', () => {
   });
 
   it('rejects an envelope with a non-array collection', () => {
-    expect(
-      LedgerExportV1Schema.safeParse({ ...validEnvelope, data: { transactions: {} } }).success
-    ).toBe(false);
+    expect(LedgerExportV1Schema.safeParse({ ...validEnvelope, data: { transactions: {} } }).success).toBe(false);
   });
 });
 
@@ -44,9 +38,7 @@ describe('BareRestoreStateSchema', () => {
   });
 
   it('rejects a bare object whose collections are not arrays', () => {
-    expect(
-      BareRestoreStateSchema.safeParse({ cashAccounts: {}, cards: [], transactions: [] }).success
-    ).toBe(false);
+    expect(BareRestoreStateSchema.safeParse({ cashAccounts: {}, cards: [], transactions: [] }).success).toBe(false);
   });
 });
 

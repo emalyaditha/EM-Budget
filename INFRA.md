@@ -12,20 +12,20 @@ Gmail app password. Sentry error monitoring (opt-in, off unless `SENTRY_DSN`).
 Set all of these in the **Vercel** project settings (Production + Preview).
 None are committed to the repo except `.env.example` placeholders.
 
-| Variable | Purpose | Notes |
-|---|---|---|
-| `VITE_SUPABASE_URL` | Supabase project URL (public) | `https://<project-ref>.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | Public anon key | Safe to embed client-side |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key for server API | Server-only, never bundle client-side |
-| `SESSION_SECRET` | Signs `session_token` cookies | 64-hex; rotate = invalidates all sessions + re-seeds vault secret |
-| `SESSION_TTL_HOURS` | Session lifetime (default 24) | Optional |
-| `APP_ORIGIN` | Allowed CORS origin | e.g. `https://em-budget.vercel.app` |
-| `SMTP_HOST` | SMTP server (e.g. `smtp.gmail.com`) | Leave blank to disable OTP email |
-| `SMTP_PORT` | SMTP port | `465` for Gmail SSL |
-| `SMTP_USER` | SMTP account | |
-| `SMTP_PASS` | SMTP app password | Gmail app password, not the account password |
-| `IDENTITY_ENV` | Identity provider env name | `prod` / `dev`; enables dev-OTP passthrough when `=` `dev` |
-| `SENTRY_DSN` | Sentry error stream | Unset = Sentry disabled (lazy import skipped) |
+| Variable                    | Purpose                             | Notes                                                             |
+| --------------------------- | ----------------------------------- | ----------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`         | Supabase project URL (public)       | `https://<project-ref>.supabase.co`                               |
+| `VITE_SUPABASE_ANON_KEY`    | Public anon key                     | Safe to embed client-side                                         |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key for server API     | Server-only, never bundle client-side                             |
+| `SESSION_SECRET`            | Signs `session_token` cookies       | 64-hex; rotate = invalidates all sessions + re-seeds vault secret |
+| `SESSION_TTL_HOURS`         | Session lifetime (default 24)       | Optional                                                          |
+| `APP_ORIGIN`                | Allowed CORS origin                 | e.g. `https://em-budget.vercel.app`                               |
+| `SMTP_HOST`                 | SMTP server (e.g. `smtp.gmail.com`) | Leave blank to disable OTP email                                  |
+| `SMTP_PORT`                 | SMTP port                           | `465` for Gmail SSL                                               |
+| `SMTP_USER`                 | SMTP account                        |                                                                   |
+| `SMTP_PASS`                 | SMTP app password                   | Gmail app password, not the account password                      |
+| `IDENTITY_ENV`              | Identity provider env name          | `prod` / `dev`; enables dev-OTP passthrough when `=` `dev`        |
+| `SENTRY_DSN`                | Sentry error stream                 | Unset = Sentry disabled (lazy import skipped)                     |
 
 Also set `VITE_SENTRY_DSN` if client-side error reporting is desired (not yet
 wired in the client build).
@@ -47,11 +47,11 @@ git history or on any other environment.
 
 ## API surface
 
-| Route | Method | Purpose |
-|---|---|---|
-| `/healthz` | GET | Unauthenticated liveness probe (no DB/side effects) |
-| `/api/diagnostics` | GET | Authed request-id + env diagnostics (rate-limited 60/min/account) |
-| `/api/*` (auth, vault, accounts, cards, loans, installments, ledger, receipts, audit) | POST/GET/DELETE | JSON API, all sessions cookie/Bearer authed |
+| Route                                                                                 | Method          | Purpose                                                           |
+| ------------------------------------------------------------------------------------- | --------------- | ----------------------------------------------------------------- |
+| `/healthz`                                                                            | GET             | Unauthenticated liveness probe (no DB/side effects)               |
+| `/api/diagnostics`                                                                    | GET             | Authed request-id + env diagnostics (rate-limited 60/min/account) |
+| `/api/*` (auth, vault, accounts, cards, loans, installments, ledger, receipts, audit) | POST/GET/DELETE | JSON API, all sessions cookie/Bearer authed                       |
 
 Instrumentation baked into the server:
 

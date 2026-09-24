@@ -1,4 +1,5 @@
-import { Suspense, Component, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { Suspense, Component } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import TabSkeleton from './TabSkeleton';
 
@@ -44,10 +45,6 @@ export default class LazyTab extends Component<LazyTabProps, LazyTabState> {
     if (this.state.hasError) {
       return <TabErrorFallback onRetry={this.handleRetry} />;
     }
-    return (
-      <Suspense fallback={<TabSkeleton />}>
-        {this.props.children}
-      </Suspense>
-    );
+    return <Suspense fallback={<TabSkeleton />}>{this.props.children}</Suspense>;
   }
 }

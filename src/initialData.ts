@@ -1,4 +1,18 @@
-import { AppState, CashAccount, BankCard, CreditCard, CreditCardPurchase, Income, Expense, Debt, Transaction, AppNotification, Subscription, CreditCardInstallment, CreditCardInstallmentPayment } from './types';
+import type {
+  AppState,
+  CashAccount,
+  BankCard,
+  CreditCard,
+  CreditCardPurchase,
+  Income,
+  Expense,
+  Debt,
+  Transaction,
+  AppNotification,
+  Subscription,
+  CreditCardInstallment,
+  CreditCardInstallmentPayment,
+} from './types';
 
 export const INITIAL_CASH_ACCOUNTS: CashAccount[] = [];
 export const INITIAL_CARDS: BankCard[] = [];

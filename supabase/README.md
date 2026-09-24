@@ -23,6 +23,7 @@ supabase/migrations/20260831_pan_masking.sql
 ```
 
 What it does:
+
 - Masks any full 13–19 digit PAN down to `**** 1234` (keeps last 4 only).
 - Adds a `CHECK` constraint so a full PAN can never be stored again.
 - **Does NOT change any RLS policy** — it cannot make the app empty.

@@ -13,6 +13,45 @@ export function timingSafeEqualString(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
+export interface SecureTokenPayload {
+  email: string;
+  expiresAt: number;
+}
+
+export function generateSecureToken(email: string, durationMs: number, sessionSecret: string): string {
+  const payload: SecureTokenPayload = {
+    email: email.trim().toLowerCase(),
+    expiresAt: Date.now() + durationMs,
+  };
+  const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto.createHmac('sha256', sessionSecret).update(payloadStr).digest('hex');
+  return `${payloadStr}.${signature}`;
+}
+
+export function verifySecureToken(token: string, sessionSecret: string): SecureTokenPayload | null {
+  if (!token || typeof token !== 'string' || !sessionSecret) return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [payloadStr, signature] = parts;
+  const expectedSignature = crypto.createHmac('sha256', sessionSecret).update(payloadStr).digest('hex');
+  if (!timingSafeEqualString(signature, expectedSignature)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString('utf8')) as SecureTokenPayload;
+    if (
+      !payload ||
+      typeof payload.email !== 'string' ||
+      typeof payload.expiresAt !== 'number' ||
+      !Number.isFinite(payload.expiresAt)
+    ) {
+      return null;
+    }
+    if (Date.now() > payload.expiresAt) return null;
+    return { email: payload.email.trim().toLowerCase(), expiresAt: payload.expiresAt };
+  } catch {
+    return null;
+  }
+}
+
 export function resolveSupabaseConfig(): { url: string; key: string } | null {
   const url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
   const key = (

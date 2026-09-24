@@ -1,5 +1,5 @@
 import { Menu, Search, Plus, ArrowUpRight, ArrowDownLeft, ChevronDown, Send, Download, Eye } from 'lucide-react';
-import { Transaction } from '../../types';
+import type { Transaction } from '../../types';
 
 interface DashboardHeroProps {
   currency: string;
@@ -48,7 +48,9 @@ export function DashboardHero({
   const firstName = getFirstName(userName);
 
   const report = (() => {
-    const expenseTx = transactions.filter((t) => t.type === 'expense' || (typeof t.amount === 'number' && t.amount < 0));
+    const expenseTx = transactions.filter(
+      (t) => t.type === 'expense' || (typeof t.amount === 'number' && t.amount < 0),
+    );
     const byCat = new Map<string, number>();
     for (const t of expenseTx) {
       const cat = (t.category || 'Otros').trim() || 'Otros';
@@ -87,7 +89,12 @@ export function DashboardHero({
           </button>
           <div className="w-9 h-9 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] font-semibold text-xs flex items-center justify-center overflow-hidden border border-[var(--line)] shrink-0">
             {userAvatarUrl ? (
-              <img src={userAvatarUrl} alt={userName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img
+                src={userAvatarUrl}
+                alt={userName}
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
             ) : (
               firstName.charAt(0).toUpperCase()
             )}
@@ -112,7 +119,9 @@ export function DashboardHero({
           aria-label="Currency selector"
           onClick={onViewTransactions}
         >
-          <span className="w-5 h-5 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] grid place-items-center text-[9px] font-bold">●</span>
+          <span className="w-5 h-5 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] grid place-items-center text-[9px] font-bold">
+            ●
+          </span>
           {currency} <ChevronDown size={12} className="opacity-60" />
         </button>
 
@@ -122,18 +131,41 @@ export function DashboardHero({
             {currency}
             {aggregateActiveWealth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <p className="eyebrow !text-[10px]">Available balance</p>
+          <p className="eyebrow !text-[10px]">Liquid cash</p>
+        </div>
+
+        {/* Net worth for context beside the Liquid cash headline */}
+        <div className="flex items-center justify-center gap-2 w-full max-w-[280px]">
+          <div className="rounded-[12px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-center space-y-0.5 flex-1">
+            <p className="eyebrow !text-[8px]">Net worth</p>
+            <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
+              {currency}
+              {aggregateActiveWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </p>
+          </div>
         </div>
 
         {/* 3 pills Add / Receive / Send — like Raul + Janvis */}
         <div className="flex flex-wrap justify-center gap-2 pt-1">
-          <button type="button" onClick={onAddExpense} className="pill pill-active !py-2 !px-4 mono !text-[12px] font-semibold">
+          <button
+            type="button"
+            onClick={onAddExpense}
+            className="pill pill-active !py-2 !px-4 mono !text-[12px] font-semibold"
+          >
             <Plus size={13} strokeWidth={2.4} /> Add
           </button>
-          <button type="button" onClick={onAddIncome} className="pill !py-2 !px-4 mono !text-[12px] font-semibold bg-[var(--surface)]">
+          <button
+            type="button"
+            onClick={onAddIncome}
+            className="pill !py-2 !px-4 mono !text-[12px] font-semibold bg-[var(--surface)]"
+          >
             <Download size={13} strokeWidth={2} /> Receive
           </button>
-          <button type="button" onClick={onSend} className="pill !py-2 !px-4 mono !text-[12px] font-semibold bg-[var(--surface)]">
+          <button
+            type="button"
+            onClick={onSend}
+            className="pill !py-2 !px-4 mono !text-[12px] font-semibold bg-[var(--surface)]"
+          >
             <Send size={13} strokeWidth={2} /> Send
           </button>
         </div>
@@ -167,7 +199,11 @@ export function DashboardHero({
       <div className="card-dark p-4 sm:p-5 flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-[13px] font-bold tracking-tight text-white">Informe financiero</h3>
-          <button type="button" onClick={onViewTransactions} className="w-7 h-7 rounded-full bg-white/10 border border-white/15 grid place-items-center text-white/80 hover:bg-white/15 transition-colors">
+          <button
+            type="button"
+            onClick={onViewTransactions}
+            className="w-7 h-7 rounded-full bg-white/10 border border-white/15 grid place-items-center text-white/80 hover:bg-white/15 transition-colors"
+          >
             <Eye size={12} />
           </button>
         </div>
@@ -181,7 +217,9 @@ export function DashboardHero({
             report.map((row) => (
               <div key={row.category} className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="mono text-[10px] font-semibold tracking-wide uppercase text-white/70 truncate">{row.category}</span>
+                  <span className="mono text-[10px] font-semibold tracking-wide uppercase text-white/70 truncate">
+                    {row.category}
+                  </span>
                   <span className="mono text-[10px] font-medium tabular-nums text-white/50 shrink-0">
                     {currency}
                     {row.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}

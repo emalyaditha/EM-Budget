@@ -7,7 +7,7 @@ import {
   getInstallmentProgress,
   formatFeeBreakdown,
 } from './installments';
-import { BankCard, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
+import type { BankCard, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
 
 describe('installments', () => {
   describe('calculateInstallmentFee', () => {
@@ -32,7 +32,7 @@ describe('installments', () => {
     });
 
     it('returns 0 for unknown tenure', () => {
-      expect(calculateInstallmentFee(50000, 36 as any)).toBe(0);
+      expect(calculateInstallmentFee(50000, 36)).toBe(0);
     });
   });
 
@@ -64,7 +64,7 @@ describe('installments', () => {
 
     it('sets correct installmentId', () => {
       const schedule = generateInstallmentSchedule('inst-1', 5000, 6, '2026-09-05');
-      schedule.forEach(p => {
+      schedule.forEach((p) => {
         expect(p.installmentId).toBe('inst-1');
       });
     });
@@ -78,7 +78,7 @@ describe('installments', () => {
 
     it('initializes with pending status', () => {
       const schedule = generateInstallmentSchedule('inst-1', 5000, 6, '2026-09-05');
-      schedule.forEach(p => {
+      schedule.forEach((p) => {
         expect(p.status).toBe('pending');
         expect(p.amountPaid).toBe(0);
       });
@@ -86,7 +86,7 @@ describe('installments', () => {
 
     it('does not include id field', () => {
       const schedule = generateInstallmentSchedule('inst-1', 5000, 6, '2026-09-05');
-      schedule.forEach(p => {
+      schedule.forEach((p) => {
         expect(p).not.toHaveProperty('id');
       });
     });
@@ -101,7 +101,7 @@ describe('installments', () => {
 
     it('produces equal payments when monthlyPayment tiles the principal evenly', () => {
       const schedule = generateInstallmentSchedule('inst-1', 5000, 6, '2026-09-05', 30000);
-      schedule.forEach(p => {
+      schedule.forEach((p) => {
         expect(p.amountDue).toBe(5000);
       });
       const total = schedule.reduce((sum, p) => sum + p.amountDue, 0);
@@ -194,12 +194,63 @@ describe('installments', () => {
     };
 
     const payments: CreditCardInstallmentPayment[] = [
-      { id: 'p1', installmentId: 'inst-1', paymentNumber: 1, amountDue: 5000, amountPaid: 5000, dueDate: '2026-10-05', paidDate: '2026-10-04', status: 'paid' },
-      { id: 'p2', installmentId: 'inst-1', paymentNumber: 2, amountDue: 5000, amountPaid: 5000, dueDate: '2026-11-05', paidDate: '2026-11-03', status: 'paid' },
-      { id: 'p3', installmentId: 'inst-1', paymentNumber: 3, amountDue: 5000, amountPaid: 5000, dueDate: '2026-12-05', paidDate: '2026-12-05', status: 'paid' },
-      { id: 'p4', installmentId: 'inst-1', paymentNumber: 4, amountDue: 5000, amountPaid: 0, dueDate: '2027-01-05', status: 'pending' },
-      { id: 'p5', installmentId: 'inst-1', paymentNumber: 5, amountDue: 5000, amountPaid: 0, dueDate: '2027-02-05', status: 'pending' },
-      { id: 'p6', installmentId: 'inst-1', paymentNumber: 6, amountDue: 5000, amountPaid: 0, dueDate: '2027-03-05', status: 'pending' },
+      {
+        id: 'p1',
+        installmentId: 'inst-1',
+        paymentNumber: 1,
+        amountDue: 5000,
+        amountPaid: 5000,
+        dueDate: '2026-10-05',
+        paidDate: '2026-10-04',
+        status: 'paid',
+      },
+      {
+        id: 'p2',
+        installmentId: 'inst-1',
+        paymentNumber: 2,
+        amountDue: 5000,
+        amountPaid: 5000,
+        dueDate: '2026-11-05',
+        paidDate: '2026-11-03',
+        status: 'paid',
+      },
+      {
+        id: 'p3',
+        installmentId: 'inst-1',
+        paymentNumber: 3,
+        amountDue: 5000,
+        amountPaid: 5000,
+        dueDate: '2026-12-05',
+        paidDate: '2026-12-05',
+        status: 'paid',
+      },
+      {
+        id: 'p4',
+        installmentId: 'inst-1',
+        paymentNumber: 4,
+        amountDue: 5000,
+        amountPaid: 0,
+        dueDate: '2027-01-05',
+        status: 'pending',
+      },
+      {
+        id: 'p5',
+        installmentId: 'inst-1',
+        paymentNumber: 5,
+        amountDue: 5000,
+        amountPaid: 0,
+        dueDate: '2027-02-05',
+        status: 'pending',
+      },
+      {
+        id: 'p6',
+        installmentId: 'inst-1',
+        paymentNumber: 6,
+        amountDue: 5000,
+        amountPaid: 0,
+        dueDate: '2027-03-05',
+        status: 'pending',
+      },
     ];
 
     it('returns correct paid count', () => {
@@ -223,7 +274,7 @@ describe('installments', () => {
     });
 
     it('returns null nextDue when all paid', () => {
-      const allPaid = payments.map(p => ({ ...p, status: 'paid' as const }));
+      const allPaid = payments.map((p) => ({ ...p, status: 'paid' as const }));
       const progress = getInstallmentProgress(installment, allPaid);
       expect(progress.nextDue).toBeNull();
     });

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
-import { BankCard, CreditCardPurchase } from '../types';
+import type { BankCard, CreditCardPurchase } from '../types';
 import { formatFeeBreakdown } from '../lib/installments';
 import { Calendar, CreditCard, AlertTriangle, Check, Info } from 'lucide-react';
 
@@ -50,7 +50,10 @@ export default function InstallmentPlanModal({ isOpen, onClose, card, purchase, 
             <span className="text-xs font-medium text-[var(--ink)] block truncate">{purchase.merchant}</span>
             <span className="text-[10px] text-[var(--ink-3)]">{purchase.date}</span>
           </div>
-          <span className="mono text-sm font-bold text-[var(--ink)] shrink-0">{currency}{purchase.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+          <span className="mono text-sm font-bold text-[var(--ink)] shrink-0">
+            {currency}
+            {purchase.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          </span>
         </div>
 
         {/* Over-limit Warning */}
@@ -70,7 +73,7 @@ export default function InstallmentPlanModal({ isOpen, onClose, card, purchase, 
         <div>
           <span className="eyebrow normal-case">Select tenure</span>
           <div className="grid grid-cols-2 gap-2 mt-2">
-            {TENURE_OPTIONS.map(opt => {
+            {TENURE_OPTIONS.map((opt) => {
               const fee = formatFeeBreakdown(purchase.amount, opt.months);
               const isSelected = selectedTenure === opt.months;
               return (
@@ -91,7 +94,8 @@ export default function InstallmentPlanModal({ isOpen, onClose, card, purchase, 
                   <span className="text-[10px] text-[var(--ink-3)] block mt-0.5">{opt.description}</span>
                   {fee.processingFee > 0 && (
                     <span className="mono text-[10px] text-[var(--danger)] block mt-1">
-                      +{currency}{fee.processingFee.toLocaleString()} fee
+                      +{currency}
+                      {fee.processingFee.toLocaleString()} fee
                     </span>
                   )}
                 </button>
@@ -108,21 +112,32 @@ export default function InstallmentPlanModal({ isOpen, onClose, card, purchase, 
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-[var(--ink-3)]">Purchase amount</span>
-            <span className="mono font-medium text-[var(--ink)]">{currency}{purchase.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            <span className="mono font-medium text-[var(--ink)]">
+              {currency}
+              {purchase.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-[var(--ink-3)]">Processing fee ({breakdown.feePercent}%)</span>
-            <span className={`mono font-medium ${breakdown.processingFee > 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
+            <span
+              className={`mono font-medium ${breakdown.processingFee > 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}
+            >
               {breakdown.processingFee > 0 ? `+${currency}${breakdown.processingFee.toLocaleString()}` : 'FREE'}
             </span>
           </div>
           <div className="border-t border-[var(--line)] pt-2 flex justify-between text-xs">
             <span className="font-medium text-[var(--ink)]">Total cost</span>
-            <span className="mono font-bold text-[var(--ink)]">{currency}{breakdown.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            <span className="mono font-bold text-[var(--ink)]">
+              {currency}
+              {breakdown.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-[var(--ink-3)]">Monthly payment</span>
-            <span className="mono font-bold text-[var(--ink)]">{currency}{breakdown.monthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            <span className="mono font-bold text-[var(--ink)]">
+              {currency}
+              {breakdown.monthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-[var(--ink-3)] flex items-center gap-1">
@@ -137,12 +152,13 @@ export default function InstallmentPlanModal({ isOpen, onClose, card, purchase, 
           <input
             type="checkbox"
             checked={confirmed}
-            onChange={e => setConfirmed(e.target.checked)}
+            onChange={(e) => setConfirmed(e.target.checked)}
             disabled={isOverLimit}
             className="mt-0.5 accent-[var(--ink)]"
           />
           <span className="text-[11px] text-[var(--ink-3)]">
-            I understand the processing fee will be charged upfront and monthly payments are fixed for {selectedTenure} months.
+            I understand the processing fee will be charged upfront and monthly payments are fixed for {selectedTenure}{' '}
+            months.
           </span>
         </label>
 

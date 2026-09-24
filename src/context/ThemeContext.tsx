@@ -1,4 +1,6 @@
-﻿import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+﻿import type { ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { logger } from '../lib/logger';
 
 type Theme = 'light' | 'dark';
 
@@ -15,7 +17,10 @@ function getInitialTheme(): Theme {
   try {
     const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved as Theme;
-  } catch (e) { console.warn('getInitialTheme failed', e); }
+  } catch (e) {
+    logger.warn('getInitialTheme failed', e);
+    return 'dark';
+  }
   if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
     return 'dark';
   }
@@ -33,7 +38,9 @@ function applyTheme(theme: Theme) {
   try {
     localStorage.setItem(STORAGE_KEY, theme);
     localStorage.setItem('theme', theme);
-  } catch (e) { console.warn('applyTheme storage failed', e); }
+  } catch (e) {
+    logger.warn('applyTheme storage failed', e);
+  }
 }
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
@@ -51,13 +58,20 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
         const hasExplicit = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('theme');
         if (hasExplicit) return;
         setThemeState(e.matches ? 'dark' : 'light');
-      } catch (e) { console.warn('onChange failed', e); }
+      } catch (e) {
+        logger.warn('onChange failed', e);
+      }
     };
-    if ((mql as any).addEventListener) (mql as any).addEventListener('change', onChange);
-    else (mql as any).addListener?.(onChange);
+    // Legacy Safari (< 9) exposes addListener/removeListener instead of addEventListener.
+    const legacyMql = mql as MediaQueryList & {
+      addListener?: (callback: (e: MediaQueryListEvent) => void) => void;
+      removeListener?: (callback: (e: MediaQueryListEvent) => void) => void;
+    };
+    if (legacyMql.addEventListener) legacyMql.addEventListener('change', onChange);
+    else legacyMql.addListener?.(onChange);
     return () => {
-      if ((mql as any).removeEventListener) (mql as any).removeEventListener('change', onChange);
-      else (mql as any).removeListener?.(onChange);
+      if (legacyMql.removeEventListener) legacyMql.removeEventListener('change', onChange);
+      else legacyMql.removeListener?.(onChange);
     };
   }, []);
 
@@ -67,11 +81,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
   const setTheme = useCallback((next: Theme) => setThemeState(next), []);
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>{children}</ThemeContext.Provider>;
 };
 
 export const useTheme = () => {
