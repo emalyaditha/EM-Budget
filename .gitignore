@@ -4,6 +4,7 @@ dist/
 coverage/
 .DS_Store
 *.log
+*.pid
 server.err
 server.out
 bun.lock
@@ -25,3 +26,6 @@ backups/
 # Vercel serverless build output
 api/index.js.map
 .vercel
+
+# SDD plan execution workspace (superpowers)
+.superpowers/

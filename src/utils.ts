@@ -1,4 +1,4 @@
-import {
+import type {
   AppState,
   Transaction,
   CashAccount,
@@ -12,6 +12,7 @@ import {
   Expense,
 } from './types';
 import { downloadBlob, escapeCsvRow } from './lib/download';
+import { logger } from './lib/logger';
 
 // Local-timezone "YYYY-MM-DD" date for today. Replaces the widespread
 // `new Date().toISOString().split('T')[0]` pattern, which returns the UTC date
@@ -21,8 +22,6 @@ export function todayLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-
-
 const STORAGE_KEY = 'cashflow_manager_state_v1';
 
 // Synchronize state with offline-first client-side storage
@@ -30,7 +29,7 @@ export function saveStateToStorage(state: AppState) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
-    console.error('Failed to preserve financial state offline:', error);
+    logger.error('Failed to preserve financial state offline:', error);
   }
 }
 
@@ -39,14 +38,13 @@ export function loadStateFromStorage(defaultState: AppState): AppState {
     const serialized = localStorage.getItem(STORAGE_KEY);
     if (!serialized) return defaultState;
     const parsed = JSON.parse(serialized);
-    
+
     // Check if the persisted data is the old default seed test data (containing specific seed IDs)
-    const containsOldSeedData = 
-      (parsed.cashAccounts && parsed.cashAccounts.some((a: any) => a.id === 'cash-wallet')) ||
-      (parsed.cards && parsed.cards.some((c: any) => c.id === 'card-hnb'));
+    const containsOldSeedData =
+      (parsed.cashAccounts && parsed.cashAccounts.some((a: { id?: string }) => a.id === 'cash-wallet')) ||
+      (parsed.cards && parsed.cards.some((c: { id?: string }) => c.id === 'card-hnb'));
 
     if (containsOldSeedData) {
-      if (import.meta.env.DEV) console.log('🧹 Old test seed data detected. Resetting local database to clean state list.');
       localStorage.removeItem(STORAGE_KEY);
       return defaultState;
     }
@@ -70,7 +68,7 @@ export function loadStateFromStorage(defaultState: AppState): AppState {
       savingsGoals: parsed.savingsGoals || defaultState.savingsGoals || [],
     };
   } catch (error) {
-    console.error('Failed to retrieve financial state, reverting to genesis defaults:', error);
+    logger.error('Failed to retrieve financial state, reverting to genesis defaults:', error);
     return defaultState;
   }
 }
@@ -81,7 +79,7 @@ export function savePreRestoreBackup(state: AppState) {
   try {
     localStorage.setItem(RESTORE_BACKUP_KEY, JSON.stringify(state));
   } catch (error) {
-    console.error('Failed to preserve pre-restore backup:', error);
+    logger.error('Failed to preserve pre-restore backup:', error);
   }
 }
 
@@ -101,31 +99,31 @@ export function exportStateAsJSON(state: AppState, userEmail?: string) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { pinCode, ...sanitizedState } = state;
   const payload = {
-    version: "EM_BUDGET_SECURE_EX_V1",
-    exportedBy: userEmail || "Anonymous",
+    version: 'EM_BUDGET_SECURE_EX_V1',
+    exportedBy: userEmail || 'Anonymous',
     exportedAt: new Date().toISOString(),
-    data: sanitizedState
+    data: sanitizedState,
   };
   const stamp = todayLocal();
   const emailPrefix = userEmail ? `${userEmail.split('@')[0]}_` : '';
   downloadBlob(
     JSON.stringify(payload, null, 2),
     `em_budget_${emailPrefix}backup_${stamp}.json`,
-    'application/json;charset=utf-8'
+    'application/json;charset=utf-8',
   );
 }
 
 // Export Transactions to CSV / Excel spreadsheet
 export function exportTransactionsToCSV(transactions: Transaction[], currency: string = 'Rs.') {
   const headers = ['Transaction ID', 'Type', 'Title', 'Amount', 'Date', 'Category', 'Paid From'];
-  const rows = transactions.map(t => [
+  const rows = transactions.map((t) => [
     t.id,
     t.type.toUpperCase(),
     t.title,
     `${currency} ${t.amount}`,
     t.date,
     t.category,
-    t.accountId ? `${t.accountType === 'card' ? 'Card' : 'Cash Account'}: ${t.accountId}` : 'N/A'
+    t.accountId ? `${t.accountType === 'card' ? 'Card' : 'Cash Account'}: ${t.accountId}` : 'N/A',
   ]);
 
   const csvContent = [escapeCsvRow(headers), ...rows.map(escapeCsvRow)].join('\n');
@@ -145,7 +143,7 @@ export function exportCashAccountsCSV(accounts: CashAccount[], currency: string 
   exportCollectionAsCSV(
     'cash_accounts',
     ['Account ID', 'Name', 'Balance'],
-    accounts.map(a => [a.id, a.name, `${currency} ${a.balance}`])
+    accounts.map((a) => [a.id, a.name, `${currency} ${a.balance}`]),
   );
 }
 
@@ -153,7 +151,7 @@ export function exportCardsCSV(cards: BankCard[], currency: string = 'Rs.') {
   exportCollectionAsCSV(
     'cards',
     ['Card ID', 'Card Name', 'Bank', 'Type', 'Current Balance', 'Limit', 'Status'],
-    cards.map(c => [
+    cards.map((c) => [
       c.id,
       c.cardName,
       c.bankName,
@@ -161,7 +159,7 @@ export function exportCardsCSV(cards: BankCard[], currency: string = 'Rs.') {
       `${currency} ${c.currentBalance}`,
       c.limit != null ? `${currency} ${c.limit}` : '',
       c.isCanceled ? 'Cancelled' : c.isFrozen ? 'Frozen' : 'Active',
-    ])
+    ]),
   );
 }
 
@@ -169,14 +167,14 @@ export function exportDebtsCSV(debts: Debt[], currency: string = 'Rs.') {
   exportCollectionAsCSV(
     'debts',
     ['Debt ID', 'Source', 'Total', 'Remaining', 'Due Date', 'Status'],
-    debts.map(d => [
+    debts.map((d) => [
       d.id,
       d.debtSource,
       `${currency} ${d.totalAmount}`,
       `${currency} ${d.remainingAmount}`,
       d.dueDate,
       d.status || 'Active',
-    ])
+    ]),
   );
 }
 
@@ -184,14 +182,14 @@ export function exportLoansCSV(loans: LoanGiven[], currency: string = 'Rs.') {
   exportCollectionAsCSV(
     'loans_given',
     ['Loan ID', 'Borrower', 'Total', 'Remaining', 'Date Given', 'Status'],
-    loans.map(l => [
+    loans.map((l) => [
       l.id,
       l.borrowerName,
       `${currency} ${l.totalAmount}`,
       `${currency} ${l.remainingAmount}`,
       l.dateGiven,
       l.status,
-    ])
+    ]),
   );
 }
 
@@ -199,7 +197,7 @@ export function exportSubscriptionsCSV(subs: Subscription[], currency: string = 
   exportCollectionAsCSV(
     'subscriptions',
     ['Plan ID', 'Name', 'Amount', 'Billing Cycle', 'Due Date', 'Status'],
-    subs.map(s => [s.id, s.name, `${currency} ${s.amount}`, s.billingCycle, s.dueDate, s.status])
+    subs.map((s) => [s.id, s.name, `${currency} ${s.amount}`, s.billingCycle, s.dueDate, s.status]),
   );
 }
 
@@ -207,13 +205,13 @@ export function exportBudgetsCSV(budgets: Budget[], currency: string = 'Rs.') {
   exportCollectionAsCSV(
     'budgets',
     ['Budget ID', 'Category', 'Limit', 'Spent', 'Remaining'],
-    budgets.map(b => [
+    budgets.map((b) => [
       b.id,
       b.category,
       `${currency} ${b.limit}`,
       `${currency} ${b.spent}`,
       `${currency} ${Math.max(0, b.limit - b.spent)}`,
-    ])
+    ]),
   );
 }
 
@@ -221,14 +219,14 @@ export function exportGoalsCSV(goals: SavingsGoal[], currency: string = 'Rs.') {
   exportCollectionAsCSV(
     'goals',
     ['Goal ID', 'Name', 'Target', 'Current', 'Target Date', 'Progress %'],
-    goals.map(g => [
+    goals.map((g) => [
       g.id,
       g.name,
       `${currency} ${g.target}`,
       `${currency} ${g.current}`,
       g.targetDate,
       g.target > 0 ? `${Math.round((g.current / g.target) * 100)}%` : '',
-    ])
+    ]),
   );
 }
 
@@ -236,7 +234,7 @@ export function exportIncomesCSV(incomes: Income[], currency: string = 'Rs.') {
   exportCollectionAsCSV(
     'incomes',
     ['Income ID', 'Source', 'Category', 'Amount', 'Date'],
-    incomes.map(i => [i.id, i.source, i.category, `${currency} ${i.amount}`, i.date])
+    incomes.map((i) => [i.id, i.source, i.category, `${currency} ${i.amount}`, i.date]),
   );
 }
 
@@ -244,25 +242,23 @@ export function exportExpensesCSV(expenses: Expense[], currency: string = 'Rs.')
   exportCollectionAsCSV(
     'expenses',
     ['Expense ID', 'Title', 'Category', 'Amount', 'Date'],
-    expenses.map(e => [e.id, e.title, e.category, `${currency} ${e.amount}`, e.date])
+    expenses.map((e) => [e.id, e.title, e.category, `${currency} ${e.amount}`, e.date]),
   );
 }
 
 // Standard category colors configuration
 export const EXPENSE_COLORS: Record<string, string> = {
-  Food: '#F59E0B',        // Amber
-  Transport: '#3B82F6',   // Blue
-  Shopping: '#EC4899',    // Pink
-  Utilities: '#A855F7',   // Purple
-  Rent: '#EF4444',        // Red
+  Food: '#F59E0B', // Amber
+  Transport: '#3B82F6', // Blue
+  Shopping: '#EC4899', // Pink
+  Utilities: '#A855F7', // Purple
+  Rent: '#EF4444', // Red
   Entertainment: '#14B8A6', // Teal
-  Medical: '#10B981',     // Green
-  Education: '#6366F1',   // Indigo
+  Medical: '#10B981', // Green
+  Education: '#6366F1', // Indigo
   'Bank Charges & Interest': '#E11D48', // Crimson/Rose
-  Other: '#6B7280',       // Gray
+  Other: '#6B7280', // Gray
 };
-
-
 
 // Canonical category lists. These are the single source of truth for category
 // <select>s across the app. They must match the zod enums in
@@ -313,21 +309,24 @@ export function calculateNetWorth(state: Partial<AppState>): NetWorthBreakdown {
   const loansGiven = state.loansGiven || [];
 
   const cash = cashAccounts.reduce((sum, c) => sum + c.balance, 0);
-  
+
   const debitCards = cards
-    .filter(c => !c.isCanceled && c.cardType === 'Debit')
+    .filter((c) => !c.isCanceled && c.cardType === 'Debit')
     .reduce((sum, c) => sum + (c.currentBalance - (Number(c.lockedAmount) || 0)), 0);
 
   const creditCardLiabilities = cards
-    .filter(c => !c.isCanceled && c.cardType === 'Credit')
+    .filter((c) => !c.isCanceled && c.cardType === 'Credit')
     .reduce((sum, c) => sum + (c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0), 0);
 
   const creditCardAssets = cards
-    .filter(c => !c.isCanceled && c.cardType === 'Credit')
+    .filter((c) => !c.isCanceled && c.cardType === 'Credit')
     .reduce((sum, c) => sum + (c.currentBalance > 0 ? c.currentBalance : 0), 0);
 
   const debtsAmount = debts.reduce((sum, d) => sum + d.remainingAmount, 0);
-  const loansGivenAmount = loansGiven.reduce((sum, l) => sum + (l.remainingAmount !== undefined ? l.remainingAmount : l.totalAmount), 0);
+  const loansGivenAmount = loansGiven.reduce(
+    (sum, l) => sum + (l.remainingAmount !== undefined ? l.remainingAmount : l.totalAmount),
+    0,
+  );
 
   const netWorth = cash + debitCards + creditCardAssets - creditCardLiabilities - debtsAmount + loansGivenAmount;
 
@@ -338,6 +337,6 @@ export function calculateNetWorth(state: Partial<AppState>): NetWorthBreakdown {
     creditCardLiabilities,
     debts: debtsAmount,
     loansGiven: loansGivenAmount,
-    netWorth
+    netWorth,
   };
 }

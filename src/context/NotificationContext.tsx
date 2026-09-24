@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle, AlertCircle, Info, XCircle, X } from 'lucide-react';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -18,7 +19,7 @@ interface ConfirmOptions {
 }
 
 interface NotificationContextType {
-  showToast: (first: any, second?: any) => void;
+  showToast: (first: string | ToastType, second?: string | ToastType) => void;
   showConfirm: (options: ConfirmOptions) => void;
 }
 
@@ -28,7 +29,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [confirm, setConfirm] = useState<ConfirmOptions | null>(null);
 
-  const showToast = (first: any, second?: any) => {
+  const showToast = (first: string | ToastType, second?: string | ToastType) => {
     let type: ToastType = 'info';
     let message = '';
     const validTypes: ToastType[] = ['success', 'error', 'warning', 'info'];
@@ -56,14 +57,21 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     setConfirm(options);
   };
 
-  const confirmDialogRef = useFocusTrap<HTMLDivElement>(!!confirm, () => { confirm?.onCancel?.(); setConfirm(null); });
+  const confirmDialogRef = useFocusTrap<HTMLDivElement>(!!confirm, () => {
+    confirm?.onCancel?.();
+    setConfirm(null);
+  });
 
   return (
     <NotificationContext.Provider value={{ showToast, showConfirm }}>
       {children}
-      
+
       {/* Toast Manager */}
-      <div aria-live="polite" aria-atomic="true" className="fixed top-4 left-4 right-4 md:left-auto md:right-4 z-[9999] flex flex-col gap-2 items-center md:items-end">
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        className="fixed top-4 left-4 right-4 md:left-auto md:right-4 z-[9999] flex flex-col gap-2 items-center md:items-end"
+      >
         <AnimatePresence>
           {toasts.map((toast) => (
             <motion.div
@@ -73,17 +81,27 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className={`p-4 rounded-xl shadow-lg border flex items-center gap-3 backdrop-blur-sm w-full max-w-[300px]
-                ${toast.type === 'success' ? 'bg-[var(--surface)] border-emerald-500/30 text-emerald-700 dark:text-emerald-100' : 
-                  toast.type === 'error' ? 'bg-[var(--surface)] border-[var(--danger)]/30 text-[var(--danger)]' :
-                  toast.type === 'warning' ? 'bg-[var(--surface)] border-amber-500/30 text-amber-700 dark:text-amber-100' :
-                  'bg-[var(--surface)] border-[var(--line)] text-[var(--ink)]'}`}
+                ${
+                  toast.type === 'success'
+                    ? 'bg-[var(--surface)] border-emerald-500/30 text-emerald-700 dark:text-emerald-100'
+                    : toast.type === 'error'
+                      ? 'bg-[var(--surface)] border-[var(--danger)]/30 text-[var(--danger)]'
+                      : toast.type === 'warning'
+                        ? 'bg-[var(--surface)] border-amber-500/30 text-amber-700 dark:text-amber-100'
+                        : 'bg-[var(--surface)] border-[var(--line)] text-[var(--ink)]'
+                }`}
             >
               {toast.type === 'success' && <CheckCircle size={20} className="text-emerald-500" />}
               {toast.type === 'error' && <XCircle size={20} className="text-[var(--danger)]" />}
               {toast.type === 'warning' && <AlertCircle size={20} className="text-amber-500" />}
               {toast.type === 'info' && <Info size={20} className="text-[var(--ink-2)]" />}
               <p className="text-sm font-medium">{toast.message}</p>
-              <button className="ml-auto text-[var(--ink-2)] hover:text-[var(--ink)]" onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}><X size={16} /></button>
+              <button
+                className="ml-auto text-[var(--ink-2)] hover:text-[var(--ink)]"
+                onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+              >
+                <X size={16} />
+              </button>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -92,7 +110,11 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       {/* Confirmation Modal */}
       <AnimatePresence>
         {confirm && (
-          <div ref={confirmDialogRef} tabIndex={-1} className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div
+            ref={confirmDialogRef}
+            tabIndex={-1}
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
             <motion.div
               role="dialog"
               aria-modal="true"
@@ -107,13 +129,23 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
               <p className="text-[var(--ink-2)] text-sm mb-6">{confirm.message}</p>
               <div className="flex gap-3">
                 <button
-                  onClick={() => { confirm.onCancel?.(); setConfirm(null); }}
+                  onClick={() => {
+                    confirm.onCancel?.();
+                    setConfirm(null);
+                  }}
                   className="btn-ghost flex-1"
-                >Cancel</button>
+                >
+                  Cancel
+                </button>
                 <button
-                  onClick={() => { confirm.onConfirm(); setConfirm(null); }}
+                  onClick={() => {
+                    confirm.onConfirm();
+                    setConfirm(null);
+                  }}
                   className="btn-primary flex-1"
-                >Confirm</button>
+                >
+                  Confirm
+                </button>
               </div>
             </motion.div>
           </div>

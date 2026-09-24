@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+api/index.js
+.env*
+backups
+test-results
+playwright-report
+graphify-out
+*.log
+package-lock.json
+supabase/.temp

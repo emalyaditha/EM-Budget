@@ -13,55 +13,82 @@ const CategoryExpenseSchema = z.enum([
   'Insurance',
   'Loan',
   'Bank Charges & Interest',
-  'Other'
+  'Other',
 ]);
 
 // 1. CashAccount Schema
 export const CashAccountSchema = z.object({
   id: z.string().min(1, 'ID is required'),
-  name: z.string()
+  name: z
+    .string()
     .min(3, 'Account name must be at least 3 characters')
     .max(50, 'Account name must be under 50 characters')
-    .refine(val => !/[<>{}]/.test(val), {
-      message: 'Account name contains illegal HTML characters'
+    .refine((val) => !/[<>{}]/.test(val), {
+      message: 'Account name contains illegal HTML characters',
     }),
-  balance: z.number().finite().default(0)
+  balance: z.number().finite().default(0),
 });
 
 // 2. BankCard Schema
 export const BankCardSchema = z.object({
   id: z.string().min(1, 'ID is required'),
-  cardName: z.string()
+  cardName: z
+    .string()
     .min(3, 'Card name must be at least 3 characters')
     .max(40, 'Card name must be under 40 characters')
-    .refine(val => !/[<>{}]/.test(val), {
-      message: 'Card name contains illegal HTML characters'
+    .refine((val) => !/[<>{}]/.test(val), {
+      message: 'Card name contains illegal HTML characters',
     }),
-  bankName: z.string()
+  bankName: z
+    .string()
     .min(2, 'Bank name must be at least 2 characters')
     .max(50, 'Bank name must be under 50 characters')
-    .refine(val => !/[<>{}]/.test(val), {
-      message: 'Bank name contains illegal HTML characters'
+    .refine((val) => !/[<>{}]/.test(val), {
+      message: 'Bank name contains illegal HTML characters',
     }),
   cardType: z.enum(['Debit', 'Credit']),
   currentBalance: z.number().finite(),
   limit: z.number().finite().nonnegative('Limit must be greater than or equal to 0').optional(),
   isLimitLocked: z.boolean().optional().default(true),
-  cardNumber: z.string().regex(/^(\*\*\*\* \d{4}|[•*]{4} [•*]{4} [•*]{4} \d{4}|\d{16})$/, 'Card number must be 16 digits or masked standard (**** 1234)').optional(),
+  cardNumber: z
+    .string()
+    .regex(
+      /^(\*\*\*\* \d{4}|[•*]{4} [•*]{4} [•*]{4} \d{4}|\d{16})$/,
+      'Card number must be 16 digits or masked standard (**** 1234)',
+    )
+    .optional(),
   isCanceled: z.boolean().optional().default(false),
   cardTheme: z.string().optional().default('obsidian'),
   isFrozen: z.boolean().optional().default(false),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/, 'Invalid due date (must be YYYY-MM-DD)').optional(),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}/, 'Invalid due date (must be YYYY-MM-DD)')
+    .optional(),
   minPayment: z.number().finite().nonnegative('Minimum payment cannot be negative').optional(),
   apr: z.number().finite().nonnegative('APR cannot be negative').optional(),
-  lastPaymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/, 'Invalid last payment date (must be YYYY-MM-DD)').optional(),
-  statementCloseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/, 'Invalid statement close date (must be YYYY-MM-DD)').optional()
+  lastPaymentDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}/, 'Invalid last payment date (must be YYYY-MM-DD)')
+    .optional(),
+  statementCloseDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}/, 'Invalid statement close date (must be YYYY-MM-DD)')
+    .optional(),
 });
 
 // 3. Transaction Schema
 export const TransactionSchema = z.object({
   id: z.string().min(1, 'ID is required'),
-  type: z.enum(['income', 'expense', 'debt_payment', 'deposit', 'withdrawal', 'transfer', 'credit_card_charge', 'financing']),
+  type: z.enum([
+    'income',
+    'expense',
+    'debt_payment',
+    'deposit',
+    'withdrawal',
+    'transfer',
+    'credit_card_charge',
+    'financing',
+  ]),
   title: z.string().min(3, 'Title is too short').max(100, 'Title is too long'),
   amount: z.number().finite().positive('Transaction amount must be a positive number'),
   charge: z.number().finite().nonnegative('Charge cannot be negative').optional(),
@@ -71,7 +98,7 @@ export const TransactionSchema = z.object({
   accountType: z.enum(['cash', 'card']).optional(),
   targetAccountId: z.string().optional(),
   targetAccountType: z.enum(['cash', 'card']).optional(),
-  referenceId: z.string().optional()
+  referenceId: z.string().optional(),
 });
 
 // 4. Debt & Payments Schemas
@@ -81,7 +108,7 @@ const DebtPaymentSchema = z.object({
   amount: z.number().finite().positive('Payment must be positive'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}/),
   paidFromId: z.string().min(1),
-  paidFromType: z.enum(['cash', 'card'])
+  paidFromType: z.enum(['cash', 'card']),
 });
 
 export const DebtSchema = z.object({
@@ -95,7 +122,7 @@ export const DebtSchema = z.object({
   accountId: z.string().optional(),
   accountType: z.enum(['cash', 'card']).optional(),
   accountName: z.string().optional(),
-  status: z.enum(['Active', 'Closed', 'Fully Repaid']).optional().default('Active')
+  status: z.enum(['Active', 'Closed', 'Fully Repaid']).optional().default('Active'),
 });
 
 // 5. Subscription Schema
@@ -109,8 +136,11 @@ export const SubscriptionSchema = z.object({
   status: z.enum(['Active', 'Paused', 'Cancelled']).default('Active'),
   paymentMethodId: z.string().min(1).optional(),
   paymentMethodType: z.enum(['cash', 'card']).optional(),
-  lastPaidDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/).optional(),
-  instanceType: z.string().optional()
+  lastPaidDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}/)
+    .optional(),
+  instanceType: z.string().optional(),
 });
 
 // 6. Restore/Backup payload schemas (B4)
@@ -133,30 +163,26 @@ const RestoreCollectionFieldsSchema = z.object({
   subscriptions: CollectionListSchema.optional(),
   loansGiven: CollectionListSchema.optional(),
   budgets: CollectionListSchema.optional(),
-  savingsGoals: CollectionListSchema.optional()
+  savingsGoals: CollectionListSchema.optional(),
 });
 
 export const BareRestoreStateSchema = RestoreCollectionFieldsSchema.extend({
   cashAccounts: CollectionListSchema,
   cards: CollectionListSchema,
-  transactions: CollectionListSchema
+  transactions: CollectionListSchema,
 });
 
 export const LedgerExportV1Schema = z.object({
   version: z.literal('EM_BUDGET_SECURE_EX_V1'),
   exportedBy: z.string().optional(),
   exportedAt: z.string().optional(),
-  data: RestoreCollectionFieldsSchema
+  data: RestoreCollectionFieldsSchema,
 });
 
-export const LedgerRestorePayloadSchema = z.union([
-  LedgerExportV1Schema,
-  BareRestoreStateSchema
-]);
+export const LedgerRestorePayloadSchema = z.union([LedgerExportV1Schema, BareRestoreStateSchema]);
 
-type ValidationResult<T> = 
-  | { success: true; data: T; error?: undefined }
-  | { success: false; error: string; data?: undefined };
+type ValidationResult<T> =
+  { success: true; data: T; error?: undefined } | { success: false; error: string; data?: undefined };
 
 // Helper function to safely run verification and format errors cleanly
 export function validateData<T>(schema: z.Schema<T>, data: unknown): ValidationResult<T> {
@@ -164,7 +190,9 @@ export function validateData<T>(schema: z.Schema<T>, data: unknown): ValidationR
   if (result.success) {
     return { success: true, data: result.data as T };
   } else {
-    const formattedError = result.error.issues.map(err => `${err.path.join('.') || 'Root'}: ${err.message}`).join('; ');
+    const formattedError = result.error.issues
+      .map((err) => `${err.path.join('.') || 'Root'}: ${err.message}`)
+      .join('; ');
     return { success: false, error: formattedError };
   }
 }

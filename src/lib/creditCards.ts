@@ -7,7 +7,7 @@
  *     exceeds the Credit Limit, when the Outstanding is over the limit,
  * with a standing-order floor of Rs. 250.
  */
-import { BankCard, Transaction } from '../types';
+import type { BankCard, Transaction } from '../types';
 import { addMoney, subtractMoney, sumMoney } from './money';
 
 function isLeapYear(year: number): boolean {
@@ -169,14 +169,15 @@ export function paymentsInCycle(
 
   return sumMoney(
     (transactions || [])
-      .filter(t =>
-        t.type === 'debt_payment' &&
-        t.targetAccountId === cardId &&
-        t.targetAccountType === 'card' &&
-        t.date >= windowStart &&
-        t.date <= dueDate
+      .filter(
+        (t) =>
+          t.type === 'debt_payment' &&
+          t.targetAccountId === cardId &&
+          t.targetAccountType === 'card' &&
+          t.date >= windowStart &&
+          t.date <= dueDate,
       )
-      .map(t => t.amount)
+      .map((t) => t.amount),
   );
 }
 
@@ -187,12 +188,12 @@ export function paymentsInCycle(
  */
 function hasDeductionPayment(transactions: Transaction[], cardId: string, cycleEnd: string): boolean {
   return (transactions || []).some(
-    t =>
+    (t) =>
       t.type === 'debt_payment' &&
       t.targetAccountId === cardId &&
       t.targetAccountType === 'card' &&
       t.date === cycleEnd &&
-      t.amount > 0
+      t.amount > 0,
   );
 }
 
@@ -259,7 +260,7 @@ export function latePaymentFee(minPayment?: number): number {
 export function maybeRollCard(
   card: BankCard,
   _transactions: Transaction[],
-  amount: number
+  amount: number,
 ): { dueDate?: string; minPayment?: number } {
   if (!card.dueDate) return {};
   const newBalance = addMoney(card.currentBalance, amount);
@@ -307,7 +308,7 @@ interface CycleRolloverResult {
 export function runCycleRollover(
   card: BankCard,
   transactions: Transaction[],
-  today: string
+  today: string,
 ): CycleRolloverResult | undefined {
   if (!card.dueDate) return undefined;
   const cycleEnd = deductionDate(card.dueDate);
@@ -324,16 +325,17 @@ export function runCycleRollover(
   // deduction day (the 15th) is the bank's automatic debit and satisfies the
   // minimum regardless of the window.
   const cyclePayments = paymentsInCycle(transactions, card.id, card.dueDate, anchor);
+  const minPayment = card.minPayment;
   const minOk =
-    !card.minPayment ||
-    card.minPayment <= 0 ||
-    cyclePayments >= card.minPayment ||
+    !minPayment ||
+    minPayment <= 0 ||
+    cyclePayments >= minPayment ||
     hasDeductionPayment(transactions, card.id, cycleEnd);
 
   const charges: CycleChargeDraft[] = [];
 
   const cycleDays = daysBetween(cycleWindowStart(anchor), anchor);
-  const interest = interestForCycle(card.currentBalance, card.apr, cycleDays);
+  const interest = interestForCycle(card.currentBalance, card.apr ?? 0, cycleDays);
   if (outstanding > 0 && interest > 0) {
     charges.push({
       type: 'Interest Charge',
@@ -344,20 +346,20 @@ export function runCycleRollover(
     });
   }
 
-  if (!minOk && outstanding > 0) {
-    const fee = latePaymentFee(card.minPayment);
+  if (!minOk && outstanding > 0 && minPayment !== undefined) {
+    const fee = latePaymentFee(minPayment);
     if (fee > 0) {
       charges.push({
         type: 'Late Payment Fee',
         name: 'Late Payment Fee',
         amount: fee,
         appliedDate: cycleEnd,
-        description: `Pays to ${cycleEnd}: minimum of ${card.minPayment.toLocaleString()} not paid`,
+        description: `Pays to ${cycleEnd}: minimum of ${minPayment.toLocaleString()} not paid`,
       });
     }
   }
 
-  const chargeTotal = sumMoney(charges.map(c => c.amount));
+  const chargeTotal = sumMoney(charges.map((c) => c.amount));
   const newBalance = subtractMoney(card.currentBalance, chargeTotal);
 
   if (newBalance >= 0) {

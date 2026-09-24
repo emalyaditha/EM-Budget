@@ -15,7 +15,7 @@ export function toMinorUnits(amount: number | string | null | undefined): number
  * to a standard decimal string representation in major units (e.g. "19.99" or "0.00").
  */
 export function toMajorUnits(cents: number | null | undefined): string {
-  if (cents === null || cents === undefined || isNaN(cents)) return "0.00";
+  if (cents === null || cents === undefined || isNaN(cents)) return '0.00';
   return (cents / 100).toFixed(2);
 }
 
@@ -39,4 +39,3 @@ export function compareMoney(a: number, b: number): number {
 export function multiplyMoney(amount: number, factor: number): number {
   return Math.round(toMinorUnits(amount) * factor) / 100;
 }
-

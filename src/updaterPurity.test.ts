@@ -76,7 +76,7 @@ function findClosingBrace(source: string, openIndex: number): number {
 
 function updaterBodies(source: string): string[] {
   const bodies: string[] = [];
-  const re = /updateState(?:Ref\.current)?\(\s*prev\s*=>\s*\{/g;
+  const re = /updateState(?:Ref\.current)?\(\s*\(?prev\)?\s*=>\s*\{/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(source)) !== null) {
     const openBrace = source.indexOf('{', match.index);
@@ -92,9 +92,7 @@ describe('updateState updater purity (B5)', () => {
   it('never calls showToast inside an updateState updater', () => {
     const bodies = updaterBodies(appSource);
     expect(bodies.length).toBeGreaterThan(0);
-    const offenders = bodies.filter(
-      body => body.includes('showToast(') || body.includes('showToastRef.current(')
-    );
+    const offenders = bodies.filter((body) => body.includes('showToast(') || body.includes('showToastRef.current('));
     expect(offenders).toEqual([]);
   });
 });

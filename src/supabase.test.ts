@@ -1,31 +1,61 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { Mock } from 'vitest';
 
 // ─── Mocks (must be declared before imports that use them) ───────────────────
 
 // Use vi.hoisted so the mock factory can reference it after hoisting
+type MockFn = ReturnType<typeof vi.fn>;
+interface MockChain {
+  select: MockFn;
+  eq: MockFn;
+  order: MockFn;
+  limit: MockFn;
+  maybeSingle: MockFn;
+  upsert: MockFn;
+  delete: MockFn;
+  in: MockFn;
+  update: MockFn;
+  csv: MockFn;
+  then: (resolve: (value: { data: unknown[]; error: null }) => void) => void;
+}
+type MockSupabaseClient = { from: MockFn; rpc: MockFn };
+
 const { mockCreateClient, createChain } = vi.hoisted(() => {
   // Chainable query builder
-  function createChain() {
-    const chain: any = {};
-    chain.select = vi.fn().mockReturnValue(chain);
-    chain.eq = vi.fn().mockReturnValue(chain);
-    chain.order = vi.fn().mockReturnValue(chain);
-    chain.limit = vi.fn().mockReturnValue(chain);
-    chain.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-    chain.upsert = vi.fn().mockResolvedValue({ data: null, error: null });
-    chain.delete = vi.fn().mockReturnValue(chain);
-    chain.in = vi.fn().mockResolvedValue({ data: null, error: null });
-    chain.update = vi.fn().mockReturnValue(chain);
-    chain.csv = vi.fn().mockResolvedValue({ data: '', error: null });
-    chain.then = (resolve: any) => resolve({ data: [], error: null });
+  function createChain(): MockChain {
+    const chain: MockChain = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      order: vi.fn(),
+      limit: vi.fn(),
+      maybeSingle: vi.fn(),
+      upsert: vi.fn(),
+      delete: vi.fn(),
+      in: vi.fn(),
+      update: vi.fn(),
+      csv: vi.fn(),
+      then: (resolve) => resolve({ data: [], error: null }),
+    };
+    chain.select.mockReturnValue(chain);
+    chain.eq.mockReturnValue(chain);
+    chain.order.mockReturnValue(chain);
+    chain.limit.mockReturnValue(chain);
+    chain.maybeSingle.mockResolvedValue({ data: null, error: null });
+    chain.upsert.mockResolvedValue({ data: null, error: null });
+    chain.delete.mockReturnValue(chain);
+    chain.in.mockResolvedValue({ data: null, error: null });
+    chain.update.mockReturnValue(chain);
+    chain.csv.mockResolvedValue({ data: '', error: null });
     return chain;
   }
 
+  const clientFactory = () => ({
+    from: vi.fn(() => createChain()),
+    rpc: vi.fn().mockResolvedValue({ data: { success: true }, error: null }),
+  });
+
   return {
-    mockCreateClient: vi.fn(() => ({
-      from: vi.fn(() => createChain()),
-      rpc: vi.fn().mockResolvedValue({ data: { success: true }, error: null }),
-    })),
+    mockCreateClient: vi.fn<() => ReturnType<typeof clientFactory> | null>(clientFactory),
     createChain,
   };
 });
@@ -54,7 +84,7 @@ import {
   isEmailLoadedFromCloud,
   SYNC_RPC_RETRY,
 } from './supabase';
-import { AppState } from './types';
+import type { AppState } from './types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function makeTestState(overrides?: Partial<AppState>): AppState {
@@ -95,7 +125,7 @@ describe('supabase.ts — sync functions', () => {
       from: vi.fn(() => createChain()),
       rpc: vi.fn().mockResolvedValue({ data: { success: true }, error: null }),
     }));
-    (globalThis as any).__lastClientKey = undefined;
+    (globalThis as { __lastClientKey?: string }).__lastClientKey = undefined;
     clearSyncedStatesCache();
     resetLoadedFromCloud();
 
@@ -218,26 +248,26 @@ describe('supabase.ts — sync functions', () => {
     it('filters tables WITH user_email but skips the filter for installment payments', async () => {
       markEmailAsLoadedFromCloud('test@example.com');
 
-      const chainsByTable = new Map<string, any>();
+      const chainsByTable = new Map<string, MockChain>();
       mockCreateClient.mockImplementation(() => ({
-        from: vi.fn((table) => {
+        from: vi.fn((table: string) => {
           const chain = createChain();
           chainsByTable.set(table, chain);
           return chain;
-        }) as any,
+        }) as unknown as Mock<() => MockChain>,
         rpc: vi.fn().mockResolvedValue({ data: { success: true }, error: null }),
       }));
 
       const result = await syncStateFromSupabase('test@example.com');
       expect(result.success).toBe(true);
 
-      const bankCardsChain = chainsByTable.get('bank_cards');
+      const bankCardsChain = chainsByTable.get('bank_cards')!;
       expect(bankCardsChain).toBeDefined();
       expect(bankCardsChain.eq).toHaveBeenCalledWith('user_email', 'test@example.com');
 
       // credit_card_installment_payments has no user_email column — the pull
       // must not filter by it (RLS scopes rows via the session user).
-      const instPaymentsChain = chainsByTable.get('credit_card_installment_payments');
+      const instPaymentsChain = chainsByTable.get('credit_card_installment_payments')!;
       expect(instPaymentsChain).toBeDefined();
       expect(instPaymentsChain.eq).not.toHaveBeenCalled();
     });
@@ -258,7 +288,20 @@ describe('supabase.ts — sync functions', () => {
   // ─── B1 — static migration-verified schema ──────────────────────────────
   describe('B1 — static schema mapping', () => {
     it('getSchemaColumns returns migration-verified columns', () => {
-      const emailTables = ['bank_cards', 'cash_accounts', 'transactions', 'debts', 'incomes', 'expenses', 'notifications', 'subscriptions', 'loans_given', 'spending_envelopes', 'credit_card_installments', 'ledger_states'];
+      const emailTables = [
+        'bank_cards',
+        'cash_accounts',
+        'transactions',
+        'debts',
+        'incomes',
+        'expenses',
+        'notifications',
+        'subscriptions',
+        'loans_given',
+        'spending_envelopes',
+        'credit_card_installments',
+        'ledger_states',
+      ];
       for (const t of emailTables) {
         expect(getSchemaColumns(t)).toContain('user_email');
       }
@@ -288,20 +331,40 @@ describe('supabase.ts — sync functions', () => {
     it('syncStateToSupabase maps records driven by the static schema', async () => {
       markEmailAsLoadedFromCloud('test@example.com');
       const state = makeTestState({
-        cards: [{
-          id: 'card-1', cardName: 'Visa', bankName: 'Bank', cardType: 'credit',
-          currentBalance: 100, limit: 5000, isCanceled: false,
-          dueDate: '2026-01-15', minPayment: 25, apr: 21.9, lastPaymentDate: '2026-01-01',
-        } as any],
-        budgets: [{ id: 'env-1', category: 'Food', limit: 300, spent: 80 } as any],
-        creditCardInstallmentPayments: [{ id: 'pay-1', installmentId: 'inst-1', paymentNumber: 1, amountDue: 10, amountPaid: 10, dueDate: '2026-02-01', status: 'paid' } as any],
+        cards: [
+          {
+            id: 'card-1',
+            cardName: 'Visa',
+            bankName: 'Bank',
+            cardType: 'Credit',
+            currentBalance: 100,
+            limit: 5000,
+            isCanceled: false,
+            dueDate: '2026-01-15',
+            minPayment: 25,
+            apr: 21.9,
+            lastPaymentDate: '2026-01-01',
+          },
+        ],
+        budgets: [{ id: 'env-1', category: 'Food', limit: 300, spent: 80, icon: '', subBreakdown: [] }],
+        creditCardInstallmentPayments: [
+          {
+            id: 'pay-1',
+            installmentId: 'inst-1',
+            paymentNumber: 1,
+            amountDue: 10,
+            amountPaid: 10,
+            dueDate: '2026-02-01',
+            status: 'paid',
+          },
+        ],
       });
 
       const result = await syncStateToSupabase('test@example.com', state);
       expect(result.success).toBe(true);
 
-      const client = getSupabaseClient() as any;
-      const rpcCall = client.rpc.mock.calls.find((c: any[]) => c[0] === 'sync_complete_ledger');
+      const client = getSupabaseClient() as unknown as MockSupabaseClient;
+      const rpcCall = client.rpc.mock.calls.find((c) => c[0] === 'sync_complete_ledger')!;
       expect(rpcCall).toBeTruthy();
       const payload = rpcCall[1];
 
@@ -337,7 +400,7 @@ describe('supabase.ts — sync functions', () => {
       SYNC_RPC_RETRY.maxRetries = 2;
       SYNC_RPC_RETRY.baseDelayMs = 1;
 
-      const client = getSupabaseClient() as any;
+      const client = getSupabaseClient() as unknown as MockSupabaseClient;
       client.rpc
         .mockResolvedValueOnce({ data: null, error: { message: 'transient network error' } })
         .mockResolvedValueOnce({ data: { success: true }, error: null });
@@ -346,10 +409,10 @@ describe('supabase.ts — sync functions', () => {
 
       expect(result.success).toBe(true);
       expect(result.error).toBeUndefined();
-      const rpcCalls = client.rpc.mock.calls.filter((c: any[]) => c[0] === 'sync_complete_ledger');
+      const rpcCalls = client.rpc.mock.calls.filter((c) => c[0] === 'sync_complete_ledger');
       expect(rpcCalls.length).toBe(2);
       // Success path still persists the full JSON snapshot to ledger_states.
-      const jsonUpserts = client.from.mock.calls.filter((c: any[]) => c[0] === 'ledger_states');
+      const jsonUpserts = client.from.mock.calls.filter((c) => c[0] === 'ledger_states');
       expect(jsonUpserts.length).toBe(1);
     });
 
@@ -358,14 +421,14 @@ describe('supabase.ts — sync functions', () => {
       SYNC_RPC_RETRY.maxRetries = 1;
       SYNC_RPC_RETRY.baseDelayMs = 1;
 
-      const client = getSupabaseClient() as any;
+      const client = getSupabaseClient() as unknown as MockSupabaseClient;
       client.rpc.mockResolvedValue({ data: { success: false, error: 'Unauthorized: token expired.' }, error: null });
 
       const result = await syncStateToSupabase('test@example.com', makeTestState());
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('token expired');
-      const rpcCalls = client.rpc.mock.calls.filter((c: any[]) => c[0] === 'sync_complete_ledger');
+      const rpcCalls = client.rpc.mock.calls.filter((c) => c[0] === 'sync_complete_ledger');
       expect(rpcCalls.length).toBe(2);
     });
 
@@ -374,14 +437,14 @@ describe('supabase.ts — sync functions', () => {
       SYNC_RPC_RETRY.maxRetries = 1;
       SYNC_RPC_RETRY.baseDelayMs = 1;
 
-      const client = getSupabaseClient() as any;
+      const client = getSupabaseClient() as unknown as MockSupabaseClient;
       client.rpc.mockRejectedValue(new Error('db connection refused'));
 
       const result = await syncStateToSupabase('test@example.com', makeTestState());
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('db connection refused');
-      const rpcCalls = client.rpc.mock.calls.filter((c: any[]) => c[0] === 'sync_complete_ledger');
+      const rpcCalls = client.rpc.mock.calls.filter((c) => c[0] === 'sync_complete_ledger');
       expect(rpcCalls.length).toBe(2);
     });
 
@@ -390,14 +453,14 @@ describe('supabase.ts — sync functions', () => {
       SYNC_RPC_RETRY.maxRetries = 0;
       SYNC_RPC_RETRY.baseDelayMs = 1;
 
-      const client = getSupabaseClient() as any;
+      const client = getSupabaseClient() as unknown as MockSupabaseClient;
       client.rpc.mockResolvedValue({ data: { success: false, error: 'RPC unavailable' }, error: null });
 
       const result = await syncStateToSupabase('test@example.com', makeTestState());
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('RPC unavailable');
-      const rpcCalls = client.rpc.mock.calls.filter((c: any[]) => c[0] === 'sync_complete_ledger');
+      const rpcCalls = client.rpc.mock.calls.filter((c) => c[0] === 'sync_complete_ledger');
       expect(rpcCalls.length).toBe(1);
       // No table writes at all on the failure path — the RPC is the only write path.
       expect(client.from.mock.calls.length).toBe(0);

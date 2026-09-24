@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditCardInstallment, CreditCardInstallmentPayment, CreditCardPurchase } from '../types';
+import type { CreditCardInstallment, CreditCardInstallmentPayment, CreditCardPurchase } from '../types';
 import { getInstallmentProgress } from '../lib/installments';
 import { Calendar, Check, Clock, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -10,17 +10,32 @@ interface Props {
   currency: string;
   cashAccounts: { id: string; name: string; balance: number }[];
   cards: { id: string; bankName?: string; cardName?: string; currentBalance: number; isCanceled?: boolean }[];
-  onPayPayment: (installmentId: string, paymentId: string, amount: number, paidFromId: string, paidFromType: 'cash' | 'card', bankCharge?: number) => void;
+  onPayPayment: (
+    installmentId: string,
+    paymentId: string,
+    amount: number,
+    paidFromId: string,
+    paidFromType: 'cash' | 'card',
+    bankCharge?: number,
+  ) => void;
 }
 
-export default function InstallmentSchedule({ installment, payments, purchase, currency, cashAccounts, cards, onPayPayment }: Props) {
+export default function InstallmentSchedule({
+  installment,
+  payments,
+  purchase,
+  currency,
+  cashAccounts,
+  cards,
+  onPayPayment,
+}: Props) {
   const progress = getInstallmentProgress(installment, payments);
   const [expanded, setExpanded] = React.useState(false);
   const [paySourceId, setPaySourceId] = React.useState('');
   const [paySourceType, setPaySourceType] = React.useState<'cash' | 'card'>('cash');
 
   const nextPending = payments
-    .filter(p => p.status === 'pending')
+    .filter((p) => p.status === 'pending')
     .sort((a, b) => a.paymentNumber - b.paymentNumber)[0];
 
   const isCompleted = installment.status === 'completed';
@@ -31,8 +46,8 @@ export default function InstallmentSchedule({ installment, payments, purchase, c
       if (cashAccounts.length > 0) {
         setPaySourceId(cashAccounts[0].id);
         setPaySourceType('cash');
-      } else if (cards.some(c => !c.isCanceled)) {
-        const first = cards.find(c => !c.isCanceled);
+      } else if (cards.some((c) => !c.isCanceled)) {
+        const first = cards.find((c) => !c.isCanceled);
         if (first) {
           setPaySourceId(first.id);
           setPaySourceType('card');
@@ -53,9 +68,7 @@ export default function InstallmentSchedule({ installment, payments, purchase, c
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-[var(--ink)]">
-              {installment.tenureMonths}-Month Plan
-            </span>
+            <span className="text-xs font-semibold text-[var(--ink)]">{installment.tenureMonths}-Month Plan</span>
             {isCompleted && (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20">
                 Completed
@@ -68,11 +81,15 @@ export default function InstallmentSchedule({ installment, payments, purchase, c
             )}
           </div>
           {purchase && (
-            <span className="text-[10px] text-[var(--ink-3)] block truncate">{purchase.merchant} — {purchase.date}</span>
+            <span className="text-[10px] text-[var(--ink-3)] block truncate">
+              {purchase.merchant} — {purchase.date}
+            </span>
           )}
         </div>
         <div className="text-right shrink-0">
-          <span className="mono text-[11px] font-bold text-[var(--ink)]">{progress.paid}/{progress.total}</span>
+          <span className="mono text-[11px] font-bold text-[var(--ink)]">
+            {progress.paid}/{progress.total}
+          </span>
           <span className="text-[10px] text-[var(--ink-3)] block">payments</span>
         </div>
       </div>
@@ -91,16 +108,16 @@ export default function InstallmentSchedule({ installment, payments, purchase, c
       {/* Info Row */}
       <div className="flex items-center justify-between text-[10px]">
         <span className="text-[var(--ink-3)]">
-          {currency}{installment.monthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
+          {currency}
+          {installment.monthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
         </span>
         {installment.processingFee > 0 && (
           <span className="text-[var(--danger)]">
-            Fee: {currency}{installment.processingFee.toLocaleString()}
+            Fee: {currency}
+            {installment.processingFee.toLocaleString()}
           </span>
         )}
-        {installment.processingFee === 0 && (
-          <span className="text-[var(--success)]">No fee</span>
-        )}
+        {installment.processingFee === 0 && <span className="text-[var(--success)]">No fee</span>}
       </div>
 
       {/* Next Payment Due */}
@@ -112,11 +129,15 @@ export default function InstallmentSchedule({ installment, payments, purchase, c
             <span className="mono text-[10px] font-bold text-[var(--ink)]">{nextPending.dueDate}</span>
           </div>
           <button
-            onClick={() => paySourceId && onPayPayment(installment.id, nextPending.id, nextPending.amountDue, paySourceId, paySourceType)}
+            onClick={() =>
+              paySourceId &&
+              onPayPayment(installment.id, nextPending.id, nextPending.amountDue, paySourceId, paySourceType)
+            }
             className="btn-primary !text-[10px] !py-1 !px-2"
             disabled={!paySourceId}
           >
-            Pay {currency}{nextPending.amountDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            Pay {currency}
+            {nextPending.amountDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </button>
         </div>
       )}
@@ -125,25 +146,29 @@ export default function InstallmentSchedule({ installment, payments, purchase, c
       {!isCompleted && !isCancelled && nextPending && (
         <select
           value={paySourceId ? `${paySourceId}:${paySourceType}` : ''}
-          onChange={e => handleSelectPaymentSource(e.target.value)}
+          onChange={(e) => handleSelectPaymentSource(e.target.value)}
           className="input !text-[10px]"
         >
           <option value="" disabled>
             Pay from…
           </option>
           <optgroup label="Cash">
-            {cashAccounts.map(acc => (
+            {cashAccounts.map((acc) => (
               <option key={acc.id} value={`${acc.id}:cash`}>
-                {acc.name} ({currency}{acc.balance.toLocaleString()})
+                {acc.name} ({currency}
+                {acc.balance.toLocaleString()})
               </option>
             ))}
           </optgroup>
           <optgroup label="Cards">
-            {cards.filter(c => !c.isCanceled).map(card => (
-              <option key={card.id} value={`${card.id}:card`}>
-                {card.bankName || card.cardName} ({currency}{card.currentBalance.toLocaleString()})
-              </option>
-            ))}
+            {cards
+              .filter((c) => !c.isCanceled)
+              .map((card) => (
+                <option key={card.id} value={`${card.id}:card`}>
+                  {card.bankName || card.cardName} ({currency}
+                  {card.currentBalance.toLocaleString()})
+                </option>
+              ))}
           </optgroup>
         </select>
       )}
@@ -162,15 +187,15 @@ export default function InstallmentSchedule({ installment, payments, purchase, c
         <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-none">
           {payments
             .sort((a, b) => a.paymentNumber - b.paymentNumber)
-            .map(p => (
+            .map((p) => (
               <div
                 key={p.id}
                 className={`flex items-center justify-between py-1.5 px-2 rounded text-[10px] ${
                   p.status === 'paid'
                     ? 'bg-[var(--success)]/5'
                     : p.status === 'overdue'
-                    ? 'bg-[var(--danger)]/5'
-                    : 'bg-[var(--surface)]'
+                      ? 'bg-[var(--danger)]/5'
+                      : 'bg-[var(--surface)]'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -181,18 +206,17 @@ export default function InstallmentSchedule({ installment, payments, purchase, c
                   ) : (
                     <Clock size={10} className="text-[var(--ink-3)]" />
                   )}
-                  <span className="text-[var(--ink)]">
-                    #{p.paymentNumber}
-                  </span>
+                  <span className="text-[var(--ink)]">#{p.paymentNumber}</span>
                   <span className="text-[var(--ink-3)]">{p.dueDate}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`mono font-bold ${p.status === 'paid' ? 'text-[var(--success)]' : 'text-[var(--ink)]'}`}>
-                    {currency}{p.amountDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  <span
+                    className={`mono font-bold ${p.status === 'paid' ? 'text-[var(--success)]' : 'text-[var(--ink)]'}`}
+                  >
+                    {currency}
+                    {p.amountDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </span>
-                  {p.status === 'paid' && p.paidDate && (
-                    <span className="text-[var(--ink-3)]">paid {p.paidDate}</span>
-                  )}
+                  {p.status === 'paid' && p.paidDate && <span className="text-[var(--ink-3)]">paid {p.paidDate}</span>}
                 </div>
               </div>
             ))}

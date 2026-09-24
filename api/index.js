@@ -1,3 +1,4 @@
+"use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -20014,14 +20015,14 @@ var require_etag = __commonJS({
   "node_modules/etag/index.js"(exports2, module2) {
     "use strict";
     module2.exports = etag;
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     var Stats = require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto4.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto5.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -22914,11 +22915,11 @@ var require_request = __commonJS({
 // node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "node_modules/cookie-signature/index.js"(exports2) {
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     exports2.sign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto4.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto5.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports2.unsign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -22927,7 +22928,7 @@ var require_cookie_signature = __commonJS({
       return sha12(mac) == sha12(val) ? str : false;
     };
     function sha12(str) {
-      return crypto4.createHash("sha1").update(str).digest("hex");
+      return crypto5.createHash("sha1").update(str).digest("hex");
     }
   }
 });
@@ -28763,7 +28764,7 @@ var require_le_unix = __commonJS({
 var require_mime_node = __commonJS({
   "node_modules/nodemailer/lib/mime-node/index.js"(exports2, module2) {
     "use strict";
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     var fs = require("fs");
     var punycode = require_punycode();
     var { PassThrough } = require("stream");
@@ -28786,7 +28787,7 @@ var require_mime_node = __commonJS({
       constructor(contentType, options) {
         this.nodeCounter = 0;
         options = options || {};
-        this.baseBoundary = options.baseBoundary || crypto4.randomBytes(8).toString("hex");
+        this.baseBoundary = options.baseBoundary || crypto5.randomBytes(8).toString("hex");
         this.boundaryPrefix = options.boundaryPrefix || "--_NmP";
         this.disableFileAccess = !!options.disableFileAccess;
         this.disableUrlAccess = !!options.disableUrlAccess;
@@ -29810,8 +29811,8 @@ var require_mime_node = __commonJS({
       _generateMessageId() {
         return "<" + [2, 2, 2, 6].reduce(
           // crux to generate UUID-like random strings
-          (prev, len) => prev + "-" + crypto4.randomBytes(len).toString("hex"),
-          crypto4.randomBytes(4).toString("hex")
+          (prev, len) => prev + "-" + crypto5.randomBytes(len).toString("hex"),
+          crypto5.randomBytes(4).toString("hex")
         ) + "@" + // try to use the domain of the FROM address or fallback to server hostname
         (this.getEnvelope().from || this.hostname || "localhost").split("@").pop() + ">";
       }
@@ -30441,14 +30442,14 @@ var require_relaxed_body = __commonJS({
   "node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports2, module2) {
     "use strict";
     var { Transform } = require("stream");
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     var RelaxedBody = class extends Transform {
       constructor(options) {
         super();
         options = options || {};
         this.chunkBuffer = [];
         this.chunkBufferLen = 0;
-        this.bodyHash = crypto4.createHash(options.hashAlgo || "sha256");
+        this.bodyHash = crypto5.createHash(options.hashAlgo || "sha256");
         this.remainder = "";
         this.byteLength = 0;
         this.debug = options.debug;
@@ -30551,7 +30552,7 @@ var require_sign2 = __commonJS({
     "use strict";
     var punycode = require_punycode();
     var mimeFuncs = require_mime_funcs();
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     module2.exports = (headers, hashAlgo, bodyHash, options) => {
       options = options || {};
       const defaultFieldNames = "From:Sender:Reply-To:Subject:Date:Message-ID:To:Cc:MIME-Version:Content-Type:Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive";
@@ -30559,7 +30560,7 @@ var require_sign2 = __commonJS({
       const canonicalizedHeaderData = relaxedHeaders(headers, fieldNames, options.skipFields);
       const dkimHeader = generateDKIMHeader(options.domainName, options.keySelector, canonicalizedHeaderData.fieldNames, hashAlgo, bodyHash);
       canonicalizedHeaderData.headers += "dkim-signature:" + relaxedHeaderLine(dkimHeader);
-      const signer = crypto4.createSign(("rsa-" + hashAlgo).toUpperCase());
+      const signer = crypto5.createSign(("rsa-" + hashAlgo).toUpperCase());
       signer.update(canonicalizedHeaderData.headers);
       let signature;
       try {
@@ -30629,7 +30630,7 @@ var require_dkim = __commonJS({
     var { PassThrough } = require("stream");
     var fs = require("fs");
     var path2 = require("path");
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     var { copyOwnKeys } = require_objects();
     var DKIM_ALGO = "sha256";
     var MAX_MESSAGE_SIZE = 2 * 1024 * 1024;
@@ -30643,7 +30644,7 @@ var require_dkim = __commonJS({
         this.chunks = [];
         this.chunklen = 0;
         this.readPos = 0;
-        this.cachePath = this.cacheDir ? path2.join(this.cacheDir, "message." + Date.now() + "-" + crypto4.randomBytes(14).toString("hex")) : false;
+        this.cachePath = this.cacheDir ? path2.join(this.cacheDir, "message." + Date.now() + "-" + crypto5.randomBytes(14).toString("hex")) : false;
         this.cache = false;
         this.headers = false;
         this.bodyHash = false;
@@ -31198,7 +31199,7 @@ var require_mailer = __commonJS({
     var MailMessage = require_mail_message();
     var net = require("net");
     var dns = require("dns");
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     var Mail = class extends EventEmitter {
       constructor(transporter, options, defaults) {
         super();
@@ -31541,7 +31542,7 @@ var require_mailer = __commonJS({
             html = (html || "").toString().replace(
               /(<img\b[^<>]{0,1024} src\s{0,20}=[\s"']{0,20})(data:([^;]+);[^"'>\s]+)/gi,
               (match, prefix, dataUri, mimeType) => {
-                const cid = crypto4.randomBytes(10).toString("hex") + "@localhost";
+                const cid = crypto5.randomBytes(10).toString("hex") + "@localhost";
                 if (!mail.data.attachments) {
                   mail.data.attachments = [];
                 }
@@ -31668,7 +31669,7 @@ var require_smtp_connection = __commonJS({
     var net = require("net");
     var tls = require("tls");
     var os = require("os");
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     var DataStream = require_data_stream();
     var { PassThrough } = require("stream");
     var shared = require_shared();
@@ -31688,7 +31689,7 @@ var require_smtp_connection = __commonJS({
     var SMTPConnection = class extends EventEmitter {
       constructor(options) {
         super(options);
-        this.id = crypto4.randomBytes(8).toString("base64").replace(/\W/g, "");
+        this.id = crypto5.randomBytes(8).toString("base64").replace(/\W/g, "");
         this.stage = "init";
         this.options = options || {};
         this.secureConnection = !!this.options.secure;
@@ -32873,7 +32874,7 @@ var require_smtp_connection = __commonJS({
           );
         }
         const base64decoded = Buffer.from(challengeMatch[1], "base64").toString("ascii");
-        const hmacMD5 = crypto4.createHmac("md5", this._auth.credentials.pass);
+        const hmacMD5 = crypto5.createHmac("md5", this._auth.credentials.pass);
         hmacMD5.update(base64decoded);
         const prepended = this._auth.credentials.user + " " + hmacMD5.digest("hex");
         this._responseActions.push((str2) => {
@@ -33166,7 +33167,7 @@ var require_xoauth2 = __commonJS({
     "use strict";
     var { Stream } = require("stream");
     var nmfetch = require_fetch();
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     var shared = require_shared();
     var errors = require_errors();
     var XOAuth2 = class extends Stream {
@@ -33414,14 +33415,14 @@ var require_xoauth2 = __commonJS({
             JSON.stringify(logData)
           );
           if (data.error) {
-            let errorMessage = data.error;
+            let errorMessage2 = data.error;
             if (data.error_description) {
-              errorMessage += ": " + data.error_description;
+              errorMessage2 += ": " + data.error_description;
             }
             if (data.error_uri) {
-              errorMessage += " (" + data.error_uri + ")";
+              errorMessage2 += " (" + data.error_uri + ")";
             }
-            const err2 = new Error(errorMessage);
+            const err2 = new Error(errorMessage2);
             err2.code = errors.EOAUTH2;
             return callback(err2);
           }
@@ -33512,7 +33513,7 @@ var require_xoauth2 = __commonJS({
        */
       jwtSignRS256(payload) {
         payload = ['{"alg":"RS256","typ":"JWT"}', JSON.stringify(payload)].map((val) => this.toBase64URL(val)).join(".");
-        const signature = crypto4.createSign("RSA-SHA256").update(payload).sign(this.options.privateKey);
+        const signature = crypto5.createSign("RSA-SHA256").update(payload).sign(this.options.privateKey);
         return payload + "." + this.toBase64URL(signature);
       }
     };
@@ -38186,13 +38187,13 @@ var require_websocket_factory = __commonJS({
         if (env.wsConstructor) {
           return env.wsConstructor;
         }
-        let errorMessage = env.error || "WebSocket not supported in this environment.";
+        let errorMessage2 = env.error || "WebSocket not supported in this environment.";
         if (env.workaround) {
-          errorMessage += `
+          errorMessage2 += `
 
 Suggested solution: ${env.workaround}`;
         }
-        throw new Error(errorMessage);
+        throw new Error(errorMessage2);
       }
       /**
        * Detects whether the runtime can establish WebSocket connections.
@@ -41127,13 +41128,13 @@ var require_RealtimeChannel = __commonJS({
         if (response.status === 202) {
           return { success: true };
         }
-        let errorMessage = response.statusText;
+        let errorMessage2 = response.statusText;
         try {
           const errorBody = await response.json();
-          errorMessage = errorBody.error || errorBody.message || errorMessage;
+          errorMessage2 = errorBody.error || errorBody.message || errorMessage2;
         } catch (_b) {
         }
-        return Promise.reject(new Error(errorMessage));
+        return Promise.reject(new Error(errorMessage2));
       }
       /**
        * Sends a message into the channel.
@@ -41715,9 +41716,9 @@ var require_RealtimeClient = __commonJS({
         try {
           this.socketAdapter.connect();
         } catch (error) {
-          const errorMessage = error.message;
-          if (errorMessage.includes("Node.js")) {
-            throw new Error(`${errorMessage}
+          const errorMessage2 = error.message;
+          if (errorMessage2.includes("Node.js")) {
+            throw new Error(`${errorMessage2}
 
 To use Realtime in Node.js, you need to provide a WebSocket implementation:
 
@@ -41732,7 +41733,7 @@ Option 2: Install and provide the "ws" package:
     transport: ws
   })`);
           }
-          throw new Error(`WebSocket not available: ${errorMessage}`);
+          throw new Error(`WebSocket not available: ${errorMessage2}`);
         }
         this._handleNodeJsRaceCondition();
       }
@@ -50386,7 +50387,7 @@ var require_main4 = __commonJS({
     var fs = require("fs");
     var path2 = require("path");
     var os = require("os");
-    var crypto4 = require("crypto");
+    var crypto5 = require("crypto");
     var TIPS = [
       "\u25C8 encrypted .env [www.dotenvx.com]",
       "\u25C8 secrets for agents [www.dotenvx.com]",
@@ -50630,7 +50631,7 @@ var require_main4 = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto4.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto5.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error) {
@@ -66224,11 +66225,11 @@ var require_x509_cjs = __commonJS({
         return this.items[Symbol.iterator]();
       }
       get(key = _CryptoProvider.DEFAULT) {
-        const crypto4 = this.items.get(key.toLowerCase());
-        if (!crypto4) {
+        const crypto5 = this.items.get(key.toLowerCase());
+        if (!crypto5) {
           throw new Error(`Cannot get Crypto by name '${key}'`);
         }
-        return crypto4;
+        return crypto5;
       }
       set(key, value) {
         if (typeof key === "string") {
@@ -66456,15 +66457,15 @@ var require_x509_cjs = __commonJS({
       }
       async getThumbprint(...args) {
         var _a2;
-        let crypto4;
+        let crypto5;
         let algorithm = "SHA-1";
         if (args.length >= 1 && !((_a2 = args[0]) === null || _a2 === void 0 ? void 0 : _a2.subtle)) {
           algorithm = args[0] || algorithm;
-          crypto4 = args[1] || cryptoProvider.get();
+          crypto5 = args[1] || cryptoProvider.get();
         } else {
-          crypto4 = args[0] || cryptoProvider.get();
+          crypto5 = args[0] || cryptoProvider.get();
         }
-        return await crypto4.subtle.digest(algorithm, this.toArrayBuffer());
+        return await crypto5.subtle.digest(algorithm, this.toArrayBuffer());
       }
     };
     var ERR_GN_CONSTRUCTOR = "Cannot initialize GeneralName from ASN.1 data.";
@@ -66865,14 +66866,14 @@ var require_x509_cjs = __commonJS({
       }
     };
     var PublicKey = class _PublicKey extends PemData {
-      static async create(data, crypto4 = cryptoProvider.get()) {
+      static async create(data, crypto5 = cryptoProvider.get()) {
         if (data instanceof _PublicKey) {
           return data;
         } else if (CryptoProvider.isCryptoKey(data)) {
           if (data.type !== "public") {
             throw new TypeError("Public key is required");
           }
-          const spki = await crypto4.subtle.exportKey("spki", data);
+          const spki = await crypto5.subtle.exportKey("spki", data);
           return new _PublicKey(spki);
         } else if (data.publicKey) {
           return data.publicKey;
@@ -66891,7 +66892,7 @@ var require_x509_cjs = __commonJS({
         this.tag = PemConverter.PublicKeyTag;
       }
       async export(...args) {
-        let crypto4;
+        let crypto5;
         let keyUsages = ["verify"];
         let algorithm = {
           hash: "SHA-256",
@@ -66900,16 +66901,16 @@ var require_x509_cjs = __commonJS({
         if (args.length > 1) {
           algorithm = args[0] || algorithm;
           keyUsages = args[1] || keyUsages;
-          crypto4 = args[2] || cryptoProvider.get();
+          crypto5 = args[2] || cryptoProvider.get();
         } else {
-          crypto4 = args[0] || cryptoProvider.get();
+          crypto5 = args[0] || cryptoProvider.get();
         }
         let raw = this.rawData;
         const asnSpki = asn1Schema.AsnConvert.parse(this.rawData, asn1X509.SubjectPublicKeyInfo);
         if (asnSpki.algorithm.algorithm === asn1Rsa.id_RSASSA_PSS) {
           raw = convertSpkiToRsaPkcs1(asnSpki, raw);
         }
-        return crypto4.subtle.importKey("spki", raw, algorithm, true, keyUsages);
+        return crypto5.subtle.importKey("spki", raw, algorithm, true, keyUsages);
       }
       onInit(asn) {
         const algProv = tsyringe.container.resolve(diAlgorithmProvider);
@@ -66926,34 +66927,34 @@ var require_x509_cjs = __commonJS({
       }
       async getThumbprint(...args) {
         var _a2;
-        let crypto4;
+        let crypto5;
         let algorithm = "SHA-1";
         if (args.length >= 1 && !((_a2 = args[0]) === null || _a2 === void 0 ? void 0 : _a2.subtle)) {
           algorithm = args[0] || algorithm;
-          crypto4 = args[1] || cryptoProvider.get();
+          crypto5 = args[1] || cryptoProvider.get();
         } else {
-          crypto4 = args[0] || cryptoProvider.get();
+          crypto5 = args[0] || cryptoProvider.get();
         }
-        return await crypto4.subtle.digest(algorithm, this.rawData);
+        return await crypto5.subtle.digest(algorithm, this.rawData);
       }
       async getKeyIdentifier(...args) {
-        let crypto4;
+        let crypto5;
         let algorithm = "SHA-1";
         if (args.length === 1) {
           if (typeof args[0] === "string") {
             algorithm = args[0];
-            crypto4 = cryptoProvider.get();
+            crypto5 = cryptoProvider.get();
           } else {
-            crypto4 = args[0];
+            crypto5 = args[0];
           }
         } else if (args.length === 2) {
           algorithm = args[0];
-          crypto4 = args[1];
+          crypto5 = args[1];
         } else {
-          crypto4 = cryptoProvider.get();
+          crypto5 = cryptoProvider.get();
         }
         const asn = asn1Schema.AsnConvert.parse(this.rawData, asn1X509.SubjectPublicKeyInfo);
-        return await crypto4.subtle.digest(algorithm, asn.subjectPublicKey);
+        return await crypto5.subtle.digest(algorithm, asn.subjectPublicKey);
       }
       toTextObject() {
         const obj = this.toTextObjectEmpty();
@@ -66979,12 +66980,12 @@ var require_x509_cjs = __commonJS({
       return raw;
     }
     var AuthorityKeyIdentifierExtension2 = class _AuthorityKeyIdentifierExtension extends Extension2 {
-      static async create(param, critical = false, crypto4 = cryptoProvider.get()) {
+      static async create(param, critical = false, crypto5 = cryptoProvider.get()) {
         if ("name" in param && "serialNumber" in param) {
           return new _AuthorityKeyIdentifierExtension(param, critical);
         }
-        const key = await PublicKey.create(param, crypto4);
-        const id = await key.getKeyIdentifier(crypto4);
+        const key = await PublicKey.create(param, crypto5);
+        const id = await key.getKeyIdentifier(crypto5);
         return new _AuthorityKeyIdentifierExtension(pvtsutils.Convert.ToHex(id), critical);
       }
       constructor(...args) {
@@ -67122,9 +67123,9 @@ var require_x509_cjs = __commonJS({
     };
     KeyUsagesExtension.NAME = "Key Usages";
     var SubjectKeyIdentifierExtension2 = class _SubjectKeyIdentifierExtension extends Extension2 {
-      static async create(publicKey, critical = false, crypto4 = cryptoProvider.get()) {
-        const key = await PublicKey.create(publicKey, crypto4);
-        const id = await key.getKeyIdentifier(crypto4);
+      static async create(publicKey, critical = false, crypto5 = cryptoProvider.get()) {
+        const key = await PublicKey.create(publicKey, crypto5);
+        const id = await key.getKeyIdentifier(crypto5);
         return new _SubjectKeyIdentifierExtension(pvtsutils.Convert.ToHex(id), critical);
       }
       constructor(...args) {
@@ -67862,12 +67863,12 @@ var require_x509_cjs = __commonJS({
       getExtensions(type) {
         return this.extensions.filter((o) => o.type === type);
       }
-      async verify(crypto4 = cryptoProvider.get()) {
+      async verify(crypto5 = cryptoProvider.get()) {
         const algorithm = {
           ...this.publicKey.algorithm,
           ...this.signatureAlgorithm
         };
-        const publicKey = await this.publicKey.export(algorithm, ["verify"], crypto4);
+        const publicKey = await this.publicKey.export(algorithm, ["verify"], crypto5);
         const signatureFormatters = tsyringe.container.resolveAll(diAsnSignatureFormatter).reverse();
         let signature = null;
         for (const signatureFormatter of signatureFormatters) {
@@ -67879,7 +67880,7 @@ var require_x509_cjs = __commonJS({
         if (!signature) {
           throw Error("Cannot convert WebCrypto signature value to ASN.1 format");
         }
-        const ok = await crypto4.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
+        const ok = await crypto5.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
         return ok;
       }
       toTextObject() {
@@ -67910,14 +67911,14 @@ var require_x509_cjs = __commonJS({
     _Pkcs10CertificateRequest_tbs = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_subjectName = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_subject = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_signatureAlgorithm = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_signature = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_publicKey = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_attributes = /* @__PURE__ */ new WeakMap(), _Pkcs10CertificateRequest_extensions = /* @__PURE__ */ new WeakMap();
     Pkcs10CertificateRequest.NAME = "PKCS#10 Certificate Request";
     var Pkcs10CertificateRequestGenerator = class {
-      static async create(params, crypto4 = cryptoProvider.get()) {
+      static async create(params, crypto5 = cryptoProvider.get()) {
         if (!params.keys.privateKey) {
           throw new Error("Bad field 'keys' in 'params' argument. 'privateKey' is empty");
         }
         if (!params.keys.publicKey) {
           throw new Error("Bad field 'keys' in 'params' argument. 'publicKey' is empty");
         }
-        const spki = await crypto4.subtle.exportKey("spki", params.keys.publicKey);
+        const spki = await crypto5.subtle.exportKey("spki", params.keys.publicKey);
         const asnReq = new asn1Csr.CertificationRequest({
           certificationRequestInfo: new asn1Csr.CertificationRequestInfo({ subjectPKInfo: asn1Schema.AsnConvert.parse(spki, asn1X509.SubjectPublicKeyInfo) })
         });
@@ -67946,7 +67947,7 @@ var require_x509_cjs = __commonJS({
         const algProv = tsyringe.container.resolve(diAlgorithmProvider);
         asnReq.signatureAlgorithm = algProv.toAsnAlgorithm(signingAlgorithm);
         const tbs = asn1Schema.AsnConvert.serialize(asnReq.certificationRequestInfo);
-        const signature = await crypto4.subtle.sign(signingAlgorithm, params.keys.privateKey, tbs);
+        const signature = await crypto5.subtle.sign(signingAlgorithm, params.keys.privateKey, tbs);
         const signatureFormatters = tsyringe.container.resolveAll(diAsnSignatureFormatter).reverse();
         let asnSignature = null;
         for (const signatureFormatter of signatureFormatters) {
@@ -68106,7 +68107,7 @@ var require_x509_cjs = __commonJS({
           }
         });
       }
-      async verify(params = {}, crypto4 = cryptoProvider.get()) {
+      async verify(params = {}, crypto5 = cryptoProvider.get()) {
         let keyAlgorithm;
         let publicKey;
         const paramsKey = params.publicKey;
@@ -68116,26 +68117,26 @@ var require_x509_cjs = __commonJS({
               ...this.publicKey.algorithm,
               ...this.signatureAlgorithm
             };
-            publicKey = await this.publicKey.export(keyAlgorithm, ["verify"], crypto4);
+            publicKey = await this.publicKey.export(keyAlgorithm, ["verify"], crypto5);
           } else if ("publicKey" in paramsKey) {
             keyAlgorithm = {
               ...paramsKey.publicKey.algorithm,
               ...this.signatureAlgorithm
             };
-            publicKey = await paramsKey.publicKey.export(keyAlgorithm, ["verify"], crypto4);
+            publicKey = await paramsKey.publicKey.export(keyAlgorithm, ["verify"], crypto5);
           } else if (paramsKey instanceof PublicKey) {
             keyAlgorithm = {
               ...paramsKey.algorithm,
               ...this.signatureAlgorithm
             };
-            publicKey = await paramsKey.export(keyAlgorithm, ["verify"], crypto4);
+            publicKey = await paramsKey.export(keyAlgorithm, ["verify"], crypto5);
           } else if (pvtsutils.BufferSourceConverter.isBufferSource(paramsKey)) {
             const key = new PublicKey(paramsKey);
             keyAlgorithm = {
               ...key.algorithm,
               ...this.signatureAlgorithm
             };
-            publicKey = await key.export(keyAlgorithm, ["verify"], crypto4);
+            publicKey = await key.export(keyAlgorithm, ["verify"], crypto5);
           } else {
             keyAlgorithm = {
               ...paramsKey.algorithm,
@@ -68157,7 +68158,7 @@ var require_x509_cjs = __commonJS({
         if (!signature) {
           throw Error("Cannot convert ASN.1 signature value to WebCrypto format");
         }
-        const ok = await crypto4.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
+        const ok = await crypto5.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
         if (params.signatureOnly) {
           return ok;
         } else {
@@ -68167,21 +68168,21 @@ var require_x509_cjs = __commonJS({
         }
       }
       async getThumbprint(...args) {
-        let crypto4;
+        let crypto5;
         let algorithm = "SHA-1";
         if (args[0]) {
           if (!args[0].subtle) {
             algorithm = args[0] || algorithm;
-            crypto4 = args[1];
+            crypto5 = args[1];
           } else {
-            crypto4 = args[0];
+            crypto5 = args[0];
           }
         }
-        crypto4 !== null && crypto4 !== void 0 ? crypto4 : crypto4 = cryptoProvider.get();
-        return await crypto4.subtle.digest(algorithm, this.rawData);
+        crypto5 !== null && crypto5 !== void 0 ? crypto5 : crypto5 = cryptoProvider.get();
+        return await crypto5.subtle.digest(algorithm, this.rawData);
       }
-      async isSelfSigned(crypto4 = cryptoProvider.get()) {
-        return this.subject === this.issuer && await this.verify({ signatureOnly: true }, crypto4);
+      async isSelfSigned(crypto5 = cryptoProvider.get()) {
+        return this.subject === this.issuer && await this.verify({ signatureOnly: true }, crypto5);
       }
       toTextObject() {
         const obj = this.toTextObjectEmpty();
@@ -68311,13 +68312,13 @@ var require_x509_cjs = __commonJS({
           this.certificates = params.certificates;
         }
       }
-      async build(cert, crypto4 = cryptoProvider.get()) {
+      async build(cert, crypto5 = cryptoProvider.get()) {
         const chain = new X509Certificates(cert);
         let current = cert;
-        while (current = await this.findIssuer(current, crypto4)) {
-          const thumbprint = await current.getThumbprint(crypto4);
+        while (current = await this.findIssuer(current, crypto5)) {
+          const thumbprint = await current.getThumbprint(crypto5);
           for (const item of chain) {
-            const thumbprint2 = await item.getThumbprint(crypto4);
+            const thumbprint2 = await item.getThumbprint(crypto5);
             if (pvtsutils.isEqual(thumbprint, thumbprint2)) {
               throw new Error("Cannot build a certificate chain. Circular dependency.");
             }
@@ -68326,8 +68327,8 @@ var require_x509_cjs = __commonJS({
         }
         return chain;
       }
-      async findIssuer(cert, crypto4 = cryptoProvider.get()) {
-        if (!await cert.isSelfSigned(crypto4)) {
+      async findIssuer(cert, crypto5 = cryptoProvider.get()) {
+        if (!await cert.isSelfSigned(crypto5)) {
           const akiExt = cert.getExtension(asn1X509__namespace.id_ce_authorityKeyIdentifier);
           for (const item of this.certificates) {
             if (item.subject !== cert.issuer) {
@@ -68351,11 +68352,11 @@ var require_x509_cjs = __commonJS({
                 ...item.publicKey.algorithm,
                 ...cert.signatureAlgorithm
               };
-              const publicKey = await item.publicKey.export(algorithm, ["verify"], crypto4);
+              const publicKey = await item.publicKey.export(algorithm, ["verify"], crypto5);
               const ok = await cert.verify({
                 publicKey,
                 signatureOnly: true
-              }, crypto4);
+              }, crypto5);
               if (!ok) {
                 continue;
               }
@@ -68368,11 +68369,11 @@ var require_x509_cjs = __commonJS({
         return null;
       }
     };
-    function generateCertificateSerialNumber(input, crypto4 = cryptoProvider.get()) {
+    function generateCertificateSerialNumber(input, crypto5 = cryptoProvider.get()) {
       const inputView = pvtsutils.BufferSourceConverter.toUint8Array(pvtsutils.Convert.FromHex(input || ""));
       let serialNumber = inputView && inputView.length && inputView.some((o) => o > 0) ? new Uint8Array(inputView) : void 0;
       if (!serialNumber) {
-        serialNumber = crypto4.getRandomValues(new Uint8Array(16));
+        serialNumber = crypto5.getRandomValues(new Uint8Array(16));
       }
       let firstNonZero = 0;
       while (firstNonZero < serialNumber.length - 1 && serialNumber[firstNonZero] === 0) {
@@ -68388,7 +68389,7 @@ var require_x509_cjs = __commonJS({
       return serialNumber.buffer;
     }
     var X509CertificateGenerator = class {
-      static async createSelfSigned(params, crypto4 = cryptoProvider.get()) {
+      static async createSelfSigned(params, crypto5 = cryptoProvider.get()) {
         if (!params.keys.privateKey) {
           throw new Error("Bad field 'keys' in 'params' argument. 'privateKey' is empty");
         }
@@ -68405,9 +68406,9 @@ var require_x509_cjs = __commonJS({
           signingKey: params.keys.privateKey,
           signingAlgorithm: params.signingAlgorithm,
           extensions: params.extensions
-        }, crypto4);
+        }, crypto5);
       }
-      static async create(params, crypto4 = cryptoProvider.get()) {
+      static async create(params, crypto5 = cryptoProvider.get()) {
         var _a2;
         let spki;
         if (params.publicKey instanceof PublicKey) {
@@ -68417,9 +68418,9 @@ var require_x509_cjs = __commonJS({
         } else if (pvtsutils.BufferSourceConverter.isBufferSource(params.publicKey)) {
           spki = params.publicKey;
         } else {
-          spki = await crypto4.subtle.exportKey("spki", params.publicKey);
+          spki = await crypto5.subtle.exportKey("spki", params.publicKey);
         }
-        const serialNumber = generateCertificateSerialNumber(params.serialNumber, crypto4);
+        const serialNumber = generateCertificateSerialNumber(params.serialNumber, crypto5);
         const notBefore = params.notBefore || /* @__PURE__ */ new Date();
         const notAfter = params.notAfter || new Date(notBefore.getTime() + 31536e6);
         const asnX509 = new asn1X509__namespace.Certificate({
@@ -68454,7 +68455,7 @@ var require_x509_cjs = __commonJS({
         const algProv = tsyringe.container.resolve(diAlgorithmProvider);
         asnX509.tbsCertificate.signature = asnX509.signatureAlgorithm = algProv.toAsnAlgorithm(signatureAlgorithm);
         const tbs = asn1Schema.AsnConvert.serialize(asnX509.tbsCertificate);
-        const signatureValue = "signingKey" in params ? await crypto4.subtle.sign(signatureAlgorithm, params.signingKey, tbs) : params.signature;
+        const signatureValue = "signingKey" in params ? await crypto5.subtle.sign(signatureAlgorithm, params.signingKey, tbs) : params.signature;
         const signatureFormatters = tsyringe.container.resolveAll(diAsnSignatureFormatter).reverse();
         let asnSignature = null;
         for (const signatureFormatter of signatureFormatters) {
@@ -68675,7 +68676,7 @@ var require_x509_cjs = __commonJS({
           }
         });
       }
-      async verify(params, crypto4 = cryptoProvider.get()) {
+      async verify(params, crypto5 = cryptoProvider.get()) {
         if (!this.certListSignatureAlgorithm.isEqual(this.tbsCertListSignatureAlgorithm)) {
           throw new Error("algorithm identifier in the sequence tbsCertList and CertificateList mismatch");
         }
@@ -68716,21 +68717,21 @@ var require_x509_cjs = __commonJS({
         if (!signature) {
           throw Error("Cannot convert ASN.1 signature value to WebCrypto format");
         }
-        return await crypto4.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
+        return await crypto5.subtle.verify(this.signatureAlgorithm, publicKey, signature, this.tbs);
       }
       async getThumbprint(...args) {
-        let crypto4;
+        let crypto5;
         let algorithm = "SHA-1";
         if (args[0]) {
           if (!args[0].subtle) {
             algorithm = args[0] || algorithm;
-            crypto4 = args[1];
+            crypto5 = args[1];
           } else {
-            crypto4 = args[0];
+            crypto5 = args[0];
           }
         }
-        crypto4 !== null && crypto4 !== void 0 ? crypto4 : crypto4 = cryptoProvider.get();
-        return await crypto4.subtle.digest(algorithm, this.rawData);
+        crypto5 !== null && crypto5 !== void 0 ? crypto5 : crypto5 = cryptoProvider.get();
+        return await crypto5.subtle.digest(algorithm, this.rawData);
       }
       findRevoked(certOrSerialNumber) {
         const serialNumber = typeof certOrSerialNumber === "string" ? certOrSerialNumber : certOrSerialNumber.serialNumber;
@@ -68745,7 +68746,7 @@ var require_x509_cjs = __commonJS({
     };
     _X509Crl_tbs = /* @__PURE__ */ new WeakMap(), _X509Crl_signatureAlgorithm = /* @__PURE__ */ new WeakMap(), _X509Crl_issuerName = /* @__PURE__ */ new WeakMap(), _X509Crl_thisUpdate = /* @__PURE__ */ new WeakMap(), _X509Crl_nextUpdate = /* @__PURE__ */ new WeakMap(), _X509Crl_entries = /* @__PURE__ */ new WeakMap(), _X509Crl_extensions = /* @__PURE__ */ new WeakMap();
     var X509CrlGenerator = class {
-      static async create(params, crypto4 = cryptoProvider.get()) {
+      static async create(params, crypto5 = cryptoProvider.get()) {
         var _a2;
         const name = params.issuer instanceof Name3 ? params.issuer : new Name3(params.issuer);
         const asnX509Crl = new asn1X509__namespace.CertificateList({
@@ -68812,7 +68813,7 @@ var require_x509_cjs = __commonJS({
         const algProv = tsyringe.container.resolve(diAlgorithmProvider);
         asnX509Crl.tbsCertList.signature = asnX509Crl.signatureAlgorithm = algProv.toAsnAlgorithm(signingAlgorithm);
         const tbs = asn1Schema.AsnConvert.serialize(asnX509Crl.tbsCertList);
-        const signature = await crypto4.subtle.sign(signingAlgorithm, params.signingKey, tbs);
+        const signature = await crypto5.subtle.sign(signingAlgorithm, params.signingKey, tbs);
         const signatureFormatters = tsyringe.container.resolveAll(diAsnSignatureFormatter).reverse();
         let asnSignature = null;
         for (const signatureFormatter of signatureFormatters) {
@@ -70642,7 +70643,7 @@ var bcryptjs_default = {
 };
 
 // server.ts
-var import_crypto3 = __toESM(require("crypto"), 1);
+var import_crypto4 = __toESM(require("crypto"), 1);
 var import_compression = __toESM(require_compression(), 1);
 
 // node_modules/@supabase/supabase-js/dist/index.mjs
@@ -87854,6 +87855,43 @@ function failClosedOnDbError(isProduction, err) {
   throw new DatabaseUnavailableError(detail);
 }
 
+// server/security.ts
+var import_crypto3 = __toESM(require("crypto"), 1);
+var IS_PRODUCTION = process.env.NODE_ENV === "production";
+function timingSafeEqualString(a, b) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return import_crypto3.default.timingSafeEqual(bufA, bufB);
+}
+function generateSecureToken(email, durationMs, sessionSecret) {
+  const payload = {
+    email: email.trim().toLowerCase(),
+    expiresAt: Date.now() + durationMs
+  };
+  const payloadStr = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = import_crypto3.default.createHmac("sha256", sessionSecret).update(payloadStr).digest("hex");
+  return `${payloadStr}.${signature}`;
+}
+function verifySecureToken(token, sessionSecret) {
+  if (!token || typeof token !== "string" || !sessionSecret) return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [payloadStr, signature] = parts;
+  const expectedSignature = import_crypto3.default.createHmac("sha256", sessionSecret).update(payloadStr).digest("hex");
+  if (!timingSafeEqualString(signature, expectedSignature)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(payloadStr, "base64url").toString("utf8"));
+    if (!payload || typeof payload.email !== "string" || typeof payload.expiresAt !== "number" || !Number.isFinite(payload.expiresAt)) {
+      return null;
+    }
+    if (Date.now() > payload.expiresAt) return null;
+    return { email: payload.email.trim().toLowerCase(), expiresAt: payload.expiresAt };
+  } catch {
+    return null;
+  }
+}
+
 // server.ts
 function withTimeout(promise, ms, label = "Operation") {
   return new Promise((resolve, reject) => {
@@ -87870,13 +87908,42 @@ function withTimeout(promise, ms, label = "Operation") {
     );
   });
 }
+function errorMessage(err) {
+  return err instanceof Error ? err.message : String(err);
+}
 async function createApp() {
   const app = (0, import_express.default)();
-  const IS_PRODUCTION = process.env.NODE_ENV === "production";
+  const IS_PRODUCTION2 = process.env.NODE_ENV === "production";
+  function buildCsp() {
+    const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
+    let connectSrc = "'self' https: wss:";
+    if (supabaseUrl.startsWith("https://")) {
+      const origin = supabaseUrl;
+      const host = new URL(supabaseUrl).host;
+      connectSrc = `'self' ${origin} wss://${host} https://fonts.googleapis.com https://fonts.gstatic.com`;
+    }
+    const isProd = process.env.NODE_ENV === "production";
+    return [
+      `default-src 'self'`,
+      `script-src 'self'${isProd ? "" : " 'unsafe-inline'"}`,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      `font-src 'self' https://fonts.gstatic.com`,
+      `img-src 'self' data: https:`,
+      `connect-src ${connectSrc}`,
+      `frame-ancestors 'self'`,
+      `object-src 'none'`,
+      `base-uri 'self'`,
+      `form-action 'self'`
+    ].join("; ");
+  }
+  const CSP = buildCsp();
+  app.disable("x-powered-by");
   app.set("trust proxy", 1);
   app.use((0, import_compression.default)());
-  app.use(import_express.default.json({ limit: "20mb" }));
-  app.use(import_express.default.urlencoded({ limit: "20mb", extended: true }));
+  app.use("/api/ocr", import_express.default.json({ limit: "2mb" }));
+  app.use("/api/gemini", import_express.default.json({ limit: "2mb" }));
+  app.use(import_express.default.json({ limit: "256kb" }));
+  app.use(import_express.default.urlencoded({ limit: "256kb", extended: true }));
   const SERVER_STARTED_AT = Date.now();
   app.use((req, res, next) => {
     const requestId = newRequestId(req.headers["x-request-id"]);
@@ -87918,7 +87985,8 @@ async function createApp() {
     );
     process.exit(1);
   }
-  if (IS_PRODUCTION && !process.env.APP_ORIGIN) {
+  const sessionSecret = SESSION_SECRET;
+  if (IS_PRODUCTION2 && !process.env.APP_ORIGIN) {
     if (process.env.VERCEL) {
       throw new Error("APP_ORIGIN environment variable is missing in production.");
     }
@@ -87927,45 +87995,8 @@ async function createApp() {
     );
     process.exit(1);
   }
-  function timingSafeEqualString(a, b) {
-    const bufA = Buffer.from(a);
-    const bufB = Buffer.from(b);
-    if (bufA.length !== bufB.length) return false;
-    return import_crypto3.default.timingSafeEqual(bufA, bufB);
-  }
   const SESSION_TTL_SHORT = 24 * 60 * 60 * 1e3;
   const SESSION_TTL_LONG = 30 * 24 * 60 * 60 * 1e3;
-  function generateSecureToken(email, durationMs = SESSION_TTL_SHORT) {
-    const payload = {
-      email: email.trim().toLowerCase(),
-      expiresAt: Date.now() + durationMs
-    };
-    const payloadStr = Buffer.from(JSON.stringify(payload)).toString("base64url");
-    const signature = import_crypto3.default.createHmac("sha256", SESSION_SECRET).update(payloadStr).digest("hex");
-    return `${payloadStr}.${signature}`;
-  }
-  function verifySecureToken(token) {
-    if (!token || typeof token !== "string" || !SESSION_SECRET) return null;
-    const parts = token.split(".");
-    if (parts.length !== 2) return null;
-    const [payloadStr, signature] = parts;
-    const expectedSignature = import_crypto3.default.createHmac("sha256", SESSION_SECRET).update(payloadStr).digest("hex");
-    if (!timingSafeEqualString(signature, expectedSignature)) {
-      return null;
-    }
-    try {
-      const payload = JSON.parse(Buffer.from(payloadStr, "base64url").toString("utf8"));
-      if (!payload || typeof payload.email !== "string" || typeof payload.expiresAt !== "number" || !Number.isFinite(payload.expiresAt)) {
-        return null;
-      }
-      if (Date.now() > payload.expiresAt) {
-        return null;
-      }
-      return { email: payload.email.trim().toLowerCase(), expiresAt: payload.expiresAt };
-    } catch (e) {
-      return null;
-    }
-  }
   const mockDb = {
     accounts: [],
     otps: [],
@@ -87979,7 +88010,7 @@ async function createApp() {
   };
   function hashOtp(otp, email) {
     const normalizedEmail = email.trim().toLowerCase();
-    return import_crypto3.default.createHash("sha256").update(`${otp}:${normalizedEmail}`).digest("hex");
+    return import_crypto4.default.createHash("sha256").update(`${otp}:${normalizedEmail}`).digest("hex");
   }
   async function storeOtpInDb(email, otp, expiresAt, isDeleteOtp = false, supabase) {
     const normalizedEmail = email.trim().toLowerCase();
@@ -87987,7 +88018,7 @@ async function createApp() {
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
     const hashedOtp = hashOtp(otp, normalizedEmail);
     if (!supabase) {
-      if (IS_PRODUCTION) throw new Error("Database connection unavailable in production mode.");
+      if (IS_PRODUCTION2) throw new Error("Database connection unavailable in production mode.");
       console.log(`[Mock DB] Storing OTP for ${storageEmail} (Expires: ${expiresDate})`);
       mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
       mockDb.otps.push({
@@ -88010,7 +88041,7 @@ async function createApp() {
       }
     } catch (e) {
       logDbFailure("[Supabase Connection/Query Failed] storeOtpInDb", e);
-      if (IS_PRODUCTION) throw e;
+      if (IS_PRODUCTION2) throw e;
       mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
       mockDb.otps.push({
         email: storageEmail,
@@ -88023,7 +88054,7 @@ async function createApp() {
     const normalizedEmail = email.trim().toLowerCase();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
     if (!supabase) {
-      if (IS_PRODUCTION) return null;
+      if (IS_PRODUCTION2) return null;
       const found = mockDb.otps.find((item) => item.email === storageEmail);
       if (found) {
         return {
@@ -88048,7 +88079,7 @@ async function createApp() {
       return null;
     } catch (e) {
       logDbFailure("[Supabase Connection/Query Failed] getOtpFromDb", e);
-      if (IS_PRODUCTION) return null;
+      if (IS_PRODUCTION2) return null;
       const found = mockDb.otps.find((item) => item.email === storageEmail);
       if (found) {
         return {
@@ -88063,7 +88094,7 @@ async function createApp() {
     const normalizedEmail = email.trim().toLowerCase();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
     if (!supabase) {
-      if (!IS_PRODUCTION) mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
+      if (!IS_PRODUCTION2) mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
       return;
     }
     try {
@@ -88073,7 +88104,7 @@ async function createApp() {
       }
     } catch (e) {
       logDbFailure("[Supabase Connection/Query Failed] deleteOtpFromDb", e);
-      if (!IS_PRODUCTION) mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
+      if (!IS_PRODUCTION2) mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
     }
   }
   function generateSystemToken() {
@@ -88082,15 +88113,15 @@ async function createApp() {
       timestamp: Date.now()
     };
     const payloadStr = Buffer.from(JSON.stringify(payload)).toString("base64url");
-    const signature = import_crypto3.default.createHmac("sha256", SESSION_SECRET).update(payloadStr).digest("hex");
+    const signature = import_crypto4.default.createHmac("sha256", sessionSecret).update(payloadStr).digest("hex");
     return `${payloadStr}.${signature}`;
   }
-  const getSupabase = (req) => {
+  const getSupabase = (_req) => {
     let url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
     const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
     let key = serviceKey;
     if (!key) {
-      if (IS_PRODUCTION) {
+      if (IS_PRODUCTION2) {
         console.error(
           "[Supabase Error] SUPABASE_SERVICE_ROLE_KEY is required in production. Refusing to run with the public anon key as the server role."
         );
@@ -88139,7 +88170,7 @@ async function createApp() {
   async function checkAccountExists(email, supabase) {
     const normalizedEmail = email.trim().toLowerCase();
     if (!supabase) {
-      if (IS_PRODUCTION) return false;
+      if (IS_PRODUCTION2) return false;
       return mockDb.accounts.some((acc) => acc.email === normalizedEmail);
     }
     try {
@@ -88154,14 +88185,14 @@ async function createApp() {
       return !error && !!data;
     } catch (e) {
       logDbFailure("[Supabase Connection/Query Failed] checkAccountExists", e);
-      if (IS_PRODUCTION) return false;
+      if (IS_PRODUCTION2) return false;
       return mockDb.accounts.some((acc) => acc.email === normalizedEmail);
     }
   }
   async function getAccountByEmail(email, supabase) {
     const normalizedEmail = email.trim().toLowerCase();
     if (!supabase) {
-      if (IS_PRODUCTION) return null;
+      if (IS_PRODUCTION2) return null;
       const found = mockDb.accounts.find((acc) => acc.email === normalizedEmail);
       return found || null;
     }
@@ -88177,7 +88208,7 @@ async function createApp() {
       return null;
     } catch (e) {
       logDbFailure("[Supabase Connection/Query Failed] getAccountByEmail", e);
-      if (IS_PRODUCTION) return null;
+      if (IS_PRODUCTION2) return null;
       const found = mockDb.accounts.find((acc) => acc.email === normalizedEmail);
       return found || null;
     }
@@ -88185,7 +88216,7 @@ async function createApp() {
   async function saveAccount(acc, supabase) {
     const normalizedEmail = acc.email.trim().toLowerCase();
     if (!supabase) {
-      if (IS_PRODUCTION) throw new Error("Database connection unavailable in production mode.");
+      if (IS_PRODUCTION2) throw new Error("Database connection unavailable in production mode.");
       mockDb.accounts = mockDb.accounts.filter((item) => item.email !== normalizedEmail);
       mockDb.accounts.push({
         email: normalizedEmail,
@@ -88209,7 +88240,7 @@ async function createApp() {
       }
     } catch (e) {
       logDbFailure("[Supabase Connection/Query Failed] saveAccount", e);
-      if (IS_PRODUCTION) throw e;
+      if (IS_PRODUCTION2) throw e;
       mockDb.accounts = mockDb.accounts.filter((item) => item.email !== normalizedEmail);
       mockDb.accounts.push({
         email: normalizedEmail,
@@ -88221,8 +88252,8 @@ async function createApp() {
   async function saveDeviceToken(token, supabase, email) {
     if (!token) return;
     const normalizedEmail = (email || "").trim().toLowerCase();
-    const hashedEmail = normalizedEmail ? import_crypto3.default.createHash("sha256").update(normalizedEmail).digest("hex") : "";
-    const hashedToken = import_crypto3.default.createHash("sha256").update(token).digest("hex");
+    const hashedEmail = normalizedEmail ? import_crypto4.default.createHash("sha256").update(normalizedEmail).digest("hex") : "";
+    const hashedToken = import_crypto4.default.createHash("sha256").update(token).digest("hex");
     const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1e3;
     if (!supabase) {
       mockDb.deviceTokens.add(hashedToken + ":" + hashedEmail);
@@ -88244,15 +88275,15 @@ async function createApp() {
   async function verifyDeviceToken(token, supabase, email) {
     if (!token) return false;
     const normalizedEmail = (email || "").trim().toLowerCase();
-    const hashedEmail = normalizedEmail ? import_crypto3.default.createHash("sha256").update(normalizedEmail).digest("hex") : null;
-    const hashedToken = import_crypto3.default.createHash("sha256").update(token).digest("hex");
+    const hashedEmail = normalizedEmail ? import_crypto4.default.createHash("sha256").update(normalizedEmail).digest("hex") : null;
+    const hashedToken = import_crypto4.default.createHash("sha256").update(token).digest("hex");
     if (!supabase) {
       if (hashedEmail) return mockDb.deviceTokens.has(hashedToken + ":" + hashedEmail);
       for (const k of mockDb.deviceTokens) if (k.startsWith(hashedToken + ":")) return true;
       return mockDb.deviceTokens.has(hashedToken);
     }
     try {
-      let q = supabase.from("auth_device_tokens").select("token, expires_at, hashed_email").eq("token", hashedToken).maybeSingle();
+      const q = supabase.from("auth_device_tokens").select("token, expires_at, hashed_email").eq("token", hashedToken).maybeSingle();
       const { data, error } = await q;
       if (error || !data) return false;
       if (data.expires_at && Date.now() > Number(data.expires_at)) {
@@ -88293,7 +88324,7 @@ async function createApp() {
   async function getAppLock(email, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       return mockDb.appLocks.find((x) => x.email === e) || null;
     }
     try {
@@ -88314,7 +88345,7 @@ async function createApp() {
         lockIdleMinutes: data.lock_idle_minutes != null ? Number(data.lock_idle_minutes) : null
       };
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] getAppLock fallback", err);
       return mockDb.appLocks.find((x) => x.email === e) || null;
     }
@@ -88322,7 +88353,7 @@ async function createApp() {
   async function upsertAppLock(email, fields, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       let rec = mockDb.appLocks.find((x) => x.email === e);
       if (!rec) {
         rec = { email: e, pinEnabled: false, failedAttempts: 0, lockedUntil: null };
@@ -88330,30 +88361,36 @@ async function createApp() {
       }
       Object.assign(rec, {
         ...fields.pinHash !== void 0 ? { pinHash: fields.pinHash } : {},
+        ...fields.pin_hash !== void 0 ? { pinHash: fields.pin_hash } : {},
         ...fields.pinEnabled !== void 0 ? { pinEnabled: fields.pinEnabled } : {},
+        ...fields.pin_enabled !== void 0 ? { pinEnabled: fields.pin_enabled } : {},
         ...fields.failedAttempts !== void 0 ? { failedAttempts: fields.failedAttempts } : {},
+        ...fields.failed_attempts !== void 0 ? { failedAttempts: fields.failed_attempts } : {},
         ...fields.lockedUntil !== void 0 ? { lockedUntil: fields.lockedUntil } : {},
+        ...fields.locked_until !== void 0 ? { lockedUntil: fields.locked_until } : {},
         ...fields.lockOnOpen !== void 0 ? { lockOnOpen: fields.lockOnOpen } : {},
-        ...fields.lockIdleMinutes !== void 0 ? { lockIdleMinutes: fields.lockIdleMinutes } : {}
+        ...fields.lock_on_open !== void 0 ? { lockOnOpen: fields.lock_on_open } : {},
+        ...fields.lockIdleMinutes !== void 0 ? { lockIdleMinutes: fields.lockIdleMinutes } : {},
+        ...fields.lock_idle_minutes !== void 0 ? { lockIdleMinutes: fields.lock_idle_minutes } : {}
       });
       return;
     }
     try {
-      const { data, error } = await withTimeout(
+      const { error } = await withTimeout(
         supabase.from("app_lock_credentials").upsert({ user_email: e, ...fields, updated_at: (/* @__PURE__ */ new Date()).toISOString() }, { onConflict: "user_email" }).select("user_email").maybeSingle(),
         5e3,
         "upsertAppLock"
       );
       if (error) throw error;
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] upsertAppLock fallback", err);
       let rec = mockDb.appLocks.find((x) => x.email === e);
       if (!rec) {
         rec = { email: e, pinEnabled: false, failedAttempts: 0, lockedUntil: null };
         mockDb.appLocks.push(rec);
       }
-      if (fields.pin_hash !== void 0) rec.pinHash = fields.pin_hash;
+      if (fields.pin_hash !== void 0) rec.pinHash = fields.pin_hash ?? void 0;
       if (fields.pin_enabled !== void 0) rec.pinEnabled = fields.pin_enabled;
       if (fields.failed_attempts !== void 0) rec.failedAttempts = fields.failed_attempts;
       if (fields.locked_until !== void 0) rec.lockedUntil = fields.locked_until;
@@ -88365,7 +88402,7 @@ async function createApp() {
   async function getLoginState(email, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       const found = mockDb.loginAttempts.find((x) => x.email === e);
       return found || null;
     }
@@ -88383,7 +88420,7 @@ async function createApp() {
         lockedUntil: data.locked_until != null ? Number(data.locked_until) : null
       };
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[LoginLockout] getLoginState fallback", err);
       return mockDb.loginAttempts.find((x) => x.email === e) || null;
     }
@@ -88391,7 +88428,7 @@ async function createApp() {
   async function upsertLoginState(email, fields, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       let rec = mockDb.loginAttempts.find((x) => x.email === e);
       if (!rec) {
         rec = { email: e, failed: 0, lockedUntil: null };
@@ -88402,7 +88439,9 @@ async function createApp() {
       return;
     }
     try {
-      const payload = { email: e };
+      const payload = {
+        email: e
+      };
       if (fields.failed !== void 0) payload.failed_attempts = fields.failed;
       if (fields.lockedUntil !== void 0) payload.locked_until = fields.lockedUntil;
       payload.updated_at = (/* @__PURE__ */ new Date()).toISOString();
@@ -88413,7 +88452,7 @@ async function createApp() {
       );
       if (error) throw error;
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[LoginLockout] upsertLoginState fallback", err);
       let rec = mockDb.loginAttempts.find((x) => x.email === e);
       if (!rec) {
@@ -88426,10 +88465,10 @@ async function createApp() {
   }
   async function storeWebAuthnChallenge(email, challenge, purpose, supabase) {
     const e = normalizeEmailLower(email);
-    const id = import_crypto3.default.randomUUID();
+    const id = import_crypto4.default.randomUUID();
     const expiresAt = Date.now() + 10 * 60 * 1e3;
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       mockDb.webauthnChallenges.push({ id, email: e, challenge, purpose, expiresAt });
       return id;
     }
@@ -88437,7 +88476,7 @@ async function createApp() {
       const { error } = await supabase.from("webauthn_challenges").insert({ id, user_email: e, challenge, purpose, expires_at: expiresAt });
       if (error) throw error;
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] storeWebAuthnChallenge fallback", err);
       mockDb.webauthnChallenges.push({ id, email: e, challenge, purpose, expiresAt });
     }
@@ -88446,7 +88485,7 @@ async function createApp() {
   async function consumeWebAuthnChallenge(id, email, purpose, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       const idx = mockDb.webauthnChallenges.findIndex((c) => c.id === id && c.email === e && c.purpose === purpose);
       if (idx === -1) return null;
       const [rec] = mockDb.webauthnChallenges.splice(idx, 1);
@@ -88463,7 +88502,7 @@ async function createApp() {
       if (delError) throw delError;
       return data.challenge;
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] consumeWebAuthnChallenge fallback", err);
       const idx = mockDb.webauthnChallenges.findIndex((c) => c.id === id && c.email === e && c.purpose === purpose);
       if (idx === -1) return null;
@@ -88475,7 +88514,7 @@ async function createApp() {
   async function listWebAuthnCredentials(email, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       return mockDb.webauthnCreds.filter((c) => c.email === e);
     }
     try {
@@ -88506,7 +88545,7 @@ async function createApp() {
       const seen = new Set(fromDb.map((c) => c.credentialId));
       return [...fromDb, ...fromMock.filter((c) => !seen.has(c.credentialId))];
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] listWebAuthnCredentials fallback", err);
       return mockDb.webauthnCreds.filter((c) => c.email === e);
     }
@@ -88515,7 +88554,7 @@ async function createApp() {
     const e = normalizeEmailLower(email);
     const publicKeyB64 = publicKeyToBase64url(cred.publicKey);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       mockDb.webauthnCreds.push({
         email: e,
         credentialId: cred.credentialId,
@@ -88536,7 +88575,7 @@ async function createApp() {
       });
       if (error) throw error;
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] saveWebAuthnCredential fallback", err);
       mockDb.webauthnCreds.push({
         email: e,
@@ -88550,7 +88589,7 @@ async function createApp() {
   async function deleteWebAuthnCredential(email, credentialId, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       mockDb.webauthnCreds = mockDb.webauthnCreds.filter((c) => !(c.email === e && c.credentialId === credentialId));
       return;
     }
@@ -88558,18 +88597,18 @@ async function createApp() {
       const { error } = await supabase.from("webauthn_credentials").delete().eq("user_email", e).eq("credential_id", credentialId);
       if (error) throw error;
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] deleteWebAuthnCredential fallback", err);
       mockDb.webauthnCreds = mockDb.webauthnCreds.filter((c) => !(c.email === e && c.credentialId === credentialId));
     }
   }
   async function createTrustedDevice(email, token, userAgent, supabase) {
     const e = normalizeEmailLower(email);
-    const tokenHash = import_crypto3.default.createHash("sha256").update(token).digest("hex");
+    const tokenHash = import_crypto4.default.createHash("sha256").update(token).digest("hex");
     const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1e3;
-    const id = import_crypto3.default.randomUUID();
+    const id = import_crypto4.default.randomUUID();
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       mockDb.trustedDevices.push({
         id,
         email: e,
@@ -88596,7 +88635,7 @@ async function createApp() {
       );
       if (error) throw error;
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] createTrustedDevice fallback", err);
       mockDb.trustedDevices.push({
         id,
@@ -88612,9 +88651,9 @@ async function createApp() {
   }
   async function findTrustedDeviceByToken(token, supabase) {
     if (!token) return null;
-    const tokenHash = import_crypto3.default.createHash("sha256").update(token).digest("hex");
+    const tokenHash = import_crypto4.default.createHash("sha256").update(token).digest("hex");
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       const rec = mockDb.trustedDevices.find((d) => d.tokenHash === tokenHash);
       if (!rec) return null;
       if (Date.now() > rec.expiresAt) {
@@ -88643,11 +88682,7 @@ async function createApp() {
         return null;
       }
       if (data.expires_at && Date.now() > Number(data.expires_at)) {
-        await withTimeout(
-          supabase.from("trusted_devices").delete().eq("id", data.id),
-          5e3,
-          "deleteExpiredDevice"
-        );
+        await withTimeout(supabase.from("trusted_devices").delete().eq("id", data.id), 5e3, "deleteExpiredDevice");
         return null;
       }
       const newExpiry = Date.now() + 30 * 24 * 60 * 60 * 1e3;
@@ -88658,7 +88693,7 @@ async function createApp() {
       );
       return { email: data.user_email, expiresAt: newExpiry };
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] findTrustedDeviceByToken fallback", err);
       const rec = mockDb.trustedDevices.find((d) => d.tokenHash === tokenHash);
       if (!rec) return null;
@@ -88673,7 +88708,7 @@ async function createApp() {
   async function listTrustedDevices(email, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       return mockDb.trustedDevices.filter((d) => d.email === e).map((d) => ({
         id: d.id,
         createdAt: d.createdAt,
@@ -88706,7 +88741,7 @@ async function createApp() {
       const seen = new Set(fromDb.map((d) => d.id));
       return [...fromDb, ...fromMock.filter((d) => !seen.has(d.id))];
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] listTrustedDevices fallback", err);
       return mockDb.trustedDevices.filter((d) => d.email === e).map((d) => ({
         id: d.id,
@@ -88720,7 +88755,7 @@ async function createApp() {
   async function deleteTrustedDevice(email, id, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => !(d.email === e && d.id === id));
       return;
     }
@@ -88728,7 +88763,7 @@ async function createApp() {
       const { error } = await supabase.from("trusted_devices").delete().eq("user_email", e).eq("id", id);
       if (error) throw error;
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] deleteTrustedDevice fallback", err);
       mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => !(d.email === e && d.id === id));
     }
@@ -88736,7 +88771,7 @@ async function createApp() {
   async function deleteAllTrustedDevices(email, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => d.email !== e);
       return;
     }
@@ -88744,7 +88779,7 @@ async function createApp() {
       const { error } = await supabase.from("trusted_devices").delete().eq("user_email", e);
       if (error) throw error;
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] deleteAllTrustedDevices fallback", err);
       mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => d.email !== e);
     }
@@ -88752,13 +88787,13 @@ async function createApp() {
   function traceAppLockEvent(email, event) {
     try {
       console.log(`[AppLock/audit] event=${event} email=${normalizeEmailLower(email)} ts=${Date.now()}`);
-    } catch (_err) {
+    } catch {
     }
   }
   async function updateWebAuthnCredentialCounter(email, credentialId, counter, supabase) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
-      failClosedOnDbError(IS_PRODUCTION, "Database client unavailable in production.");
+      failClosedOnDbError(IS_PRODUCTION2, "Database client unavailable in production.");
       const rec = mockDb.webauthnCreds.find((c) => c.email === e && c.credentialId === credentialId);
       if (rec) rec.signCount = counter;
       return;
@@ -88767,7 +88802,7 @@ async function createApp() {
       const { error } = await supabase.from("webauthn_credentials").update({ sign_count: counter }).eq("user_email", e).eq("credential_id", credentialId);
       if (error) throw error;
     } catch (err) {
-      failClosedOnDbError(IS_PRODUCTION, err);
+      failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] updateWebAuthnCredentialCounter", err);
       const rec = mockDb.webauthnCreds.find((c) => c.email === e && c.credentialId === credentialId);
       if (rec) rec.signCount = counter;
@@ -88775,7 +88810,7 @@ async function createApp() {
   }
   function requireSession(req, res, email) {
     const token = getTokenFromRequest(req);
-    const decoded = token ? verifySecureToken(token) : null;
+    const decoded = token ? verifySecureToken(token, sessionSecret) : null;
     if (!decoded || decoded.email !== normalizeEmailLower(email)) {
       res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
       return false;
@@ -88796,25 +88831,21 @@ async function createApp() {
     return out;
   }
   function setSessionCookie(res, token, maxAgeSeconds = 86400) {
-    const secure = IS_PRODUCTION ? "; Secure" : "";
+    const secure = IS_PRODUCTION2 ? "; Secure" : "";
     res.setHeader(
       "Set-Cookie",
       `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${secure}`
     );
   }
-  function clearSessionCookie(res) {
-    const secure = IS_PRODUCTION ? "; Secure" : "";
-    res.setHeader("Set-Cookie", `session_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
-  }
   function setTrustCookie(res, token) {
-    const secure = IS_PRODUCTION ? "; Secure" : "";
+    const secure = IS_PRODUCTION2 ? "; Secure" : "";
     res.append(
       "Set-Cookie",
       `app_lock_trust=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${30 * 24 * 60 * 60}${secure}`
     );
   }
   function clearTrustCookie(res) {
-    const secure = IS_PRODUCTION ? "; Secure" : "";
+    const secure = IS_PRODUCTION2 ? "; Secure" : "";
     res.append("Set-Cookie", `app_lock_trust=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
   }
   function getTokenFromRequest(req) {
@@ -88825,17 +88856,14 @@ async function createApp() {
     return null;
   }
   app.use((req, res, next) => {
-    res.setHeader(
-      "Content-Security-Policy",
-      `default-src 'self'; script-src 'self'${IS_PRODUCTION ? "" : " 'unsafe-inline'"}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`
-    );
+    res.setHeader("Content-Security-Policy", CSP);
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("X-XSS-Protection", "0");
-    if (IS_PRODUCTION && req.headers["x-forwarded-proto"] === "http") {
+    if (IS_PRODUCTION2 && req.headers["x-forwarded-proto"] === "http") {
       res.redirect(301, "https://" + req.headers.host + req.url);
       return;
     }
@@ -88860,6 +88888,15 @@ async function createApp() {
       `[SECURITY SUSPICIOUS ACTIVITY] Rejected cross-origin request to ${req.method} ${req.originalUrl} from origin: ${origin}`
     );
     res.status(403).json({ success: false, error: "Forbidden." });
+  });
+  app.use("/api", (req, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
+    const ct = req.headers["content-type"];
+    if (ct && !/^application\/(?:[a-z0-9.+-]*\+)?json\b/i.test(ct)) {
+      res.status(415).json({ success: false, error: "Unsupported content type." });
+      return;
+    }
+    next();
   });
   async function checkRateLimitInDb(key, limit, windowMs, supabase) {
     const now = Date.now();
@@ -88926,6 +88963,22 @@ async function createApp() {
       }
     };
   };
+  const rateLimitIp = (limit, windowMs) => {
+    return async (req, res, next) => {
+      const ip = req.ip || req.socket.remoteAddress || "unknown";
+      const key = `${ip}:${req.path}:ip`;
+      const supabase = getSupabase(req);
+      const { allowed, retryAfterSeconds } = await checkRateLimitInDb(key, limit, windowMs, supabase);
+      if (allowed) return next();
+      console.warn(`[SECURITY SUSPICIOUS ACTIVITY] IP rate limit exceeded on ${req.path} for ${ip}`);
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+      res.status(429).json({
+        success: false,
+        error: "Too many authentication requests. Please try again later.",
+        retryAfter: retryAfterSeconds
+      });
+    };
+  };
   function validateEmail(email) {
     if (!email || typeof email !== "string") return "Email address parameter must be a valid string.";
     const clean = email.trim();
@@ -88963,7 +89016,7 @@ async function createApp() {
   });
   app.get("/api/diagnostics", rateLimitAuth(60, 60 * 1e3), (req, res) => {
     const token = getTokenFromRequest(req);
-    const decoded = token ? verifySecureToken(token) : null;
+    const decoded = token ? verifySecureToken(token, sessionSecret) : null;
     if (!decoded) {
       res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
       return;
@@ -88986,21 +89039,28 @@ async function createApp() {
   });
   app.post(
     "/api/auth/check-email",
+    rateLimitIp(60, 60 * 1e3),
     rateLimitAuth(20, 60 * 1e3),
     async (req, res) => {
       try {
         const { email } = req.body;
         const emailErr = validateEmail(email);
         if (emailErr) {
+          const jitter2 = 60 + Math.random() * 140;
+          await new Promise((r) => setTimeout(r, jitter2));
           res.status(400).json({ success: false, error: emailErr });
           return;
         }
         const normalizedEmail = email.trim().toLowerCase();
         const supabase = getSupabase(req);
         const exists = await checkAccountExists(normalizedEmail, supabase);
+        const jitter = 60 + Math.random() * 140;
+        await new Promise((r) => setTimeout(r, jitter));
         res.json({ success: true, exists });
       } catch (err) {
-        console.error("[SECURITY LOG] Check-email operation failed:", err.message || err);
+        console.error("[SECURITY LOG] Check-email operation failed:", errorMessage(err));
+        const jitter = 60 + Math.random() * 140;
+        await new Promise((r) => setTimeout(r, jitter));
         res.status(500).json({ success: false, error: "System authentication service error. Please try again later." });
       }
     }
@@ -89014,7 +89074,7 @@ async function createApp() {
         return;
       }
       const normalizedEmail = email.trim().toLowerCase();
-      const otp = import_crypto3.default.randomInt(1e5, 1e6).toString();
+      const otp = import_crypto4.default.randomInt(1e5, 1e6).toString();
       const expiresAt = Date.now() + 5 * 60 * 1e3;
       await storeOtpInDb(normalizedEmail, otp, expiresAt, false, getSupabase(req));
       console.log(`
@@ -89030,7 +89090,6 @@ async function createApp() {
       const smtpPass = process.env.SMTP_PASS;
       const smtpFrom = process.env.SMTP_FROM;
       let emailSent = false;
-      let errorDetails = "";
       if (smtpHost && smtpUser && smtpPass) {
         try {
           const transporter = import_nodemailer.default.createTransport({
@@ -89069,14 +89128,11 @@ async function createApp() {
           emailSent = true;
           console.log(`\u{1F4E7} Success: 2FA passcode email dispatched to ${normalizedEmail}`);
         } catch (mailError) {
-          console.error("[SECURITY LOG] SMTP Transmission Failed:", mailError.message || mailError);
-          errorDetails = "SMTP delivery error occurred during secure transmission.";
+          console.error("[SECURITY LOG] SMTP Transmission Failed:", errorMessage(mailError));
         }
-      } else {
-        errorDetails = "SMTP server is not configured in environment variables.";
       }
       if (!emailSent) {
-        if (IS_PRODUCTION || !(process.env.DEV_OTP_RESPONSE === "true")) {
+        if (IS_PRODUCTION2 || !(process.env.DEV_OTP_RESPONSE === "true")) {
           res.status(500).json({
             success: false,
             error: "Failed to dispatch verification email. Please try again later."
@@ -89096,7 +89152,7 @@ async function createApp() {
         emailSent: true
       });
     } catch (err) {
-      console.error("[SECURITY LOG] OTP Send failed:", err.message || err);
+      console.error("[SECURITY LOG] OTP Send failed:", errorMessage(err));
       res.status(500).json({ success: false, error: "System secure transmission error. Please request later." });
     }
   });
@@ -89135,10 +89191,10 @@ async function createApp() {
           res.json({ success: true });
           return;
         }
-        const deviceToken = import_crypto3.default.randomUUID();
+        const deviceToken = import_crypto4.default.randomUUID();
         await saveDeviceToken(deviceToken, supabase, normalizedEmail);
         await deleteOtpFromDb(normalizedEmail, false, supabase);
-        const _sessionToken = generateSecureToken(normalizedEmail);
+        const _sessionToken = generateSecureToken(normalizedEmail, SESSION_TTL_SHORT, sessionSecret);
         setSessionCookie(res, _sessionToken);
         res.json({
           success: true,
@@ -89146,7 +89202,7 @@ async function createApp() {
           deviceToken
         });
       } catch (err) {
-        console.error("[SECURITY LOG] Verify OTP failed:", err.message || err);
+        console.error("[SECURITY LOG] Verify OTP failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System authentication service error." });
       }
     }
@@ -89190,10 +89246,10 @@ async function createApp() {
         },
         supabase
       );
-      const deviceToken = import_crypto3.default.randomUUID();
+      const deviceToken = import_crypto4.default.randomUUID();
       await saveDeviceToken(deviceToken, supabase, normalizedEmail);
       const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
-      const _regToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+      const _regToken = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
       setSessionCookie(res, _regToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
       res.json({
         success: true,
@@ -89201,7 +89257,7 @@ async function createApp() {
         deviceToken
       });
     } catch (err) {
-      console.error("[SECURITY LOG] Register operation failed:", err.message || err);
+      console.error("[SECURITY LOG] Register operation failed:", errorMessage(err));
       res.status(500).json({ success: false, error: "System registration service error." });
     }
   });
@@ -89258,10 +89314,10 @@ async function createApp() {
           return;
         }
         await upsertLoginState(normalizedEmail, { failed: 0, lockedUntil: null }, supabase);
-        const deviceToken = import_crypto3.default.randomUUID();
+        const deviceToken = import_crypto4.default.randomUUID();
         await saveDeviceToken(deviceToken, supabase, normalizedEmail);
         const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
-        const _loginToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+        const _loginToken = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
         setSessionCookie(res, _loginToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
         res.json({
           success: true,
@@ -89273,7 +89329,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] Login-password operation failed:", err.message || err);
+        console.error("[SECURITY LOG] Login-password operation failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System authentication service error." });
       }
     }
@@ -89320,10 +89376,10 @@ async function createApp() {
           },
           supabase
         );
-        const deviceToken = import_crypto3.default.randomUUID();
+        const deviceToken = import_crypto4.default.randomUUID();
         await saveDeviceToken(deviceToken, supabase, normalizedEmail);
         const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
-        const _resetToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+        const _resetToken = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
         setSessionCookie(res, _resetToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
         res.json({
           success: true,
@@ -89331,7 +89387,7 @@ async function createApp() {
           deviceToken
         });
       } catch (err) {
-        console.error("[SECURITY LOG] Reset-password operation failed:", err.message || err);
+        console.error("[SECURITY LOG] Reset-password operation failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System password reset service error." });
       }
     }
@@ -89353,25 +89409,24 @@ async function createApp() {
         );
         res.json({ success: isValid });
       } catch (err) {
-        console.error("[SECURITY LOG] Device verification error:", err.message || err);
+        console.error("[SECURITY LOG] Device verification error:", errorMessage(err));
         res.status(500).json({ success: false, error: "Internal verification error" });
       }
     }
   );
   const WEBAUTHN_RP_ID = process.env.WEB_AUTHN_RP_ID || "";
-  const appLockRPRouter = import_express.default.Router();
   function getRPID(req) {
     return WEBAUTHN_RP_ID || (req.headers.host || "localhost").split(":")[0];
   }
   function getOrigin(req) {
-    if (IS_PRODUCTION) return process.env.APP_ORIGIN || "";
+    if (IS_PRODUCTION2) return process.env.APP_ORIGIN || "";
     if (process.env.APP_ORIGIN) return process.env.APP_ORIGIN;
     const proto = req.headers["x-forwarded-proto"] || (req.secure || req.headers.host?.includes("localhost") ? "https" : "http");
     if ((req.headers.host || "").includes("localhost") && !process.env.VERCEL) return `http://${req.headers.host}`;
     return `${proto}://${req.headers.host}`;
   }
   function userIDBytes(email) {
-    const buf = import_crypto3.default.createHash("sha256").update(normalizeEmailLower(email)).digest();
+    const buf = import_crypto4.default.createHash("sha256").update(normalizeEmailLower(email)).digest();
     return new Uint8Array(buf);
   }
   function publicKeyToBase64url(key) {
@@ -89416,7 +89471,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[AppLock] status error:", err?.message || err);
+        console.error("[AppLock] status error:", errorMessage(err));
         res.status(500).json({ success: false, error: "System app-lock status error." });
       }
     }
@@ -89449,7 +89504,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] App-lock PIN set failed:", err?.message || err);
+        console.error("[SECURITY LOG] App-lock PIN set failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System app-lock service error." });
       }
     }
@@ -89479,7 +89534,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] App-lock PIN disable failed:", err?.message || err);
+        console.error("[SECURITY LOG] App-lock PIN disable failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System app-lock service error." });
       }
     }
@@ -89506,7 +89561,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] App-lock always-lock update failed:", err?.message || err);
+        console.error("[SECURITY LOG] App-lock always-lock update failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System app-lock service error." });
       }
     }
@@ -89537,7 +89592,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] App-lock idle-minutes update failed:", err?.message || err);
+        console.error("[SECURITY LOG] App-lock idle-minutes update failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System app-lock service error." });
       }
     }
@@ -89556,7 +89611,7 @@ async function createApp() {
         const normalizedEmail = normalizeEmailLower(email);
         if (!requireSession(req, res, normalizedEmail)) return;
         const supabase = getSupabase(req);
-        let lock = await getAppLock(normalizedEmail, supabase);
+        const lock = await getAppLock(normalizedEmail, supabase);
         if (!lock || !lock.pinHash) {
           traceAppLockEvent(normalizedEmail, "pin_verify_no_pin");
           res.json({ success: false, error: "No PIN is configured for app lock.", code: "NO_PIN" });
@@ -89602,7 +89657,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] App-lock PIN verify failed:", err?.message || err);
+        console.error("[SECURITY LOG] App-lock PIN verify failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System app-lock verification error." });
       }
     }
@@ -89633,7 +89688,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] App-lock PIN reset failed:", err?.message || err);
+        console.error("[SECURITY LOG] App-lock PIN reset failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System app-lock reset error." });
       }
     }
@@ -89643,7 +89698,7 @@ async function createApp() {
     rateLimitAuth(8, 60 * 1e3),
     async (req, res) => {
       try {
-        const { email, deviceLabel } = req.body;
+        const { email } = req.body;
         const emailErr = validateEmail(email);
         if (emailErr) {
           res.status(400).json({ success: false, error: emailErr });
@@ -89676,7 +89731,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] WebAuthn register-options failed:", err?.message || err);
+        console.error("[SECURITY LOG] WebAuthn register-options failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "WebAuthn registration could not start." });
       }
     }
@@ -89712,7 +89767,7 @@ async function createApp() {
             requireUserVerification: true
           });
         } catch (verr) {
-          console.error("[SECURITY LOG] WebAuthn registration verification error:", verr?.message || verr);
+          console.error("[SECURITY LOG] WebAuthn registration verification error:", errorMessage(verr));
           res.status(400).json({ success: false, error: "Biometric registration could not be verified." });
           return;
         }
@@ -89739,7 +89794,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] WebAuthn register-verify failed:", err?.message || err);
+        console.error("[SECURITY LOG] WebAuthn register-verify failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System WebAuthn registration error." });
       }
     }
@@ -89776,7 +89831,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] WebAuthn authentication-options failed:", err?.message || err);
+        console.error("[SECURITY LOG] WebAuthn authentication-options failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "Biometric unlock could not start." });
       }
     }
@@ -89834,7 +89889,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] WebAuthn authentication-verify failed:", err?.message || err);
+        console.error("[SECURITY LOG] WebAuthn authentication-verify failed:", errorMessage(err));
         res.json({ success: false, error: "Biometric unlock could not be verified." });
       }
     }
@@ -89860,7 +89915,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] WebAuthn remove failed:", err?.message || err);
+        console.error("[SECURITY LOG] WebAuthn remove failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System WebAuthn removal error." });
       }
     }
@@ -89893,7 +89948,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] WebAuthn list failed:", err?.message || err);
+        console.error("[SECURITY LOG] WebAuthn list failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System WebAuthn list error." });
       }
     }
@@ -89912,7 +89967,7 @@ async function createApp() {
         const normalizedEmail = normalizeEmailLower(email);
         if (!requireSession(req, res, normalizedEmail)) return;
         const supabase = getSupabase(req);
-        const rawToken = import_crypto3.default.randomBytes(32).toString("base64url");
+        const rawToken = import_crypto4.default.randomBytes(32).toString("base64url");
         const ua = req.headers["user-agent"] || "";
         await createTrustedDevice(normalizedEmail, rawToken, ua, supabase);
         setTrustCookie(res, rawToken);
@@ -89922,7 +89977,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] Trusted device issue failed:", err?.message || err);
+        console.error("[SECURITY LOG] Trusted device issue failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System device-trust error." });
       }
     }
@@ -89951,7 +90006,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] Trusted device check failed:", err?.message || err);
+        console.error("[SECURITY LOG] Trusted device check failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System device-trust check error." });
       }
     }
@@ -89977,7 +90032,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] Trusted device list failed:", err?.message || err);
+        console.error("[SECURITY LOG] Trusted device list failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System device-trust list error." });
       }
     }
@@ -90003,7 +90058,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] Trusted device revoke failed:", err?.message || err);
+        console.error("[SECURITY LOG] Trusted device revoke failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System device-trust revoke error." });
       }
     }
@@ -90030,7 +90085,7 @@ async function createApp() {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error("[SECURITY LOG] Trusted device revoke-all failed:", err?.message || err);
+        console.error("[SECURITY LOG] Trusted device revoke-all failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System device-trust revoke error." });
       }
     }
@@ -90052,12 +90107,12 @@ async function createApp() {
           res.status(401).json({ success: false, error: "Access token is missing or malformed." });
           return;
         }
-        const decoded = verifySecureToken(token);
+        const decoded = verifySecureToken(token, sessionSecret);
         if (!decoded || decoded.email !== normalizedEmail) {
           res.status(401).json({ success: false, error: "Access token is invalid or expired." });
           return;
         }
-        const otp = import_crypto3.default.randomInt(1e5, 1e6).toString();
+        const otp = import_crypto4.default.randomInt(1e5, 1e6).toString();
         const expiresAt = Date.now() + 5 * 60 * 1e3;
         const supabase = getSupabase(req);
         await storeOtpInDb(normalizedEmail, otp, expiresAt, true, supabase);
@@ -90074,7 +90129,6 @@ async function createApp() {
         const smtpPass = process.env.SMTP_PASS;
         const smtpFrom = process.env.SMTP_FROM;
         let emailSent = false;
-        let errorDetails = "";
         if (smtpHost && smtpUser && smtpPass) {
           try {
             const transporter = import_nodemailer.default.createTransport({
@@ -90116,14 +90170,11 @@ async function createApp() {
             emailSent = true;
             console.log(`\u{1F4E7} Deletion passcode email sent successfully to ${normalizedEmail}`);
           } catch (mailError) {
-            console.error("[SECURITY LOG] Deletion SMTP Transmission Failed:", mailError.message || mailError);
-            errorDetails = "SMTP deletion dispatch failure.";
+            console.error("[SECURITY LOG] Deletion SMTP Transmission Failed:", errorMessage(mailError));
           }
-        } else {
-          errorDetails = "SMTP server is not configured in environment variables.";
         }
         if (!emailSent) {
-          if (IS_PRODUCTION) {
+          if (IS_PRODUCTION2) {
             res.status(500).json({
               success: false,
               error: "Failed to dispatch deletion passcode email. Please try again later."
@@ -90143,7 +90194,7 @@ async function createApp() {
           emailSent: true
         });
       } catch (err) {
-        console.error("[SECURITY LOG] Deletion OTP Send failed:", err.message || err);
+        console.error("[SECURITY LOG] Deletion OTP Send failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System secure transmission error." });
       }
     }
@@ -90166,7 +90217,7 @@ async function createApp() {
           res.status(401).json({ success: false, error: "Access token is missing or malformed." });
           return;
         }
-        const decoded2 = verifySecureToken(token2);
+        const decoded2 = verifySecureToken(token2, sessionSecret);
         if (!decoded2 || decoded2.email !== normalizedEmail) {
           res.status(401).json({ success: false, error: "Access token is invalid or expired." });
           return;
@@ -90192,7 +90243,7 @@ async function createApp() {
         await deleteOtpFromDb(normalizedEmail, true, supabase);
         res.json({ success: true });
       } catch (err) {
-        console.error("[SECURITY LOG] Verify Deletion OTP failed:", err.message || err);
+        console.error("[SECURITY LOG] Verify Deletion OTP failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System authentication service error." });
       }
     }
@@ -90209,7 +90260,7 @@ async function createApp() {
           res.json({ success: false, error: "Empty token" });
           return;
         }
-        const decoded = verifySecureToken(token);
+        const decoded = verifySecureToken(token, sessionSecret);
         if (!decoded) {
           res.json({ success: false, error: "Session token is invalid or expired." });
           return;
@@ -90228,14 +90279,14 @@ async function createApp() {
         }
         const isLongLived = decoded.expiresAt - Date.now() > SESSION_TTL_SHORT;
         if (rememberMe || isLongLived) {
-          const newToken = generateSecureToken(normalizedEmail, SESSION_TTL_LONG);
+          const newToken = generateSecureToken(normalizedEmail, SESSION_TTL_LONG, sessionSecret);
           setSessionCookie(res, newToken, 30 * 24 * 60 * 60);
           res.json({ success: true, token: newToken, email: normalizedEmail });
         } else {
           res.json({ success: true, token, email: normalizedEmail });
         }
       } catch (err) {
-        console.error("[SECURITY LOG] Verify Session Token failed:", err.message || err);
+        console.error("[SECURITY LOG] Verify Session Token failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "Internal session validation error." });
       }
     }
@@ -90253,7 +90304,7 @@ async function createApp() {
     rateLimitAuth(20, 60 * 1e3),
     async (req, res) => {
       const token = getTokenFromRequest(req);
-      const session = token ? verifySecureToken(token) : null;
+      const session = token ? verifySecureToken(token, sessionSecret) : null;
       if (!session || !session.email) {
         res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
         return;
@@ -90297,7 +90348,7 @@ async function createApp() {
         );
         return res.json({ success: true, subscriptions });
       } catch (e) {
-        console.error("[Sync] refresh-subscriptions error:", e.message || e);
+        console.error("[Sync] refresh-subscriptions error:", errorMessage(e));
         return res.status(500).json({ success: false, error: "Failed to refresh subscriptions." });
       }
     }
@@ -90308,7 +90359,7 @@ async function createApp() {
     rateLimitAuth(10, 60 * 1e3),
     async (req, res) => {
       const _authToken = getTokenFromRequest(req);
-      if (!verifySecureToken(_authToken)) {
+      if (!verifySecureToken(_authToken, sessionSecret)) {
         res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
         return;
       }
@@ -90405,8 +90456,9 @@ Return a JSON object matching this schema:
         const parsedData = JSON.parse(text);
         res.json({ success: true, data: parsedData });
       } catch (err) {
-        console.error("[Gemini Image Analysis Error]", err?.message || err);
-        const rawMsg = err?.message || (typeof err === "string" ? err : "");
+        const message = errorMessage(err);
+        console.error("[Gemini Image Analysis Error]", message);
+        const rawMsg = err instanceof Error ? err.message : typeof err === "string" ? err : "";
         if (typeof rawMsg === "string" && (rawMsg.includes("RESOURCE_EXHAUSTED") || rawMsg.includes("prepayment credits") || rawMsg.includes("429"))) {
           res.status(500).json({
             success: false,
@@ -90424,7 +90476,7 @@ Return a JSON object matching this schema:
     rateLimitAuth(10, 60 * 1e3),
     async (req, res) => {
       const _authToken2 = getTokenFromRequest(req);
-      if (!verifySecureToken(_authToken2)) {
+      if (!verifySecureToken(_authToken2, sessionSecret)) {
         res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
         return;
       }
@@ -90472,7 +90524,7 @@ Return a JSON object matching this schema:
           await worker.terminate();
         }
       } catch (err) {
-        console.error("[Free Server OCR Error]", err?.message || err);
+        console.error("[Free Server OCR Error]", errorMessage(err));
         res.status(500).json({ success: false, error: "Failed to scan image. Please try again or enter text manually." });
       }
     }
@@ -90505,11 +90557,13 @@ Return a JSON object matching this schema:
   app.use("/api", (req, res) => {
     res.status(404).json({ success: false, error: `Route not found: ${req.method} ${req.originalUrl}` });
   });
-  app.use((err, req, res, _next) => {
-    console.error("[Unhandled Error]", err?.message || err);
+  app.use(((err, req, res, _next) => {
+    console.error("[Unhandled Error]", errorMessage(err));
     if (res.headersSent) return;
-    res.status(500).json({ success: false, error: "Internal server error. Check function logs." });
-  });
+    const raw = err?.statusCode ?? err?.status;
+    const status = typeof raw === "number" && raw >= 100 && raw < 600 ? raw : 500;
+    res.status(status).json({ success: false, error: "Internal server error. Check function logs." });
+  }));
   return app;
 }
 var cachedApp = null;
@@ -90537,7 +90591,7 @@ async function seedVaultSessionSecret() {
       console.log("[Vault] session_secret synced from SESSION_SECRET.");
     }
   } catch (err) {
-    console.error("[Vault] session_secret seed error:", err?.message || err);
+    console.error("[Vault] session_secret seed error:", errorMessage(err));
   }
 }
 function ensureVaultSeed() {
@@ -90568,7 +90622,7 @@ process.on("uncaughtException", (err) => {
 process.on("unhandledRejection", (reason) => {
   console.error("[FATAL] Unhandled rejection:", reason);
 });
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && process.env.NODE_ENV !== "test") {
   startServer();
 }
 var vercelHandler = async (req, res) => {
@@ -90577,7 +90631,7 @@ var vercelHandler = async (req, res) => {
     const app = await getApp();
     return app(req, res);
   } catch (err) {
-    console.error("[vercelHandler] Failed to start server:", err?.message || err);
+    console.error("[vercelHandler] Failed to start server:", errorMessage(err));
     if (res.headersSent) return;
     res.status(500).json({ success: false, error: "Server is temporarily unavailable. Please try again." });
   }

@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Transaction, CashAccount, BankCard } from '../types';
+import type { Transaction, CashAccount, BankCard, TransactionUpdate } from '../types';
 import { X, Save, Trash2, Edit3 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-
 
 interface TransactionEditModalProps {
   transaction: Transaction | null;
   cashAccounts: CashAccount[];
   cards: BankCard[];
   onClose: () => void;
-  onSave: (txId: string, newData: any) => void;
+  onSave: (txId: string, newData: TransactionUpdate) => void;
   onDelete: (txId: string) => void;
   currency: string;
 }
@@ -22,7 +21,7 @@ export default function TransactionEditModal({
   onClose,
   onSave,
   onDelete,
-  currency
+  currency,
 }: TransactionEditModalProps) {
   const { showToast } = useNotifications();
   const [title, setTitle] = useState('');
@@ -112,7 +111,7 @@ export default function TransactionEditModal({
         date,
         category,
         accountId,
-        accountType
+        accountType,
       });
       showToast('success', 'Transaction updated successfully!');
       onClose();
@@ -136,18 +135,32 @@ export default function TransactionEditModal({
   };
 
   return (
-    <div ref={editDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Edit transaction" className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[var(--surface)] border border-[var(--line)] p-6 md:p-8 rounded-[24px] shadow-2xl max-w-sm w-full relative overflow-hidden" id="edit-transaction-modal-container">
-        
+    <div
+      ref={editDialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Edit transaction"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+    >
+      <div
+        className="bg-[var(--surface)] border border-[var(--line)] p-6 md:p-8 rounded-[24px] shadow-2xl max-w-sm w-full relative overflow-hidden"
+        id="edit-transaction-modal-container"
+      >
         <div className="flex justify-between items-center mb-6">
           <div>
-            <span className="eyebrow bg-[var(--surface-2)] px-2 py-0.5 rounded-full border border-[var(--line)]">Audit Editor</span>
+            <span className="eyebrow bg-[var(--surface-2)] px-2 py-0.5 rounded-full border border-[var(--line)]">
+              Audit Editor
+            </span>
             <h3 className="text-xs font-black text-[var(--ink)] mt-1.5 flex items-center gap-1.5 leading-none mono uppercase tracking-wider">
               <Edit3 size={14} className="text-[var(--ink-2)]" />
               Adjust Transaction Ledger
             </h3>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-[var(--surface-2)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-full transition-colors cursor-pointer border border-transparent hover:border-[var(--line)]">
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-[var(--surface-2)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-full transition-colors cursor-pointer border border-transparent hover:border-[var(--line)]"
+          >
             <X size={16} />
           </button>
         </div>
@@ -155,16 +168,16 @@ export default function TransactionEditModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="eyebrow block mb-1.5">Title / description</label>
-            <input 
+            <input
               ref={titleInputRef}
-              type="text" 
-              value={title} 
-              onChange={e => {
+              type="text"
+              value={title}
+              onChange={(e) => {
                 setTitle(e.target.value);
                 validateTxForm(e.target.value, amount, date, submitted);
               }}
               placeholder="e.g. Groceries"
-              className={`input ${errors.title ? '!border-[var(--danger)] focus:!border-[var(--danger)]' : title && !errors.title ? '!border-emerald-500/50' : ''}`} 
+              className={`input ${errors.title ? '!border-[var(--danger)] focus:!border-[var(--danger)]' : title && !errors.title ? '!border-emerald-500/50' : ''}`}
             />
             {errors.title && (
               <span className="text-[var(--danger)] mono text-[10px] pl-1 mt-1.5 block">{errors.title}</span>
@@ -173,17 +186,17 @@ export default function TransactionEditModal({
 
           <div>
             <label className="eyebrow block mb-1.5">Amount ({currency})</label>
-            <input 
+            <input
               ref={amountInputRef}
-              type="number" 
+              type="number"
               step="0.01"
-              value={amount} 
-              onChange={e => {
+              value={amount}
+              onChange={(e) => {
                 const val = e.target.value === '' ? '' : Number(e.target.value);
                 setAmount(val);
                 validateTxForm(title, val, date, submitted);
               }}
-              className={`input mono font-bold ${errors.amount ? '!border-[var(--danger)] focus:!border-[var(--danger)]' : amount !== '' && !errors.amount ? '!border-emerald-500/50' : ''}`} 
+              className={`input mono font-bold ${errors.amount ? '!border-[var(--danger)] focus:!border-[var(--danger)]' : amount !== '' && !errors.amount ? '!border-emerald-500/50' : ''}`}
             />
             {errors.amount && (
               <span className="text-[var(--danger)] mono text-[10px] pl-1 mt-1.5 block">{errors.amount}</span>
@@ -195,7 +208,7 @@ export default function TransactionEditModal({
             <input
               type="date"
               value={date}
-              onChange={e => {
+              onChange={(e) => {
                 setDate(e.target.value);
                 validateTxForm(title, amount, e.target.value, submitted);
               }}
@@ -208,12 +221,12 @@ export default function TransactionEditModal({
 
           <div>
             <label className="eyebrow block mb-1.5">Categorization Tag</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               required
-              value={category} 
-              onChange={e => setCategory(e.target.value)}
-              className="input font-bold" 
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="input font-bold"
             />
           </div>
 
@@ -221,28 +234,36 @@ export default function TransactionEditModal({
             <label className="eyebrow block mb-1.5">Account Source</label>
             <select
               value={`${accountId}:${accountType}`}
-              onChange={e => {
+              onChange={(e) => {
                 const [id, type] = e.target.value.split(':');
                 setAccountId(id);
-                setAccountType(type as 'cash'|'card');
+                setAccountType(type as 'cash' | 'card');
               }}
               required
               className="input cursor-pointer font-semibold"
             >
-              <option value="" disabled>Select Account</option>
+              <option value="" disabled>
+                Select Account
+              </option>
               <optgroup label="Wallets / Cash">
-                {cashAccounts.map(c => (
-                  <option key={c.id} value={`${c.id}:cash`}>Cash: {c.name}</option>
+                {cashAccounts.map((c) => (
+                  <option key={c.id} value={`${c.id}:cash`}>
+                    Cash: {c.name}
+                  </option>
                 ))}
               </optgroup>
               <optgroup label="Bank Cards">
-                {cards.filter(c => !c.isCanceled).map(card => (
-                  <option key={card.id} value={`${card.id}:card`}>Card: {card.bankName} - {card.cardName}</option>
-                ))}
+                {cards
+                  .filter((c) => !c.isCanceled)
+                  .map((card) => (
+                    <option key={card.id} value={`${card.id}:card`}>
+                      Card: {card.bankName} - {card.cardName}
+                    </option>
+                  ))}
               </optgroup>
             </select>
           </div>
-          
+
           <div className="flex gap-3 pt-5 mt-5">
             <div className="ledger-rule absolute left-0 right-0" />
           </div>
@@ -259,7 +280,11 @@ export default function TransactionEditModal({
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDelete();
+                  }}
                   disabled={isProcessing}
                   className="flex-1 h-12 bg-[var(--danger)] hover:brightness-95 text-white mono font-black text-[9.5px] uppercase rounded-full transition-all shadow-sm cursor-pointer disabled:opacity-50"
                 >
@@ -270,7 +295,11 @@ export default function TransactionEditModal({
               <div className="flex-1 flex gap-3">
                 <button
                   type="button"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowDeleteConfirm(true); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowDeleteConfirm(true);
+                  }}
                   className="flex-1 h-12 bg-[var(--danger-bg)] hover:bg-[var(--danger)]/15 text-[var(--danger)] mono font-black text-[9.5px] uppercase rounded-full transition-all border border-[var(--danger)]/20 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 size={12} /> Dismiss
@@ -280,7 +309,13 @@ export default function TransactionEditModal({
                   disabled={isProcessing}
                   className="btn-primary flex-[1.5] h-12 text-[9.5px] mono uppercase flex items-center justify-center gap-1.5 disabled:opacity-55"
                 >
-                  {isProcessing ? 'Saving...' : <><Save size={12} /> Save Entries</>}
+                  {isProcessing ? (
+                    'Saving...'
+                  ) : (
+                    <>
+                      <Save size={12} /> Save Entries
+                    </>
+                  )}
                 </button>
               </div>
             )}

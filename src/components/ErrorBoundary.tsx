@@ -1,5 +1,7 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
+import React from 'react';
 import { ShieldAlert, RefreshCw } from 'lucide-react';
+import { logger } from '../lib/logger';
 
 interface Props {
   children?: ReactNode;
@@ -16,7 +18,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
-    errorInfo: null
+    errorInfo: null,
   };
 
   public static getDerivedStateFromError(error: Error): State {
@@ -24,7 +26,8 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('👾 [CRITICAL SYSTEM ERRROR DETECTED BY BOUNDARY]:', error, errorInfo);
+    // Telemetry hook: surface crash details to the console for support diagnostics.
+    logger.error('👾 [CRITICAL SYSTEM ERRROR DETECTED BY BOUNDARY]:', error, errorInfo);
     this.setState({ errorInfo });
     // Telemetry hook: wire a real SDK here before adding (window as any).Sentry?.captureException?.(error).
   }
@@ -44,19 +47,22 @@ export default class ErrorBoundary extends React.Component<Props, State> {
         <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-6 text-[var(--ink)] selection:bg-[var(--ink)] selection:text-[var(--bg)]">
           <div className="max-w-md w-full card p-6 relative overflow-hidden text-left border-[var(--danger)]/20">
             <div className="absolute -top-12 -right-12 w-24 h-24 bg-[var(--danger)]/10 rounded-full blur-2xl pointer-events-none" />
-            
+
             <div className="flex items-center gap-3.5 mb-5 border-b border-[var(--line)] pb-4">
               <div className="h-10 w-10 rounded-xl bg-[var(--danger-bg)] border border-[var(--danger)]/20 flex items-center justify-center text-[var(--danger)] animate-pulse">
                 <ShieldAlert size={20} />
               </div>
               <div>
-                <h2 className="text-sm uppercase mono font-bold text-[var(--danger)] tracking-widest leading-none">Security System Fault</h2>
+                <h2 className="text-sm uppercase mono font-bold text-[var(--danger)] tracking-widest leading-none">
+                  Security System Fault
+                </h2>
                 <p className="eyebrow mt-1">Error Code: ERR_UI_STATE_CRASH</p>
               </div>
             </div>
 
             <p className="text-xs text-[var(--ink-2)] leading-relaxed">
-              The interface state engine encountered an unexpected runtime crash when rendering. Please reload the application to restore the interface.
+              The interface state engine encountered an unexpected runtime crash when rendering. Please reload the
+              application to restore the interface.
             </p>
 
             {this.state.error && (

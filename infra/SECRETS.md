@@ -34,16 +34,16 @@ a492f8b1c7dc4a82b95c06feee482810
 
 ## Vercel environment variables
 
-| Variable | Purpose | Required |
-| --- | --- | --- |
-| `SESSION_SECRET` | HMAC master key (see above) | yes |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase access (vault, auth, RPC) | yes (server 500s without it) |
-| `VITE_SUPABASE_URL` | Client Supabase project URL | yes |
-| `VITE_SUPABASE_ANON_KEY` | Client Supabase public key | yes |
-| `APP_ORIGIN` | Canonical origin for CSRF/WebAuthn checks | yes (server refuses to boot without it) |
-| `SMTP_HOST/PORT/USER/PASS/FROM` | OTP email delivery | yes for real emails (dev can use `DEV_OTP_RESPONSE=true`) |
-| `GEMINI_API_KEY` | AI features (if used) | no |
-| `SENTRY_DSN` | Error reporting (no-op when empty) | no |
+| Variable                        | Purpose                                        | Required                                                  |
+| ------------------------------- | ---------------------------------------------- | --------------------------------------------------------- |
+| `SESSION_SECRET`                | HMAC master key (see above)                    | yes                                                       |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Server-side Supabase access (vault, auth, RPC) | yes (server 500s without it)                              |
+| `VITE_SUPABASE_URL`             | Client Supabase project URL                    | yes                                                       |
+| `VITE_SUPABASE_ANON_KEY`        | Client Supabase public key                     | yes                                                       |
+| `APP_ORIGIN`                    | Canonical origin for CSRF/WebAuthn checks      | yes (server refuses to boot without it)                   |
+| `SMTP_HOST/PORT/USER/PASS/FROM` | OTP email delivery                             | yes for real emails (dev can use `DEV_OTP_RESPONSE=true`) |
+| `GEMINI_API_KEY`                | AI features (if used)                          | no                                                        |
+| `SENTRY_DSN`                    | Error reporting (no-op when empty)             | no                                                        |
 
 Note: `APP_ORIGIN` in the codebase is sometimes referenced as `APP_URL` in older config comments — the enforced key is **`APP_ORIGIN`** (see `server.ts` boot validation).
 

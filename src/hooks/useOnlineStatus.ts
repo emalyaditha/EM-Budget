@@ -16,12 +16,18 @@ export function useOnlineStatus(supabaseUrl?: string): OnlineStatus {
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
-    const handleOnline = () => { if (mountedRef.current) setIsOnline(true); };
-    const handleOffline = () => { if (mountedRef.current) setIsOnline(false); };
+    const handleOnline = () => {
+      if (mountedRef.current) setIsOnline(true);
+    };
+    const handleOffline = () => {
+      if (mountedRef.current) setIsOnline(false);
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);

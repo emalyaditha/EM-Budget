@@ -1,34 +1,41 @@
 import { describe, it, expect } from 'vitest';
 import { validateData, TransactionSchema, CashAccountSchema, BankCardSchema } from './validators';
 import { calculateNetWorth } from './utils';
-import { toMinorUnits, toMajorUnits, addMoney, subtractMoney, sumMoney, compareMoney, multiplyMoney } from './lib/money';
+import type { AppState } from './types';
+import {
+  toMinorUnits,
+  toMajorUnits,
+  addMoney,
+  subtractMoney,
+  sumMoney,
+  compareMoney,
+  multiplyMoney,
+} from './lib/money';
 
 describe('💰 Financial Ledger Integrity Audits', () => {
-
   describe('Money Precision Utilities', () => {
     it('prevents floating-point precision errors (e.g. 0.1 + 0.2)', () => {
       expect(addMoney(0.1, 0.2)).toBe(0.3);
       expect(subtractMoney(19.99, 0.09)).toBe(19.9);
       expect(sumMoney([10.55, 20.45, 0.01])).toBe(31.01);
-      expect(compareMoney(10.50, 10.50)).toBe(0);
+      expect(compareMoney(10.5, 10.5)).toBe(0);
       expect(multiplyMoney(10.25, 3)).toBe(30.75);
       expect(toMinorUnits(19.99)).toBe(1999);
-      expect(toMajorUnits(1999)).toBe("19.99");
+      expect(toMajorUnits(1999)).toBe('19.99');
     });
   });
-
 
   describe('Validation Schemas', () => {
     it('should validate complete and correct cash account formats', () => {
       const validAccount = {
         id: 'acc-101',
         name: 'Amex High-Yield',
-        balance: 14500.50
+        balance: 14500.5,
       };
       const result = validateData(CashAccountSchema, validAccount);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.balance).toBe(14500.50);
+        expect(result.data.balance).toBe(14500.5);
       }
     });
 
@@ -38,7 +45,7 @@ describe('💰 Financial Ledger Integrity Audits', () => {
         cardName: 'Debit <script>alert(1)</script>',
         bankName: 'Swiss Credit Suisse',
         cardType: 'Debit',
-        currentBalance: 50.0
+        currentBalance: 50.0,
       };
       const result = validateData(BankCardSchema, hazardousCard);
       expect(result.success).toBe(false);
@@ -54,7 +61,7 @@ describe('💰 Financial Ledger Integrity Audits', () => {
         title: 'Weekly Groceries',
         amount: -45.0,
         date: '2026-06-07',
-        category: 'Food'
+        category: 'Food',
       };
       const result = validateData(TransactionSchema, negativeTx);
       expect(result.success).toBe(false);
@@ -69,13 +76,13 @@ describe('💰 Financial Ledger Integrity Audits', () => {
       const fromBalanceBefore = 500.0;
       const toBalanceBefore = 100.0;
       const transferAmount = 150.0;
-      const transferFee = 4.50;
+      const transferFee = 4.5;
 
       // Business rule: Transfer offset reduction including transfer fees
       const fromBalanceAfter = fromBalanceBefore - (transferAmount + transferFee);
       const toBalanceAfter = toBalanceBefore + transferAmount;
 
-      expect(fromBalanceAfter).toBe(345.50);
+      expect(fromBalanceAfter).toBe(345.5);
       expect(toBalanceAfter).toBe(250.0);
     });
 
@@ -93,12 +100,9 @@ describe('💰 Financial Ledger Integrity Audits', () => {
   });
 
   describe('calculateNetWorth Aggregator Engine', () => {
-
     it('accurately computes total net worth with positive, negative, and zero-balance cards', () => {
       const mockState = {
-        cashAccounts: [
-          { id: 'cash-1', name: 'Main Vault', balance: 2000 }
-        ],
+        cashAccounts: [{ id: 'cash-1', name: 'Main Vault', balance: 2000 }],
         cards: [
           // Debit card with locked amount
           { id: 'card-1', cardType: 'Debit', currentBalance: 500, lockedAmount: 100, isCanceled: false },
@@ -109,17 +113,13 @@ describe('💰 Financial Ledger Integrity Audits', () => {
           // Credit card with zero balance
           { id: 'card-4', cardType: 'Credit', currentBalance: 0, limit: 1200, isCanceled: false },
           // Canceled card (should be ignored)
-          { id: 'card-5', cardType: 'Debit', currentBalance: 1000, isCanceled: true }
+          { id: 'card-5', cardType: 'Debit', currentBalance: 1000, isCanceled: true },
         ],
-        debts: [
-          { id: 'debt-1', remainingAmount: 500 }
-        ],
-        loansGiven: [
-          { id: 'loan-1', remainingAmount: 800, totalAmount: 1000 }
-        ]
+        debts: [{ id: 'debt-1', remainingAmount: 500 }],
+        loansGiven: [{ id: 'loan-1', remainingAmount: 800, totalAmount: 1000 }],
       };
 
-      const breakdown = calculateNetWorth(mockState as any);
+      const breakdown = calculateNetWorth(mockState as unknown as Partial<AppState>);
 
       expect(breakdown.cash).toBe(2000);
       expect(breakdown.debitCards).toBe(400); // 500 balance - 100 locked

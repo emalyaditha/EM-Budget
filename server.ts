@@ -1,11 +1,11 @@
 import express from 'express';
 import path from 'path';
-import fs from 'fs';
 import nodemailer from 'nodemailer';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import compression from 'compression';
 import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 import {
   generateRegistrationOptions,
@@ -13,9 +13,11 @@ import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
-import { logError, logInfo, logDbFailure, newRequestId } from './api-src/log';
+import type { AuthenticatorTransportFuture } from '@simplewebauthn/server';
+import { logDbFailure, newRequestId } from './api-src/log';
 import { applyInMemoryRateLimit, FAIL_OPEN_EXPLICIT } from './api-src/rate-limit';
 import { DatabaseUnavailableError, failClosedOnDbError } from './api-src/db-unavailable';
+import { generateSecureToken, verifySecureToken, timingSafeEqualString } from './server/security';
 
 function withTimeout<T>(promise: PromiseLike<T>, ms: number, label = 'Operation'): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -33,14 +35,105 @@ function withTimeout<T>(promise: PromiseLike<T>, ms: number, label = 'Operation'
   });
 }
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+interface AppLockFields {
+  pinHash?: string | null;
+  pinEnabled?: boolean;
+  failedAttempts?: number;
+  lockedUntil?: number | null;
+  lockOnOpen?: boolean;
+  lockIdleMinutes?: number | null;
+  pin_hash?: string | null;
+  pin_enabled?: boolean;
+  failed_attempts?: number;
+  locked_until?: number | null;
+  lock_on_open?: boolean;
+  lock_idle_minutes?: number | null;
+  updated_at?: string;
+}
+
+interface WebAuthnCredentialInput {
+  credentialId: string;
+  publicKey: Uint8Array | Buffer | string;
+  signCount?: number;
+  transports?: AuthenticatorTransportFuture[];
+}
+
+interface WebAuthnCredentialRow {
+  user_email: string;
+  credential_id: string;
+  public_key: string;
+  sign_count: number | null;
+  device_label: string | null;
+  transports: AuthenticatorTransportFuture[] | null;
+  created_at: string | number;
+}
+
+interface TrustedDeviceRow {
+  id: string;
+  created_at: string | number;
+  last_used_at: string | number | null;
+  expires_at: string | number | null;
+  user_agent: string | null;
+}
+
+interface SubscriptionRow {
+  id: string;
+  name: string;
+  amount: number;
+  billing_cycle: string;
+  due_date: string;
+  category: string;
+  status: string;
+  instance_type?: string | null;
+  payment_method_id?: string | null;
+  payment_method_type?: string | null;
+  last_paid_date?: string | null;
+  updated_at: string;
+}
+
 export async function createApp(): Promise<express.Express> {
   const app = express();
   const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
+  function buildCsp(): string {
+    const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
+    let connectSrc = "'self' https: wss:";
+    if (supabaseUrl.startsWith('https://')) {
+      const origin = supabaseUrl;
+      const host = new URL(supabaseUrl).host;
+      connectSrc = `'self' ${origin} wss://${host} https://fonts.googleapis.com https://fonts.gstatic.com`;
+    }
+    const isProd = process.env.NODE_ENV === 'production';
+    return [
+      `default-src 'self'`,
+      `script-src 'self'${isProd ? '' : " 'unsafe-inline'"}`,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      `font-src 'self' https://fonts.gstatic.com`,
+      `img-src 'self' data: https:`,
+      `connect-src ${connectSrc}`,
+      `frame-ancestors 'self'`,
+      `object-src 'none'`,
+      `base-uri 'self'`,
+      `form-action 'self'`,
+    ].join('; ');
+  }
+  const CSP = buildCsp();
+
+  app.disable('x-powered-by');
   app.set('trust proxy', 1);
   app.use(compression());
-  app.use(express.json({ limit: '20mb' }));
-  app.use(express.urlencoded({ limit: '20mb', extended: true }));
+  // Per-route body limits: the 2MB scoped parsers MUST be registered before the
+  // global 256KB parser — Express runs middleware in registration order and the
+  // first matching parser wins, so OCR/Gemini large uploads hit 2MB, everything
+  // else is capped at 256KB.
+  app.use('/api/ocr', express.json({ limit: '2mb' }));
+  app.use('/api/gemini', express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '256kb' }));
+  app.use(express.urlencoded({ limit: '256kb', extended: true }));
 
   // Request-ID correlation: proxy the caller's id when present (safe, bounded),
   // otherwise mint a UUID. Emitted on every response as x-request-id so server
@@ -91,6 +184,9 @@ export async function createApp(): Promise<express.Express> {
     );
     process.exit(1);
   }
+  // The guard above exits the process when SESSION_SECRET is missing, so this
+  // narrowed copy is always a non-empty string inside the closures below.
+  const sessionSecret = SESSION_SECRET;
 
   // Production same-origin / WebAuthn origin checks are pinned to APP_ORIGIN and
   // never derived from (spoofable) request headers. Refuse to start if it is
@@ -105,53 +201,8 @@ export async function createApp(): Promise<express.Express> {
     process.exit(1);
   }
 
-  function timingSafeEqualString(a: string, b: string): boolean {
-    const bufA = Buffer.from(a);
-    const bufB = Buffer.from(b);
-    if (bufA.length !== bufB.length) return false;
-    return crypto.timingSafeEqual(bufA, bufB);
-  }
-
   const SESSION_TTL_SHORT = 24 * 60 * 60 * 1000; // 24 hours (default)
   const SESSION_TTL_LONG = 30 * 24 * 60 * 60 * 1000; // 30 days (rememberMe)
-
-  function generateSecureToken(email: string, durationMs = SESSION_TTL_SHORT): string {
-    const payload = {
-      email: email.trim().toLowerCase(),
-      expiresAt: Date.now() + durationMs,
-    };
-    const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const signature = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('hex');
-    return `${payloadStr}.${signature}`;
-  }
-
-  function verifySecureToken(token: string): { email: string; expiresAt: number } | null {
-    if (!token || typeof token !== 'string' || !SESSION_SECRET) return null;
-    const parts = token.split('.');
-    if (parts.length !== 2) return null;
-    const [payloadStr, signature] = parts;
-    const expectedSignature = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('hex');
-    if (!timingSafeEqualString(signature, expectedSignature)) {
-      return null; // Invalid signature
-    }
-    try {
-      const payload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString('utf8'));
-      if (
-        !payload ||
-        typeof payload.email !== 'string' ||
-        typeof payload.expiresAt !== 'number' ||
-        !Number.isFinite(payload.expiresAt)
-      ) {
-        return null;
-      }
-      if (Date.now() > payload.expiresAt) {
-        return null; // Token expired
-      }
-      return { email: payload.email.trim().toLowerCase(), expiresAt: payload.expiresAt };
-    } catch (e) {
-      return null;
-    }
-  }
 
   // -------------------------------------------------------------
   // LOCAL DEVELOPMENT MOCK / SANDBOX FALLBACK DATABASE
@@ -176,6 +227,8 @@ export async function createApp(): Promise<express.Express> {
       publicKey: string;
       signCount: number;
       deviceLabel: string;
+      transports?: AuthenticatorTransportFuture[];
+      createdAt?: number;
     }[],
     webauthnChallenges: [] as {
       id: string;
@@ -207,7 +260,13 @@ export async function createApp(): Promise<express.Express> {
     return crypto.createHash('sha256').update(`${otp}:${normalizedEmail}`).digest('hex');
   }
 
-  async function storeOtpInDb(email: string, otp: string, expiresAt: number, isDeleteOtp = false, supabase: any) {
+  async function storeOtpInDb(
+    email: string,
+    otp: string,
+    expiresAt: number,
+    isDeleteOtp = false,
+    supabase: SupabaseClient | null,
+  ) {
     const normalizedEmail = email.trim().toLowerCase();
     const expiresDate = new Date(expiresAt).toISOString();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
@@ -236,7 +295,7 @@ export async function createApp(): Promise<express.Express> {
         console.error('OTP database write failed:', error);
         throw error;
       }
-    } catch (e: any) {
+    } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] storeOtpInDb', e);
       if (IS_PRODUCTION) throw e;
       mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
@@ -251,7 +310,7 @@ export async function createApp(): Promise<express.Express> {
   async function getOtpFromDb(
     email: string,
     isDeleteOtp = false,
-    supabase: any,
+    supabase: SupabaseClient | null,
   ): Promise<{ otp: string; expiresAt: number } | null> {
     const normalizedEmail = email.trim().toLowerCase();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
@@ -281,7 +340,7 @@ export async function createApp(): Promise<express.Express> {
         };
       }
       return null;
-    } catch (e: any) {
+    } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] getOtpFromDb', e);
       if (IS_PRODUCTION) return null;
       const found = mockDb.otps.find((item) => item.email === storageEmail);
@@ -295,7 +354,7 @@ export async function createApp(): Promise<express.Express> {
     }
   }
 
-  async function deleteOtpFromDb(email: string, isDeleteOtp = false, supabase: any) {
+  async function deleteOtpFromDb(email: string, isDeleteOtp = false, supabase: SupabaseClient | null) {
     const normalizedEmail = email.trim().toLowerCase();
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
 
@@ -309,7 +368,7 @@ export async function createApp(): Promise<express.Express> {
       if (error) {
         console.error('OTP database delete failed:', error);
       }
-    } catch (e: any) {
+    } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] deleteOtpFromDb', e);
       if (!IS_PRODUCTION) mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
     }
@@ -329,12 +388,12 @@ export async function createApp(): Promise<express.Express> {
       timestamp: Date.now(),
     };
     const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const signature = crypto.createHmac('sha256', SESSION_SECRET).update(payloadStr).digest('hex');
+    const signature = crypto.createHmac('sha256', sessionSecret).update(payloadStr).digest('hex');
     return `${payloadStr}.${signature}`;
   }
 
   // Helper to fetch Supabase client (Strict production-level environmental configs only)
-  const getSupabase = (req?: express.Request) => {
+  const getSupabase = (_req?: express.Request) => {
     let url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
     // Production MUST use the privileged service-role key: the anon key is public
     // and does NOT bypass RLS, so any silent fallback would degrade every
@@ -398,7 +457,7 @@ export async function createApp(): Promise<express.Express> {
     });
   };
 
-  async function checkAccountExists(email: string, supabase: any): Promise<boolean> {
+  async function checkAccountExists(email: string, supabase: SupabaseClient | null): Promise<boolean> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!supabase) {
       if (IS_PRODUCTION) return false;
@@ -406,7 +465,7 @@ export async function createApp(): Promise<express.Express> {
     }
     try {
       const { data, error } = await withTimeout(
-        supabase.from('auth_accounts').select('email').eq('email', normalizedEmail).maybeSingle() as Promise<any>,
+        supabase.from('auth_accounts').select('email').eq('email', normalizedEmail).maybeSingle(),
         5000,
         'checkAccountExists',
       );
@@ -414,14 +473,14 @@ export async function createApp(): Promise<express.Express> {
         console.error('Supabase error checking account:', error);
       }
       return !error && !!data;
-    } catch (e: any) {
+    } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] checkAccountExists', e);
       if (IS_PRODUCTION) return false;
       return mockDb.accounts.some((acc) => acc.email === normalizedEmail);
     }
   }
 
-  async function getAccountByEmail(email: string, supabase: any): Promise<Account | null> {
+  async function getAccountByEmail(email: string, supabase: SupabaseClient | null): Promise<Account | null> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!supabase) {
       if (IS_PRODUCTION) return null;
@@ -442,7 +501,7 @@ export async function createApp(): Promise<express.Express> {
         };
       }
       return null;
-    } catch (e: any) {
+    } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] getAccountByEmail', e);
       if (IS_PRODUCTION) return null;
       const found = mockDb.accounts.find((acc) => acc.email === normalizedEmail);
@@ -450,7 +509,7 @@ export async function createApp(): Promise<express.Express> {
     }
   }
 
-  async function saveAccount(acc: Account, supabase: any) {
+  async function saveAccount(acc: Account, supabase: SupabaseClient | null) {
     const normalizedEmail = acc.email.trim().toLowerCase();
     if (!supabase) {
       if (IS_PRODUCTION) throw new Error('Database connection unavailable in production mode.');
@@ -475,7 +534,7 @@ export async function createApp(): Promise<express.Express> {
         console.error('Error saving account to Supabase:', error);
         throw error;
       }
-    } catch (e: any) {
+    } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] saveAccount', e);
       if (IS_PRODUCTION) throw e;
       mockDb.accounts = mockDb.accounts.filter((item) => item.email !== normalizedEmail);
@@ -487,7 +546,7 @@ export async function createApp(): Promise<express.Express> {
     }
   }
 
-  async function saveDeviceToken(token: string, supabase: any, email?: string) {
+  async function saveDeviceToken(token: string, supabase: SupabaseClient | null, email?: string) {
     if (!token) return;
     const normalizedEmail = (email || '').trim().toLowerCase();
     const hashedEmail = normalizedEmail ? crypto.createHash('sha256').update(normalizedEmail).digest('hex') : '';
@@ -507,13 +566,13 @@ export async function createApp(): Promise<express.Express> {
       } else {
         console.log(`🔒 Devices: Registered trusted device for ${normalizedEmail || 'unknown'}.`);
       }
-    } catch (e: any) {
+    } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] saveDeviceToken falling back to Mock DB', e);
       mockDb.deviceTokens.add(hashedToken + ':' + hashedEmail);
     }
   }
 
-  async function verifyDeviceToken(token: string, supabase: any, email?: string): Promise<boolean> {
+  async function verifyDeviceToken(token: string, supabase: SupabaseClient | null, email?: string): Promise<boolean> {
     if (!token) return false;
     const normalizedEmail = (email || '').trim().toLowerCase();
     const hashedEmail = normalizedEmail ? crypto.createHash('sha256').update(normalizedEmail).digest('hex') : null;
@@ -525,7 +584,7 @@ export async function createApp(): Promise<express.Express> {
       return mockDb.deviceTokens.has(hashedToken);
     }
     try {
-      let q = supabase
+      const q = supabase
         .from('auth_device_tokens')
         .select('token, expires_at, hashed_email')
         .eq('token', hashedToken)
@@ -538,7 +597,7 @@ export async function createApp(): Promise<express.Express> {
       }
       if (hashedEmail && data.hashed_email && data.hashed_email !== hashedEmail) return false;
       return true;
-    } catch (e: any) {
+    } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] verifyDeviceToken falling back to Mock DB', e);
       if (hashedEmail) return mockDb.deviceTokens.has(hashedToken + ':' + hashedEmail);
       return mockDb.deviceTokens.has(hashedToken);
@@ -551,7 +610,7 @@ export async function createApp(): Promise<express.Express> {
   //  All operations require a valid session token at the caller.)
   // =====================================================================
 
-  function validatePin(pin: any): string | null {
+  function validatePin(pin: unknown): string | null {
     if (typeof pin !== 'string' || !/^\d{4,6}$/.test(pin)) {
       return 'PIN must be 4 to 6 digits.';
     }
@@ -573,12 +632,12 @@ export async function createApp(): Promise<express.Express> {
     return null;
   }
 
-  function normalizeEmailLower(email: any): string {
+  function normalizeEmailLower(email: unknown): string {
     return (typeof email === 'string' ? email : '').trim().toLowerCase();
   }
 
   // --- app_lock_credentials ---
-  async function getAppLock(email: string, supabase: any) {
+  async function getAppLock(email: string, supabase: SupabaseClient | null) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
       failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
@@ -586,7 +645,7 @@ export async function createApp(): Promise<express.Express> {
     }
     try {
       const { data, error } = await withTimeout(
-        supabase.from('app_lock_credentials').select('*').eq('user_email', e).maybeSingle() as Promise<any>,
+        supabase.from('app_lock_credentials').select('*').eq('user_email', e).maybeSingle(),
         5000,
         'getAppLock',
       );
@@ -601,14 +660,14 @@ export async function createApp(): Promise<express.Express> {
         lockOnOpen: !!data.lock_on_open,
         lockIdleMinutes: data.lock_idle_minutes != null ? Number(data.lock_idle_minutes) : null,
       };
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] getAppLock fallback', err);
       return mockDb.appLocks.find((x) => x.email === e) || null;
     }
   }
 
-  async function upsertAppLock(email: string, fields: any, supabase: any) {
+  async function upsertAppLock(email: string, fields: AppLockFields, supabase: SupabaseClient | null) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
       failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
@@ -619,26 +678,32 @@ export async function createApp(): Promise<express.Express> {
       }
       Object.assign(rec, {
         ...(fields.pinHash !== undefined ? { pinHash: fields.pinHash } : {}),
+        ...(fields.pin_hash !== undefined ? { pinHash: fields.pin_hash } : {}),
         ...(fields.pinEnabled !== undefined ? { pinEnabled: fields.pinEnabled } : {}),
+        ...(fields.pin_enabled !== undefined ? { pinEnabled: fields.pin_enabled } : {}),
         ...(fields.failedAttempts !== undefined ? { failedAttempts: fields.failedAttempts } : {}),
+        ...(fields.failed_attempts !== undefined ? { failedAttempts: fields.failed_attempts } : {}),
         ...(fields.lockedUntil !== undefined ? { lockedUntil: fields.lockedUntil } : {}),
+        ...(fields.locked_until !== undefined ? { lockedUntil: fields.locked_until } : {}),
         ...(fields.lockOnOpen !== undefined ? { lockOnOpen: fields.lockOnOpen } : {}),
+        ...(fields.lock_on_open !== undefined ? { lockOnOpen: fields.lock_on_open } : {}),
         ...(fields.lockIdleMinutes !== undefined ? { lockIdleMinutes: fields.lockIdleMinutes } : {}),
+        ...(fields.lock_idle_minutes !== undefined ? { lockIdleMinutes: fields.lock_idle_minutes } : {}),
       });
       return;
     }
     try {
-      const { data, error } = await withTimeout(
+      const { error } = await withTimeout(
         supabase
           .from('app_lock_credentials')
           .upsert({ user_email: e, ...fields, updated_at: new Date().toISOString() }, { onConflict: 'user_email' })
           .select('user_email')
-          .maybeSingle() as Promise<any>,
+          .maybeSingle(),
         5000,
         'upsertAppLock',
       );
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] upsertAppLock fallback', err);
       let rec = mockDb.appLocks.find((x) => x.email === e);
@@ -647,7 +712,7 @@ export async function createApp(): Promise<express.Express> {
         mockDb.appLocks.push(rec);
       }
       // Translate DB column names to the mock's camelCase fields
-      if (fields.pin_hash !== undefined) rec.pinHash = fields.pin_hash;
+      if (fields.pin_hash !== undefined) rec.pinHash = fields.pin_hash ?? undefined;
       if (fields.pin_enabled !== undefined) rec.pinEnabled = fields.pin_enabled;
       if (fields.failed_attempts !== undefined) rec.failedAttempts = fields.failed_attempts;
       if (fields.locked_until !== undefined) rec.lockedUntil = fields.locked_until;
@@ -660,7 +725,7 @@ export async function createApp(): Promise<express.Express> {
   // --- login_attempts (password-login brute-force lockout) ---
   async function getLoginState(
     email: string,
-    supabase: any,
+    supabase: SupabaseClient | null,
   ): Promise<{ email: string; failed: number; lockedUntil: number | null } | null> {
     const e = normalizeEmailLower(email);
     if (!supabase) {
@@ -670,7 +735,7 @@ export async function createApp(): Promise<express.Express> {
     }
     try {
       const { data, error } = await withTimeout(
-        supabase.from('login_attempts').select('*').eq('email', e).maybeSingle() as Promise<any>,
+        supabase.from('login_attempts').select('*').eq('email', e).maybeSingle(),
         5000,
         'getLoginState',
       );
@@ -681,7 +746,7 @@ export async function createApp(): Promise<express.Express> {
         failed: Number(data.failed_attempts || 0),
         lockedUntil: data.locked_until != null ? Number(data.locked_until) : null,
       };
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[LoginLockout] getLoginState fallback', err);
       return mockDb.loginAttempts.find((x) => x.email === e) || null;
@@ -691,7 +756,7 @@ export async function createApp(): Promise<express.Express> {
   async function upsertLoginState(
     email: string,
     fields: { failed?: number; lockedUntil?: number | null },
-    supabase: any,
+    supabase: SupabaseClient | null,
   ) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
@@ -706,17 +771,19 @@ export async function createApp(): Promise<express.Express> {
       return;
     }
     try {
-      const payload: any = { email: e };
+      const payload: { email: string; failed_attempts?: number; locked_until?: number | null; updated_at?: string } = {
+        email: e,
+      };
       if (fields.failed !== undefined) payload.failed_attempts = fields.failed;
       if (fields.lockedUntil !== undefined) payload.locked_until = fields.lockedUntil;
       payload.updated_at = new Date().toISOString();
       const { error } = await withTimeout(
-        supabase.from('login_attempts').upsert(payload, { onConflict: 'email' }) as Promise<any>,
+        supabase.from('login_attempts').upsert(payload, { onConflict: 'email' }),
         5000,
         'upsertLoginState',
       );
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[LoginLockout] upsertLoginState fallback', err);
       let rec = mockDb.loginAttempts.find((x) => x.email === e);
@@ -734,7 +801,7 @@ export async function createApp(): Promise<express.Express> {
     email: string,
     challenge: string,
     purpose: string,
-    supabase: any,
+    supabase: SupabaseClient | null,
   ): Promise<string> {
     const e = normalizeEmailLower(email);
     const id = crypto.randomUUID();
@@ -749,7 +816,7 @@ export async function createApp(): Promise<express.Express> {
         .from('webauthn_challenges')
         .insert({ id, user_email: e, challenge, purpose, expires_at: expiresAt });
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] storeWebAuthnChallenge fallback', err);
       mockDb.webauthnChallenges.push({ id, email: e, challenge, purpose, expiresAt });
@@ -761,7 +828,7 @@ export async function createApp(): Promise<express.Express> {
     id: string,
     email: string,
     purpose: string,
-    supabase: any,
+    supabase: SupabaseClient | null,
   ): Promise<string | null> {
     const e = normalizeEmailLower(email);
     if (!supabase) {
@@ -787,7 +854,7 @@ export async function createApp(): Promise<express.Express> {
       const { error: delError } = await supabase.from('webauthn_challenges').delete().eq('id', id);
       if (delError) throw delError;
       return data.challenge;
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] consumeWebAuthnChallenge fallback', err);
       const idx = mockDb.webauthnChallenges.findIndex((c) => c.id === id && c.email === e && c.purpose === purpose);
@@ -799,7 +866,7 @@ export async function createApp(): Promise<express.Express> {
   }
 
   // --- webauthn_credentials ---
-  async function listWebAuthnCredentials(email: string, supabase: any) {
+  async function listWebAuthnCredentials(email: string, supabase: SupabaseClient | null) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
       failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
@@ -807,16 +874,20 @@ export async function createApp(): Promise<express.Express> {
     }
     try {
       const { data, error } = await withTimeout(
-        supabase
-          .from('webauthn_credentials')
-          .select('*')
-          .eq('user_email', e)
-          .order('created_at', { ascending: true }) as Promise<any>,
+        supabase.from('webauthn_credentials').select('*').eq('user_email', e).order('created_at', { ascending: true }),
         5000,
         'listWebAuthnCredentials',
       );
       if (error) throw error;
-      const fromDb = (data || []).map((r: any) => ({
+      const fromDb: {
+        email: string;
+        credentialId: string;
+        publicKey: string;
+        signCount: number;
+        deviceLabel: string;
+        transports: AuthenticatorTransportFuture[];
+        createdAt: string | number;
+      }[] = (data || []).map((r: WebAuthnCredentialRow) => ({
         email: r.user_email,
         credentialId: r.credential_id,
         publicKey: r.public_key,
@@ -838,14 +909,19 @@ export async function createApp(): Promise<express.Express> {
         }));
       const seen = new Set(fromDb.map((c) => c.credentialId));
       return [...fromDb, ...fromMock.filter((c) => !seen.has(c.credentialId))];
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] listWebAuthnCredentials fallback', err);
       return mockDb.webauthnCreds.filter((c) => c.email === e);
     }
   }
 
-  async function saveWebAuthnCredential(email: string, cred: any, deviceLabel: string, supabase: any) {
+  async function saveWebAuthnCredential(
+    email: string,
+    cred: WebAuthnCredentialInput,
+    deviceLabel: string,
+    supabase: SupabaseClient | null,
+  ) {
     const e = normalizeEmailLower(email);
     const publicKeyB64 = publicKeyToBase64url(cred.publicKey);
     if (!supabase) {
@@ -869,7 +945,7 @@ export async function createApp(): Promise<express.Express> {
         transports: cred.transports || [],
       });
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] saveWebAuthnCredential fallback', err);
       mockDb.webauthnCreds.push({
@@ -882,7 +958,7 @@ export async function createApp(): Promise<express.Express> {
     }
   }
 
-  async function deleteWebAuthnCredential(email: string, credentialId: string, supabase: any) {
+  async function deleteWebAuthnCredential(email: string, credentialId: string, supabase: SupabaseClient | null) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
       failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
@@ -896,7 +972,7 @@ export async function createApp(): Promise<express.Express> {
         .eq('user_email', e)
         .eq('credential_id', credentialId);
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] deleteWebAuthnCredential fallback', err);
       mockDb.webauthnCreds = mockDb.webauthnCreds.filter((c) => !(c.email === e && c.credentialId === credentialId));
@@ -908,7 +984,7 @@ export async function createApp(): Promise<express.Express> {
     email: string,
     token: string,
     userAgent: string,
-    supabase: any,
+    supabase: SupabaseClient | null,
   ): Promise<{ id: string; expiresAt: number }> {
     const e = normalizeEmailLower(email);
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -936,12 +1012,12 @@ export async function createApp(): Promise<express.Express> {
           expires_at: expiresAt,
           last_used_at: Date.now(),
           user_agent: (userAgent || '').slice(0, 300),
-        }) as Promise<any>,
+        }),
         5000,
         'insertTrustedDevice',
       );
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] createTrustedDevice fallback', err);
       mockDb.trustedDevices.push({
@@ -959,7 +1035,7 @@ export async function createApp(): Promise<express.Express> {
 
   async function findTrustedDeviceByToken(
     token: string,
-    supabase: any,
+    supabase: SupabaseClient | null,
   ): Promise<{ email: string; expiresAt: number } | null> {
     if (!token) return null;
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -975,7 +1051,7 @@ export async function createApp(): Promise<express.Express> {
     }
     try {
       const { data, error } = await withTimeout(
-        supabase.from('trusted_devices').select('*').eq('device_token_hash', tokenHash).maybeSingle() as Promise<any>,
+        supabase.from('trusted_devices').select('*').eq('device_token_hash', tokenHash).maybeSingle(),
         5000,
         'findTrustedDevice',
       );
@@ -995,25 +1071,18 @@ export async function createApp(): Promise<express.Express> {
         return null;
       }
       if (data.expires_at && Date.now() > Number(data.expires_at)) {
-        await withTimeout(
-          supabase.from('trusted_devices').delete().eq('id', data.id) as Promise<any>,
-          5000,
-          'deleteExpiredDevice',
-        );
+        await withTimeout(supabase.from('trusted_devices').delete().eq('id', data.id), 5000, 'deleteExpiredDevice');
         return null;
       }
       // sliding inactivity window refresh (30 days from last use)
       const newExpiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
       await withTimeout(
-        supabase
-          .from('trusted_devices')
-          .update({ last_used_at: Date.now(), expires_at: newExpiry })
-          .eq('id', data.id) as Promise<any>,
+        supabase.from('trusted_devices').update({ last_used_at: Date.now(), expires_at: newExpiry }).eq('id', data.id),
         5000,
         'refreshDeviceExpiry',
       );
       return { email: data.user_email, expiresAt: newExpiry };
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] findTrustedDeviceByToken fallback', err);
       const rec = mockDb.trustedDevices.find((d) => d.tokenHash === tokenHash);
@@ -1027,7 +1096,7 @@ export async function createApp(): Promise<express.Express> {
     }
   }
 
-  async function listTrustedDevices(email: string, supabase: any) {
+  async function listTrustedDevices(email: string, supabase: SupabaseClient | null) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
       failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
@@ -1043,16 +1112,18 @@ export async function createApp(): Promise<express.Express> {
     }
     try {
       const { data, error } = await withTimeout(
-        supabase
-          .from('trusted_devices')
-          .select('*')
-          .eq('user_email', e)
-          .order('created_at', { ascending: false }) as Promise<any>,
+        supabase.from('trusted_devices').select('*').eq('user_email', e).order('created_at', { ascending: false }),
         5000,
         'listTrustedDevices',
       );
       if (error) throw error;
-      const fromDb = (data || []).map((r: any) => ({
+      const fromDb: {
+        id: string;
+        createdAt: number;
+        lastUsedAt: number;
+        expiresAt: number;
+        userAgent: string;
+      }[] = (data || []).map((r: TrustedDeviceRow) => ({
         id: r.id,
         createdAt: Number(r.created_at ? new Date(r.created_at).getTime() : Date.now()),
         lastUsedAt: Number(r.last_used_at || 0),
@@ -1071,7 +1142,7 @@ export async function createApp(): Promise<express.Express> {
         }));
       const seen = new Set(fromDb.map((d) => d.id));
       return [...fromDb, ...fromMock.filter((d) => !seen.has(d.id))];
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] listTrustedDevices fallback', err);
       return mockDb.trustedDevices
@@ -1086,7 +1157,7 @@ export async function createApp(): Promise<express.Express> {
     }
   }
 
-  async function deleteTrustedDevice(email: string, id: string, supabase: any) {
+  async function deleteTrustedDevice(email: string, id: string, supabase: SupabaseClient | null) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
       failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
@@ -1096,14 +1167,14 @@ export async function createApp(): Promise<express.Express> {
     try {
       const { error } = await supabase.from('trusted_devices').delete().eq('user_email', e).eq('id', id);
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] deleteTrustedDevice fallback', err);
       mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => !(d.email === e && d.id === id));
     }
   }
 
-  async function deleteAllTrustedDevices(email: string, supabase: any) {
+  async function deleteAllTrustedDevices(email: string, supabase: SupabaseClient | null) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
       failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
@@ -1113,7 +1184,7 @@ export async function createApp(): Promise<express.Express> {
     try {
       const { error } = await supabase.from('trusted_devices').delete().eq('user_email', e);
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] deleteAllTrustedDevices fallback', err);
       mockDb.trustedDevices = mockDb.trustedDevices.filter((d) => d.email !== e);
@@ -1124,12 +1195,17 @@ export async function createApp(): Promise<express.Express> {
   function traceAppLockEvent(email: string, event: string) {
     try {
       console.log(`[AppLock/audit] event=${event} email=${normalizeEmailLower(email)} ts=${Date.now()}`);
-    } catch (_err) {
+    } catch {
       // never let audit logging break the request
     }
   }
 
-  async function updateWebAuthnCredentialCounter(email: string, credentialId: string, counter: number, supabase: any) {
+  async function updateWebAuthnCredentialCounter(
+    email: string,
+    credentialId: string,
+    counter: number,
+    supabase: SupabaseClient | null,
+  ) {
     const e = normalizeEmailLower(email);
     if (!supabase) {
       failClosedOnDbError(IS_PRODUCTION, 'Database client unavailable in production.');
@@ -1144,7 +1220,7 @@ export async function createApp(): Promise<express.Express> {
         .eq('user_email', e)
         .eq('credential_id', credentialId);
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] updateWebAuthnCredentialCounter', err);
       const rec = mockDb.webauthnCreds.find((c) => c.email === e && c.credentialId === credentialId);
@@ -1153,9 +1229,9 @@ export async function createApp(): Promise<express.Express> {
   }
 
   // Require the caller to hold a valid signed session token for <email>.
-  function requireSession(req, res, email): boolean {
+  function requireSession(req: express.Request, res: express.Response, email: string): boolean {
     const token = getTokenFromRequest(req);
-    const decoded = token ? verifySecureToken(token) : null;
+    const decoded = token ? verifySecureToken(token, sessionSecret) : null;
     if (!decoded || decoded.email !== normalizeEmailLower(email)) {
       res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
       return false;
@@ -1165,7 +1241,7 @@ export async function createApp(): Promise<express.Express> {
   }
 
   // --- Cookie helpers (httpOnly session) ---
-  function parseCookies(req: any): Record<string, string> {
+  function parseCookies(req: express.Request): Record<string, string> {
     const header = req.headers.cookie || '';
     const out: Record<string, string> = {};
     header.split(';').forEach((p) => {
@@ -1177,18 +1253,14 @@ export async function createApp(): Promise<express.Express> {
     });
     return out;
   }
-  function setSessionCookie(res, token, maxAgeSeconds = 86400) {
+  function setSessionCookie(res: express.Response, token: string, maxAgeSeconds = 86400) {
     const secure = IS_PRODUCTION ? '; Secure' : '';
     res.setHeader(
       'Set-Cookie',
       `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${secure}`,
     );
   }
-  function clearSessionCookie(res) {
-    const secure = IS_PRODUCTION ? '; Secure' : '';
-    res.setHeader('Set-Cookie', `session_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
-  }
-  function setTrustCookie(res, token) {
+  function setTrustCookie(res: express.Response, token: string) {
     const secure = IS_PRODUCTION ? '; Secure' : '';
     // 30-day, httpOnly, SameSite=Strict device trust token (separate from session)
     res.append(
@@ -1196,11 +1268,11 @@ export async function createApp(): Promise<express.Express> {
       `app_lock_trust=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${30 * 24 * 60 * 60}${secure}`,
     );
   }
-  function clearTrustCookie(res) {
+  function clearTrustCookie(res: express.Response) {
     const secure = IS_PRODUCTION ? '; Secure' : '';
     res.append('Set-Cookie', `app_lock_trust=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
   }
-  function getTokenFromRequest(req) {
+  function getTokenFromRequest(req: express.Request) {
     const auth = req.headers.authorization;
     if (auth && auth.startsWith('Bearer ')) return auth.split(' ')[1];
     const cookies = parseCookies(req);
@@ -1218,10 +1290,7 @@ export async function createApp(): Promise<express.Express> {
     // script-src admits 'unsafe-inline' only in dev, where Vite's @vitejs/plugin-react
     // injects an inline react-refresh preamble; the production bundle has no inline
     // scripts, so script-src 'self' is sufficient there.
-    res.setHeader(
-      'Content-Security-Policy',
-      `default-src 'self'; script-src 'self'${IS_PRODUCTION ? '' : " 'unsafe-inline'"}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`,
-    );
+    res.setHeader('Content-Security-Policy', CSP);
 
     // 2. Prevent dynamic MIME Sniffing attacks
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -1267,13 +1336,25 @@ export async function createApp(): Promise<express.Express> {
     res.status(403).json({ success: false, error: 'Forbidden.' });
   });
 
+  // Content-Type enforcement: state-changing /api requests must be JSON when a
+  // content-type is declared. Absent header => pass through (body stays {} as today).
+  app.use('/api', (req, res, next) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+    const ct = req.headers['content-type'];
+    if (ct && !/^application\/(?:[a-z0-9.+-]*\+)?json\b/i.test(ct)) {
+      res.status(415).json({ success: false, error: 'Unsupported content type.' });
+      return;
+    }
+    next();
+  });
+
   // Custom rate-limiter backed strictly by database (Stateless Cloud Run autoscaling compliant)
   // Returns { allowed, retryAfterSeconds } so callers get precise retry timing.
   async function checkRateLimitInDb(
     key: string,
     limit: number,
     windowMs: number,
-    supabase: any,
+    supabase: SupabaseClient | null,
   ): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
     const now = Date.now();
     const resetTime = now + windowMs;
@@ -1367,8 +1448,25 @@ export async function createApp(): Promise<express.Express> {
     };
   };
 
+  const rateLimitIp = (limit: number, windowMs: number) => {
+    return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      const ip = req.ip || req.socket.remoteAddress || 'unknown';
+      const key = `${ip}:${req.path}:ip`;
+      const supabase = getSupabase(req);
+      const { allowed, retryAfterSeconds } = await checkRateLimitInDb(key, limit, windowMs, supabase);
+      if (allowed) return next();
+      console.warn(`[SECURITY SUSPICIOUS ACTIVITY] IP rate limit exceeded on ${req.path} for ${ip}`);
+      res.setHeader('Retry-After', String(retryAfterSeconds));
+      res.status(429).json({
+        success: false,
+        error: 'Too many authentication requests. Please try again later.',
+        retryAfter: retryAfterSeconds,
+      });
+    };
+  };
+
   // Safe input validation helpers
-  function validateEmail(email: any): string | null {
+  function validateEmail(email: unknown): string | null {
     if (!email || typeof email !== 'string') return 'Email address parameter must be a valid string.';
     const clean = email.trim();
     if (clean.length > 120) return 'Email length exceeds safety threshold (120 chars max).';
@@ -1380,7 +1478,7 @@ export async function createApp(): Promise<express.Express> {
     return null;
   }
 
-  function validatePassword(password: any): string | null {
+  function validatePassword(password: unknown): string | null {
     if (!password || typeof password !== 'string') return 'Password parameters must be a valid string.';
     if (password.length < 8) return 'Strong authentication mandates passwords be at least 8 characters.';
     if (password.length > 100) return 'Password length exceeds safety boundaries (100 characters max).';
@@ -1390,7 +1488,7 @@ export async function createApp(): Promise<express.Express> {
     return null;
   }
 
-  function validateOtp(otp: any): string | null {
+  function validateOtp(otp: unknown): string | null {
     if (!otp || typeof otp !== 'string') return 'Passcode parameter must be a valid string.';
     const clean = otp.trim();
     if (clean.length < 6 || clean.length > 12) return 'Passcode verification code length is incorrect.';
@@ -1417,7 +1515,7 @@ export async function createApp(): Promise<express.Express> {
   // Requires a valid session token — reveals infrastructure surface, so it must not be anonymous.
   app.get('/api/diagnostics', rateLimitAuth(60, 60 * 1000), (req, res) => {
     const token = getTokenFromRequest(req);
-    const decoded = token ? verifySecureToken(token) : null;
+    const decoded = token ? verifySecureToken(token, sessionSecret) : null;
     if (!decoded) {
       res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
       return;
@@ -1442,21 +1540,31 @@ export async function createApp(): Promise<express.Express> {
   // 0. Check Email Route
   app.post(
     '/api/auth/check-email',
+    rateLimitIp(60, 60 * 1000),
     rateLimitAuth(20, 60 * 1000),
     async (req: express.Request, res: express.Response) => {
       try {
         const { email } = req.body;
         const emailErr = validateEmail(email);
         if (emailErr) {
+          // Uniform response delay: removes the account-existence timing side-channel.
+          const jitter = 60 + Math.random() * 140;
+          await new Promise((r) => setTimeout(r, jitter));
           res.status(400).json({ success: false, error: emailErr });
           return;
         }
         const normalizedEmail = email.trim().toLowerCase();
         const supabase = getSupabase(req);
         const exists = await checkAccountExists(normalizedEmail, supabase);
+        // Uniform response delay: removes the account-existence timing side-channel.
+        const jitter = 60 + Math.random() * 140;
+        await new Promise((r) => setTimeout(r, jitter));
         res.json({ success: true, exists });
-      } catch (err: any) {
-        console.error('[SECURITY LOG] Check-email operation failed:', err.message || err);
+      } catch (err) {
+        console.error('[SECURITY LOG] Check-email operation failed:', errorMessage(err));
+        // Uniform response delay: removes the account-existence timing side-channel.
+        const jitter = 60 + Math.random() * 140;
+        await new Promise((r) => setTimeout(r, jitter));
         res.status(500).json({ success: false, error: 'System authentication service error. Please try again later.' });
       }
     },
@@ -1495,7 +1603,6 @@ export async function createApp(): Promise<express.Express> {
       const smtpFrom = process.env.SMTP_FROM;
 
       let emailSent = false;
-      let errorDetails = '';
 
       if (smtpHost && smtpUser && smtpPass) {
         try {
@@ -1536,12 +1643,9 @@ export async function createApp(): Promise<express.Express> {
           });
           emailSent = true;
           console.log(`📧 Success: 2FA passcode email dispatched to ${normalizedEmail}`);
-        } catch (mailError: any) {
-          console.error('[SECURITY LOG] SMTP Transmission Failed:', mailError.message || mailError);
-          errorDetails = 'SMTP delivery error occurred during secure transmission.';
+        } catch (mailError) {
+          console.error('[SECURITY LOG] SMTP Transmission Failed:', errorMessage(mailError));
         }
-      } else {
-        errorDetails = 'SMTP server is not configured in environment variables.';
       }
 
       if (!emailSent) {
@@ -1569,8 +1673,8 @@ export async function createApp(): Promise<express.Express> {
         success: true,
         emailSent: true,
       });
-    } catch (err: any) {
-      console.error('[SECURITY LOG] OTP Send failed:', err.message || err);
+    } catch (err) {
+      console.error('[SECURITY LOG] OTP Send failed:', errorMessage(err));
       res.status(500).json({ success: false, error: 'System secure transmission error. Please request later.' });
     }
   });
@@ -1628,15 +1732,15 @@ export async function createApp(): Promise<express.Express> {
 
         // Successful unlock - clear OTP
         await deleteOtpFromDb(normalizedEmail, false, supabase);
-        const _sessionToken = generateSecureToken(normalizedEmail);
+        const _sessionToken = generateSecureToken(normalizedEmail, SESSION_TTL_SHORT, sessionSecret);
         setSessionCookie(res, _sessionToken);
         res.json({
           success: true,
           token: _sessionToken,
           deviceToken,
         });
-      } catch (err: any) {
-        console.error('[SECURITY LOG] Verify OTP failed:', err.message || err);
+      } catch (err) {
+        console.error('[SECURITY LOG] Verify OTP failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System authentication service error.' });
       }
     },
@@ -1695,15 +1799,15 @@ export async function createApp(): Promise<express.Express> {
       await saveDeviceToken(deviceToken, supabase, normalizedEmail);
 
       const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
-      const _regToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+      const _regToken = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
       setSessionCookie(res, _regToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
       res.json({
         success: true,
         token: _regToken,
         deviceToken,
       });
-    } catch (err: any) {
-      console.error('[SECURITY LOG] Register operation failed:', err.message || err);
+    } catch (err) {
+      console.error('[SECURITY LOG] Register operation failed:', errorMessage(err));
       res.status(500).json({ success: false, error: 'System registration service error.' });
     }
   });
@@ -1735,14 +1839,12 @@ export async function createApp(): Promise<express.Express> {
         const loginState = await getLoginState(normalizedEmail, supabase);
         if (loginState?.lockedUntil && Date.now() < loginState.lockedUntil) {
           const remaining = Math.ceil((loginState.lockedUntil - Date.now()) / 1000);
-          res
-            .status(429)
-            .json({
-              success: false,
-              error: `Too many attempts. Account locked for ${remaining}s.`,
-              code: 'ACCOUNT_LOCKED',
-              retryAfter: remaining,
-            });
+          res.status(429).json({
+            success: false,
+            error: `Too many attempts. Account locked for ${remaining}s.`,
+            code: 'ACCOUNT_LOCKED',
+            retryAfter: remaining,
+          });
           return;
         }
 
@@ -1778,7 +1880,7 @@ export async function createApp(): Promise<express.Express> {
         await saveDeviceToken(deviceToken, supabase, normalizedEmail);
 
         const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
-        const _loginToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+        const _loginToken = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
         setSessionCookie(res, _loginToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
         // The token is returned in the body (not only in the httpOnly cookie)
         // on purpose: the client needs it to sign its DIRECT-to-Supabase sync
@@ -1790,12 +1892,12 @@ export async function createApp(): Promise<express.Express> {
           token: _loginToken,
           deviceToken,
         });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] Login-password operation failed:', err.message || err);
+        console.error('[SECURITY LOG] Login-password operation failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System authentication service error.' });
       }
     },
@@ -1857,15 +1959,15 @@ export async function createApp(): Promise<express.Express> {
         await saveDeviceToken(deviceToken, supabase, normalizedEmail);
 
         const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
-        const _resetToken = generateSecureToken(normalizedEmail, sessionTtlMs);
+        const _resetToken = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
         setSessionCookie(res, _resetToken, rememberMe ? 30 * 24 * 60 * 60 : 86400);
         res.json({
           success: true,
           token: _resetToken,
           deviceToken,
         });
-      } catch (err: any) {
-        console.error('[SECURITY LOG] Reset-password operation failed:', err.message || err);
+      } catch (err) {
+        console.error('[SECURITY LOG] Reset-password operation failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System password reset service error.' });
       }
     },
@@ -1889,8 +1991,8 @@ export async function createApp(): Promise<express.Express> {
           typeof email === 'string' ? email : undefined,
         );
         res.json({ success: isValid });
-      } catch (err: any) {
-        console.error('[SECURITY LOG] Device verification error:', err.message || err);
+      } catch (err) {
+        console.error('[SECURITY LOG] Device verification error:', errorMessage(err));
         res.status(500).json({ success: false, error: 'Internal verification error' });
       }
     },
@@ -1904,12 +2006,11 @@ export async function createApp(): Promise<express.Express> {
   // =====================================================================
 
   const WEBAUTHN_RP_ID = process.env.WEB_AUTHN_RP_ID || '';
-  const appLockRPRouter = express.Router();
 
-  function getRPID(req) {
+  function getRPID(req: express.Request) {
     return WEBAUTHN_RP_ID || (req.headers.host || 'localhost').split(':')[0];
   }
-  function getOrigin(req) {
+  function getOrigin(req: express.Request) {
     // Production MUST be pinned to an explicit APP_ORIGIN. Deriving the origin
     // from request headers (Host / x-forwarded-proto) is spoofable and would
     // defeat the same-origin / WebAuthn origin checks, so we never trust them
@@ -1922,7 +2023,7 @@ export async function createApp(): Promise<express.Express> {
     if ((req.headers.host || '').includes('localhost') && !process.env.VERCEL) return `http://${req.headers.host}`;
     return `${proto}://${req.headers.host}`;
   }
-  function userIDBytes(email) {
+  function userIDBytes(email: string) {
     const buf = crypto.createHash('sha256').update(normalizeEmailLower(email)).digest();
     return new Uint8Array(buf);
   }
@@ -1966,12 +2067,12 @@ export async function createApp(): Promise<express.Express> {
           lockedUntil: lock?.lockedUntil || null,
           webauthnRpid: getRPID(req),
         });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[AppLock] status error:', err?.message || err);
+        console.error('[AppLock] status error:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System app-lock status error.' });
       }
     },
@@ -2001,12 +2102,12 @@ export async function createApp(): Promise<express.Express> {
         );
         console.log(`[AppLock] PIN set for ${normalizedEmail} (hash only, PIN never stored).`);
         res.json({ success: true });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] App-lock PIN set failed:', err?.message || err);
+        console.error('[SECURITY LOG] App-lock PIN set failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System app-lock service error.' });
       }
     },
@@ -2033,12 +2134,12 @@ export async function createApp(): Promise<express.Express> {
           supabase,
         );
         res.json({ success: true });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] App-lock PIN disable failed:', err?.message || err);
+        console.error('[SECURITY LOG] App-lock PIN disable failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System app-lock service error.' });
       }
     },
@@ -2064,12 +2165,12 @@ export async function createApp(): Promise<express.Express> {
         await upsertAppLock(normalizedEmail, { lock_on_open: enabled, updated_at: new Date().toISOString() }, supabase);
         console.log(`[AppLock] lock-on-open ${enabled ? 'enabled' : 'disabled'} for ${normalizedEmail}.`);
         res.json({ success: true, lockOnOpen: enabled });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] App-lock always-lock update failed:', err?.message || err);
+        console.error('[SECURITY LOG] App-lock always-lock update failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System app-lock service error.' });
       }
     },
@@ -2097,12 +2198,12 @@ export async function createApp(): Promise<express.Express> {
         );
         console.log(`[AppLock] idle-lock timeout set to ${Math.round(minutes)} min for ${normalizedEmail}.`);
         res.json({ success: true, minutes: Math.round(minutes) });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] App-lock idle-minutes update failed:', err?.message || err);
+        console.error('[SECURITY LOG] App-lock idle-minutes update failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System app-lock service error.' });
       }
     },
@@ -2124,7 +2225,7 @@ export async function createApp(): Promise<express.Express> {
         if (!requireSession(req, res, normalizedEmail)) return;
         const supabase = getSupabase(req);
 
-        let lock = await getAppLock(normalizedEmail, supabase);
+        const lock = await getAppLock(normalizedEmail, supabase);
         if (!lock || !lock.pinHash) {
           traceAppLockEvent(normalizedEmail, 'pin_verify_no_pin');
           res.json({ success: false, error: 'No PIN is configured for app lock.', code: 'NO_PIN' });
@@ -2172,12 +2273,12 @@ export async function createApp(): Promise<express.Express> {
           attemptsRemaining: Math.max(0, 5 - failed),
           retryAfter,
         });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] App-lock PIN verify failed:', err?.message || err);
+        console.error('[SECURITY LOG] App-lock PIN verify failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System app-lock verification error.' });
       }
     },
@@ -2208,12 +2309,12 @@ export async function createApp(): Promise<express.Express> {
         );
         traceAppLockEvent(normalizedEmail, 'pin_reset');
         res.json({ success: true });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] App-lock PIN reset failed:', err?.message || err);
+        console.error('[SECURITY LOG] App-lock PIN reset failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System app-lock reset error.' });
       }
     },
@@ -2225,7 +2326,7 @@ export async function createApp(): Promise<express.Express> {
     rateLimitAuth(8, 60 * 1000),
     async (req: express.Request, res: express.Response) => {
       try {
-        const { email, deviceLabel } = req.body;
+        const { email } = req.body;
         const emailErr = validateEmail(email);
         if (emailErr) {
           res.status(400).json({ success: false, error: emailErr });
@@ -2256,12 +2357,12 @@ export async function createApp(): Promise<express.Express> {
 
         const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, 'registration', supabase);
         res.json({ success: true, stateId, options });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] WebAuthn register-options failed:', err?.message || err);
+        console.error('[SECURITY LOG] WebAuthn register-options failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'WebAuthn registration could not start.' });
       }
     },
@@ -2301,8 +2402,8 @@ export async function createApp(): Promise<express.Express> {
             expectedRPID: rpID,
             requireUserVerification: true,
           });
-        } catch (verr: any) {
-          console.error('[SECURITY LOG] WebAuthn registration verification error:', verr?.message || verr);
+        } catch (verr) {
+          console.error('[SECURITY LOG] WebAuthn registration verification error:', errorMessage(verr));
           res.status(400).json({ success: false, error: 'Biometric registration could not be verified.' });
           return;
         }
@@ -2329,12 +2430,12 @@ export async function createApp(): Promise<express.Express> {
         );
         traceAppLockEvent(normalizedEmail, 'webauthn_registered');
         res.json({ success: true, credentialId: regInfo.credential.id });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] WebAuthn register-verify failed:', err?.message || err);
+        console.error('[SECURITY LOG] WebAuthn register-verify failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System WebAuthn registration error.' });
       }
     },
@@ -2369,12 +2470,12 @@ export async function createApp(): Promise<express.Express> {
         });
         const stateId = await storeWebAuthnChallenge(normalizedEmail, options.challenge, 'authentication', supabase);
         res.json({ success: true, stateId, options });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] WebAuthn authentication-options failed:', err?.message || err);
+        console.error('[SECURITY LOG] WebAuthn authentication-options failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'Biometric unlock could not start.' });
       }
     },
@@ -2435,12 +2536,12 @@ export async function createApp(): Promise<express.Express> {
         await updateWebAuthnCredentialCounter(normalizedEmail, stored.credentialId, newCounter, supabase);
         traceAppLockEvent(normalizedEmail, 'webauthn_unlock_success');
         res.json({ success: true });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] WebAuthn authentication-verify failed:', err?.message || err);
+        console.error('[SECURITY LOG] WebAuthn authentication-verify failed:', errorMessage(err));
         res.json({ success: false, error: 'Biometric unlock could not be verified.' });
       }
     },
@@ -2463,12 +2564,12 @@ export async function createApp(): Promise<express.Express> {
         const supabase = getSupabase(req);
         await deleteWebAuthnCredential(normalizedEmail, credentialId, supabase);
         res.json({ success: true });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] WebAuthn remove failed:', err?.message || err);
+        console.error('[SECURITY LOG] WebAuthn remove failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System WebAuthn removal error.' });
       }
     },
@@ -2492,18 +2593,18 @@ export async function createApp(): Promise<express.Express> {
         const creds = await listWebAuthnCredentials(normalizedEmail, supabase);
         res.json({
           success: true,
-          credentials: creds.map((c: any) => ({
+          credentials: creds.map((c) => ({
             credentialId: c.credentialId,
             deviceLabel: c.deviceLabel || 'Biometric device',
             createdAt: c.createdAt ? Number(new Date(c.createdAt).getTime()) : 0,
           })),
         });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] WebAuthn list failed:', err?.message || err);
+        console.error('[SECURITY LOG] WebAuthn list failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System WebAuthn list error.' });
       }
     },
@@ -2531,12 +2632,12 @@ export async function createApp(): Promise<express.Express> {
         await createTrustedDevice(normalizedEmail, rawToken, ua, supabase);
         setTrustCookie(res, rawToken);
         res.json({ success: true, expiresInDays: 30 });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] Trusted device issue failed:', err?.message || err);
+        console.error('[SECURITY LOG] Trusted device issue failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System device-trust error.' });
       }
     },
@@ -2566,12 +2667,12 @@ export async function createApp(): Promise<express.Express> {
           return;
         }
         res.json({ success: true, trusted: true, email: found.email });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] Trusted device check failed:', err?.message || err);
+        console.error('[SECURITY LOG] Trusted device check failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System device-trust check error.' });
       }
     },
@@ -2594,12 +2695,12 @@ export async function createApp(): Promise<express.Express> {
         const supabase = getSupabase(req);
         const devices = await listTrustedDevices(normalizedEmail, supabase);
         res.json({ success: true, devices });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] Trusted device list failed:', err?.message || err);
+        console.error('[SECURITY LOG] Trusted device list failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System device-trust list error.' });
       }
     },
@@ -2622,12 +2723,12 @@ export async function createApp(): Promise<express.Express> {
         const supabase = getSupabase(req);
         await deleteTrustedDevice(normalizedEmail, id, supabase);
         res.json({ success: true });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] Trusted device revoke failed:', err?.message || err);
+        console.error('[SECURITY LOG] Trusted device revoke failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System device-trust revoke error.' });
       }
     },
@@ -2651,12 +2752,12 @@ export async function createApp(): Promise<express.Express> {
         await deleteAllTrustedDevices(normalizedEmail, supabase);
         clearTrustCookie(res);
         res.json({ success: true });
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof DatabaseUnavailableError) {
           res.status(503).json({ success: false, error: err.message });
           return;
         }
-        console.error('[SECURITY LOG] Trusted device revoke-all failed:', err?.message || err);
+        console.error('[SECURITY LOG] Trusted device revoke-all failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System device-trust revoke error.' });
       }
     },
@@ -2681,7 +2782,7 @@ export async function createApp(): Promise<express.Express> {
           res.status(401).json({ success: false, error: 'Access token is missing or malformed.' });
           return;
         }
-        const decoded = verifySecureToken(token);
+        const decoded = verifySecureToken(token, sessionSecret);
         if (!decoded || decoded.email !== normalizedEmail) {
           res.status(401).json({ success: false, error: 'Access token is invalid or expired.' });
           return;
@@ -2706,7 +2807,6 @@ export async function createApp(): Promise<express.Express> {
         const smtpFrom = process.env.SMTP_FROM;
 
         let emailSent = false;
-        let errorDetails = '';
 
         if (smtpHost && smtpUser && smtpPass) {
           try {
@@ -2750,12 +2850,9 @@ export async function createApp(): Promise<express.Express> {
             });
             emailSent = true;
             console.log(`📧 Deletion passcode email sent successfully to ${normalizedEmail}`);
-          } catch (mailError: any) {
-            console.error('[SECURITY LOG] Deletion SMTP Transmission Failed:', mailError.message || mailError);
-            errorDetails = 'SMTP deletion dispatch failure.';
+          } catch (mailError) {
+            console.error('[SECURITY LOG] Deletion SMTP Transmission Failed:', errorMessage(mailError));
           }
-        } else {
-          errorDetails = 'SMTP server is not configured in environment variables.';
         }
 
         if (!emailSent) {
@@ -2779,8 +2876,8 @@ export async function createApp(): Promise<express.Express> {
           success: true,
           emailSent: true,
         });
-      } catch (err: any) {
-        console.error('[SECURITY LOG] Deletion OTP Send failed:', err.message || err);
+      } catch (err) {
+        console.error('[SECURITY LOG] Deletion OTP Send failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System secure transmission error.' });
       }
     },
@@ -2806,7 +2903,7 @@ export async function createApp(): Promise<express.Express> {
           res.status(401).json({ success: false, error: 'Access token is missing or malformed.' });
           return;
         }
-        const decoded2 = verifySecureToken(token2);
+        const decoded2 = verifySecureToken(token2, sessionSecret);
         if (!decoded2 || decoded2.email !== normalizedEmail) {
           res.status(401).json({ success: false, error: 'Access token is invalid or expired.' });
           return;
@@ -2840,8 +2937,8 @@ export async function createApp(): Promise<express.Express> {
         // Successful verification - clear OTP
         await deleteOtpFromDb(normalizedEmail, true, supabase);
         res.json({ success: true });
-      } catch (err: any) {
-        console.error('[SECURITY LOG] Verify Deletion OTP failed:', err.message || err);
+      } catch (err) {
+        console.error('[SECURITY LOG] Verify Deletion OTP failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System authentication service error.' });
       }
     },
@@ -2863,7 +2960,7 @@ export async function createApp(): Promise<express.Express> {
           res.json({ success: false, error: 'Empty token' });
           return;
         }
-        const decoded = verifySecureToken(token);
+        const decoded = verifySecureToken(token, sessionSecret);
         if (!decoded) {
           res.json({ success: false, error: 'Session token is invalid or expired.' });
           return;
@@ -2890,7 +2987,7 @@ export async function createApp(): Promise<express.Express> {
         // sessions are never rotated, exactly as before A1.
         const isLongLived = decoded.expiresAt - Date.now() > SESSION_TTL_SHORT;
         if (rememberMe || isLongLived) {
-          const newToken = generateSecureToken(normalizedEmail, SESSION_TTL_LONG);
+          const newToken = generateSecureToken(normalizedEmail, SESSION_TTL_LONG, sessionSecret);
           setSessionCookie(res, newToken, 30 * 24 * 60 * 60);
           res.json({ success: true, token: newToken, email: normalizedEmail });
         } else {
@@ -2898,8 +2995,8 @@ export async function createApp(): Promise<express.Express> {
           // session in memory ONLY, so every successful verify hands it back.
           res.json({ success: true, token, email: normalizedEmail });
         }
-      } catch (err: any) {
-        console.error('[SECURITY LOG] Verify Session Token failed:', err.message || err);
+      } catch (err) {
+        console.error('[SECURITY LOG] Verify Session Token failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'Internal session validation error.' });
       }
     },
@@ -2928,7 +3025,7 @@ export async function createApp(): Promise<express.Express> {
     rateLimitAuth(20, 60 * 1000),
     async (req: express.Request, res: express.Response) => {
       const token = getTokenFromRequest(req);
-      const session = token ? verifySecureToken(token) : null;
+      const session = token ? verifySecureToken(token, sessionSecret) : null;
       if (!session || !session.email) {
         res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
         return;
@@ -2944,8 +3041,8 @@ export async function createApp(): Promise<express.Express> {
           console.error('[Sync] fetch-subscriptions error:', subErr.message);
           return res.status(500).json({ success: false, error: 'Failed to fetch subscriptions. Please try again.' });
         }
-        const rows: any[] = Array.isArray(subs) ? subs : [];
-        const subscriptions = rows.map((r: any) => ({
+        const rows: SubscriptionRow[] = Array.isArray(subs) ? subs : [];
+        const subscriptions = rows.map((r: SubscriptionRow) => ({
           id: r.id,
           name: r.name,
           amount: r.amount,
@@ -2967,7 +3064,7 @@ export async function createApp(): Promise<express.Express> {
           .eq('user_email', email)
           .limit(1)
           .maybeSingle();
-        let stateJson: any = {};
+        let stateJson: Record<string, unknown> = {};
         if (lsData && lsData.state) {
           stateJson = typeof lsData.state === 'string' ? JSON.parse(lsData.state) : lsData.state;
         }
@@ -2980,8 +3077,8 @@ export async function createApp(): Promise<express.Express> {
           );
 
         return res.json({ success: true, subscriptions });
-      } catch (e: any) {
-        console.error('[Sync] refresh-subscriptions error:', e.message || e);
+      } catch (e) {
+        console.error('[Sync] refresh-subscriptions error:', errorMessage(e));
         return res.status(500).json({ success: false, error: 'Failed to refresh subscriptions.' });
       }
     },
@@ -2994,7 +3091,7 @@ export async function createApp(): Promise<express.Express> {
     rateLimitAuth(10, 60 * 1000),
     async (req: express.Request, res: express.Response) => {
       const _authToken = getTokenFromRequest(req);
-      if (!verifySecureToken(_authToken as string)) {
+      if (!verifySecureToken(_authToken as string, sessionSecret)) {
         res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
         return;
       }
@@ -3106,20 +3203,19 @@ Return a JSON object matching this schema:
         // Try to parse the output as JSON
         const parsedData = JSON.parse(text);
         res.json({ success: true, data: parsedData });
-      } catch (err: any) {
-        console.error('[Gemini Image Analysis Error]', err?.message || err);
-        const rawMsg = err?.message || (typeof err === 'string' ? err : '');
+      } catch (err) {
+        const message = errorMessage(err);
+        console.error('[Gemini Image Analysis Error]', message);
+        const rawMsg = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
         if (
           typeof rawMsg === 'string' &&
           (rawMsg.includes('RESOURCE_EXHAUSTED') || rawMsg.includes('prepayment credits') || rawMsg.includes('429'))
         ) {
-          res
-            .status(500)
-            .json({
-              success: false,
-              error:
-                'Gemini API Quota / Prepayment Credits Depleted. Please top up your billing credits in Google AI Studio or update your GEMINI_API_KEY in Settings > Secrets.',
-            });
+          res.status(500).json({
+            success: false,
+            error:
+              'Gemini API Quota / Prepayment Credits Depleted. Please top up your billing credits in Google AI Studio or update your GEMINI_API_KEY in Settings > Secrets.',
+          });
           return;
         }
         res.status(500).json({ success: false, error: 'Failed to analyze image. Please try again later.' });
@@ -3134,7 +3230,7 @@ Return a JSON object matching this schema:
     rateLimitAuth(10, 60 * 1000),
     async (req: express.Request, res: express.Response) => {
       const _authToken2 = getTokenFromRequest(req);
-      if (!verifySecureToken(_authToken2 as string)) {
+      if (!verifySecureToken(_authToken2 as string, sessionSecret)) {
         res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
         return;
       }
@@ -3178,20 +3274,18 @@ Return a JSON object matching this schema:
           const ret = await worker.recognize(imgBuffer);
           const extractedText = ret?.data?.text || '';
           if (!extractedText.trim()) {
-            return res
-              .status(422)
-              .json({
-                success: false,
-                error: 'No legible text found in image. Try a clearer photo or enter manually.',
-              });
+            return res.status(422).json({
+              success: false,
+              error: 'No legible text found in image. Try a clearer photo or enter manually.',
+            });
           }
 
           res.json({ success: true, text: extractedText });
         } finally {
           await worker.terminate();
         }
-      } catch (err: any) {
-        console.error('[Free Server OCR Error]', err?.message || err);
+      } catch (err) {
+        console.error('[Free Server OCR Error]', errorMessage(err));
         res
           .status(500)
           .json({ success: false, error: 'Failed to scan image. Please try again or enter text manually.' });
@@ -3233,11 +3327,13 @@ Return a JSON object matching this schema:
   });
 
   // JSON error handler: ensures async/middleware errors return JSON, never an empty 500 body
-  app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error('[Unhandled Error]', err?.message || err);
+  app.use(((err, req, res, _next) => {
+    console.error('[Unhandled Error]', errorMessage(err));
     if (res.headersSent) return;
-    res.status(500).json({ success: false, error: 'Internal server error. Check function logs.' });
-  });
+    const raw = err?.statusCode ?? err?.status;
+    const status = typeof raw === 'number' && raw >= 100 && raw < 600 ? raw : 500;
+    res.status(status).json({ success: false, error: 'Internal server error. Check function logs.' });
+  }) as express.ErrorRequestHandler);
 
   return app;
 }
@@ -3272,8 +3368,8 @@ async function seedVaultSessionSecret(): Promise<void> {
     } else {
       console.log('[Vault] session_secret synced from SESSION_SECRET.');
     }
-  } catch (err: any) {
-    console.error('[Vault] session_secret seed error:', err?.message || err);
+  } catch (err) {
+    console.error('[Vault] session_secret seed error:', errorMessage(err));
   }
 }
 
@@ -3313,18 +3409,20 @@ process.on('unhandledRejection', (reason) => {
   console.error('[FATAL] Unhandled rejection:', reason);
 });
 
-if (!process.env.VERCEL) {
+// In test workers helpers.ts sets NODE_ENV=test before this file is imported,
+// so the auto-listen is skipped; tests exercise createApp() through supertest.
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
   startServer();
 }
 
 // Vercel serverless handler - default export is the Express app via wrapper
-const vercelHandler = async (req: any, res: any) => {
+const vercelHandler = async (req: express.Request, res: express.Response) => {
   try {
     ensureVaultSeed();
     const app = await getApp();
-    return (app as any)(req, res);
-  } catch (err: any) {
-    console.error('[vercelHandler] Failed to start server:', err?.message || err);
+    return app(req, res);
+  } catch (err) {
+    console.error('[vercelHandler] Failed to start server:', errorMessage(err));
     if (res.headersSent) return;
     res.status(500).json({ success: false, error: 'Server is temporarily unavailable. Please try again.' });
   }

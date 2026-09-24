@@ -25,9 +25,7 @@ export function parseReceiptText(rawText: string = ''): ScannedTransaction {
     const line = lines[i];
     // Skip lines with generic receipt labels
     if (
-      !/receipt|tax invoice|cash bill|welcome|thank you|tel|phone|www\.|http|date|time/i.test(
-        line
-      ) &&
+      !/receipt|tax invoice|cash bill|welcome|thank you|tel|phone|www\.|http|date|time/i.test(line) &&
       line.replace(/[^a-zA-Z]/g, '').length >= 3
     ) {
       title = line.replace(/[^a-zA-Z0-9 &',.-]/g, '').substring(0, 40);
@@ -62,7 +60,8 @@ export function parseReceiptText(rawText: string = ''): ScannedTransaction {
   // 3. Extract Amount
   let amount = 0;
   // Look specifically for lines containing TOTAL, NET, AMOUNT DUE, BALANCE DUE, PAID
-  const totalLineRegex = /(?:total|net|amount due|balance due|grand total|paid|amount)\b[:\s]*[$€£₹Rp]?[ba\s]*([0-9]{1,6}(?:[.,][0-9]{2})?)/gi;
+  const totalLineRegex =
+    /(?:total|net|amount due|balance due|grand total|paid|amount)\b[:\s]*[$€£₹Rp]?[ba\s]*([0-9]{1,6}(?:[.,][0-9]{2})?)/gi;
   const totalMatches: number[] = [];
   let lineMatch;
 
@@ -101,11 +100,7 @@ export function parseReceiptText(rawText: string = ''): ScannedTransaction {
   const lower = rawText.toLowerCase();
 
   // Income keywords
-  if (
-    /salary|paystub|payroll|freelance|commission|deposit|income|dividend|bonus|refund/i.test(
-      lower
-    )
-  ) {
+  if (/salary|paystub|payroll|freelance|commission|deposit|income|dividend|bonus|refund/i.test(lower)) {
     transactionType = 'income';
     if (/salary|payroll|paystub/i.test(lower)) category = 'Salary';
     else if (/freelance/i.test(lower)) category = 'Freelance';

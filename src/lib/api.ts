@@ -1,11 +1,15 @@
 export const apiUrl = (path: string) => {
-  const base = (import.meta as any).env?.VITE_API_URL || "";
+  const base = import.meta.env.VITE_API_URL || '';
   return `${base}${path}`;
 };
 export const safeJson = async (res: Response) => {
   const text = await res.text();
   if (!text) return null;
-  try { return JSON.parse(text); } catch { return null; }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 };
 
 const DEFAULT_FETCH_TIMEOUT = 8000;
@@ -24,19 +28,18 @@ export async function fetchWithTimeout(
   }
 }
 
-export function withTimeout<T>(
-  promise: PromiseLike<T>,
-  ms: number,
-  label = 'Operation',
-): Promise<T> {
+export function withTimeout<T>(promise: PromiseLike<T>, ms: number, label = 'Operation'): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`${label} timed out after ${ms}ms`)),
-      ms,
-    );
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
     promise.then(
-      (val) => { clearTimeout(timer); resolve(val); },
-      (err) => { clearTimeout(timer); reject(err); },
+      (val) => {
+        clearTimeout(timer);
+        resolve(val);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
     );
   });
 }
@@ -48,10 +51,7 @@ interface RetryOptions {
   onRetry?: (attempt: number, error: Error) => void;
 }
 
-export async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = {},
-): Promise<T> {
+export async function retryWithBackoff<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const { maxRetries = 3, baseDelayMs = 1000, maxDelayMs = 10000, onRetry } = options;
   let lastError: Error | undefined;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {

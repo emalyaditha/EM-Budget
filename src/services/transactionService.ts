@@ -1,4 +1,4 @@
-import { Transaction } from '../types';
+import type { Transaction } from '../types';
 
 export const transactionService = {
   getFilteredTransactions: (
@@ -6,7 +6,7 @@ export const transactionService = {
     searchQuery: string = '',
     categoryFilter: string = 'all',
     typeFilter: string = 'all',
-    accountFilter: string = 'all'
+    accountFilter: string = 'all',
   ): Transaction[] => {
     return transactions.filter((tx) => {
       const matchesSearch =
@@ -18,9 +18,7 @@ export const transactionService = {
       const matchesCategory = categoryFilter === 'all' || tx.category === categoryFilter;
       const matchesType = typeFilter === 'all' || tx.type === typeFilter;
       const matchesAccount =
-        accountFilter === 'all' ||
-        tx.accountId === accountFilter ||
-        tx.targetAccountId === accountFilter;
+        accountFilter === 'all' || tx.accountId === accountFilter || tx.targetAccountId === accountFilter;
 
       return matchesSearch && matchesCategory && matchesType && matchesAccount;
     });
@@ -28,7 +26,7 @@ export const transactionService = {
 
   sortTransactionsByDate: (transactions: Transaction[], order: 'asc' | 'desc' = 'desc'): Transaction[] => {
     return [...transactions].sort((a, b) => {
-      const getTimestamp = (item: any): number => {
+      const getTimestamp = (item: Transaction): number => {
         const raw = item.updated_at || item.updatedAt || item.created_at || item.createdAt || item.date;
         if (!raw) return 0;
         const time = new Date(raw).getTime();

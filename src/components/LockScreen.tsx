@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lock, ShieldCheck, Fingerprint, AlertCircle, RefreshCw, KeyRound } from 'lucide-react';
-import {
-  verifyPin,
-  biometricUnlock,
-  isBiometricAvailable,
-} from '../lib/appLock';
+import { verifyPin, biometricUnlock, isBiometricAvailable } from '../lib/appLock';
 
 interface LockScreenProps {
   email: string;
@@ -107,7 +103,13 @@ export default function LockScreen({
       return;
     }
     if (result.code === 'LOCKED' || result.retryAfter) {
-      setPin((p) => ({ ...p, status: 'locked', error: result.error || 'Too many attempts.', retryAfter: result.retryAfter || 60, value: '' }));
+      setPin((p) => ({
+        ...p,
+        status: 'locked',
+        error: result.error || 'Too many attempts.',
+        retryAfter: result.retryAfter || 60,
+        value: '',
+      }));
       return;
     }
     setPin((p) => ({ ...p, status: 'idle', error: result.error || 'Incorrect PIN. Try again.', value: '' }));
@@ -135,7 +137,10 @@ export default function LockScreen({
   };
 
   return (
-    <div id="app-lock-container" className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 overflow-y-auto bg-[var(--bg)] text-[var(--ink)]">
+    <div
+      id="app-lock-container"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 overflow-y-auto bg-[var(--bg)] text-[var(--ink)]"
+    >
       <div className="w-full max-w-[420px]">
         <div className="card p-8 md:p-9">
           <div className="flex flex-col items-center text-center">
@@ -170,9 +175,14 @@ export default function LockScreen({
                 className="space-y-4"
               >
                 <div>
-                  <label htmlFor="lock-pin" className="eyebrow block mb-1.5">PIN</label>
+                  <label htmlFor="lock-pin" className="eyebrow block mb-1.5">
+                    PIN
+                  </label>
                   <div className="relative">
-                    <KeyRound size={14} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink-3)]" />
+                    <KeyRound
+                      size={14}
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink-3)]"
+                    />
                     <input
                       id="lock-pin"
                       type="password"
@@ -182,29 +192,60 @@ export default function LockScreen({
                       autoFocus
                       disabled={pin.status === 'locked'}
                       value={pin.value}
-                      onChange={(e) => setPin((p) => ({ ...p, value: e.target.value.replace(/\D/g, '').slice(0, 6), error: null }))}
+                      onChange={(e) =>
+                        setPin((p) => ({ ...p, value: e.target.value.replace(/\D/g, '').slice(0, 6), error: null }))
+                      }
                       placeholder="••••"
                       className="input !pl-9 mono text-center tracking-[0.35em] text-[15px] disabled:opacity-50"
                     />
                   </div>
                   {inactivityCountdown !== null && (
-                    <p className="mono text-[11px] text-[var(--danger)] mt-2">Locked. Retry in {inactivityCountdown}s</p>
+                    <p className="mono text-[11px] text-[var(--danger)] mt-2">
+                      Locked. Retry in {inactivityCountdown}s
+                    </p>
                   )}
                 </div>
 
-                <button type="submit" disabled={pin.status === 'loading' || pin.status === 'locked'} className="btn-primary w-full justify-center inline-flex items-center gap-2 disabled:opacity-50">
-                  {pin.status === 'loading' ? <RefreshCw className="animate-spin" size={14} /> : <><ShieldCheck size={14} /><span>Unlock</span></>}
+                <button
+                  type="submit"
+                  disabled={pin.status === 'loading' || pin.status === 'locked'}
+                  className="btn-primary w-full justify-center inline-flex items-center gap-2 disabled:opacity-50"
+                >
+                  {pin.status === 'loading' ? (
+                    <RefreshCw className="animate-spin" size={14} />
+                  ) : (
+                    <>
+                      <ShieldCheck size={14} />
+                      <span>Unlock</span>
+                    </>
+                  )}
                 </button>
 
                 {canUseBiometric && (
-                  <button type="button" onClick={() => switchMode('biometric')} className="btn-ghost w-full justify-center inline-flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => switchMode('biometric')}
+                    className="btn-ghost w-full justify-center inline-flex items-center gap-2"
+                  >
                     <Fingerprint size={14} /> Use biometrics
                   </button>
                 )}
 
                 <div className="flex justify-between text-[12px]">
-                  <button type="button" onClick={handleSwitchAccount} className="text-[var(--ink-2)] hover:text-[var(--ink)] underline underline-offset-4 decoration-[var(--line-strong)]">Use a different account</button>
-                  <button type="button" onClick={onForgotPin} className="text-[var(--ink-2)] hover:text-[var(--ink)] underline underline-offset-4 decoration-[var(--line-strong)]">Forgot PIN?</button>
+                  <button
+                    type="button"
+                    onClick={handleSwitchAccount}
+                    className="text-[var(--ink-2)] hover:text-[var(--ink)] underline underline-offset-4 decoration-[var(--line-strong)]"
+                  >
+                    Use a different account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onForgotPin}
+                    className="text-[var(--ink-2)] hover:text-[var(--ink)] underline underline-offset-4 decoration-[var(--line-strong)]"
+                  >
+                    Forgot PIN?
+                  </button>
                 </div>
               </motion.form>
             )}
@@ -227,7 +268,12 @@ export default function LockScreen({
                   {biometricBusy ? <RefreshCw className="animate-spin" size={14} /> : <Fingerprint size={14} />}
                   <span>{biometricBusy ? 'Waiting for verification…' : 'Verify now'}</span>
                 </button>
-                <button type="button" onClick={() => switchMode('pin')} disabled={!canUsePin} className="btn-ghost w-full justify-center inline-flex items-center gap-2 disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={() => switchMode('pin')}
+                  disabled={!canUsePin}
+                  className="btn-ghost w-full justify-center inline-flex items-center gap-2 disabled:opacity-50"
+                >
                   Use PIN instead
                 </button>
               </motion.div>
@@ -236,7 +282,12 @@ export default function LockScreen({
 
           <AnimatePresence>
             {pin.error && (
-              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--danger-bg)] px-3.5 py-3 flex gap-2.5 text-[12px] leading-5 text-[var(--danger)]">
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--danger-bg)] px-3.5 py-3 flex gap-2.5 text-[12px] leading-5 text-[var(--danger)]"
+              >
                 <AlertCircle size={14} className="shrink-0 mt-0.5" />
                 <span>{pin.error}</span>
               </motion.div>
@@ -246,9 +297,16 @@ export default function LockScreen({
           {!appLockEnabled && (
             <div className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3.5 py-3 space-y-3">
               <p className="text-[12px] leading-5 text-[var(--ink-2)]">
-                App lock is not configured for this account, so you can continue straight to your vault. You can set up a PIN or biometrics anytime in <strong>Settings → App Lock</strong>.
+                App lock is not configured for this account, so you can continue straight to your vault. You can set up
+                a PIN or biometrics anytime in <strong>Settings → App Lock</strong>.
               </p>
-              <button type="button" onClick={onUnlocked} className="btn-primary w-full justify-center inline-flex items-center gap-2">Continue to app</button>
+              <button
+                type="button"
+                onClick={onUnlocked}
+                className="btn-primary w-full justify-center inline-flex items-center gap-2"
+              >
+                Continue to app
+              </button>
             </div>
           )}
         </div>

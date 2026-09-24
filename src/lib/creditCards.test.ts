@@ -13,7 +13,7 @@ import {
   runCycleRollover,
   deductionDate,
 } from './creditCards';
-import { BankCard, Transaction } from '../types';
+import type { BankCard, Transaction } from '../types';
 
 function makeTx(overrides: Partial<Transaction>): Transaction {
   return {
@@ -349,7 +349,7 @@ describe('runCycleRollover', () => {
 
   it('applies the 5% late fee when it exceeds Rs. 1,200', () => {
     const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 50000 });
-    expect(runCycleRollover(card, [], '2026-09-15').charges[1]).toEqual({
+    expect(runCycleRollover(card, [], '2026-09-15')?.charges[1]).toEqual({
       type: 'Late Payment Fee',
       name: 'Late Payment Fee',
       amount: 2500,
@@ -405,7 +405,7 @@ describe('runCycleRollover', () => {
     });
   });
 
-it('rolls a late-open cycle on the deduction date — charge dated the 15th, next cycle from the 7th', () => {
+  it('rolls a late-open cycle on the deduction date — charge dated the 15th, next cycle from the 7th', () => {
     const card = makeCard({ currentBalance: -20000, limit: 50000, minPayment: 1000 });
     const paid = makeTx({ amount: 1000, date: '2026-08-20' });
     expect(runCycleRollover(card, [paid], '2026-09-20')).toEqual({
@@ -434,7 +434,14 @@ it('rolls a late-open cycle on the deduction date — charge dated the 15th, nex
 
   it('rolls multiple cards independently on their own 15th', () => {
     const cardA = makeCard({ dueDate: '2026-09-07' });
-    const cardB = makeCard({ id: 'card-2', dueDate: '2026-10-02', currentBalance: -22222, limit: 80000, minPayment: undefined, apr: 0 });
+    const cardB = makeCard({
+      id: 'card-2',
+      dueDate: '2026-10-02',
+      currentBalance: -22222,
+      limit: 80000,
+      minPayment: undefined,
+      apr: 0,
+    });
     expect(runCycleRollover(cardA, [], '2026-09-15')).toBeDefined();
     expect(runCycleRollover(cardB, [], '2026-09-15')).toBeUndefined();
     const b15 = runCycleRollover(cardB, [], '2026-10-15')!;
@@ -447,7 +454,7 @@ it('rolls a late-open cycle on the deduction date — charge dated the 15th, nex
     const paid = makeTx({ amount: 1000, date: '2026-09-05' });
     const result = runCycleRollover(card, [paid], '2026-09-15')!;
     expect(result.currentBalance).toBe(-20407.67);
-    expect(result.charges.map(c => c.type)).toEqual(['Interest Charge']);
+    expect(result.charges.map((c) => c.type)).toEqual(['Interest Charge']);
   });
 
   it('pays no late fee when the minimum is paid on the 7th — the due date is inclusive', () => {
@@ -455,7 +462,7 @@ it('rolls a late-open cycle on the deduction date — charge dated the 15th, nex
     const paid = makeTx({ amount: 1000, date: '2026-09-07' });
     const result = runCycleRollover(card, [paid], '2026-09-15')!;
     expect(result.currentBalance).toBe(-20407.67);
-    expect(result.charges.map(c => c.type)).toEqual(['Interest Charge']);
+    expect(result.charges.map((c) => c.type)).toEqual(['Interest Charge']);
   });
 
   it('pays no late fee when only the 15th deduction lands — it is the bank debit, not a manual payment', () => {
@@ -463,7 +470,7 @@ it('rolls a late-open cycle on the deduction date — charge dated the 15th, nex
     const deduction = makeTx({ amount: 1000, date: '2026-09-15' });
     const result = runCycleRollover(card, [deduction], '2026-09-15')!;
     expect(result.currentBalance).toBe(-20407.67);
-    expect(result.charges.map(c => c.type)).toEqual(['Interest Charge']);
+    expect(result.charges.map((c) => c.type)).toEqual(['Interest Charge']);
   });
 
   it('charges the late fee for a manual payment dated the 12th — after the 7th window closes', () => {
@@ -471,7 +478,7 @@ it('rolls a late-open cycle on the deduction date — charge dated the 15th, nex
     const late = makeTx({ amount: 1000, date: '2026-09-12' });
     const result = runCycleRollover(card, [late], '2026-09-15')!;
     expect(result.currentBalance).toBe(-21607.67);
-    expect(result.charges.map(c => c.type)).toEqual(['Interest Charge', 'Late Payment Fee']);
+    expect(result.charges.map((c) => c.type)).toEqual(['Interest Charge', 'Late Payment Fee']);
   });
 
   it('is idempotent — repeating the rollover produces the identical result and charges', () => {

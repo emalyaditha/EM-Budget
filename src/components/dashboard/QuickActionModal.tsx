@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles } from 'lucide-react';
-import { AppState } from '../../types';
+import type { AppState, CategoryIncome, CategoryExpense } from '../../types';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, todayLocal } from '../../utils';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
@@ -10,8 +10,24 @@ interface QuickActionModalProps {
   onClose: () => void;
   state: AppState;
   initialType?: 'expense' | 'income';
-  onAddIncome?: (amount: number, date: string, source: string, category: any, targetAccountId: string, targetType: 'cash' | 'card') => void;
-  onAddExpense?: (title: string, description: string, amount: number, date: string, category: any, paymentMethodId: string, paymentMethodType: 'cash' | 'card', bankCharge?: number) => void;
+  onAddIncome?: (
+    amount: number,
+    date: string,
+    source: string,
+    category: CategoryIncome,
+    targetAccountId: string,
+    targetType: 'cash' | 'card',
+  ) => void;
+  onAddExpense?: (
+    title: string,
+    description: string,
+    amount: number,
+    date: string,
+    category: CategoryExpense,
+    paymentMethodId: string,
+    paymentMethodType: 'cash' | 'card',
+    bankCharge?: number,
+  ) => void;
 }
 
 export function QuickActionModal({
@@ -20,7 +36,7 @@ export function QuickActionModal({
   state,
   initialType = 'expense',
   onAddIncome,
-  onAddExpense
+  onAddExpense,
 }: QuickActionModalProps) {
   const [txType, setTxType] = useState<'expense' | 'income'>(initialType);
   const [txTitle, setTxTitle] = useState('');
@@ -61,9 +77,18 @@ export function QuickActionModal({
     const accountType: 'cash' | 'card' = typePrefix === 'cash' ? 'cash' : 'card';
 
     if (txType === 'income' && onAddIncome) {
-      onAddIncome(amountNum, txDate, txTitle, txCategory as any, rawId, accountType);
+      onAddIncome(amountNum, txDate, txTitle, txCategory as CategoryIncome, rawId, accountType);
     } else if (txType === 'expense' && onAddExpense) {
-      onAddExpense(txTitle, 'Quick Dashboard Expense Entry', amountNum, txDate, txCategory as any, rawId, accountType, 0);
+      onAddExpense(
+        txTitle,
+        'Quick Dashboard Expense Entry',
+        amountNum,
+        txDate,
+        txCategory as CategoryExpense,
+        rawId,
+        accountType,
+        0,
+      );
     }
 
     setTxTitle('');
@@ -75,7 +100,7 @@ export function QuickActionModal({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -83,16 +108,16 @@ export function QuickActionModal({
             className="fixed inset-0 bg-black/60 backdrop-blur-sm"
           />
 
-          <motion.div 
+          <motion.div
             ref={quickDialogRef}
             tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label="Quick register"
-            initial={{ y: "100%", opacity: 0.5 }}
+            initial={{ y: '100%', opacity: 0.5 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "100%", opacity: 0.5 }}
-            transition={{ type: "spring", damping: 25, stiffness: 220 }}
+            exit={{ y: '100%', opacity: 0.5 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 220 }}
             className="relative w-full md:max-w-md bg-[var(--surface)] border-t md:border border-[var(--line)] rounded-t-[24px] md:rounded-[16px] p-6 text-left z-10 flex flex-col max-h-[90vh] overflow-y-auto card"
           >
             <div className="flex justify-between items-center pb-4 border-b border-[var(--line)]">
@@ -113,7 +138,9 @@ export function QuickActionModal({
                 type="button"
                 onClick={() => setTxType('expense')}
                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all z-10 ${
-                  txType === 'expense' ? 'bg-[var(--surface)] text-[var(--danger)] shadow-sm border border-[var(--line)]' : 'text-[var(--ink-2)]'
+                  txType === 'expense'
+                    ? 'bg-[var(--surface)] text-[var(--danger)] shadow-sm border border-[var(--line)]'
+                    : 'text-[var(--ink-2)]'
                 }`}
               >
                 Expense Outflow
@@ -122,7 +149,9 @@ export function QuickActionModal({
                 type="button"
                 onClick={() => setTxType('income')}
                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all z-10 ${
-                  txType === 'income' ? 'bg-[var(--surface)] text-[var(--success)] shadow-sm border border-[var(--line)]' : 'text-[var(--ink-2)]'
+                  txType === 'income'
+                    ? 'bg-[var(--surface)] text-[var(--success)] shadow-sm border border-[var(--line)]'
+                    : 'text-[var(--ink-2)]'
                 }`}
               >
                 Income Inflow
@@ -136,9 +165,15 @@ export function QuickActionModal({
                 </div>
                 <span className="eyebrow block">Ticket Preview</span>
                 <div className="flex justify-between items-baseline">
-                  <span className="text-xs font-bold text-[var(--ink)] truncate max-w-[200px]">{txTitle || "Untitled Statement"}</span>
-                  <span className={`text-sm font-black mono ${txType === 'expense' ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
-                    {txType === 'expense' ? '-' : '+'}{state.currency}{parseFloat(txAmount || "0").toLocaleString()}
+                  <span className="text-xs font-bold text-[var(--ink)] truncate max-w-[200px]">
+                    {txTitle || 'Untitled Statement'}
+                  </span>
+                  <span
+                    className={`text-sm font-black mono ${txType === 'expense' ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}
+                  >
+                    {txType === 'expense' ? '-' : '+'}
+                    {state.currency}
+                    {parseFloat(txAmount || '0').toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between text-[9px] mono text-[var(--ink-3)] border-t border-[var(--line)] pt-2">
@@ -181,15 +216,17 @@ export function QuickActionModal({
                     onChange={(e) => setTxCategory(e.target.value)}
                     className="input cursor-pointer"
                   >
-                    {txType === 'expense' ? (
-                      EXPENSE_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))
-                    ) : (
-                      INCOME_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))
-                    )}
+                    {txType === 'expense'
+                      ? EXPENSE_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))
+                      : INCOME_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
                   </select>
                 </div>
               </div>
@@ -203,14 +240,22 @@ export function QuickActionModal({
                     className="input cursor-pointer"
                   >
                     <optgroup label="Cash Accounts">
-                      {state.cashAccounts.map(c => (
-                        <option key={c.id} value={`cash-${c.id}`}>{c.name} ({state.currency}{c.balance.toLocaleString()})</option>
+                      {state.cashAccounts.map((c) => (
+                        <option key={c.id} value={`cash-${c.id}`}>
+                          {c.name} ({state.currency}
+                          {c.balance.toLocaleString()})
+                        </option>
                       ))}
                     </optgroup>
                     <optgroup label="Bank/Debit Cards">
-                      {state.cards.filter(c => c.cardType === 'Debit' && !c.isCanceled).map(c => (
-                        <option key={c.id} value={`card-${c.id}`}>{c.cardName} ({state.currency}{c.currentBalance.toLocaleString()})</option>
-                      ))}
+                      {state.cards
+                        .filter((c) => c.cardType === 'Debit' && !c.isCanceled)
+                        .map((c) => (
+                          <option key={c.id} value={`card-${c.id}`}>
+                            {c.cardName} ({state.currency}
+                            {c.currentBalance.toLocaleString()})
+                          </option>
+                        ))}
                     </optgroup>
                   </select>
                 </div>

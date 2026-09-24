@@ -1,4 +1,4 @@
-import { AppState } from '../types';
+import type { AppState } from '../types';
 
 type AlertSeverity = 'critical' | 'warning' | 'info';
 

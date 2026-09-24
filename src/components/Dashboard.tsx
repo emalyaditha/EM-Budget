@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { AppState } from '../types';
+import type { AppState, AppTab, CategoryIncome, CategoryExpense, Transaction } from '../types';
 import { ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { DashboardHero } from './dashboard/DashboardHero';
@@ -16,13 +16,46 @@ interface DashboardProps {
   currentMonthLabel: string;
   currentMonthInflow: number;
   currentMonthOutflow: number;
-  setActiveTab: (tab: any) => void;
+  setActiveTab: (tab: AppTab) => void;
   setEditingTransactionId: (id: string | null) => void;
   onProfileClick: () => void;
   onNotificationClick: () => void;
-  onAddIncome?: (amount: number, date: string, source: string, category: any, targetAccountId: string, targetType: 'cash' | 'card') => void;
-  onAddExpense?: (title: string, description: string, amount: number, date: string, category: any, paymentMethodId: string, paymentMethodType: 'cash' | 'card', bankCharge?: number) => void;
+  onAddIncome?: (
+    amount: number,
+    date: string,
+    source: string,
+    category: CategoryIncome,
+    targetAccountId: string,
+    targetType: 'cash' | 'card',
+  ) => void;
+  onAddExpense?: (
+    title: string,
+    description: string,
+    amount: number,
+    date: string,
+    category: CategoryExpense,
+    paymentMethodId: string,
+    paymentMethodType: 'cash' | 'card',
+    bankCharge?: number,
+  ) => void;
 }
+
+type ActivityLogItem = {
+  id: string;
+  type: string;
+  title: string;
+  amount: number;
+  date: string;
+  category: string;
+  logType: 'transaction' | 'loan' | 'settlement';
+  accountType?: string;
+  updated_at?: string;
+  updatedAt?: string;
+  created_at?: string;
+  createdAt?: string;
+  dateGiven?: string;
+  originalIdx: number;
+};
 
 function deriveNameFromEmail(email?: string): string {
   if (email && typeof email === 'string') {
@@ -45,41 +78,39 @@ export default function Dashboard({
   setEditingTransactionId,
   onProfileClick,
   onAddIncome,
-  onAddExpense
+  onAddExpense,
 }: DashboardProps) {
-
   const [timeRange, setTimeRange] = useState<'1W' | '1M' | '3M' | 'YTD' | '1Y' | 'All'>('1M');
   const [isQuickTxOpen, setIsQuickTxOpen] = useState(false);
   const [txType, setTxType] = useState<'expense' | 'income'>('expense');
 
   const categoriesBudgets = state.budgets && state.budgets.length > 0 ? state.budgets : [];
 
-  const liveBudgetTray = categoriesBudgets.map(b => {
+  const liveBudgetTray = categoriesBudgets.map((b) => {
     const bCategoryLower = b.category.toLowerCase().trim();
-    const matchingTx = state.transactions.filter(t => {
+    const matchingTx = state.transactions.filter((t) => {
       if (!t.category) return false;
-      return t.category.toLowerCase().trim() === bCategoryLower &&
-             (t.type === 'expense' || t.amount < 0);
+      return t.category.toLowerCase().trim() === bCategoryLower && (t.type === 'expense' || t.amount < 0);
     });
     const txSpentSum = matchingTx.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const matchingSubs = (state.subscriptions || []).filter(s => {
+    const matchingSubs = (state.subscriptions || []).filter((s) => {
       if (!s.category || s.status !== 'Active') return false;
       return s.category.toLowerCase().trim() === bCategoryLower;
     });
     const subsSpentSum = matchingSubs.reduce((sum, s) => sum + s.amount, 0);
     const totalSpent = txSpentSum + subsSpentSum;
-    const actualSpent = (matchingTx.length > 0 || matchingSubs.length > 0) ? totalSpent : (b.spent || 0);
+    const actualSpent = matchingTx.length > 0 || matchingSubs.length > 0 ? totalSpent : b.spent || 0;
     const remaining = Math.max(0, b.limit - actualSpent);
     const pct = Math.min(100, Math.round((actualSpent / b.limit) * 100));
     return {
       ...b,
       spent: actualSpent,
       remaining,
-      percent: pct
+      percent: pct,
     };
   });
 
-  const getTransactionImpact = (t: any) => {
+  const getTransactionImpact = (t: Transaction) => {
     if (t.type === 'income') return Math.abs(t.amount);
     if (t.type === 'expense') return -Math.abs(t.amount);
     return 0;
@@ -97,7 +128,7 @@ export default function Dashboard({
     } else if (timeRange === 'All') {
       if (state.transactions.length === 0) daysCount = 30;
       else {
-        const dates = state.transactions.map(t => new Date(t.date).getTime());
+        const dates = state.transactions.map((t) => new Date(t.date).getTime());
         const oldestTime = Math.min(...dates);
         const diffTime = new Date().getTime() - oldestTime;
         daysCount = Math.max(10, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
@@ -111,14 +142,16 @@ export default function Dashboard({
       d.setDate(today.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       balanceMap[dateStr] = runningBalance;
-      const dayTxs = state.transactions.filter(t => t.date && t.date.split('T')[0] === dateStr);
+      const dayTxs = state.transactions.filter((t) => t.date && t.date.split('T')[0] === dateStr);
       const dayImpact = dayTxs.reduce((sum, t) => sum + getTransactionImpact(t), 0);
       runningBalance -= dayImpact;
     }
-    return Object.keys(balanceMap).sort().map(dateStr => ({
-      date: dateStr,
-      value: balanceMap[dateStr]
-    }));
+    return Object.keys(balanceMap)
+      .sort()
+      .map((dateStr) => ({
+        date: dateStr,
+        value: balanceMap[dateStr],
+      }));
   }, [timeRange, aggregateActiveWealth, state.transactions]);
 
   const formatXAxis = (tickItem: string) => {
@@ -137,7 +170,13 @@ export default function Dashboard({
     }
   };
 
-  const CustomChartTooltip = ({ active, payload }: any) => {
+  const CustomChartTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: Array<{ payload: { date: string; value: number } }>;
+  }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       const value = data.value;
@@ -148,11 +187,16 @@ export default function Dashboard({
         <div className="card p-3 text-left min-w-[160px]">
           <p className="eyebrow">{data.date}</p>
           <p className="mono text-sm font-semibold text-[var(--ink)] mt-1">
-            {state.currency}{value.toLocaleString()}
+            {state.currency}
+            {value.toLocaleString()}
           </p>
           <p className="mono text-[10px] font-medium mt-1 flex items-center gap-1 text-[var(--ink-2)]">
             <span>{delta >= 0 ? '▲' : '▼'}</span>
-            <span>{delta >= 0 ? '+' : ''}{delta.toLocaleString()} ({deltaPct >= 0 ? '+' : ''}{deltaPct.toFixed(1)}%)</span>
+            <span>
+              {delta >= 0 ? '+' : ''}
+              {delta.toLocaleString()} ({deltaPct >= 0 ? '+' : ''}
+              {deltaPct.toFixed(1)}%)
+            </span>
           </p>
         </div>
       );
@@ -161,15 +205,19 @@ export default function Dashboard({
   };
 
   const getSubDueDays = (dueDateStr: string, status: string) => {
-    if (status !== 'Active') return { label: 'Paused', style: 'border-[var(--line)] text-[var(--ink-3)] bg-[var(--surface-2)]' };
+    if (status !== 'Active')
+      return { label: 'Paused', style: 'border-[var(--line)] text-[var(--ink-3)] bg-[var(--surface-2)]' };
     const today = new Date();
-    today.setHours(0,0,0,0);
+    today.setHours(0, 0, 0, 0);
     const due = new Date(dueDateStr);
-    due.setHours(0,0,0,0);
+    due.setHours(0, 0, 0, 0);
     const diffTime = due.getTime() - today.getTime();
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     if (diffDays < 0) {
-      return { label: `Overdue (${Math.abs(diffDays)}d)`, style: 'border-[var(--ink)] bg-[var(--accent)] text-[var(--accent-fg)]' };
+      return {
+        label: `Overdue (${Math.abs(diffDays)}d)`,
+        style: 'border-[var(--ink)] bg-[var(--accent)] text-[var(--accent-fg)]',
+      };
     }
     if (diffDays === 0) {
       return { label: 'Due Today', style: 'border-[var(--line)] bg-[var(--surface)] text-[var(--ink)]' };
@@ -186,8 +234,10 @@ export default function Dashboard({
   };
 
   return (
-    <div className="flex flex-col bg-[var(--bg)] text-[var(--ink)] font-sans animate-fade-in gap-6 px-4 sm:px-6 py-5 max-w-[1280px] mx-auto w-full" id="command-dashboard">
-
+    <div
+      className="flex flex-col bg-[var(--bg)] text-[var(--ink)] font-sans animate-fade-in gap-6 px-4 sm:px-6 py-5 max-w-[1280px] mx-auto w-full"
+      id="command-dashboard"
+    >
       {/* Actionable alerts (budget near/over limit, bills & debts due soon, goals closing) */}
       <AlertsPanel state={state} />
 
@@ -199,7 +249,11 @@ export default function Dashboard({
             aggregateActiveWealth={aggregateActiveWealth}
             totalCashAmount={totalCashAmount}
             totalDebitCardsAmount={totalDebitCardsAmount}
-            userName={state.userProfile?.name && state.userProfile.name !== 'User' ? state.userProfile.name : deriveNameFromEmail(userEmail) || 'User'}
+            userName={
+              state.userProfile?.name && state.userProfile.name !== 'User'
+                ? state.userProfile.name
+                : deriveNameFromEmail(userEmail) || 'User'
+            }
             userAvatarUrl={state.userProfile?.avatarUrl}
             currentMonthInflow={currentMonthInflow}
             currentMonthOutflow={currentMonthOutflow}
@@ -232,7 +286,9 @@ export default function Dashboard({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="space-y-1">
                 <h3 className="eyebrow !text-[11px]">Portfolio trend</h3>
-                <p className="text-xs text-[var(--ink-2)]">Cumulative net worth — {timeRange} · {currentMonthLabel}</p>
+                <p className="text-xs text-[var(--ink-2)]">
+                  Cumulative net worth — {timeRange} · {currentMonthLabel}
+                </p>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {(['1W', '1M', '3M', 'YTD', '1Y', 'All'] as const).map((r) => (
@@ -273,7 +329,10 @@ export default function Dashboard({
                     axisLine={false}
                     tickFormatter={(val) => `${state.currency}${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`}
                   />
-                  <RechartsTooltip content={<CustomChartTooltip />} cursor={{ stroke: 'var(--line-strong)', strokeWidth: 1, strokeDasharray: '3 3' }} />
+                  <RechartsTooltip
+                    content={<CustomChartTooltip />}
+                    cursor={{ stroke: 'var(--line-strong)', strokeWidth: 1, strokeDasharray: '3 3' }}
+                  />
                   <Area
                     type="monotone"
                     dataKey="value"
@@ -319,19 +378,20 @@ export default function Dashboard({
               [
                 ...state.transactions.map((t, idx) => ({ ...t, logType: 'transaction' as const, originalIdx: idx })),
                 ...state.loansGiven.map((l, idx) => ({
-                    id: l.id,
-                    type: 'expense' as const,
-                    title: `Loan Given: ${l.borrowerName}`,
-                    amount: l.totalAmount,
-                    date: l.dateGiven,
-                    category: 'Loan',
-                    logType: 'loan' as const,
-                    accountType: l.sourceAccountType,
-                    updated_at: l.updated_at || l.updatedAt,
-                    updatedAt: l.updated_at || l.updatedAt,
-                    originalIdx: idx
+                  id: l.id,
+                  type: 'expense' as const,
+                  title: `Loan Given: ${l.borrowerName}`,
+                  amount: l.totalAmount,
+                  date: l.dateGiven,
+                  category: 'Loan',
+                  logType: 'loan' as const,
+                  accountType: l.sourceAccountType,
+                  updated_at: l.updated_at || l.updatedAt,
+                  updatedAt: l.updated_at || l.updatedAt,
+                  originalIdx: idx,
                 })),
-                ...state.loansGiven.flatMap((l, lIdx) => l.settlements.map((s, sIdx) => ({
+                ...state.loansGiven.flatMap((l, lIdx) =>
+                  l.settlements.map((s, sIdx) => ({
                     id: s.id,
                     type: 'income' as const,
                     title: `Loan Settle: ${l.borrowerName}`,
@@ -342,12 +402,19 @@ export default function Dashboard({
                     accountType: s.receivedInType,
                     updated_at: s.updated_at || s.updatedAt,
                     updatedAt: s.updated_at || s.updatedAt,
-                    originalIdx: lIdx * 100 + sIdx
-                })))
+                    originalIdx: lIdx * 100 + sIdx,
+                  })),
+                ),
               ]
                 .sort((a, b) => {
-                  const getTs = (item: any): number => {
-                    const raw = item.updated_at || item.updatedAt || item.created_at || item.createdAt || item.date || item.dateGiven;
+                  const getTs = (item: ActivityLogItem): number => {
+                    const raw =
+                      item.updated_at ||
+                      item.updatedAt ||
+                      item.created_at ||
+                      item.createdAt ||
+                      item.date ||
+                      item.dateGiven;
                     if (!raw) return 0;
                     const time = new Date(raw).getTime();
                     return isNaN(time) ? 0 : time;
@@ -357,8 +424,8 @@ export default function Dashboard({
                   if (timeA !== timeB) {
                     return timeB - timeA;
                   }
-                  const dateA = a.date || (a as any).dateGiven || '';
-                  const dateB = b.date || (b as any).dateGiven || '';
+                  const dateA = a.date || (a as { dateGiven?: string }).dateGiven || '';
+                  const dateB = b.date || (b as { dateGiven?: string }).dateGiven || '';
                   const dateCompare = dateB.localeCompare(dateA);
                   if (dateCompare !== 0) return dateCompare;
                   const aNum = parseInt((a.id || '').replace(/\D/g, ''), 10);
@@ -373,7 +440,11 @@ export default function Dashboard({
                 })
                 .slice(0, 5)
                 .map((t) => {
-                  const isInc = t.type === 'income' || t.type === 'deposit' || t.type === 'financing' || (t.type === 'transfer' && t.amount > 0);
+                  const isInc =
+                    t.type === 'income' ||
+                    t.type === 'deposit' ||
+                    t.type === 'financing' ||
+                    (t.type === 'transfer' && t.amount > 0);
                   const absAmt = Math.abs(t.amount);
                   return (
                     <div
@@ -391,7 +462,9 @@ export default function Dashboard({
                         </span>
                         <div className="min-w-0 flex-1 text-left">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h5 className="text-xs font-semibold tracking-tight text-[var(--ink)] truncate max-w-[18ch] sm:max-w-none">{t.title}</h5>
+                            <h5 className="text-xs font-semibold tracking-tight text-[var(--ink)] truncate max-w-[18ch] sm:max-w-none">
+                              {t.title}
+                            </h5>
                             <span className="mono text-[10px] px-2 py-0.5 rounded-full border border-[var(--line)] text-[var(--ink-2)] uppercase">
                               {t.category}
                             </span>
@@ -401,7 +474,9 @@ export default function Dashboard({
                       </div>
                       <div className="text-right shrink-0 mono">
                         <span className="text-xs font-semibold tracking-tight tabular-nums text-[var(--ink)] block">
-                          {isInc ? '+' : '-'}{state.currency}{absAmt.toLocaleString()}
+                          {isInc ? '+' : '-'}
+                          {state.currency}
+                          {absAmt.toLocaleString()}
                         </span>
                         <span className="text-[10px] uppercase tracking-wide text-[var(--ink-3)] block mt-0.5">
                           {t.accountType === 'cash' ? 'Cash' : 'Card'}
@@ -438,8 +513,8 @@ export default function Dashboard({
               </div>
             ) : (
               [...state.subscriptions]
-                .filter(s => s.status === 'Active')
-                .sort((a,b) => a.dueDate.localeCompare(b.dueDate))
+                .filter((s) => s.status === 'Active')
+                .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
                 .slice(0, 3)
                 .map((sub) => {
                   const billState = getSubDueDays(sub.dueDate, sub.status);
@@ -450,10 +525,16 @@ export default function Dashboard({
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0 space-y-1">
-                          <h5 className="text-xs font-semibold tracking-tight text-[var(--ink)] leading-tight truncate">{sub.name}</h5>
-                          <span className="eyebrow !text-[10px] !text-[var(--ink-3)]">Billing • {sub.billingCycle}</span>
+                          <h5 className="text-xs font-semibold tracking-tight text-[var(--ink)] leading-tight truncate">
+                            {sub.name}
+                          </h5>
+                          <span className="eyebrow !text-[10px] !text-[var(--ink-3)]">
+                            Billing • {sub.billingCycle}
+                          </span>
                         </div>
-                        <span className={`mono text-[10px] px-2 py-1 rounded-full border font-medium shrink-0 ${billState.style}`}>
+                        <span
+                          className={`mono text-[10px] px-2 py-1 rounded-full border font-medium shrink-0 ${billState.style}`}
+                        >
                           {billState.label}
                         </span>
                       </div>
@@ -462,7 +543,8 @@ export default function Dashboard({
                         <div>
                           <span className="eyebrow !text-[9px] block">Obligation</span>
                           <span className="mono text-xs font-semibold tracking-tight text-[var(--ink)]">
-                            {state.currency}{sub.amount.toLocaleString()}
+                            {state.currency}
+                            {sub.amount.toLocaleString()}
                           </span>
                         </div>
                         <button
@@ -488,7 +570,6 @@ export default function Dashboard({
         onAddIncome={onAddIncome}
         onAddExpense={onAddExpense}
       />
-
     </div>
   );
 }

@@ -1,12 +1,22 @@
 import React, { useState, useRef } from 'react';
-import { apiUrl, safeJson } from "../lib/api";
-import { 
-  Loader2, X, UploadCloud, CheckCircle2, 
-  AlertCircle, ClipboardCopy, Image as ImageIcon, FileText, Edit2
+import { logger } from '../lib/logger';
+import { apiUrl, safeJson } from '../lib/api';
+import {
+  Loader2,
+  X,
+  UploadCloud,
+  CheckCircle2,
+  AlertCircle,
+  ClipboardCopy,
+  Image as ImageIcon,
+  FileText,
+  Edit2,
 } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
+import type { Worker, LoggerMessage } from 'tesseract.js';
 import { useNotifications } from '../context/NotificationContext';
-import { parseReceiptText, ScannedTransaction } from '../utils/freeOcrParser';
+import type { ScannedTransaction } from '../utils/freeOcrParser';
+import { parseReceiptText } from '../utils/freeOcrParser';
 import { authSession } from '../services/authSession';
 
 interface ReceiptScannerProps {
@@ -36,9 +46,9 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+    if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (e.type === 'dragleave') {
       setDragActive(false);
     }
   };
@@ -93,10 +103,10 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
     setError(null);
     setStatusMessage('Scanning document...');
     let extractedText = '';
-    let worker: any = null;
+    let worker: Worker | null = null;
     try {
       worker = await createWorker('eng', 1, {
-        logger: (m: any) => {
+        logger: (m: LoggerMessage) => {
           if (m && typeof m === 'object' && m.status) {
             const pct = typeof m.progress === 'number' ? ` (${Math.round(m.progress * 100)}%)` : '';
             setStatusMessage(`OCR: ${m.status}${pct}`);
@@ -109,10 +119,14 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
         extractedText = ret?.data?.text || '';
       }
     } catch (e) {
-      console.warn('OCR init failed', e);
+      logger.warn('OCR init failed', e);
     } finally {
       if (worker) {
-        try { await worker.terminate(); } catch (e) { console.warn('worker terminate failed', e); }
+        try {
+          await worker.terminate();
+        } catch (e) {
+          logger.warn('worker terminate failed', e);
+        }
       }
     }
     if (!extractedText.trim()) {
@@ -122,13 +136,15 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
         const response = await fetch(apiUrl('/api/ocr/free-scan'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ image: imagePreview })
+          body: JSON.stringify({ image: imagePreview }),
         });
         const resData = await safeJson(response);
         if (response.status === 401) {
-          setIsAnalyzing(false); setStatusMessage('');
+          setIsAnalyzing(false);
+          setStatusMessage('');
           const msg = 'Sign in required to use server-based OCR. Log in, then try again.';
-          setError(msg); showToast('error', msg);
+          setError(msg);
+          showToast('error', msg);
           return;
         }
         if (response.ok && resData?.success && resData?.text) {
@@ -137,9 +153,11 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
           throw new Error(resData.error);
         }
       } catch {
-        setIsAnalyzing(false); setStatusMessage('');
+        setIsAnalyzing(false);
+        setStatusMessage('');
         const msg = 'Server OCR is unavailable. Please use a clearer photo or enter the details manually.';
-        setError(msg); showToast('error', msg);
+        setError(msg);
+        showToast('error', msg);
         return;
       }
     }
@@ -167,7 +185,7 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
     <div className="card p-5 relative overflow-hidden" id="receipt-scanner-root">
       <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-60" />
       <div className="absolute -top-10 -left-10 w-24 h-24 bg-[var(--ink)]/5 rounded-full blur-2xl pointer-events-none" />
-      
+
       {/* Title Header — pill + gradient accents */}
       <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-[var(--line)]">
         <div className="flex items-center gap-2.5">
@@ -175,16 +193,17 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
             <FileText size={15} />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-[var(--ink)] uppercase tracking-wider flex items-center gap-2">Receipt & Bill Scanner <span className="pill !py-0.5 !px-2 !text-[10px] mono">OCR</span></h4>
-            <p className="eyebrow normal-case tracking-normal font-medium">Extract transaction info automatically from images</p>
+            <h4 className="text-xs font-bold text-[var(--ink)] uppercase tracking-wider flex items-center gap-2">
+              Receipt & Bill Scanner <span className="pill !py-0.5 !px-2 !text-[10px] mono">OCR</span>
+            </h4>
+            <p className="eyebrow normal-case tracking-normal font-medium">
+              Extract transaction info automatically from images
+            </p>
           </div>
         </div>
 
         {imagePreview && (
-          <button 
-            onClick={handleClear}
-            className="pill !py-1 !px-2 mono !text-[10px] flex items-center gap-1"
-          >
+          <button onClick={handleClear} className="pill !py-1 !px-2 mono !text-[10px] flex items-center gap-1">
             <X size={10} /> Clear
           </button>
         )}
@@ -199,18 +218,12 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
           className={`border border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-            dragActive 
-              ? 'border-[var(--ink)] bg-[var(--surface-2)] scale-[0.99]' 
+            dragActive
+              ? 'border-[var(--ink)] bg-[var(--surface-2)] scale-[0.99]'
               : 'border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-[var(--surface-2)]'
           }`}
         >
-          <input 
-            ref={fileInputRef}
-            type="file" 
-            accept="image/*" 
-            className="hidden" 
-            onChange={handleFileInputChange}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileInputChange} />
           <UploadCloud size={28} className="text-[var(--ink-2)] mb-2.5 stroke-[1.5]" />
           <span className="text-xs font-semibold text-[var(--ink)]">Drag & drop your receipt or bill photo</span>
           <span className="text-[10px] text-[var(--ink-2)] mt-1">or click to choose image (JPG, PNG, WEBP)</span>
@@ -220,11 +233,7 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             {/* Image Preview Container */}
             <div className="md:col-span-5 relative bg-[var(--surface-2)] rounded-xl overflow-hidden border border-[var(--line)] flex items-center justify-center max-h-[220px]">
-              <img 
-                src={imagePreview} 
-                alt="Receipt Preview" 
-                className="max-h-[220px] w-auto object-contain"
-              />
+              <img src={imagePreview} alt="Receipt Preview" className="max-h-[220px] w-auto object-contain" />
               <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 rounded text-[9px] mono text-white flex items-center gap-1 border border-white/10">
                 <ImageIcon size={10} /> {mimeType.split('/').pop()?.toUpperCase()}
               </div>
@@ -256,7 +265,9 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
                 <div className="flex flex-col items-center justify-center text-center py-6 space-y-2.5">
                   <Loader2 size={26} className="text-[var(--ink)] animate-spin" />
                   <p className="text-xs font-semibold text-[var(--ink)]">{statusMessage || 'Processing document...'}</p>
-                  <p className="text-[10px] text-[var(--ink-2)] italic max-w-xs">Reading numbers, dates, merchant & items</p>
+                  <p className="text-[10px] text-[var(--ink-2)] italic max-w-xs">
+                    Reading numbers, dates, merchant & items
+                  </p>
                 </div>
               )}
 
@@ -268,7 +279,7 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
                   </div>
                   <p className="text-[10.5px] text-[var(--ink-2)] leading-relaxed">{error}</p>
                   <div className="flex items-center gap-2 pt-1">
-                    <button 
+                    <button
                       onClick={runOCR}
                       className="text-[10px] mono text-[var(--ink-2)] hover:text-[var(--ink)] underline cursor-pointer"
                     >
@@ -308,7 +319,9 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
                           type="number"
                           step="0.01"
                           value={scannedResult.amount}
-                          onChange={(e) => setScannedResult({ ...scannedResult, amount: parseFloat(e.target.value) || 0 })}
+                          onChange={(e) =>
+                            setScannedResult({ ...scannedResult, amount: parseFloat(e.target.value) || 0 })
+                          }
                           className="input text-xs font-bold py-1.5 text-emerald-600 dark:text-emerald-400"
                         />
                       </div>

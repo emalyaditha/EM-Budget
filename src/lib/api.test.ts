@@ -65,10 +65,7 @@ describe('fetchWithTimeout', () => {
 
     await fetchWithTimeout('/api/test', { method: 'GET' }, 5000);
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/test',
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
-    );
+    expect(fetchSpy).toHaveBeenCalledWith('/api/test', expect.objectContaining({ signal: expect.any(AbortSignal) }));
 
     vi.restoreAllMocks();
   });
@@ -103,7 +100,8 @@ describe('retryWithBackoff', () => {
   });
 
   it('returns result after transient failures', async () => {
-    const fn = vi.fn()
+    const fn = vi
+      .fn()
       .mockRejectedValueOnce(new Error('fail 1'))
       .mockRejectedValueOnce(new Error('fail 2'))
       .mockResolvedValue('ok');
@@ -137,7 +135,8 @@ describe('retryWithBackoff', () => {
   });
 
   it('uses exponential backoff delays', async () => {
-    const fn = vi.fn()
+    const fn = vi
+      .fn()
       .mockRejectedValueOnce(new Error('e1'))
       .mockRejectedValueOnce(new Error('e2'))
       .mockResolvedValue('done');
@@ -162,9 +161,7 @@ describe('retryWithBackoff', () => {
   });
 
   it('clamps delay to maxDelayMs', async () => {
-    const fn = vi.fn()
-      .mockRejectedValueOnce(new Error('e1'))
-      .mockResolvedValue('ok');
+    const fn = vi.fn().mockRejectedValueOnce(new Error('e1')).mockResolvedValue('ok');
 
     const promise = retryWithBackoff(fn, {
       baseDelayMs: 50000, // would be 50000 * 2^0 = 50000
@@ -179,9 +176,7 @@ describe('retryWithBackoff', () => {
   });
 
   it('calls onRetry with attempt number and error', async () => {
-    const fn = vi.fn()
-      .mockRejectedValueOnce(new Error('first fail'))
-      .mockResolvedValue('recovered');
+    const fn = vi.fn().mockRejectedValueOnce(new Error('first fail')).mockResolvedValue('recovered');
 
     const onRetry = vi.fn();
     const promise = retryWithBackoff(fn, {
@@ -199,7 +194,8 @@ describe('retryWithBackoff', () => {
   });
 
   it('calls onRetry for each failed attempt before success', async () => {
-    const fn = vi.fn()
+    const fn = vi
+      .fn()
       .mockRejectedValueOnce(new Error('e1'))
       .mockRejectedValueOnce(new Error('e2'))
       .mockRejectedValueOnce(new Error('e3'))
@@ -219,7 +215,7 @@ describe('retryWithBackoff', () => {
 
     expect(result).toBe('finally');
     expect(onRetry).toHaveBeenCalledTimes(3);
-    expect(onRetry.mock.calls.map(c => c[0])).toEqual([1, 2, 3]);
+    expect(onRetry.mock.calls.map((c) => c[0])).toEqual([1, 2, 3]);
   });
 
   it('wraps non-Error thrown values into Error', async () => {
@@ -228,8 +224,9 @@ describe('retryWithBackoff', () => {
     try {
       await retryWithBackoff(fn, { maxRetries: 0 });
       throw new Error('should have thrown');
-    } catch (err: any) {
-      expect(err.message).toBe('string error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      expect(message).toBe('string error');
       expect(err).toBeInstanceOf(Error);
     }
   });
@@ -240,8 +237,8 @@ describe('retryWithBackoff', () => {
     try {
       await retryWithBackoff(fn, { maxRetries: 0, baseDelayMs: 10 });
       throw new Error('should have thrown');
-    } catch (err: any) {
-      expect(err.message).toBe('fail');
+    } catch (err: unknown) {
+      expect(err instanceof Error ? err.message : String(err)).toBe('fail');
     }
     // Only initial attempt, no retries
     expect(fn).toHaveBeenCalledTimes(1);

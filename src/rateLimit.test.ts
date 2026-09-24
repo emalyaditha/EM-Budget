@@ -57,9 +57,7 @@ describe('applyInMemoryRateLimit', () => {
 
   it('purges expired entries so the fallback table cannot grow unbounded', () => {
     const now = 1_700_000_000_000;
-    const store: RateLimitRecord[] = [
-      { key: 'stale', count: 9, reset_time: new Date(now - 1).toISOString() },
-    ];
+    const store: RateLimitRecord[] = [{ key: 'stale', count: 9, reset_time: new Date(now - 1).toISOString() }];
     applyInMemoryRateLimit(store, 'fresh', 5, WINDOW_MS, now);
     expect(store.find((r) => r.key === 'stale')).toBeUndefined();
   });

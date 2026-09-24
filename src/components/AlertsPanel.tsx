@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, AlertCircle, Bell, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { computeAlerts, FinanceAlert } from '../lib/alerts';
-import { AppState } from '../types';
+import type { FinanceAlert } from '../lib/alerts';
+import { computeAlerts } from '../lib/alerts';
+import type { AppState } from '../types';
 
 interface AlertsPanelProps {
   state: AppState;
@@ -20,13 +21,10 @@ export function AlertsPanel({ state }: AlertsPanelProps) {
   const alerts = useMemo(
     () => computeAlerts(state, Date.now()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state.budgets, state.subscriptions, state.debts, state.savingsGoals, state.currency]
+    [state.budgets, state.subscriptions, state.debts, state.savingsGoals, state.currency],
   );
 
-  const visible = useMemo(
-    () => alerts.filter((a) => !dismissed.has(a.id)).slice(0, 6),
-    [alerts, dismissed]
-  );
+  const visible = useMemo(() => alerts.filter((a) => !dismissed.has(a.id)).slice(0, 6), [alerts, dismissed]);
 
   if (visible.length === 0) return null;
 
