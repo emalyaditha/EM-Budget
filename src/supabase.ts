@@ -159,8 +159,8 @@ export function getSupabaseClient(): SupabaseClient | null {
     return null;
   }
   try {
-    const token = authSession.getToken() || localStorage.getItem('auth_session_token');
-    const email = authSession.getEmail() || localStorage.getItem('auth_user_email') || '';
+    const token = authSession.getToken();
+    const email = authSession.getEmail() || '';
     const clientKey = `${url}:${token}:${email}`;
 
     if (!supabaseClientInstance || globalCache.__lastClientKey !== clientKey) {
@@ -329,116 +329,18 @@ const SCHEMA_COLUMNS: { [tableName: string]: string[] } = {
   ],
 };
 
-let detectedColumnsCache: { [tableName: string]: string[] } | null = null;
-
-function toCamelCase(str: string): string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
-function toSnakeCase(str: string): string {
-  return str.replace(/([A-Z])/g, '_$1').toLowerCase();
-}
-
 /**
- * Intelligent helper to identify if an error originates from a column missing in the remote DB schema.
- * Supports PostgREST missing column cache errors and standard Postgres relation errors.
+ * Returns the migration-verified column list for a table.
+ * Synchronous (no network I/O); returns a copy so callers cannot mutate the
+ * canonical schema.
  */
-function extractMissingColumn(errorMsg: string, tableName: string): string | null {
-  if (!errorMsg) return null;
-  
-  // Pattern 1: Could not find the 'column_name' column of 'table_name' in the schema cache
-  const cacheRegex = new RegExp(`Could not find the '([^']+)' column of '${tableName}'`, 'i');
-  let match = errorMsg.match(cacheRegex);
-  if (match && match[1]) {
-    return match[1];
-  }
-  
-  // Pattern 2: column "column_name" of relation "table_name" does not exist
-  const postgresRegex = new RegExp(`column "([^"]+)" of relation "${tableName}" does not exist`, 'i');
-  match = errorMsg.match(postgresRegex);
-  if (match && match[1]) {
-    return match[1];
-  }
-
-  // Pattern 3: column "column_name" does not exist
-  const genericRegex = /column "([^"]+)" does not exist/i;
-  match = genericRegex.exec(errorMsg);
-  if (match && match[1]) {
-    return match[1];
-  }
-
-  return null;
+export function getSchemaColumns(tableName: string): string[] {
+  return (SCHEMA_COLUMNS[tableName] || []).slice();
 }
 
 /**
- * Automatically inspects empty table metadata via Supabase/PostgREST OpenAPI or CSV headers to find exactly what columns exist
- */
-async function getColumnsForTable(tableName: string): Promise<string[]> {
-  if (detectedColumnsCache && detectedColumnsCache[tableName]) {
-    return detectedColumnsCache[tableName];
-  }
-  const client = getSupabaseClient();
-  if (!client) return FALLBACK_COLUMNS[tableName] || [];
-  
-  // Method A: Quick CSV header lookup to find existing database columns instantly
-  try {
-    const { data, error } = await client.from(tableName).select('*').limit(0).csv();
-    if (error) {
-      if (error.code === '42P01' || (error.message && error.message.includes('does not exist'))) {
-        console.warn(`Table ${tableName} does not exist in the remote database yet (Error 42P01: undefined table).`);
-        if (!detectedColumnsCache) detectedColumnsCache = {};
-        detectedColumnsCache[tableName] = [];
-        return [];
-      }
-    }
-    if (!error && typeof data === 'string' && data.trim()) {
-      const firstLine = data.split('\n')[0].trim();
-      const cols = firstLine.split(',').map(c => c.replace(/^["']|["']$/g, '').trim()).filter(Boolean);
-      if (cols.length > 0) {
-        if (tableName === 'bank_cards' && !cols.includes('is_canceled')) cols.push('is_canceled');
-        if (!detectedColumnsCache) detectedColumnsCache = {};
-        detectedColumnsCache[tableName] = cols;
-        console.log(`Detected database columns for ${tableName} via CSV headers:`, cols);
-        return cols;
-      }
-    }
-  } catch (csvErr) {
-    console.warn(`Could not fetch columns via CSV headers for ${tableName}:`, csvErr);
-  }
-
-  // Method B: Swagger model endpoint backup
-  const { url, key } = getSupabaseConfig();
-  if (url && key) {
-    try {
-      const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-      const response = await fetch(`${cleanUrl}/rest/v1/`, {
-        headers: {
-          'apikey': key,
-          'Authorization': `Bearer ${key}`
-        }
-      });
-      if (response.ok) {
-        const swagger = await safeJson(response);
-        if (!swagger) return FALLBACK_COLUMNS[tableName] || [];
-        const tableDef = swagger.definitions?.[tableName];
-        if (tableDef && tableDef.properties) {
-          const cols = Object.keys(tableDef.properties);
-          if (tableName === 'bank_cards' && !cols.includes('is_canceled')) cols.push('is_canceled');
-          if (!detectedColumnsCache) detectedColumnsCache = {};
-          detectedColumnsCache[tableName] = cols;
-          return cols;
-        }
-      }
-    } catch (err) {
-      console.warn(`Could not auto-detect columns for table ${tableName} via Swagger. Using fallbacks.`, err);
-    }
-  }
-  return FALLBACK_COLUMNS[tableName] || [];
-}
-
-/**
- * Intelligent mapper that dynamically translates camelCase to snake_case properties
- * depending on what columns actually exist in the user's Supabase table.
+ * Deterministic mapper: translates camelCase state properties to snake_case
+ * database columns, limited to the migration-verified static schema.
  */
 function mapObjectToColumns(
   item: object,
@@ -561,12 +463,7 @@ export async function updateAuthAccountName(email: string, name: string, avatarU
     }
     const { error } = await client.from('auth_accounts').update(updatePayload).eq('email', email);
     if (error) {
-      if (error.message && (error.message.includes('column') || error.message.includes('not found') || error.message.includes('does not exist'))) {
-        console.warn('avatar_url column missing from auth_accounts, falling back to name-only update...');
-        await client.from('auth_accounts').update({ name }).eq('email', email);
-      } else {
-        throw error;
-      }
+      throw error;
     }
   } catch (err) {
     logger.warn(`Failed to update profile in auth_accounts`, err);
@@ -598,15 +495,10 @@ export async function truncateAllDataInSupabase(email: string): Promise<{ succes
     ];
 
     for (const table of tables) {
-      let emailCol = 'user_email';
-      if (['incomes', 'expenses', 'debts', 'notifications', 'transactions'].includes(table)) {
-        emailCol = 'userEmail';
-      }
-      
+      const emailCol = getSchemaColumns(table).includes('user_email') ? 'user_email' : 'userEmail';
       const { error } = await client.from(table).delete().eq(emailCol, email);
-      if (error && error.message.includes(`column "${emailCol}" does not exist`)) {
-        const fallbackCol = emailCol === 'userEmail' ? 'user_email' : 'userEmail';
-        const { error: err2 } = await client.from(table).delete().eq(fallbackCol, email);
+      if (error) {
+        return { success: false, error: error.message };
       }
     }
     return { success: true };
@@ -614,6 +506,17 @@ export async function truncateAllDataInSupabase(email: string): Promise<{ succes
     return { success: false, error: err instanceof Error ? err.message : JSON.stringify(err) };
   }
 }
+
+/**
+ * Retry budget for the single sync path (transactional sync_complete_ledger
+ * RPC, B2). Exported so tests can shrink the retry delay; the RPC is the only
+ * write path, so transient failures are retried with exponential backoff
+ * before the error is surfaced to the caller.
+ */
+export const SYNC_RPC_RETRY = {
+  maxRetries: 2,
+  baseDelayMs: 500,
+};
 
 /**
  * Pushes the current application state to the supabase ledger_states table
@@ -1246,7 +1149,9 @@ export async function syncStateFromSupabase(
     }
   };
 
-
-export function getSupabaseSQLScript(): string {
-  return `-- SQL Migrations are now managed on the backend and located in /supabase/migrations/20260725_init.sql\n-- The Settings panel will dynamically fetch the fresh script from the server.`;
+  return withTimeout(
+    retryWithBackoff(doSync, { maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 5000 }),
+    SYNC_TIMEOUT,
+    'syncStateFromSupabase',
+  );
 }

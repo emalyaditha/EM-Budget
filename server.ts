@@ -97,7 +97,7 @@ interface SubscriptionRow {
 
 export async function createApp(): Promise<express.Express> {
   const app = express();
-  const IS_PRODUCTION = process.env.NODE_ENV === "production";
+  const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
   function buildCsp(): string {
     const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
@@ -174,10 +174,10 @@ export async function createApp(): Promise<express.Express> {
   });
 
   // Cryptographic Signature Vault Systems (OWASP Level Protection)
-  const SESSION_SECRET = process.env.SESSION_SECRET || (IS_PRODUCTION ? "" : "e3f39806ee7e79681b37e26ff2461d9685b29b599e4f650c61ff9b5a9b8cea1c");
+  const SESSION_SECRET = process.env.SESSION_SECRET;
   if (!SESSION_SECRET) {
     if (process.env.VERCEL) {
-      throw new Error("SESSION_SECRET environment variable is missing.");
+      throw new Error('SESSION_SECRET environment variable is missing.');
     }
     console.error(
       '❌ CRITICAL SECURITY ERROR: The SESSION_SECRET environment variable is missing! The server cannot start without a secure SESSION_SECRET.',
@@ -273,36 +273,36 @@ export async function createApp(): Promise<express.Express> {
     const hashedOtp = hashOtp(otp, normalizedEmail);
 
     if (!supabase) {
-      if (IS_PRODUCTION) throw new Error("Database connection unavailable in production mode.");
+      if (IS_PRODUCTION) throw new Error('Database connection unavailable in production mode.');
       console.log(`[Mock DB] Storing OTP for ${storageEmail} (Expires: ${expiresDate})`);
-      mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
+      mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
       mockDb.otps.push({
         email: storageEmail,
         otp: hashedOtp,
-        expires_at: expiresDate
+        expires_at: expiresDate,
       });
       return;
     }
-    
+
     try {
       await supabase.from('auth_otps').delete().eq('email', storageEmail);
       const { error } = await supabase.from('auth_otps').insert({
         email: storageEmail,
         otp: hashedOtp,
-        expires_at: expiresDate
+        expires_at: expiresDate,
       });
       if (error) {
-        console.error("OTP database write failed:", error);
+        console.error('OTP database write failed:', error);
         throw error;
       }
     } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] storeOtpInDb', e);
       if (IS_PRODUCTION) throw e;
-      mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
+      mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
       mockDb.otps.push({
         email: storageEmail,
         otp: hashedOtp,
-        expires_at: expiresDate
+        expires_at: expiresDate,
       });
     }
   }
@@ -317,37 +317,37 @@ export async function createApp(): Promise<express.Express> {
 
     if (!supabase) {
       if (IS_PRODUCTION) return null;
-      const found = mockDb.otps.find(item => item.email === storageEmail);
+      const found = mockDb.otps.find((item) => item.email === storageEmail);
       if (found) {
         return {
           otp: found.otp,
-          expiresAt: new Date(found.expires_at).getTime()
+          expiresAt: new Date(found.expires_at).getTime(),
         };
       }
       return null;
     }
-    
+
     try {
       const { data, error } = await supabase.from('auth_otps').select('*').eq('email', storageEmail).maybeSingle();
       if (error) {
-        console.error("OTP database fetch failed:", error);
+        console.error('OTP database fetch failed:', error);
         throw error;
       }
       if (data) {
         return {
           otp: data.otp,
-          expiresAt: new Date(data.expires_at).getTime()
+          expiresAt: new Date(data.expires_at).getTime(),
         };
       }
       return null;
     } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] getOtpFromDb', e);
       if (IS_PRODUCTION) return null;
-      const found = mockDb.otps.find(item => item.email === storageEmail);
+      const found = mockDb.otps.find((item) => item.email === storageEmail);
       if (found) {
         return {
           otp: found.otp,
-          expiresAt: new Date(found.expires_at).getTime()
+          expiresAt: new Date(found.expires_at).getTime(),
         };
       }
       return null;
@@ -359,14 +359,14 @@ export async function createApp(): Promise<express.Express> {
     const storageEmail = isDeleteOtp ? `delete:${normalizedEmail}` : normalizedEmail;
 
     if (!supabase) {
-      if (!IS_PRODUCTION) mockDb.otps = mockDb.otps.filter(item => item.email !== storageEmail);
+      if (!IS_PRODUCTION) mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
       return;
     }
-    
+
     try {
       const { error } = await supabase.from('auth_otps').delete().eq('email', storageEmail);
       if (error) {
-        console.error("OTP database delete failed:", error);
+        console.error('OTP database delete failed:', error);
       }
     } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] deleteOtpFromDb', e);
@@ -384,8 +384,8 @@ export async function createApp(): Promise<express.Express> {
   // System token signature generator (signs express backend requests for RLS-by-signature verification blocks)
   function generateSystemToken(): string {
     const payload = {
-      system: "express-server",
-      timestamp: Date.now()
+      system: 'express-server',
+      timestamp: Date.now(),
     };
     const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
     const signature = crypto.createHmac('sha256', sessionSecret).update(payloadStr).digest('hex');
@@ -413,47 +413,47 @@ export async function createApp(): Promise<express.Express> {
     }
 
     // Auto-swapped or misconfigured variable detection
-    if (url.startsWith("eyJ") && (key.startsWith("http://") || key.startsWith("https://"))) {
+    if (url.startsWith('eyJ') && (key.startsWith('http://') || key.startsWith('https://'))) {
       const temp = url;
       url = key;
       key = temp;
     }
-    
+
     // Decode JWT to extract the Project Reference ID if URL is a JWT
-    if (url.startsWith("eyJ")) {
+    if (url.startsWith('eyJ')) {
       try {
         const parts = url.split('.');
         if (parts.length >= 2) {
           const payloadStr = Buffer.from(parts[1], 'base64url').toString('utf8');
           const payload = JSON.parse(payloadStr);
           if (payload && payload.ref) {
-            if (!key || key === "" || key === url) {
+            if (!key || key === '' || key === url) {
               key = url;
             }
             url = `https://${payload.ref}.supabase.co`;
           }
         }
       } catch (e) {
-        console.error("[Supabase Autocorrect] Failed to decode JWT payload:", e);
+        console.error('[Supabase Autocorrect] Failed to decode JWT payload:', e);
       }
     }
-    
+
     if (!url || !key) {
       return null;
     }
-    
+
     if (!url.startsWith('https://') && !url.startsWith('http://')) {
       console.error(`[Supabase Error] Detected invalid URL structure: '${url}'. Must start with https:// or http://`);
       return null;
     }
-    
+
     const systemToken = generateSystemToken();
     return createClient(url, key, {
       global: {
         headers: {
-          'x-system-token': systemToken
-        }
-      }
+          'x-system-token': systemToken,
+        },
+      },
     });
   };
 
@@ -461,7 +461,7 @@ export async function createApp(): Promise<express.Express> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!supabase) {
       if (IS_PRODUCTION) return false;
-      return mockDb.accounts.some(acc => acc.email === normalizedEmail);
+      return mockDb.accounts.some((acc) => acc.email === normalizedEmail);
     }
     try {
       const { data, error } = await withTimeout(
@@ -476,7 +476,7 @@ export async function createApp(): Promise<express.Express> {
     } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] checkAccountExists', e);
       if (IS_PRODUCTION) return false;
-      return mockDb.accounts.some(acc => acc.email === normalizedEmail);
+      return mockDb.accounts.some((acc) => acc.email === normalizedEmail);
     }
   }
 
@@ -484,23 +484,27 @@ export async function createApp(): Promise<express.Express> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!supabase) {
       if (IS_PRODUCTION) return null;
-      const found = mockDb.accounts.find(acc => acc.email === normalizedEmail);
+      const found = mockDb.accounts.find((acc) => acc.email === normalizedEmail);
       return found || null;
     }
     try {
-      const { data, error } = await supabase.from('auth_accounts').select('*').eq('email', normalizedEmail).maybeSingle();
+      const { data, error } = await supabase
+        .from('auth_accounts')
+        .select('*')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
       if (!error && data) {
-         return {
-           email: data.email,
-           passwordHash: data.password_hash,
-           createdAt: new Date(data.created_at).getTime()
-         };
+        return {
+          email: data.email,
+          passwordHash: data.password_hash,
+          createdAt: new Date(data.created_at).getTime(),
+        };
       }
       return null;
     } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] getAccountByEmail', e);
       if (IS_PRODUCTION) return null;
-      const found = mockDb.accounts.find(acc => acc.email === normalizedEmail);
+      const found = mockDb.accounts.find((acc) => acc.email === normalizedEmail);
       return found || null;
     }
   }
@@ -508,54 +512,59 @@ export async function createApp(): Promise<express.Express> {
   async function saveAccount(acc: Account, supabase: SupabaseClient | null) {
     const normalizedEmail = acc.email.trim().toLowerCase();
     if (!supabase) {
-      if (IS_PRODUCTION) throw new Error("Database connection unavailable in production mode.");
-      mockDb.accounts = mockDb.accounts.filter(item => item.email !== normalizedEmail);
+      if (IS_PRODUCTION) throw new Error('Database connection unavailable in production mode.');
+      mockDb.accounts = mockDb.accounts.filter((item) => item.email !== normalizedEmail);
       mockDb.accounts.push({
         email: normalizedEmail,
         passwordHash: acc.passwordHash,
-        createdAt: acc.createdAt
+        createdAt: acc.createdAt,
       });
       return;
     }
     try {
-      const { error } = await supabase.from('auth_accounts').upsert({
-        email: normalizedEmail,
-        password_hash: acc.passwordHash,
-        created_at: new Date(acc.createdAt).toISOString()
-      }, { onConflict: 'email' });
+      const { error } = await supabase.from('auth_accounts').upsert(
+        {
+          email: normalizedEmail,
+          password_hash: acc.passwordHash,
+          created_at: new Date(acc.createdAt).toISOString(),
+        },
+        { onConflict: 'email' },
+      );
       if (error) {
-        console.error("Error saving account to Supabase:", error);
+        console.error('Error saving account to Supabase:', error);
         throw error;
       }
     } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] saveAccount', e);
       if (IS_PRODUCTION) throw e;
-      mockDb.accounts = mockDb.accounts.filter(item => item.email !== normalizedEmail);
+      mockDb.accounts = mockDb.accounts.filter((item) => item.email !== normalizedEmail);
       mockDb.accounts.push({
         email: normalizedEmail,
         passwordHash: acc.passwordHash,
-        createdAt: acc.createdAt
+        createdAt: acc.createdAt,
       });
     }
   }
 
   async function saveDeviceToken(token: string, supabase: SupabaseClient | null, email?: string) {
     if (!token) return;
-    const normalizedEmail = (email || "").trim().toLowerCase();
-    const hashedEmail = normalizedEmail ? crypto.createHash("sha256").update(normalizedEmail).digest("hex") : "";
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    const hashedEmail = normalizedEmail ? crypto.createHash('sha256').update(normalizedEmail).digest('hex') : '';
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
     if (!supabase) {
-      mockDb.deviceTokens.add(hashedToken + ":" + hashedEmail);
-      console.log(`🔒 Devices (Local Mode): Registered trusted device for ${normalizedEmail || "unknown"}.`);
+      mockDb.deviceTokens.add(hashedToken + ':' + hashedEmail);
+      console.log(`🔒 Devices (Local Mode): Registered trusted device for ${normalizedEmail || 'unknown'}.`);
       return;
     }
     try {
-      const { error } = await supabase.from('auth_device_tokens').insert({ token: hashedToken, hashed_email: hashedEmail, expires_at: expiresAt });
+      const { error } = await supabase
+        .from('auth_device_tokens')
+        .insert({ token: hashedToken, hashed_email: hashedEmail, expires_at: expiresAt });
       if (error) {
-        console.error("Device token database insert failed:", error);
+        console.error('Device token database insert failed:', error);
       } else {
-        console.log(`🔒 Devices: Registered trusted device for ${normalizedEmail || "unknown"}.`);
+        console.log(`🔒 Devices: Registered trusted device for ${normalizedEmail || 'unknown'}.`);
       }
     } catch (e) {
       logDbFailure('[Supabase Connection/Query Failed] saveDeviceToken falling back to Mock DB', e);
@@ -565,13 +574,13 @@ export async function createApp(): Promise<express.Express> {
 
   async function verifyDeviceToken(token: string, supabase: SupabaseClient | null, email?: string): Promise<boolean> {
     if (!token) return false;
-    const normalizedEmail = (email || "").trim().toLowerCase();
-    const hashedEmail = normalizedEmail ? crypto.createHash("sha256").update(normalizedEmail).digest("hex") : null;
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    const hashedEmail = normalizedEmail ? crypto.createHash('sha256').update(normalizedEmail).digest('hex') : null;
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     if (!supabase) {
       // check with email binding if provided, else any
-      if (hashedEmail) return mockDb.deviceTokens.has(hashedToken + ":" + hashedEmail);
-      for (const k of mockDb.deviceTokens) if (k.startsWith(hashedToken + ":")) return true;
+      if (hashedEmail) return mockDb.deviceTokens.has(hashedToken + ':' + hashedEmail);
+      for (const k of mockDb.deviceTokens) if (k.startsWith(hashedToken + ':')) return true;
       return mockDb.deviceTokens.has(hashedToken);
     }
     try {
@@ -1235,8 +1244,8 @@ export async function createApp(): Promise<express.Express> {
   function parseCookies(req: express.Request): Record<string, string> {
     const header = req.headers.cookie || '';
     const out: Record<string, string> = {};
-    header.split(";").forEach(p => {
-      const idx = p.indexOf("=");
+    header.split(';').forEach((p) => {
+      const idx = p.indexOf('=');
       if (idx < 0) return;
       const k = p.slice(0, idx).trim();
       const v = p.slice(idx + 1).trim();
@@ -1265,7 +1274,7 @@ export async function createApp(): Promise<express.Express> {
   }
   function getTokenFromRequest(req: express.Request) {
     const auth = req.headers.authorization;
-    if (auth && auth.startsWith("Bearer ")) return auth.split(" ")[1];
+    if (auth && auth.startsWith('Bearer ')) return auth.split(' ')[1];
     const cookies = parseCookies(req);
     if (cookies.session_token) return cookies.session_token;
     return null;
@@ -1284,18 +1293,19 @@ export async function createApp(): Promise<express.Express> {
     res.setHeader('Content-Security-Policy', CSP);
 
     // 2. Prevent dynamic MIME Sniffing attacks
-    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
 
     // 3. HTTP Strict Transport Security
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 
     // 4. Referrer & Permissions constraints
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-    res.setHeader("X-XSS-Protection", "0");
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '0');
     // HTTPS redirect in production (if behind proxy, requires trust proxy)
-    if (IS_PRODUCTION && req.headers["x-forwarded-proto"] === "http") {
-      res.redirect(301, "https://" + req.headers.host + req.url);
+    if (IS_PRODUCTION && req.headers['x-forwarded-proto'] === 'http') {
+      res.redirect(301, 'https://' + req.headers.host + req.url);
       return;
     }
 
@@ -1351,97 +1361,88 @@ export async function createApp(): Promise<express.Express> {
     const resetTimeStr = new Date(resetTime).toISOString();
 
     if (!supabase) {
-      // Purge expired rate limits periodically
-      mockDb.rateLimits = mockDb.rateLimits.filter(item => new Date(item.reset_time).getTime() > now);
-
-      const foundIndex = mockDb.rateLimits.findIndex(item => item.key === key);
-      if (foundIndex === -1) {
-        mockDb.rateLimits.push({
-          key,
-          count: 1,
-          reset_time: resetTimeStr
-        });
-        return true;
-      }
-
-      const item = mockDb.rateLimits[foundIndex];
-      const recordResetTime = new Date(item.reset_time).getTime();
-      if (now > recordResetTime) {
-        mockDb.rateLimits[foundIndex] = {
-          key,
-          count: 1,
-          reset_time: resetTimeStr
-        };
-        return true;
-      }
-
-      if (item.count >= limit) {
-        return false; // Rate limit exceeded
-      }
-
-      item.count += 1;
-      return true;
+      return applyInMemoryRateLimit(mockDb.rateLimits, key, limit, windowMs, now);
     }
-    
+
     try {
       // Purge expired rate limits periodically
       await supabase.from('auth_rate_limits').delete().lt('reset_time', new Date(now).toISOString());
-      
+
       const { data, error } = await supabase.from('auth_rate_limits').select('*').eq('key', key).maybeSingle();
       if (error && error.code !== 'PGRST116') throw error;
-      
+
       if (!data) {
         await supabase.from('auth_rate_limits').insert({
           key,
           count: 1,
-          reset_time: resetTimeStr
+          reset_time: resetTimeStr,
         });
-        return true;
+        return { allowed: true, retryAfterSeconds: 0 };
       }
-      
+
       const recordResetTime = new Date(data.reset_time).getTime();
       if (now > recordResetTime) {
-        await supabase.from('auth_rate_limits').update({
-          count: 1,
-          reset_time: resetTimeStr,
-          updated_at: new Date().toISOString()
-        }).eq('key', key);
-        return true;
+        await supabase
+          .from('auth_rate_limits')
+          .update({
+            count: 1,
+            reset_time: resetTimeStr,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('key', key);
+        return { allowed: true, retryAfterSeconds: 0 };
       }
-      
+
       if (data.count >= limit) {
-        return false; // Rate limit exceeded
+        const retryAfterSeconds = Math.ceil((recordResetTime - now) / 1000);
+        return { allowed: false, retryAfterSeconds };
       }
-      
-      await supabase.from('auth_rate_limits').update({
-        count: data.count + 1,
-        updated_at: new Date().toISOString()
-      }).eq('key', key);
-      return true;
-      
+
+      await supabase
+        .from('auth_rate_limits')
+        .update({
+          count: data.count + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('key', key);
+      return { allowed: true, retryAfterSeconds: 0 };
     } catch (e) {
-      console.error("Rate limit database operation failed:", e);
-      return false; // Fail closed
+      // FAIL_OPEN_EXPLICIT — deliberate availability-over-hardening decision in
+      // api-src/rate-limit.ts. On DB failure we fall back to a per-instance
+      // in-memory limit table instead of hard-blocking all auth, so a Supabase
+      // outage never bricks login for every user. The fallback still enforces
+      // limits (with an isolated `fallback:` key namespace), just without
+      // cross-instance sharing until the window expires. Logged at WARN (not
+      // error) because this is an expected degraded mode, not an anomaly.
+      logDbFailure('[RateLimit] database operation failed; failing open with in-memory fallback', e);
+      if (!FAIL_OPEN_EXPLICIT) throw e;
+      return applyInMemoryRateLimit(mockDb.rateLimits, `fallback:${key}`, limit, windowMs);
     }
   }
-  
+
   const rateLimitAuth = (limit: number, windowMs: number) => {
     return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-      const xff = (req.headers["x-forwarded-for"] as string) || "";
-      const ip = (xff ? xff.split(",")[0].trim() : "") || req.ip || req.socket.remoteAddress || "unknown";
+      // Use req.ip first: with `trust proxy = 1`, Express resolves the client
+      // address from the last trusted hop, so the raw leftmost X-Forwarded-For
+      // entry (which a client can spoof) is never trusted verbatim.
+      const ip = req.ip || req.socket.remoteAddress || 'unknown';
       // Normalize email or use fallback IP to restrict malicious credential flooding
-      const reqEmail = req.body && typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+      const reqEmail = req.body && typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
       const key = `${ip}:${req.path}:${reqEmail}`;
       const supabase = getSupabase(req);
 
-      const allowed = await checkRateLimitInDb(key, limit, windowMs, supabase);
+      const { allowed, retryAfterSeconds } = await checkRateLimitInDb(key, limit, windowMs, supabase);
       if (allowed) {
         next();
       } else {
-        console.warn(`[SECURITY SUSPICIOUS ACTIVITY] Rate limit exceeded on route ${req.path} for target key segment: ${key}`);
+        console.warn(
+          `[SECURITY SUSPICIOUS ACTIVITY] Rate limit exceeded on route ${req.path} for target key segment: ${key}`,
+        );
+        res.setHeader('Retry-After', String(retryAfterSeconds));
         res.status(429).json({
           success: false,
-          error: "Too many authentication requests. Please try again in a few minutes."
+          error: 'Too many authentication requests. Please try again later.',
+          retryAfter: retryAfterSeconds,
         });
       }
     };
@@ -1468,11 +1469,12 @@ export async function createApp(): Promise<express.Express> {
   function validateEmail(email: unknown): string | null {
     if (!email || typeof email !== 'string') return 'Email address parameter must be a valid string.';
     const clean = email.trim();
-    if (clean.length > 120) return "Email length exceeds safety threshold (120 chars max).";
-    
+    if (clean.length > 120) return 'Email length exceeds safety threshold (120 chars max).';
+
     // Strict RFC 5322 regex matching
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    if (!emailRegex.test(clean)) return "The format of the email address is invalid.";
+    const emailRegex =
+      /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    if (!emailRegex.test(clean)) return 'The format of the email address is invalid.';
     return null;
   }
 
@@ -1489,13 +1491,13 @@ export async function createApp(): Promise<express.Express> {
   function validateOtp(otp: unknown): string | null {
     if (!otp || typeof otp !== 'string') return 'Passcode parameter must be a valid string.';
     const clean = otp.trim();
-    if (clean.length < 6 || clean.length > 12) return "Passcode verification code length is incorrect.";
+    if (clean.length < 6 || clean.length > 12) return 'Passcode verification code length is incorrect.';
     return null;
   }
 
   // Diagnostic route
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", mode: process.env.NODE_ENV || "development" });
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', mode: process.env.NODE_ENV || 'development' });
   });
 
   // Health-check probe for load balancers / uptime monitors. No session needed.
@@ -1520,17 +1522,17 @@ export async function createApp(): Promise<express.Express> {
     }
     const has = (k: string) => !!process.env[k];
     res.json({
-      status: "ok",
+      status: 'ok',
       env: {
-        VITE_SUPABASE_URL: has("VITE_SUPABASE_URL"),
-        SUPABASE_URL: has("SUPABASE_URL"),
-        VITE_SUPABASE_ANON_KEY: has("VITE_SUPABASE_ANON_KEY"),
-        SUPABASE_SERVICE_ROLE_KEY: has("SUPABASE_SERVICE_ROLE_KEY"),
-        SESSION_SECRET: has("SESSION_SECRET"),
-        GEMINI_API_KEY: has("GEMINI_API_KEY"),
-        SMTP_HOST: has("SMTP_HOST"),
-        NODE_ENV: process.env.NODE_ENV || "not set",
-        VERCEL: process.env.VERCEL || "not set",
+        VITE_SUPABASE_URL: has('VITE_SUPABASE_URL'),
+        SUPABASE_URL: has('SUPABASE_URL'),
+        VITE_SUPABASE_ANON_KEY: has('VITE_SUPABASE_ANON_KEY'),
+        SUPABASE_SERVICE_ROLE_KEY: has('SUPABASE_SERVICE_ROLE_KEY'),
+        SESSION_SECRET: has('SESSION_SECRET'),
+        GEMINI_API_KEY: has('GEMINI_API_KEY'),
+        SMTP_HOST: has('SMTP_HOST'),
+        NODE_ENV: process.env.NODE_ENV || 'not set',
+        VERCEL: process.env.VERCEL || 'not set',
       },
     });
   });
@@ -1565,18 +1567,11 @@ export async function createApp(): Promise<express.Express> {
         await new Promise((r) => setTimeout(r, jitter));
         res.status(500).json({ success: false, error: 'System authentication service error. Please try again later.' });
       }
-      const normalizedEmail = email.trim().toLowerCase();
-      const supabase = getSupabase(req);
-      const exists = await checkAccountExists(normalizedEmail, supabase);
-      res.json({ success: true, exists });
-    } catch (err: any) {
-      console.error("[SECURITY LOG] Check-email operation failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System authentication service error. Please try again later." });
-    }
-  });
+    },
+  );
 
   // 1. Send OTP route
-  app.post("/api/auth/send-otp", rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
+  app.post('/api/auth/send-otp', rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
     try {
       const { email } = req.body;
       const emailErr = validateEmail(email);
@@ -1590,7 +1585,7 @@ export async function createApp(): Promise<express.Express> {
       // Generate a clean crypto-like numeric 6-character text passcode
       const otp = crypto.randomInt(100000, 1000000).toString();
       const expiresAt = Date.now() + 5 * 60 * 1000;
-      
+
       // Store passcode with 5 minutes lifespan (Database with memory fallback)
       await storeOtpInDb(normalizedEmail, otp, expiresAt, false, getSupabase(req));
 
@@ -1614,7 +1609,7 @@ export async function createApp(): Promise<express.Express> {
           const transporter = nodemailer.createTransport({
             host: smtpHost,
             port: smtpPort ? parseInt(smtpPort, 10) : 587,
-            secure: smtpPort === "465",
+            secure: smtpPort === '465',
             auth: {
               user: smtpUser,
               pass: smtpPass,
@@ -1626,7 +1621,7 @@ export async function createApp(): Promise<express.Express> {
           await transporter.sendMail({
             from: fromAddress,
             to: normalizedEmail,
-            subject: "🛡️ Secure Vault 2FA One-Time Passcode",
+            subject: '🛡️ Secure Vault 2FA One-Time Passcode',
             text: `Your Secure Vault One-Time Passcode is: ${otp}. It will expire in 5 minutes.`,
             html: `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: auto; padding: 30px; border: 1px solid #1f1f1f; border-radius: 16px; background: #0c0c0e; color: #ffffff; box-shadow: 0 4px 20px rgba(0,0,0,0.45);">
@@ -1644,7 +1639,7 @@ export async function createApp(): Promise<express.Express> {
                   This passcode is associated exclusively with <strong>${normalizedEmail}</strong> and remains active for 5 minutes.
                 </p>
               </div>
-            `
+            `,
           });
           emailSent = true;
           console.log(`📧 Success: 2FA passcode email dispatched to ${normalizedEmail}`);
@@ -1654,26 +1649,29 @@ export async function createApp(): Promise<express.Express> {
       }
 
       if (!emailSent) {
-        if (IS_PRODUCTION) {
+        if (IS_PRODUCTION || !(process.env.DEV_OTP_RESPONSE === 'true')) {
           res.status(500).json({
             success: false,
-            error: "Failed to dispatch verification email. Please try again later."
+            error: 'Failed to dispatch verification email. Please try again later.',
           });
           return;
         }
-        // Dev mode fallback: Return passcode to frontend only when NOT in production
+        // Dev mode fallback: Return passcode to frontend ONLY when explicitly
+        // enabled via DEV_OTP_RESPONSE=true AND not in production. This prevents
+        // the one-time passcode from leaking in a deployed build that forgets to
+        // set NODE_ENV=production.
         res.json({
           success: true,
           emailSent: false,
           devOtp: otp,
-          info: "Dev mode: SMTP is not configured, showing passcode in developer bypass."
+          info: 'Dev mode: SMTP is not configured, showing passcode in developer bypass (DEV_OTP_RESPONSE=true).',
         });
         return;
       }
 
       res.json({
         success: true,
-        emailSent: true
+        emailSent: true,
       });
     } catch (err) {
       console.error('[SECURITY LOG] OTP Send failed:', errorMessage(err));
@@ -1745,59 +1743,13 @@ export async function createApp(): Promise<express.Express> {
         console.error('[SECURITY LOG] Verify OTP failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System authentication service error.' });
       }
-
-      const normalizedEmail = email.trim().toLowerCase();
-      const enteredOtp = otp.trim();
-      const supabase = getSupabase(req);
-
-
-      const saved = await getOtpFromDb(normalizedEmail, false, supabase);
-      if (!saved) {
-        res.status(401).json({ success: false, error: "No active verification passcode found. Please request a new code." });
-        return;
-      }
-
-      if (Date.now() > saved.expiresAt) {
-        await deleteOtpFromDb(normalizedEmail, false, supabase);
-        res.status(401).json({ success: false, error: "The passcode has expired. Please request a new code." });
-        return;
-      }
-
-      const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-      if (!timingSafeEqualString(saved.otp, enteredHash)) {
-        res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
-        return;
-      }
-
-      if (forRegistrationOrReset) {
-        // Just verify, don't delete yet. The registration/reset step will delete it.
-        res.json({ success: true });
-        return;
-      }
-
-      // Generate a secure persistent device token
-      const deviceToken = crypto.randomUUID();
-      await saveDeviceToken(deviceToken, supabase, normalizedEmail);
-
-      // Successful unlock - clear OTP
-      await deleteOtpFromDb(normalizedEmail, false, supabase);
-      const _sessionToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _sessionToken);
-      res.json({
-        success: true,
-        token: _sessionToken,
-        deviceToken
-      });
-    } catch (err: any) {
-      console.error("[SECURITY LOG] Verify OTP failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System authentication service error." });
-    }
-  });
+    },
+  );
 
   // 2b. Register Route
-  app.post("/api/auth/register", rateLimitAuth(5, 60 * 1000), async (req: express.Request, res: express.Response) => {
+  app.post('/api/auth/register', rateLimitAuth(5, 60 * 1000), async (req: express.Request, res: express.Response) => {
     try {
-      const { email, password, otp } = req.body;
+      const { email, password, otp, rememberMe } = req.body;
       const emailErr = validateEmail(email);
       const passwordErr = validatePassword(password);
       const otpErr = validateOtp(otp);
@@ -1808,7 +1760,7 @@ export async function createApp(): Promise<express.Express> {
 
       const normalizedEmail = email.trim().toLowerCase();
       const supabase = getSupabase(req);
-      
+
       const enteredOtp = otp.trim();
       let isValidOtp = false;
 
@@ -1820,24 +1772,28 @@ export async function createApp(): Promise<express.Express> {
       }
 
       if (!isValidOtp) {
-        res.status(401).json({ success: false, error: "Invalid or expired OTP." });
+        res.status(401).json({ success: false, error: 'Invalid or expired OTP.' });
         return;
       }
 
       const exists = await checkAccountExists(normalizedEmail, supabase);
       if (exists) {
-        res.status(400).json({ success: false, error: "Account already exists." });
+        // Do not reveal whether an account exists (anti-enumeration).
+        res.status(400).json({ success: false, error: 'Could not complete registration for this address.' });
         return;
       }
 
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);
 
-      await saveAccount({
-        email: normalizedEmail,
-        passwordHash,
-        createdAt: Date.now()
-      }, supabase);
+      await saveAccount(
+        {
+          email: normalizedEmail,
+          passwordHash,
+          createdAt: Date.now(),
+        },
+        supabase,
+      );
 
       const deviceToken = crypto.randomUUID();
       await saveDeviceToken(deviceToken, supabase, normalizedEmail);
@@ -1848,7 +1804,7 @@ export async function createApp(): Promise<express.Express> {
       res.json({
         success: true,
         token: _regToken,
-        deviceToken
+        deviceToken,
       });
     } catch (err) {
       console.error('[SECURITY LOG] Register operation failed:', errorMessage(err));
@@ -1944,37 +1900,8 @@ export async function createApp(): Promise<express.Express> {
         console.error('[SECURITY LOG] Login-password operation failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System authentication service error.' });
       }
-
-      const normalizedEmail = email.trim().toLowerCase();
-      const supabase = getSupabase(req);
-      const user = await getAccountByEmail(normalizedEmail, supabase);
-
-      if (!user) {
-        res.status(401).json({ success: false, error: "Invalid email or password." });
-        return;
-      }
-
-      const isMatch = await bcrypt.compare(password, user.passwordHash);
-      if (!isMatch) {
-         res.status(401).json({ success: false, error: "Invalid email or password." });
-         return;
-      }
-
-      const deviceToken = crypto.randomUUID();
-      await saveDeviceToken(deviceToken, supabase, normalizedEmail);
-
-      const _loginToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _loginToken);
-      res.json({
-        success: true,
-        token: _loginToken,
-        deviceToken
-      });
-    } catch (err: any) {
-      console.error("[SECURITY LOG] Login-password operation failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System authentication service error." });
-    }
-  });
+    },
+  );
 
   // 2d. Reset Password Route
   app.post(
@@ -2043,55 +1970,8 @@ export async function createApp(): Promise<express.Express> {
         console.error('[SECURITY LOG] Reset-password operation failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System password reset service error.' });
       }
-
-      const normalizedEmail = email.trim().toLowerCase();
-      const supabase = getSupabase(req);
-      
-      const enteredOtp = otp.trim();
-      let isValidOtp = false;
-
-      const saved = await getOtpFromDb(normalizedEmail, false, supabase);
-      const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-      if (saved && timingSafeEqualString(saved.otp, enteredHash) && Date.now() <= saved.expiresAt) {
-        isValidOtp = true;
-        await deleteOtpFromDb(normalizedEmail, false, supabase); // consume OTP
-      }
-
-      if (!isValidOtp) {
-        res.status(401).json({ success: false, error: "Invalid or expired OTP." });
-        return;
-      }
-
-      const exists = await checkAccountExists(normalizedEmail, supabase);
-      if (!exists) {
-        res.status(400).json({ success: false, error: "Account does not exist." });
-        return;
-      }
-
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(password, salt);
-
-      await saveAccount({
-        email: normalizedEmail,
-        passwordHash,
-        createdAt: Date.now()
-      }, supabase);
-
-      const deviceToken = crypto.randomUUID();
-      await saveDeviceToken(deviceToken, supabase, normalizedEmail);
-
-      const _resetToken = generateSecureToken(normalizedEmail);
-      setSessionCookie(res, _resetToken);
-      res.json({
-        success: true,
-        token: _resetToken,
-        deviceToken
-      });
-    } catch (err: any) {
-      console.error("[SECURITY LOG] Reset-password operation failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System password reset service error." });
-    }
-  });
+    },
+  );
 
   // 3. Verify Remembered Device Token route
   app.post(
@@ -2115,6 +1995,8 @@ export async function createApp(): Promise<express.Express> {
         console.error('[SECURITY LOG] Device verification error:', errorMessage(err));
         res.status(500).json({ success: false, error: 'Internal verification error' });
       }
+    },
+  );
 
   // =====================================================================
   // APP LOCK SECURITY LAYER — endpoints
@@ -2882,14 +2764,17 @@ export async function createApp(): Promise<express.Express> {
   );
 
   // 4a. Send Deletion OTP
-  app.post("/api/auth/send-delete-otp", rateLimitAuth(3, 60 * 1000), async (req: express.Request, res: express.Response) => {
-    try {
-      const { email } = req.body;
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        res.status(400).json({ success: false, error: emailErr });
-        return;
-      }
+  app.post(
+    '/api/auth/send-delete-otp',
+    rateLimitAuth(3, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr) {
+          res.status(400).json({ success: false, error: emailErr });
+          return;
+        }
 
         const normalizedEmail = email.trim().toLowerCase();
         const token = getTokenFromRequest(req);
@@ -2903,46 +2788,46 @@ export async function createApp(): Promise<express.Express> {
           return;
         }
 
-      const otp = crypto.randomInt(100000, 1000000).toString();
-      const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes validity
-      const supabase = getSupabase(req);
+        const otp = crypto.randomInt(100000, 1000000).toString();
+        const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes validity
+        const supabase = getSupabase(req);
 
-      await storeOtpInDb(normalizedEmail, otp, expiresAt, true, supabase);
+        await storeOtpInDb(normalizedEmail, otp, expiresAt, true, supabase);
 
-      console.log(`\n======================================================`);
-      console.log(`⚠️ NEW DELETION 2FA OTP GENERATED FOR: ${normalizedEmail}`);
-      console.log(`🔐 PASSCODE: [ ****** ]`);
-      console.log(`⏰ EXPIRE: 5 Minutes`);
-      console.log(`======================================================\n`);
+        console.log(`\n======================================================`);
+        console.log(`⚠️ NEW DELETION 2FA OTP GENERATED FOR: ${normalizedEmail}`);
+        console.log(`🔐 PASSCODE: [ ****** ]`);
+        console.log(`⏰ EXPIRE: 5 Minutes`);
+        console.log(`======================================================\n`);
 
-      const smtpHost = process.env.SMTP_HOST;
-      const smtpPort = process.env.SMTP_PORT;
-      const smtpUser = process.env.SMTP_USER;
-      const smtpPass = process.env.SMTP_PASS;
-      const smtpFrom = process.env.SMTP_FROM;
+        const smtpHost = process.env.SMTP_HOST;
+        const smtpPort = process.env.SMTP_PORT;
+        const smtpUser = process.env.SMTP_USER;
+        const smtpPass = process.env.SMTP_PASS;
+        const smtpFrom = process.env.SMTP_FROM;
 
         let emailSent = false;
 
-      if (smtpHost && smtpUser && smtpPass) {
-        try {
-          const transporter = nodemailer.createTransport({
-            host: smtpHost,
-            port: smtpPort ? parseInt(smtpPort, 10) : 587,
-            secure: smtpPort === "465",
-            auth: {
-              user: smtpUser,
-              pass: smtpPass,
-            },
-          });
+        if (smtpHost && smtpUser && smtpPass) {
+          try {
+            const transporter = nodemailer.createTransport({
+              host: smtpHost,
+              port: smtpPort ? parseInt(smtpPort, 10) : 587,
+              secure: smtpPort === '465',
+              auth: {
+                user: smtpUser,
+                pass: smtpPass,
+              },
+            });
 
-          const fromAddress = smtpFrom || `Secure Vault <${smtpUser}>`;
+            const fromAddress = smtpFrom || `Secure Vault <${smtpUser}>`;
 
-          await transporter.sendMail({
-            from: fromAddress,
-            to: normalizedEmail,
-            subject: "⚠️ CRITICAL: Confirm Ledger Deletion Code - EM Budget",
-            text: `Confirm your database deletion with passcode: ${otp}. This code expires in 5 minutes. If you did not request this, secure your account!`,
-            html: `
+            await transporter.sendMail({
+              from: fromAddress,
+              to: normalizedEmail,
+              subject: '⚠️ CRITICAL: Confirm Ledger Deletion Code - EM Budget',
+              text: `Confirm your database deletion with passcode: ${otp}. This code expires in 5 minutes. If you did not request this, secure your account!`,
+              html: `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: auto; padding: 30px; border: 1px solid #dc2626; border-radius: 16px; background: #0c0c0e; color: #ffffff; box-shadow: 0 4px 25px rgba(220, 38, 38, 0.25);">
                 <div style="text-align: center; margin-bottom: 20px;">
                   <span style="font-size: 32px;">⚠️</span>
@@ -2969,38 +2854,34 @@ export async function createApp(): Promise<express.Express> {
             console.error('[SECURITY LOG] Deletion SMTP Transmission Failed:', errorMessage(mailError));
           }
         }
-      } else {
-        errorDetails = "SMTP server is not configured in environment variables.";
-      }
 
-      if (!emailSent) {
-        if (IS_PRODUCTION) {
-          res.status(500).json({
-            success: false,
-            error: "Failed to dispatch deletion passcode email. Please try again later."
+        if (!emailSent) {
+          if (IS_PRODUCTION) {
+            res.status(500).json({
+              success: false,
+              error: 'Failed to dispatch deletion passcode email. Please try again later.',
+            });
+            return;
+          }
+          res.json({
+            success: true,
+            emailSent: false,
+            devOtp: otp,
+            info: 'Dev mode: SMTP is not configured, showing deletion passcode in developer bypass.',
           });
           return;
         }
+
         res.json({
           success: true,
-          emailSent: false,
-          devOtp: otp,
-          info: "Dev mode: SMTP is not configured, showing deletion passcode in developer bypass."
+          emailSent: true,
         });
       } catch (err) {
         console.error('[SECURITY LOG] Deletion OTP Send failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System secure transmission error.' });
       }
-
-      res.json({
-        success: true,
-        emailSent: true
-      });
-    } catch (err: any) {
-      console.error("[SECURITY LOG] Deletion OTP Send failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System secure transmission error." });
-    }
-  });
+    },
+  );
 
   // 4b. Verify Deletion OTP
   app.post(
@@ -3060,48 +2941,8 @@ export async function createApp(): Promise<express.Express> {
         console.error('[SECURITY LOG] Verify Deletion OTP failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System authentication service error.' });
       }
-
-      const normalizedEmail = email.trim().toLowerCase();
-      const token2 = getTokenFromRequest(req);
-      if (!token2) {
-        res.status(401).json({ success: false, error: "Access token is missing or malformed." });
-        return;
-      }
-      const decoded2 = verifySecureToken(token2);
-      if (!decoded2 || decoded2.email !== normalizedEmail) {
-        res.status(401).json({ success: false, error: "Access token is invalid or expired." });
-        return;
-      }
-
-      const enteredOtp = otp.trim();
-      const supabase = getSupabase(req);
-
-      const saved = await getOtpFromDb(normalizedEmail, true, supabase);
-      if (!saved) {
-        res.status(401).json({ success: false, error: "No active deletion passcode found. Please request a new code." });
-        return;
-      }
-
-      if (Date.now() > saved.expiresAt) {
-        await deleteOtpFromDb(normalizedEmail, true, supabase);
-        res.status(401).json({ success: false, error: "Passcode has expired. Please request a new code." });
-        return;
-      }
-
-      const enteredHash = hashOtp(enteredOtp, normalizedEmail);
-      if (!timingSafeEqualString(saved.otp, enteredHash)) {
-        res.status(401).json({ success: false, error: "The passcode entered is incorrect." });
-        return;
-      }
-
-      // Successful verification - clear OTP
-      await deleteOtpFromDb(normalizedEmail, true, supabase);
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error("[SECURITY LOG] Verify Deletion OTP failed:", err.message || err);
-      res.status(500).json({ success: false, error: "System authentication service error." });
-    }
-  });
+    },
+  );
 
   // Verify secure session token route
   app.post(
@@ -3158,40 +2999,20 @@ export async function createApp(): Promise<express.Express> {
         console.error('[SECURITY LOG] Verify Session Token failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'Internal session validation error.' });
       }
-      if (!email || typeof email !== "string") {
-        res.status(400).json({ success: false, error: "Email is required." });
-        return;
-      }
-      const normalizedEmail = email.trim().toLowerCase();
-      const decoded = verifySecureToken(token);
-      if (!decoded || decoded.email !== normalizedEmail) {
-        res.json({ success: false, error: "Session token is invalid or expired." });
-        return;
-      }
-      // Verify the account still exists in the database
-      const supabase = getSupabase(req);
-      const accountExists = await checkAccountExists(normalizedEmail, supabase);
-      if (!accountExists) {
-        res.json({ success: false, error: "Account no longer exists." });
-        return;
-      }
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error("[SECURITY LOG] Verify Session Token failed:", err.message || err);
-      res.status(500).json({ success: false, error: "Internal session validation error." });
-    }
-  });
+    },
+  );
 
-  // Config endpoint - URL is public, anon key only to authenticated callers (session token required)
-  app.get("/api/config", rateLimitAuth(30, 60 * 1000), (req: express.Request, res: express.Response) => {
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
-    // The anon key is a PUBLIC key (VITE_ prefix = safe to expose to the client),
-    // so return it unconditionally. This lets any device self-configure Supabase
-    // from the backend instead of relying on build-time env or per-device localStorage.
+  // Config endpoint — intentionally public. The Supabase URL and anon key are
+  // PUBLIC by design (baked into every frontend build), and all actual data is
+  // protected by RLS, so returning them here lets any device self-configure
+  // without exposing anything sensitive. Do NOT add auth here: the boot flow
+  // (ensureSupabaseConfigFromBackend) fetches this before a session exists.
+  app.get('/api/config', rateLimitAuth(30, 60 * 1000), (req: express.Request, res: express.Response) => {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
     res.json({
       supabaseUrl,
-      supabaseKey: supabaseKey.startsWith("eyJ") ? supabaseKey : ""
+      supabaseKey: supabaseKey.startsWith('eyJ') ? supabaseKey : '',
     });
   });
 
@@ -3260,57 +3081,8 @@ export async function createApp(): Promise<express.Express> {
         console.error('[Sync] refresh-subscriptions error:', errorMessage(e));
         return res.status(500).json({ success: false, error: 'Failed to refresh subscriptions.' });
       }
-      const rows: any[] = Array.isArray(subs) ? subs : [];
-      const subscriptions = rows.map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        amount: r.amount,
-        billingCycle: r.billing_cycle,
-        dueDate: r.due_date,
-        category: r.category,
-        status: r.status,
-        instanceType: r.instance_type || undefined,
-        paymentMethodId: r.payment_method_id || undefined,
-        paymentMethodType: r.payment_method_type || undefined,
-        lastPaidDate: r.last_paid_date || undefined,
-        updated_at: r.updated_at,
-        updatedAt: r.updated_at,
-      }));
-
-      const { data: lsData } = await supabase.from("ledger_states").select("state").eq("user_email", email).limit(1).maybeSingle();
-      let stateJson: any = {};
-      if (lsData && lsData.state) {
-        stateJson = typeof lsData.state === "string" ? JSON.parse(lsData.state) : lsData.state;
-      }
-      stateJson.subscriptions = subscriptions;
-      await supabase.from("ledger_states").upsert(
-        { user_email: email, state: stateJson, updated_at: new Date().toISOString() },
-        { onConflict: "user_email" }
-      );
-
-      return res.json({ success: true, subscriptions });
-    } catch (e: any) {
-      console.error("[Sync] refresh-subscriptions error:", e.message || e);
-      return res.status(500).json({ success: false, error: e.message || "Failed to refresh subscriptions." });
-    }
-  });
-
-  // Expose endpoint for SettingsModal to load SQL migration script - C2 FIX: now authenticated + rate-limited
-  app.get("/api/config/sql", rateLimitAuth(10, 60 * 1000), (req: express.Request, res: express.Response) => {
-    const token = getTokenFromRequest(req);
-    if (!verifySecureToken(token as string)) {
-      res.status(401).json({ success: false, error: "Unauthorized. Valid session token required." });
-      return;
-    }
-    try {
-      const sqlPath = path.join(process.cwd(), "supabase/migrations/20260725_init.sql");
-      const sqlContent = fs.readFileSync(sqlPath, "utf8");
-      res.json({ success: true, sql: sqlContent });
-    } catch (e: any) {
-      console.error("[Error] Failed loading SQL migration script from file:", e.message || e);
-      res.status(500).json({ success: false, error: "Failed to load SQL migration script." });
-    }
-  });
+    },
+  );
 
   // Gemini image analysis endpoint for receipts/invoices - C3 FIX: auth + 2mb validation + mime allowlist
   app.post(
@@ -3323,36 +3095,68 @@ export async function createApp(): Promise<express.Express> {
         res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
         return;
       }
+      try {
+        const { image, mimeType } = req.body;
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        res.status(400).json({ 
-          success: false, 
-          error: "Gemini API Key is not configured. Please supply a valid GEMINI_API_KEY inside Settings > Secrets." 
-        });
-        return;
-      }
-
-      const { GoogleGenAI } = await import("@google/genai");
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-          }
+        if (!image) {
+          res.status(400).json({ success: false, error: 'Image data is required.' });
+          return;
         }
-      });
+        // --- C3: 2mb + mimeType allowlist validation ---
+        const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
+        if (mimeType && typeof mimeType === 'string' && !ALLOWED_MIMES.includes(mimeType.toLowerCase())) {
+          res.status(400).json({ success: false, error: `Invalid mimeType. Allowed: ${ALLOWED_MIMES.join(', ')}` });
+          return;
+        }
+        // Validate base64 size: enforce 2mb decoded limit (approx 2.8M base64 chars)
+        let _sizeCheck = image;
+        if (typeof _sizeCheck === 'string' && _sizeCheck.includes(';base64,')) {
+          _sizeCheck = _sizeCheck.split(';base64,').pop() || '';
+        }
+        const MAX_BYTES = 2 * 1024 * 1024;
+        // Approximate decoded size without allocating full buffer for huge payloads: (len * 3 / 4) - padding
+        const b64Len = typeof _sizeCheck === 'string' ? _sizeCheck.length : 0;
+        const padding =
+          typeof _sizeCheck === 'string' && _sizeCheck.endsWith('==') ? 2 : _sizeCheck.endsWith('=') ? 1 : 0;
+        const approxBytes = Math.ceil((b64Len * 3) / 4) - padding;
+        if (approxBytes > MAX_BYTES || b64Len > 2800000) {
+          res.status(413).json({ success: false, error: 'Image payload too large. Maximum 2MB allowed.' });
+          return;
+        }
+        if (typeof image === 'string' && image.length > 2800000) {
+          res.status(413).json({ success: false, error: 'Image payload too large. Maximum 2MB allowed.' });
+          return;
+        }
 
-      // Strip potential base64 prefix
-      let base64Data = image;
-      if (base64Data.includes(";base64,")) {
-        base64Data = base64Data.split(";base64,").pop() || "";
-      }
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+          res.status(400).json({
+            success: false,
+            error: 'Gemini API Key is not configured. Please supply a valid GEMINI_API_KEY inside Settings > Secrets.',
+          });
+          return;
+        }
 
-      // Default the mimeType if not specified
-      const resolvedMimeType = mimeType || "image/jpeg";
+        const { GoogleGenAI } = await import('@google/genai');
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            },
+          },
+        });
 
-      const prompt = `Analyze this receipt, invoice, bill, or financial document. You must extract transaction details and categorize it accurately.
+        // Strip potential base64 prefix
+        let base64Data = image;
+        if (base64Data.includes(';base64,')) {
+          base64Data = base64Data.split(';base64,').pop() || '';
+        }
+
+        // Default the mimeType if not specified
+        const resolvedMimeType = mimeType || 'image/jpeg';
+
+        const prompt = `Analyze this receipt, invoice, bill, or financial document. You must extract transaction details and categorize it accurately.
 
 Map the category to one of the following exact categories:
 - For income: 'Salary', 'Freelance', 'Business', 'Bonus', 'Commission', 'Loan Settle', 'Other'
@@ -3374,22 +3178,27 @@ Return a JSON object matching this schema:
   "bankCharge": number (optional, default 0)
 }`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: [
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: resolvedMimeType
-            }
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.6-flash',
+          contents: [
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: resolvedMimeType,
+              },
+            },
+            { text: prompt },
+          ],
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.1,
           },
-          { text: prompt }
-        ],
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.1,
+        });
+
+        const text = response.text;
+        if (!text) {
+          throw new Error('Empty response from Gemini Model.');
         }
-      });
 
         // Try to parse the output as JSON
         const parsedData = JSON.parse(text);
@@ -3411,19 +3220,8 @@ Return a JSON object matching this schema:
         }
         res.status(500).json({ success: false, error: 'Failed to analyze image. Please try again later.' });
       }
-
-      // Try to parse the output as JSON
-      const parsedData = JSON.parse(text);
-      res.json({ success: true, data: parsedData });
-    } catch (err: any) {
-      console.error("[Gemini Image Analysis Error]", err?.message || err);
-      let errMsg = err?.message || (typeof err === "string" ? err : "Failed to analyze image using Gemini.");
-      if (typeof errMsg === "string" && (errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("prepayment credits") || errMsg.includes("429"))) {
-        errMsg = "Gemini API Quota / Prepayment Credits Depleted. Please top up your billing credits in Google AI Studio or update your GEMINI_API_KEY in Settings > Secrets.";
-      }
-      res.status(500).json({ success: false, error: errMsg });
-    }
-  });
+    },
+  );
 
   // Free Server-Side OCR Endpoint via Tesseract.js (Works in all environments/sandboxes) - C3 FIX: auth + 2mb validation
   app.post(
@@ -3436,39 +3234,32 @@ Return a JSON object matching this schema:
         res.status(401).json({ success: false, error: 'Unauthorized. Valid session token required.' });
         return;
       }
-      // --- C3: 2mb + mimeType allowlist validation (if mimeType supplied) ---
-      const ALLOWED_MIMES_OCR = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
-      if (_ocrMime && typeof _ocrMime === "string" && !ALLOWED_MIMES_OCR.includes(_ocrMime.toLowerCase())) {
-        return res.status(400).json({ success: false, error: `Invalid mimeType. Allowed: ${ALLOWED_MIMES_OCR.join(", ")}` });
-      }
-      let _sizeCheckOcr = image;
-      if (typeof _sizeCheckOcr === "string" && _sizeCheckOcr.includes(";base64,")) {
-        _sizeCheckOcr = _sizeCheckOcr.split(";base64,").pop() || "";
-      }
-      const MAX_BYTES_OCR = 2 * 1024 * 1024;
-      const b64LenOcr = typeof _sizeCheckOcr === "string" ? _sizeCheckOcr.length : 0;
-      const paddingOcr = typeof _sizeCheckOcr === "string" && _sizeCheckOcr.endsWith("==") ? 2 : _sizeCheckOcr.endsWith("=") ? 1 : 0;
-      const approxBytesOcr = Math.ceil(b64LenOcr * 3 / 4) - paddingOcr;
-      if (approxBytesOcr > MAX_BYTES_OCR || b64LenOcr > 2800000) {
-        return res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
-      }
-      if (typeof image === "string" && image.length > 2800000) {
-        return res.status(413).json({ success: false, error: "Image payload too large. Maximum 2MB allowed." });
-      }
-
-      let base64Data = image;
-      if (base64Data.includes(";base64,")) {
-        base64Data = base64Data.split(";base64,").pop() || "";
-      }
-
-      const imgBuffer = Buffer.from(base64Data, "base64");
-      const { createWorker } = await import("tesseract.js");
-      const worker = await createWorker("eng");
       try {
-        const ret = await worker.recognize(imgBuffer);
-        const extractedText = ret?.data?.text || "";
-        if (!extractedText.trim()) {
-          return res.status(422).json({ success: false, error: "No legible text found in image. Try a clearer photo or enter manually." });
+        const { image, mimeType: _ocrMime } = req.body;
+        if (!image) {
+          return res.status(400).json({ success: false, error: 'Image payload is required.' });
+        }
+        // --- C3: 2mb + mimeType allowlist validation (if mimeType supplied) ---
+        const ALLOWED_MIMES_OCR = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
+        if (_ocrMime && typeof _ocrMime === 'string' && !ALLOWED_MIMES_OCR.includes(_ocrMime.toLowerCase())) {
+          return res
+            .status(400)
+            .json({ success: false, error: `Invalid mimeType. Allowed: ${ALLOWED_MIMES_OCR.join(', ')}` });
+        }
+        let _sizeCheckOcr = image;
+        if (typeof _sizeCheckOcr === 'string' && _sizeCheckOcr.includes(';base64,')) {
+          _sizeCheckOcr = _sizeCheckOcr.split(';base64,').pop() || '';
+        }
+        const MAX_BYTES_OCR = 2 * 1024 * 1024;
+        const b64LenOcr = typeof _sizeCheckOcr === 'string' ? _sizeCheckOcr.length : 0;
+        const paddingOcr =
+          typeof _sizeCheckOcr === 'string' && _sizeCheckOcr.endsWith('==') ? 2 : _sizeCheckOcr.endsWith('=') ? 1 : 0;
+        const approxBytesOcr = Math.ceil((b64LenOcr * 3) / 4) - paddingOcr;
+        if (approxBytesOcr > MAX_BYTES_OCR || b64LenOcr > 2800000) {
+          return res.status(413).json({ success: false, error: 'Image payload too large. Maximum 2MB allowed.' });
+        }
+        if (typeof image === 'string' && image.length > 2800000) {
+          return res.status(413).json({ success: false, error: 'Image payload too large. Maximum 2MB allowed.' });
         }
 
         let base64Data = image;
@@ -3499,55 +3290,41 @@ Return a JSON object matching this schema:
           .status(500)
           .json({ success: false, error: 'Failed to scan image. Please try again or enter text manually.' });
       }
-    } catch (err: any) {
-      console.error("[Free Server OCR Error]", err?.message || err);
-      res.status(500).json({ success: false, error: err?.message || "Failed to scan image using Server OCR." });
-    }
-  });
-
-  // API 404 fallback: no matched API route => JSON, never an empty/HTML response
-  app.use("/api", (req, res) => {
-    res.status(404).json({ success: false, error: `Route not found: ${req.method} ${req.originalUrl}` });
-  });
+    },
+  );
 
   // Vite middleware for development or Static Asset hosting for production
   // Skip static handling on Vercel - Vercel serves dist/ as static output
   if (!process.env.VERCEL) {
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV !== 'production') {
       try {
-        const { createServer: createViteServer } = await import("vite");
+        const { createServer: createViteServer } = await import('vite');
         const vite = await createViteServer({
-          server: { middlewareMode: true, hmr: false },
-          appType: "spa",
+          server: { middlewareMode: true },
+          appType: 'spa',
         });
         app.use(vite.middlewares);
-        app.use("*", async (req, res, next) => {
-          const url = req.originalUrl;
-          try {
-            let template = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
-            template = await vite.transformIndexHtml(url, template);
-            res.status(200).set({ "Content-Type": "text/html" }).end(template);
-          } catch (e) {
-            vite.ssrFixStacktrace(e as Error);
-            next(e);
-          }
-        });
       } catch {
-        console.warn("[Server] Vite dynamic module not found. Falling back to static asset serving.");
-        const distPath = path.join(process.cwd(), "dist");
+        console.warn('[Server] Vite dynamic module not found. Falling back to static asset serving.');
+        const distPath = path.join(process.cwd(), 'dist');
         app.use(express.static(distPath));
-        app.get("*", (req, res) => {
-          res.sendFile(path.join(distPath, "index.html"));
+        app.get('*', (req, res) => {
+          res.sendFile(path.join(distPath, 'index.html'));
         });
       }
     } else {
-      const distPath = path.join(process.cwd(), "dist");
+      const distPath = path.join(process.cwd(), 'dist');
       app.use(express.static(distPath));
-      app.get("*", (req, res) => {
-        res.sendFile(path.join(distPath, "index.html"));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
       });
     }
   }
+
+  // API 404 fallback: no matched API route => JSON, never an empty/HTML response
+  app.use('/api', (req, res) => {
+    res.status(404).json({ success: false, error: `Route not found: ${req.method} ${req.originalUrl}` });
+  });
 
   // JSON error handler: ensures async/middleware errors return JSON, never an empty 500 body
   app.use(((err, req, res, _next) => {
@@ -3611,9 +3388,10 @@ export async function getApp(): Promise<express.Express> {
 
 export async function startServer(): Promise<express.Express> {
   const app = await getApp();
+  ensureVaultSeed();
   if (!process.env.VERCEL) {
-    const PORT = 3000;
-    app.listen(PORT, "0.0.0.0", () => {
+    const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`[Express Backend] Running on http://0.0.0.0:${PORT}`);
     });
   }
@@ -3640,12 +3418,13 @@ if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
 // Vercel serverless handler - default export is the Express app via wrapper
 const vercelHandler = async (req: express.Request, res: express.Response) => {
   try {
+    ensureVaultSeed();
     const app = await getApp();
     return app(req, res);
   } catch (err) {
     console.error('[vercelHandler] Failed to start server:', errorMessage(err));
     if (res.headersSent) return;
-    res.status(500).json({ success: false, error: `Server failed to initialize: ${err?.message || "unknown"}` });
+    res.status(500).json({ success: false, error: 'Server is temporarily unavailable. Please try again.' });
   }
 };
 
