@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle, AlertCircle, Info, XCircle, X } from 'lucide-react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 

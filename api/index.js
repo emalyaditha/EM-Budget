@@ -87923,6 +87923,9 @@ async function createApp() {
       connectSrc = `'self' ${origin} wss://${host} https://fonts.googleapis.com https://fonts.gstatic.com`;
     }
     const isProd = process.env.NODE_ENV === "production";
+    if (!isProd) {
+      connectSrc += " ws://localhost:24678 ws://127.0.0.1:24678";
+    }
     return [
       `default-src 'self'`,
       `script-src 'self'${isProd ? "" : " 'unsafe-inline'"}`,

@@ -26,12 +26,19 @@ import {
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
+import { isMinimumSatisfied } from '../lib/creditCards';
+import InstallmentSchedule from './InstallmentSchedule';
+import InstallmentPlanModal from './InstallmentPlanModal';
 
 interface Props {
   creditCards: BankCard[];
   cashAccounts: CashAccount[];
   cards: BankCard[];
   currency: string;
+  transactions: Transaction[];
+  creditCardPurchases: CreditCardPurchase[];
+  creditCardInstallments: CreditCardInstallment[];
+  creditCardInstallmentPayments: CreditCardInstallmentPayment[];
   onPayCard: (cardId: string, amount: number, fromId: string, fromType: 'cash' | 'card') => void;
   onAddPurchase: (purchase: Omit<CreditCardPurchase, 'id'>) => void;
   onUpdateCard: (card: BankCard) => void;
@@ -89,6 +96,9 @@ export default function CreditCardManagement({
   const purchaseCardRef = React.useRef<HTMLSelectElement>(null);
   const purchaseAmountRef = React.useRef<HTMLInputElement>(null);
   const purchaseMerchantRef = React.useRef<HTMLInputElement>(null);
+  const [showHistory, setShowHistory] = useState<Record<string, boolean>>({});
+  const [installmentModalCard, setInstallmentModalCard] = useState<BankCard | null>(null);
+  const [installmentModalPurchase, setInstallmentModalPurchase] = useState<CreditCardPurchase | null>(null);
 
   const fundingAccounts = [
     ...cashAccounts.map((c) => ({
@@ -790,6 +800,25 @@ export default function CreditCardManagement({
           Record purchase
         </button>
       </form>
+
+      {/* Convert-to-installment plan modal */}
+      {installmentModalCard && installmentModalPurchase && (
+        <InstallmentPlanModal
+          isOpen
+          onClose={() => {
+            setInstallmentModalCard(null);
+            setInstallmentModalPurchase(null);
+          }}
+          card={installmentModalCard}
+          purchase={installmentModalPurchase}
+          currency={currency}
+          onConfirm={(tenureMonths) => {
+            onCreateInstallmentPlan(installmentModalCard.id, installmentModalPurchase.id, tenureMonths);
+            setInstallmentModalCard(null);
+            setInstallmentModalPurchase(null);
+          }}
+        />
+      )}
     </div>
   );
 }

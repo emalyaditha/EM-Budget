@@ -16,17 +16,22 @@ export const apiFetch = async (path: string, init?: RequestInit) => {
   return res;
 };
 
-export const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit & { timeout?: number }) => {
-  const { timeout = 10000, ...rest } = init || {};
+export const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init?: RequestInit & { timeout?: number },
+  timeout?: number,
+) => {
+  const { timeout: initTimeout = 10000, ...rest } = init || {};
+  const ms = timeout ?? initTimeout;
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
+  const id = setTimeout(() => controller.abort(), ms);
   try {
     const res = await fetch(input, { ...rest, signal: controller.signal });
     return res;
   } finally {
     clearTimeout(id);
   }
-}
+};
 
 export function withTimeout<T>(promise: PromiseLike<T>, ms: number, label = 'Operation'): Promise<T> {
   return new Promise<T>((resolve, reject) => {

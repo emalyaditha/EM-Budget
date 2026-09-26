@@ -315,14 +315,14 @@ export default function GoalsSection({
                               className="input !py-2 !text-[12px] mono flex-1 disabled:opacity-60"
                             />
                             <button
-                              onClick={() => handleInlineAllocate(goal.id, 'add')}
+                              onClick={() => handleInlineAllocate(goal.id, 'add', isMockMode)}
                               className="btn-primary !py-2 !px-3.5 text-[11px] inline-flex items-center gap-1 shrink-0 disabled:opacity-40"
                             >
                               <PlusCircle size={12} />
                               Add
                             </button>
                             <button
-                              onClick={() => handleInlineAllocate(goal.id, 'remove')}
+                              onClick={() => handleInlineAllocate(goal.id, 'remove', isMockMode)}
                               disabled={goal.current <= 0}
                               className="btn-ghost !py-2 !px-3 text-[11px] inline-flex items-center gap-1 shrink-0 disabled:opacity-40"
                             >

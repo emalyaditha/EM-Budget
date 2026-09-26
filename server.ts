@@ -108,6 +108,11 @@ export async function createApp(): Promise<express.Express> {
       connectSrc = `'self' ${origin} wss://${host} https://fonts.googleapis.com https://fonts.gstatic.com`;
     }
     const isProd = process.env.NODE_ENV === 'production';
+    if (!isProd) {
+      // Development only: Vite's middleware-mode HMR websocket runs on its own
+      // port (24678), which is not covered by 'self'. Never allowed in prod.
+      connectSrc += ' ws://localhost:24678 ws://127.0.0.1:24678';
+    }
     return [
       `default-src 'self'`,
       `script-src 'self'${isProd ? '' : " 'unsafe-inline'"}`,

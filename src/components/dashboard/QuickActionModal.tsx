@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles } from 'lucide-react';
 import type { AppState, CategoryIncome, CategoryExpense } from '../../types';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, todayLocal } from '../../utils';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface QuickActionModalProps {
   isOpen: boolean;
@@ -43,6 +44,7 @@ export function QuickActionModal({
   const [txCategory, setTxCategory] = useState('Utilities');
   const [txAccountId, setTxAccountId] = useState('');
   const [txDate, setTxDate] = useState(todayLocal());
+  const quickDialogRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   useEffect(() => {
     setTxType(initialType);

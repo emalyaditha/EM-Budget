@@ -12,6 +12,7 @@ import type {
   AppNotification,
   CategoryIncome,
   CategoryExpense,
+  CreditCard,
   CreditCardPurchase,
   CreditCardInstallmentPayment,
   Subscription,
@@ -61,20 +62,9 @@ import {
 
 import EmailLogin from './components/EmailLogin';
 import NotificationDrawer from './components/NotificationDrawer';
-import CashCardManagement from './components/CashCardManagement';
-import InflowsOutflows from './components/InflowsOutflows';
-import SubscriptionManagement from './components/SubscriptionManagement';
-import Dashboard from './components/Dashboard';
 import ProfileSection from './components/ProfileSection';
-import DebtTracker from './components/DebtTracker';
-import LoansTracker from './components/LoansTracker';
-import TransferFunds from './components/TransferFunds';
-import CreditCardManagement from './components/CreditCardManagement';
-import ReportsCentre from './components/ReportsCentre';
 import SettingsModal from './components/SettingsModal';
 import TransactionEditModal from './components/TransactionEditModal';
-import BudgetsSection from './components/BudgetsSection';
-import GoalsSection from './components/GoalsSection';
 import { CommandPalette } from './components/CommandPalette';
 import { BottomNavigation } from './components/BottomNavigation';
 
@@ -104,7 +94,7 @@ import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 import type { AppLockStatus } from './lib/appLock';
 import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice, revokeAllDevices } from './lib/appLock';
-import { calculateNetWorth } from './utils';
+import { calculateNetWorth, EXPENSE_COLORS } from './utils';
 import { toMinorUnits } from './lib/money';
 import {
   validateData,
@@ -185,6 +175,7 @@ function sanitizeImportedList(value: unknown): { records: Record<string, unknown
 export default function App() {
   const { showConfirm, showToast } = useNotifications();
   const { theme, toggleTheme } = useTheme();
+  const { isOnline, isSupabaseReachable } = useOnlineStatus(getSupabaseConfig().url);
   // 1. Core State
   const [state, setState] = useState<AppState>(DEFAULT_APP_STATE);
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -408,7 +399,7 @@ export default function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({}),
           },
-          Math.min(6000, timeLeft()),
+          6000, // session-verification request timeout budget
         );
         const vData = await safeJson(vRes);
         if (
@@ -776,9 +767,8 @@ export default function App() {
         return g;
       });
 
-      showToast(amount > 0 ? 'Reserves transferred into savings jar' : 'Reserves returned back to liquid wallet', 'success');
-      return { 
-        ...prev, 
+      return {
+        ...prev,
         cashAccounts: finalCashAccounts,
         savingsGoals: updatedGoals,
       };
@@ -1713,11 +1703,11 @@ export default function App() {
     });
   };
 
-  const handleAddCreditCard = (card: Omit<DbCreditCard, 'id'>) => {
-      updateState(prev => ({
-          ...prev,
-          creditCards: [...prev.creditCards, { ...card, id: `cc-${Date.now()}` } as DbCreditCard]
-      }));
+  const handleAddCreditCard = (card: Omit<CreditCard, 'id'>) => {
+    updateState((prev) => ({
+      ...prev,
+      creditCards: [...prev.creditCards, { ...card, id: `cc-${Date.now()}` } as CreditCard],
+    }));
   };
 
   const handleUpdateCard = (updatedCard: BankCard) => {
@@ -2728,6 +2718,8 @@ export default function App() {
       let updatedExpenses = [...prev.expenses];
       let updatedDebts = [...prev.debts];
       let updatedCreditCardPurchases = [...prev.creditCardPurchases];
+      let updatedCreditCardInstallments = [...prev.creditCardInstallments];
+      let updatedCreditCardInstallmentPayments = [...prev.creditCardInstallmentPayments];
 
       const reverseAmount = (amount: number, accountId: string, accountType: string, isIncome: boolean) => {
         if (accountType === 'cash') {
@@ -3186,11 +3178,12 @@ export default function App() {
   // Reset demo setup
   const triggerResetDemo = () => {
     showConfirm({
-      message: 'Are you sure you want to restore all ledger books to initial demo genesis states? This replaces modifications.',
+      message:
+        'Are you sure you want to restore all ledger books to initial demo genesis states? This replaces modifications.',
       onConfirm: () => {
         updateState(() => DEFAULT_APP_STATE);
         showToast('success', 'Ledger re-seeded beautifully.');
-      }
+      },
     });
   };
 
@@ -3212,7 +3205,7 @@ export default function App() {
 
         let stateToLoad: Record<string, unknown> | null = null;
         let originalOwner = '';
-        
+
         if (loadedJson.version === 'EM_BUDGET_SECURE_EX_V1' && loadedJson.data) {
           stateToLoad = loadedJson.data;
           originalOwner = loadedJson.exportedBy || '';
@@ -3338,10 +3331,11 @@ export default function App() {
 
   // 4. TRANSACTION FILTERING METHOD
   const filteredHistory = [...state.transactions]
-    .filter(t => {
-      const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            t.category.toLowerCase().includes(searchQuery.toLowerCase());
-      
+    .filter((t) => {
+      const matchesSearch =
+        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.category.toLowerCase().includes(searchQuery.toLowerCase());
+
       const matchesType = filterType === 'all' || t.type === filterType;
       const matchesAccount = filterAccount === 'all' || t.accountId === filterAccount;
 
@@ -3394,15 +3388,18 @@ export default function App() {
     });
 
   const totalExpenseCategorySum = Object.values(expensesByCategory).reduce((s, v) => s + v, 0) || 1;
-  const appCategoryChartList = Object.entries(expensesByCategory).map(([name, val]) => {
-    const percentage = Math.round((val / totalExpenseCategorySum) * 100);
-    return {
-      name,
-      value: val,
-      percentage,
-      color: EXPENSE_COLORS[name] || '#6B7280',
-    };
-  }).sort((a, b) => b.value - a.value).slice(0, 4);
+  const appCategoryChartList = Object.entries(expensesByCategory)
+    .map(([name, val]) => {
+      const percentage = Math.round((val / totalExpenseCategorySum) * 100);
+      return {
+        name,
+        value: val,
+        percentage,
+        color: EXPENSE_COLORS[name] || '#6B7280',
+      };
+    })
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 4);
 
   return (
     <div
@@ -3694,8 +3691,24 @@ export default function App() {
           {/* center: sync pill */}
           <div className="hidden md:flex items-center justify-center flex-1 px-4">
             {(() => {
-              const label = realtimeSyncStatus === 'syncing' ? 'Syncing' : realtimeSyncStatus === 'synced' ? 'Synced' : realtimeSyncStatus === 'error' ? 'Sync error' : realtimeSyncStatus === 'disabled' ? 'Offline' : 'Idle';
-              const dot = realtimeSyncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : realtimeSyncStatus === 'synced' ? 'bg-[var(--success)]' : realtimeSyncStatus === 'error' ? 'bg-[var(--danger)] animate-pulse' : 'bg-[var(--ink-3)]';
+              const label =
+                realtimeSyncStatus === 'syncing'
+                  ? 'Syncing'
+                  : realtimeSyncStatus === 'synced'
+                    ? 'Synced'
+                    : realtimeSyncStatus === 'error'
+                      ? 'Sync error'
+                      : realtimeSyncStatus === 'disabled'
+                        ? 'Offline'
+                        : 'Idle';
+              const dot =
+                realtimeSyncStatus === 'syncing'
+                  ? 'bg-amber-500 animate-pulse'
+                  : realtimeSyncStatus === 'synced'
+                    ? 'bg-[var(--success)]'
+                    : realtimeSyncStatus === 'error'
+                      ? 'bg-[var(--danger)] animate-pulse'
+                      : 'bg-[var(--ink-3)]';
               return (
                 <span
                   className="mono text-[11px] inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]"
@@ -3974,6 +3987,9 @@ export default function App() {
                     aggregateActiveWealth={aggregateActiveWealth}
                     totalCashAmount={totalCashAmount}
                     totalDebitCardsAmount={totalDebitCardsAmount}
+                    totalCreditCardsAmount={totalCreditCardsAmount}
+                    totalDebtsAmount={totalDebtsAmount}
+                    totalLoansGiven={totalLoansGiven}
                     currentMonthLabel={currentMonthLabel}
                     currentMonthInflow={currentMonthInflow}
                     currentMonthOutflow={currentMonthOutflow}
@@ -4018,54 +4034,58 @@ export default function App() {
 
               {/* =================== CASE: TAB: ACCOUNTS =================== */}
               {activeTab === 'accounts' && (
-                <div className="space-y-6">
-                  <CashCardManagement
-                    cashAccounts={state.cashAccounts}
-                    cards={state.cards}
-                    onAddCashAccount={handleAddCashAccount}
-                    onEditCashAccount={handleEditCashAccount}
-                    onAddCard={handleAddCard}
-                    onDeleteCard={handleDeleteCard}
-                    onDeleteCashAccount={handleDeleteCashAccount}
-                    currency={state.currency}
-                    onUpdateCard={handleUpdateCard}
-                    onApplyCardCharge={handleApplyCardCharge}
-                    onDeleteCardCharge={handleDeleteCardCharge}
-                  />
-                  <TransferFunds
-                    cashAccounts={state.cashAccounts}
-                    cards={state.cards}
-                    currency={state.currency}
-                    onTransferFunds={handleTransferFunds}
-                  />
-                </div>
+                <LazyTab>
+                  <div className="space-y-6">
+                    <CashCardManagement
+                      cashAccounts={state.cashAccounts}
+                      cards={state.cards}
+                      onAddCashAccount={handleAddCashAccount}
+                      onEditCashAccount={handleEditCashAccount}
+                      onAddCard={handleAddCard}
+                      onDeleteCard={handleDeleteCard}
+                      onDeleteCashAccount={handleDeleteCashAccount}
+                      currency={state.currency}
+                      onUpdateCard={handleUpdateCard}
+                      onApplyCardCharge={handleApplyCardCharge}
+                      onDeleteCardCharge={handleDeleteCardCharge}
+                    />
+                    <TransferFunds
+                      cashAccounts={state.cashAccounts}
+                      cards={state.cards}
+                      currency={state.currency}
+                      onTransferFunds={handleTransferFunds}
+                    />
+                  </div>
+                </LazyTab>
               )}
 
               {/* =================== CASE: TAB: INFLOWS_OUTFLOWS =================== */}
               {activeTab === 'inflow_outflow' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                  <div className="col-span-1 lg:col-span-5 xl:col-span-4 w-full">
-                    <InflowsOutflows
-                      cashAccounts={state.cashAccounts}
-                      cards={state.cards}
-                      onAddIncome={handleAddIncome}
-                      onAddExpense={handleAddExpense}
-                      currency={state.currency}
-                    />
+                <LazyTab>
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    <div className="col-span-1 lg:col-span-5 xl:col-span-4 w-full">
+                      <InflowsOutflows
+                        cashAccounts={state.cashAccounts}
+                        cards={state.cards}
+                        onAddIncome={handleAddIncome}
+                        onAddExpense={handleAddExpense}
+                        currency={state.currency}
+                      />
+                    </div>
+                    <div className="col-span-1 lg:col-span-7 xl:col-span-8 w-full">
+                      <SubscriptionManagement
+                        subscriptions={state.subscriptions || []}
+                        cashAccounts={state.cashAccounts}
+                        cards={state.cards}
+                        currency={state.currency}
+                        onAddSubscription={handleAddSubscription}
+                        onDeleteSubscription={handleDeleteSubscription}
+                        onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
+                        onPaySubscription={handlePaySubscription}
+                      />
+                    </div>
                   </div>
-                  <div className="col-span-1 lg:col-span-7 xl:col-span-8 w-full">
-                    <SubscriptionManagement
-                      subscriptions={state.subscriptions || []}
-                      cashAccounts={state.cashAccounts}
-                      cards={state.cards}
-                      currency={state.currency}
-                      onAddSubscription={handleAddSubscription}
-                      onDeleteSubscription={handleDeleteSubscription}
-                      onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
-                      onPaySubscription={handlePaySubscription}
-                    />
-                  </div>
-                </div>
+                </LazyTab>
               )}
 
               {/* =================== CASE: TAB: DEBTS =================== */}
@@ -4103,36 +4123,40 @@ export default function App() {
 
               {/* =================== CASE: TAB: LOANS =================== */}
               {activeTab === 'loans' && (
-                <div className="space-y-6">
-                  <LoansTracker
-                    loans={state.loansGiven || []}
-                    cashAccounts={state.cashAccounts}
-                    cards={state.cards}
-                    onAddLoan={handleAddLoan}
-                    onAddSettlement={handleMakeLoanSettlement}
-                    onDeleteLoan={handleDeleteLoan}
-                    onIncreaseLoan={handleIncreaseLoan}
-                    currency={state.currency}
-                  />
-                </div>
+                <LazyTab>
+                  <div className="space-y-6">
+                    <LoansTracker
+                      loans={state.loansGiven || []}
+                      cashAccounts={state.cashAccounts}
+                      cards={state.cards}
+                      onAddLoan={handleAddLoan}
+                      onAddSettlement={handleMakeLoanSettlement}
+                      onDeleteLoan={handleDeleteLoan}
+                      onIncreaseLoan={handleIncreaseLoan}
+                      currency={state.currency}
+                    />
+                  </div>
+                </LazyTab>
               )}
 
               {/* =================== CASE: TAB: REPORTS =================== */}
               {activeTab === 'reports' && (
-                <ReportsCentre
-                  transactions={state.transactions}
-                  incomes={state.incomes}
-                  expenses={state.expenses}
-                  debts={state.debts}
-                  loansGiven={state.loansGiven || []}
-                  currency={state.currency}
-                  cashAccounts={state.cashAccounts}
-                  cards={state.cards}
-                  onSelectTransaction={(id) => setEditingTransactionId(id)}
-                  subscriptions={state.subscriptions || []}
-                  onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
-                  onPaySubscription={handlePaySubscription}
-                />
+                <LazyTab>
+                  <ReportsCentre
+                    transactions={state.transactions}
+                    incomes={state.incomes}
+                    expenses={state.expenses}
+                    debts={state.debts}
+                    loansGiven={state.loansGiven || []}
+                    currency={state.currency}
+                    cashAccounts={state.cashAccounts}
+                    cards={state.cards}
+                    onSelectTransaction={(id) => setEditingTransactionId(id)}
+                    subscriptions={state.subscriptions || []}
+                    onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
+                    onPaySubscription={handlePaySubscription}
+                  />
+                </LazyTab>
               )}
             </div>
 

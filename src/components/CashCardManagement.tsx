@@ -46,6 +46,10 @@ interface InteractiveBankCardProps {
   onApplyCardCharge?: (cardId: string, charge: Charge) => void;
   onDeleteCardCharge?: (cardId: string, chargeId: string) => void;
   setEditCardLockedAmount?: (val: string) => void;
+  setEditCardDueDate?: (val: string) => void;
+  setEditCardApr?: (val: string) => void;
+  setEditCardMinPayment?: (val: string) => void;
+  setEditCardStatementCloseDate?: (val: string) => void;
   onClick?: () => void;
 }
 
@@ -274,6 +278,10 @@ export default function CashCardManagement({
   const [editCardNumber, setEditCardNumber] = useState('');
   const [editCardLockedAmount, setEditCardLockedAmount] = useState('0');
   const [editCardTheme, setEditCardTheme] = useState('obsidian');
+  const [editCardDueDate, setEditCardDueDate] = useState('');
+  const [editCardStatementCloseDate, setEditCardStatementCloseDate] = useState('');
+  const [editCardApr, setEditCardApr] = useState('');
+  const [editCardMinPayment, setEditCardMinPayment] = useState('');
   const [editCardErrors, setEditCardErrors] = useState<Record<string, string>>({});
   const [, setEditCardSubmitted] = useState(false);
   const [showCanceled, setShowCanceled] = useState(false);
@@ -411,7 +419,7 @@ export default function CashCardManagement({
     if (clean.length > 0) {
       clean = clean.length > 4 ? `•••• •••• •••• ${clean.slice(-4)}` : `•••• •••• •••• ${clean}`;
     } else clean = `•••• •••• •••• ${Math.floor(1000 + Math.random() * 9000)}`;
-    const cardSaved = onAddCard({
+    onAddCard({
       cardName: cardName.trim(),
       bankName: bankName.trim(),
       cardType,
@@ -425,10 +433,6 @@ export default function CashCardManagement({
       apr: cardType === 'Credit' && cardApr ? parseFloat(cardApr) : undefined,
       minPayment: cardType === 'Credit' && cardMinPayment ? parseFloat(cardMinPayment) : undefined,
     });
-    if (!cardSaved) {
-      showToast('error', 'Card was not saved. Please review the entered details.');
-      return;
-    }
     setCardName('');
     setBankName('');
     setCardBalance('');

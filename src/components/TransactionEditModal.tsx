@@ -39,6 +39,7 @@ export default function TransactionEditModal({
   const titleInputRef = React.useRef<HTMLInputElement>(null);
   const amountInputRef = React.useRef<HTMLInputElement>(null);
   const dateInputRef = React.useRef<HTMLInputElement>(null);
+  const editDialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
 
   useEffect(() => {
     if (transaction) {
@@ -210,7 +211,7 @@ export default function TransactionEditModal({
                 setDate(e.target.value);
                 validateTxForm(title, amount, e.target.value, submitted);
               }}
-              error={!!errors.date}
+              className="input"
             />
             {errors.date && (
               <span className="text-[var(--danger)] mono text-[10px] pl-1 mt-1.5 block">{errors.date}</span>

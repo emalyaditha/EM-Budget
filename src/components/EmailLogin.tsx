@@ -25,6 +25,8 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
   const [sandboxOtp, setSandboxOtp] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState<number>(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [rateLimitTimer, setRateLimitTimer] = useState<number>(0);
+  const rateLimitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -281,7 +283,10 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
   const isCreateStep = step === 'create-password' || step === 'reset-password';
 
   return (
-    <div id="email-2fa-container" className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 overflow-y-auto bg-[var(--bg)] text-[var(--ink)]">
+    <div
+      id="email-2fa-container"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 overflow-y-auto bg-[var(--bg)] text-[var(--ink)]"
+    >
       {/* dot-grid is on body; no gradients */}
       <div className="w-full max-w-[420px]">
         <div className="card p-8 md:p-9">
@@ -319,16 +324,43 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                 className="space-y-4"
               >
                 <div>
-                  <label htmlFor="login-email" className="eyebrow block mb-1.5">Email</label>
+                  <label htmlFor="login-email" className="eyebrow block mb-1.5">
+                    Email
+                  </label>
                   <div className="relative">
-                    <Mail size={14} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink-3)]" />
-                    <input id="login-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@domain.com" className="input !pl-9" />
+                    <Mail
+                      size={14}
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink-3)]"
+                    />
+                    <input
+                      id="login-email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@domain.com"
+                      className="input !pl-9"
+                    />
                   </div>
                 </div>
-                <button type="submit" disabled={loading} className="btn-primary w-full justify-center inline-flex items-center gap-2 disabled:opacity-50">
-                  {loading ? <RefreshCw className="animate-spin" size={14} /> : <><span>Continue</span><ArrowRight size={14} /></>}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary w-full justify-center inline-flex items-center gap-2 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <RefreshCw className="animate-spin" size={14} />
+                  ) : (
+                    <>
+                      <span>Continue</span>
+                      <ArrowRight size={14} />
+                    </>
+                  )}
                 </button>
-                <p className="text-[11px] leading-4 text-[var(--ink-3)] text-center">We\u2019ll email you only for verification. No marketing.</p>
+                <p className="text-[11px] leading-4 text-[var(--ink-3)] text-center">
+                  We\u2019ll email you only for verification. No marketing.
+                </p>
               </motion.form>
             )}
 
@@ -381,8 +413,19 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                   />
                   <span className="text-[12px] text-[var(--ink-2)]">Remember this device</span>
                 </label>
-                <button type="submit" disabled={loading} className="btn-primary w-full justify-center inline-flex items-center gap-2 disabled:opacity-50">
-                  {loading ? <RefreshCw className="animate-spin" size={14} /> : <><ShieldCheck size={14} /><span>Sign in</span></>}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary w-full justify-center inline-flex items-center gap-2 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <RefreshCw className="animate-spin" size={14} />
+                  ) : (
+                    <>
+                      <ShieldCheck size={14} />
+                      <span>Sign in</span>
+                    </>
+                  )}
                 </button>
                 <div className="flex justify-between text-[12px]">
                   <button
@@ -414,7 +457,9 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                 className="space-y-4"
               >
                 <div>
-                  <label htmlFor="otp" className="eyebrow block mb-1.5">6-digit code</label>
+                  <label htmlFor="otp" className="eyebrow block mb-1.5">
+                    6-digit code
+                  </label>
                   <div className="relative">
                     <KeyRound
                       size={14}
@@ -474,7 +519,13 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                 >
                   Cancel
                 </button>
-                <button type="button" onClick={() => setStep('enter-email')} className="btn-ghost w-full justify-center">Cancel</button>
+                <button
+                  type="button"
+                  onClick={() => setStep('enter-email')}
+                  className="btn-ghost w-full justify-center"
+                >
+                  Cancel
+                </button>
               </motion.form>
             )}
 
@@ -564,7 +615,12 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
 
           <AnimatePresence>
             {errorMsg && (
-              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--danger-bg)] px-3.5 py-3 flex gap-2.5 text-[12px] leading-5 text-[var(--danger)]">
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--danger-bg)] px-3.5 py-3 flex gap-2.5 text-[12px] leading-5 text-[var(--danger)]"
+              >
                 <AlertCircle size={14} className="shrink-0 mt-0.5" />
                 <span>{errorMsg}</span>
               </motion.div>

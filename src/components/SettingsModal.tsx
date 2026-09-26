@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiUrl, safeJson } from '../lib/api';
 import {
   Settings,
@@ -36,6 +36,32 @@ import {
 } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
+import { authSession } from '../services/authSession';
+import {
+  getAppLockStatus,
+  setPin,
+  disablePin,
+  setLockOnOpen,
+  setLockIdleMinutes,
+  startBiometricRegistration,
+  removeBiometricCredential,
+  listBiometricCredentials,
+  isBiometricAvailable,
+  listTrustedDevices,
+  revokeTrustedDevice,
+  revokeAllDevices,
+} from '../lib/appLock';
+import {
+  exportCashAccountsCSV,
+  exportCardsCSV,
+  exportDebtsCSV,
+  exportLoansCSV,
+  exportSubscriptionsCSV,
+  exportBudgetsCSV,
+  exportGoalsCSV,
+  exportIncomesCSV,
+  exportExpensesCSV,
+} from '../utils';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -91,6 +117,8 @@ export default function SettingsModal({
   const [biometricCredIds, setBiometricCredIds] = useState<string[]>([]);
   const [confirmRemoveBiometric, setConfirmRemoveBiometric] = useState<string | null>(null);
   const [idleMinutes, setIdleMinutes] = useState(1);
+  const [, setSqlScript] = useState<string | null>(null);
+  const settingsDrawerRef = useRef<HTMLDivElement>(null);
 
   const refreshAppLock = async () => {
     if (!userEmail) return;
@@ -136,7 +164,12 @@ export default function SettingsModal({
       setPurgeOtp('');
       setPurgeError(null);
       setPurgeDevOtp(null);
-      fetch(apiUrl('/api/config/sql')).then((r) => safeJson(r)).then((d) => { if (d?.success) setSqlScript(d.sql); }).catch(() => {});
+      fetch(apiUrl('/api/config/sql'))
+        .then((r) => safeJson(r))
+        .then((d) => {
+          if (d?.success) setSqlScript(d.sql);
+        })
+        .catch(() => {});
     }
   }, [isOpen]);
 
@@ -935,7 +968,7 @@ class CloudSyncService {
                             {flutterCode}
                           </pre>
                           <button
-                            onClick={() => copyToClipboard(flutterCode)}
+                            onClick={() => copyToClipboard(flutterCode, 'flutter')}
                             className="absolute right-2 top-2 w-7 h-7 rounded-full bg-[var(--surface)] border border-[var(--line)] flex items-center justify-center text-[var(--ink-2)] hover:text-[var(--ink)]"
                             aria-label="Copy"
                           >

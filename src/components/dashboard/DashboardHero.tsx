@@ -4,14 +4,8 @@ import type { Transaction } from '../../types';
 interface DashboardHeroProps {
   currency: string;
   aggregateActiveWealth: number;
-  totalAssets: number;
-  totalLiabilities: number;
-  assetRatioPct: number;
-  liabilityRatioPct: number;
-  sparklineData: Array<{ date: string; value: number }>;
-  trendLabel: string;
-  trendColorClass: string;
-  onManageWallets: () => void;
+  totalCashAmount?: number;
+  totalDebitCardsAmount?: number;
   userName?: string;
   userAvatarUrl?: string;
   currentMonthInflow?: number;
@@ -35,6 +29,8 @@ function getFirstName(full: string) {
 export function DashboardHero({
   currency,
   aggregateActiveWealth,
+  totalCashAmount = 0,
+  totalDebitCardsAmount = 0,
   currentMonthInflow = 0,
   currentMonthOutflow = 0,
   transactions = [],
@@ -46,6 +42,8 @@ export function DashboardHero({
   onSend,
 }: DashboardHeroProps) {
   const firstName = getFirstName(userName);
+  // Liquid cash = spendable balances: cash vaults + debit cards (locked amounts excluded upstream).
+  const liquidCash = totalCashAmount + totalDebitCardsAmount;
 
   const report = (() => {
     const expenseTx = transactions.filter(
@@ -129,7 +127,7 @@ export function DashboardHero({
         <div className="flex flex-col items-center gap-1">
           <p className="mono text-[30px] sm:text-[32px] font-bold tracking-tight tabular-nums leading-none text-[var(--ink)]">
             {currency}
-            {aggregateActiveWealth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {liquidCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
           <p className="eyebrow !text-[10px]">Liquid cash</p>
         </div>

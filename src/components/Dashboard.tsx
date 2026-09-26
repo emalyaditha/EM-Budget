@@ -5,8 +5,19 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCo
 import { DashboardHero } from './dashboard/DashboardHero';
 import { DashboardMetricsGrid } from './dashboard/DashboardMetricsGrid';
 import { QuickActionModal } from './dashboard/QuickActionModal';
+import { AlertsPanel } from './AlertsPanel';
 
-export function AnimatedCountUp({ value, duration = 1200, prefix = "", suffix = "" }: { value: number, duration?: number, prefix?: string, suffix?: string }) {
+export function AnimatedCountUp({
+  value,
+  duration = 1200,
+  prefix = '',
+  suffix = '',
+}: {
+  value: number;
+  duration?: number;
+  prefix?: string;
+  suffix?: string;
+}) {
   const [displayValue, setDisplayValue] = useState(0);
 
   React.useEffect(() => {
@@ -38,7 +49,13 @@ export function AnimatedCountUp({ value, duration = 1200, prefix = "", suffix = 
     };
   }, [value, duration]);
 
-  return <span className="tabular-nums font-semibold">{prefix}{Math.round(displayValue).toLocaleString()}{suffix}</span>;
+  return (
+    <span className="tabular-nums font-semibold">
+      {prefix}
+      {Math.round(displayValue).toLocaleString()}
+      {suffix}
+    </span>
+  );
 }
 
 interface DashboardProps {
@@ -158,17 +175,15 @@ export default function Dashboard({
   };
 
   const transactionDates = useMemo(() => {
-    return Array.from(
-      new Set(
-        state.transactions
-          .filter(t => t.date)
-          .map(t => t.date.split('T')[0])
-      )
-    ).sort();
+    return Array.from(new Set(state.transactions.filter((t) => t.date).map((t) => t.date.split('T')[0]))).sort();
   }, [state.transactions]);
 
   const sparklineData = useMemo(() => {
-    const hasAnyRecords = state.cashAccounts.length > 0 || state.cards.length > 0 || state.transactions.length > 0 || state.debts.length > 0;
+    const hasAnyRecords =
+      state.cashAccounts.length > 0 ||
+      state.cards.length > 0 ||
+      state.transactions.length > 0 ||
+      state.debts.length > 0;
     if (!hasAnyRecords || transactionDates.length === 0) {
       return [];
     }
@@ -179,16 +194,23 @@ export default function Dashboard({
     });
     const totalImpact = orderedTxs.reduce((sum, t) => sum + getTransactionImpact(t), 0);
     const baseNetWorth = aggregateActiveWealth - totalImpact;
-    return last6Dates.map(dateStr => {
+    return last6Dates.map((dateStr) => {
       const impactUpToDate = orderedTxs
-        .filter(t => t.date && t.date.split('T')[0] <= dateStr)
+        .filter((t) => t.date && t.date.split('T')[0] <= dateStr)
         .reduce((sum, t) => sum + getTransactionImpact(t), 0);
       return {
         date: dateStr,
-        value: baseNetWorth + impactUpToDate
+        value: baseNetWorth + impactUpToDate,
       };
     });
-  }, [state.transactions, transactionDates, aggregateActiveWealth, state.cashAccounts.length, state.cards.length, state.debts.length]);
+  }, [
+    state.transactions,
+    transactionDates,
+    aggregateActiveWealth,
+    state.cashAccounts.length,
+    state.cards.length,
+    state.debts.length,
+  ]);
 
   const fullTrendChartData = useMemo(() => {
     let daysCount = 30;
