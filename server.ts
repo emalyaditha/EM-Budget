@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import nodemailer from 'nodemailer';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import compression from 'compression';
@@ -37,6 +36,21 @@ function withTimeout<T>(promise: PromiseLike<T>, ms: number, label = 'Operation'
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+async function sendEmailViaResend(opts: { to: string; subject: string; text: string; html: string }): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY is not configured.');
+  const from = process.env.RESEND_FROM || 'Secure Vault <onboarding@resend.dev>';
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [opts.to], subject: opts.subject, text: opts.text, html: opts.html }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Resend API ${res.status}: ${detail.slice(0, 200)}`);
+  }
 }
 
 interface AppLockFields {
@@ -1535,7 +1549,7 @@ export async function createApp(): Promise<express.Express> {
         SUPABASE_SERVICE_ROLE_KEY: has('SUPABASE_SERVICE_ROLE_KEY'),
         SESSION_SECRET: has('SESSION_SECRET'),
         GEMINI_API_KEY: has('GEMINI_API_KEY'),
-        SMTP_HOST: has('SMTP_HOST'),
+        RESEND_API_KEY: has('RESEND_API_KEY'),
         NODE_ENV: process.env.NODE_ENV || 'not set',
         VERCEL: process.env.VERCEL || 'not set',
       },
@@ -1632,31 +1646,11 @@ export async function createApp(): Promise<express.Express> {
       console.log(`⏰ EXPIRE: 5 Minutes (from server-side clock)`);
       console.log(`======================================================\n`);
 
-      // Lazy check for optional environment parameters
-      const smtpHost = process.env.SMTP_HOST;
-      const smtpPort = process.env.SMTP_PORT;
-      const smtpUser = process.env.SMTP_USER;
-      const smtpPass = process.env.SMTP_PASS;
-      const smtpFrom = process.env.SMTP_FROM;
-
       let emailSent = false;
 
-      if (smtpHost && smtpUser && smtpPass) {
+      if (process.env.RESEND_API_KEY) {
         try {
-          const transporter = nodemailer.createTransport({
-            host: smtpHost,
-            port: smtpPort ? parseInt(smtpPort, 10) : 587,
-            secure: smtpPort === '465',
-            auth: {
-              user: smtpUser,
-              pass: smtpPass,
-            },
-          });
-
-          const fromAddress = smtpFrom || `Secure Vault <${smtpUser}>`;
-
-          await transporter.sendMail({
-            from: fromAddress,
+          await sendEmailViaResend({
             to: normalizedEmail,
             subject: '🛡️ Secure Vault 2FA One-Time Passcode',
             text: `Your Secure Vault One-Time Passcode is: ${otp}. It will expire in 5 minutes.`,
@@ -1679,9 +1673,9 @@ export async function createApp(): Promise<express.Express> {
             `,
           });
           emailSent = true;
-          console.log(`📧 Success: 2FA passcode email dispatched to ${normalizedEmail}`);
+          console.log(`📧 Success: 2FA passcode email dispatched via Resend to ${normalizedEmail}`);
         } catch (mailError) {
-          console.error('[SECURITY LOG] SMTP Transmission Failed:', errorMessage(mailError));
+          console.error('[SECURITY LOG] Resend transmission failed:', errorMessage(mailError));
         }
       }
 
@@ -1701,7 +1695,7 @@ export async function createApp(): Promise<express.Express> {
           success: true,
           emailSent: false,
           devOtp: otp,
-          info: 'Dev mode: SMTP is not configured, showing passcode in developer bypass (DEV_OTP_RESPONSE=true).',
+          info: 'Dev mode: email delivery failed (see server log; check RESEND_API_KEY), showing passcode in developer bypass (DEV_OTP_RESPONSE=true).',
         });
         return;
       }
@@ -2837,30 +2831,11 @@ export async function createApp(): Promise<express.Express> {
         console.log(`⏰ EXPIRE: 5 Minutes`);
         console.log(`======================================================\n`);
 
-        const smtpHost = process.env.SMTP_HOST;
-        const smtpPort = process.env.SMTP_PORT;
-        const smtpUser = process.env.SMTP_USER;
-        const smtpPass = process.env.SMTP_PASS;
-        const smtpFrom = process.env.SMTP_FROM;
-
         let emailSent = false;
 
-        if (smtpHost && smtpUser && smtpPass) {
+        if (process.env.RESEND_API_KEY) {
           try {
-            const transporter = nodemailer.createTransport({
-              host: smtpHost,
-              port: smtpPort ? parseInt(smtpPort, 10) : 587,
-              secure: smtpPort === '465',
-              auth: {
-                user: smtpUser,
-                pass: smtpPass,
-              },
-            });
-
-            const fromAddress = smtpFrom || `Secure Vault <${smtpUser}>`;
-
-            await transporter.sendMail({
-              from: fromAddress,
+            await sendEmailViaResend({
               to: normalizedEmail,
               subject: '⚠️ CRITICAL: Confirm Ledger Deletion Code - EM Budget',
               text: `Confirm your database deletion with passcode: ${otp}. This code expires in 5 minutes. If you did not request this, secure your account!`,
@@ -2886,9 +2861,9 @@ export async function createApp(): Promise<express.Express> {
             `,
             });
             emailSent = true;
-            console.log(`📧 Deletion passcode email sent successfully to ${normalizedEmail}`);
+            console.log(`📧 Deletion passcode email sent via Resend to ${normalizedEmail}`);
           } catch (mailError) {
-            console.error('[SECURITY LOG] Deletion SMTP Transmission Failed:', errorMessage(mailError));
+            console.error('[SECURITY LOG] Deletion Resend transmission failed:', errorMessage(mailError));
           }
         }
 
@@ -2904,7 +2879,7 @@ export async function createApp(): Promise<express.Express> {
             success: true,
             emailSent: false,
             devOtp: otp,
-            info: 'Dev mode: SMTP is not configured, showing deletion passcode in developer bypass.',
+            info: 'Dev mode: Resend is not configured (RESEND_API_KEY missing), showing deletion passcode in developer bypass.',
           });
           return;
         }
