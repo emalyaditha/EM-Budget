@@ -51,4 +51,5 @@ jobs:
       - name: Run end-to-end tests
         env:
           DEV_OTP_RESPONSE: 'true'
+          SESSION_SECRET: 'ci-ephemeral-session-secret-not-for-production'
         run: npm run e2e
