@@ -16085,7 +16085,8 @@ var require_side_channel = __commonJS({
       var channel = {
         assert: function(key) {
           if (!channel.has(key)) {
-            throw new $TypeError("Side channel does not contain " + inspect(key));
+            var keyDesc = key && Object(key) === key ? "the given object key" : inspect(key);
+            throw new $TypeError("Side channel does not contain " + keyDesc);
           }
         },
         "delete": function(key) {
@@ -16141,6 +16142,7 @@ var require_utils = __commonJS({
     "use strict";
     var formats2 = require_formats();
     var getSideChannel = require_side_channel();
+    var defineProperty = require_es_define_property();
     var has = Object.prototype.hasOwnProperty;
     var isArray = Array.isArray;
     var overflowChannel = getSideChannel();
@@ -16188,6 +16190,18 @@ var require_utils = __commonJS({
       }
       return obj;
     };
+    var setProperty = function setProperty2(obj, key, value) {
+      if (key === "__proto__" && defineProperty) {
+        defineProperty(obj, key, {
+          configurable: true,
+          enumerable: true,
+          value,
+          writable: true
+        });
+      } else {
+        obj[key] = value;
+      }
+    };
     var merge = function merge2(target, source, options) {
       if (!source) {
         return target;
@@ -16195,7 +16209,10 @@ var require_utils = __commonJS({
       if (typeof source !== "object" && typeof source !== "function") {
         if (isArray(target)) {
           var nextIndex = target.length;
-          if (options && typeof options.arrayLimit === "number" && nextIndex > options.arrayLimit) {
+          if (options && typeof options.arrayLimit === "number" && nextIndex >= options.arrayLimit) {
+            if (options.throwOnLimitExceeded) {
+              throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+            }
             return markOverflow(arrayToObject(target.concat(source), options), nextIndex);
           }
           target[nextIndex] = source;
@@ -16226,6 +16243,9 @@ var require_utils = __commonJS({
         }
         var combined = [target].concat(source);
         if (options && typeof options.arrayLimit === "number" && combined.length > options.arrayLimit) {
+          if (options.throwOnLimitExceeded) {
+            throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+          }
           return markOverflow(arrayToObject(combined, options), combined.length - 1);
         }
         return combined;
@@ -16247,14 +16267,20 @@ var require_utils = __commonJS({
             target[i] = item;
           }
         });
+        if (options && typeof options.arrayLimit === "number" && target.length > options.arrayLimit) {
+          if (options.throwOnLimitExceeded) {
+            throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+          }
+          return markOverflow(arrayToObject(target, options), target.length - 1);
+        }
         return target;
       }
       return Object.keys(source).reduce(function(acc, key) {
         var value = source[key];
         if (has.call(acc, key)) {
-          acc[key] = merge2(acc[key], value, options);
+          setProperty(acc, key, merge2(acc[key], value, options));
         } else {
-          acc[key] = value;
+          setProperty(acc, key, value);
         }
         if (isOverflow(source) && !isOverflow(acc)) {
           markOverflow(acc, getMaxIndex(source));
@@ -16270,7 +16296,7 @@ var require_utils = __commonJS({
     };
     var assign2 = function assignSingleSource(target, source) {
       return Object.keys(source).reduce(function(acc, key) {
-        acc[key] = source[key];
+        setProperty(acc, key, source[key]);
         return acc;
       }, target);
     };
@@ -16304,6 +16330,13 @@ var require_utils = __commonJS({
       var out = "";
       for (var j = 0; j < string.length; j += limit) {
         var segment = string.length >= limit ? string.slice(j, j + limit) : string;
+        if (j + limit < string.length) {
+          var last = segment.charCodeAt(segment.length - 1);
+          if (last >= 55296 && last <= 56319) {
+            segment = segment.slice(0, -1);
+            j -= 1;
+          }
+        }
         var arr = [];
         for (var i = 0; i < segment.length; ++i) {
           var c = segment.charCodeAt(i);
@@ -16333,7 +16366,7 @@ var require_utils = __commonJS({
     };
     var compact = function compact2(value) {
       var queue = [{ obj: { o: value }, prop: "o" }];
-      var refs = [];
+      var refs = getSideChannel();
       for (var i = 0; i < queue.length; ++i) {
         var item = queue[i];
         var obj = item.obj[item.prop];
@@ -16341,9 +16374,9 @@ var require_utils = __commonJS({
         for (var j = 0; j < keys.length; ++j) {
           var key = keys[j];
           var val = obj[key];
-          if (typeof val === "object" && val !== null && refs.indexOf(val) === -1) {
+          if (typeof val === "object" && val !== null && !refs.has(val)) {
             queue[queue.length] = { obj, prop: key };
-            refs[refs.length] = val;
+            refs.set(val, true);
           }
         }
       }
@@ -16357,17 +16390,27 @@ var require_utils = __commonJS({
       if (!obj || typeof obj !== "object") {
         return false;
       }
-      return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));
+      return !!(obj.constructor && typeof obj.constructor.isBuffer === "function" && obj.constructor.isBuffer(obj));
     };
-    var combine2 = function combine3(a, b, arrayLimit, plainObjects) {
+    var combine2 = function combine3(a, b, arrayLimit, plainObjects, throwOnLimitExceeded) {
       if (isOverflow(a)) {
-        var newIndex = getMaxIndex(a) + 1;
-        a[newIndex] = b;
+        if (throwOnLimitExceeded) {
+          throw new RangeError("Array limit exceeded. Only " + arrayLimit + " element" + (arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+        }
+        var bValues = isArray(b) ? b : [b];
+        var newIndex = getMaxIndex(a);
+        for (var i = 0; i < bValues.length; ++i) {
+          newIndex += 1;
+          a[newIndex] = bValues[i];
+        }
         setMaxIndex(a, newIndex);
         return a;
       }
       var result = [].concat(a, b);
       if (result.length > arrayLimit) {
+        if (throwOnLimitExceeded) {
+          throw new RangeError("Array limit exceeded. Only " + arrayLimit + " element" + (arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+        }
         return markOverflow(arrayToObject(result, { plainObjects }), result.length - 1);
       }
       return result;
@@ -16435,6 +16478,7 @@ var require_stringify = __commonJS({
       charsetSentinel: false,
       commaRoundTrip: false,
       delimiter: "&",
+      depth: Infinity,
       encode: true,
       encodeDotInKeys: false,
       encoder: utils.encode,
@@ -16454,8 +16498,11 @@ var require_stringify = __commonJS({
       return typeof v === "string" || typeof v === "number" || typeof v === "boolean" || typeof v === "symbol" || typeof v === "bigint";
     };
     var sentinel = {};
-    var stringify = function stringify2(object, prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, encoder, filter, sort, allowDots, serializeDate, format4, formatter, encodeValuesOnly, charset, sideChannel) {
+    var stringify = function stringify2(object, prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, encoder, filter, sort, allowDots, serializeDate, format4, formatter, encodeValuesOnly, charset, sideChannel, depth, currentDepth) {
       var obj = object;
+      if (currentDepth > depth) {
+        throw new RangeError("Input depth exceeded depth option of " + depth);
+      }
       var tmpSc = sideChannel;
       var step = 0;
       var findFlag = false;
@@ -16473,9 +16520,8 @@ var require_stringify = __commonJS({
           step = 0;
         }
       }
-      if (typeof filter === "function") {
-        obj = filter(prefix, obj);
-      } else if (obj instanceof Date) {
+      obj = typeof filter === "function" ? filter(prefix, obj) : obj;
+      if (obj instanceof Date) {
         obj = serializeDate(obj);
       } else if (generateArrayPrefix === "comma" && isArray(obj)) {
         obj = utils.maybeMap(obj, function(value2) {
@@ -16518,7 +16564,7 @@ var require_stringify = __commonJS({
       }
       var encodedPrefix = encodeDotInKeys ? String(prefix).replace(/\./g, "%2E") : String(prefix);
       var adjustedPrefix = commaRoundTrip && isArray(obj) && obj.length === 1 ? encodedPrefix + "[]" : encodedPrefix;
-      if (allowEmptyArrays && isArray(obj) && obj.length === 0) {
+      if (allowEmptyArrays && isArray(obj) && obj.length === 0 && Object.keys(obj).length === 0) {
         return adjustedPrefix + "[]";
       }
       for (var j = 0; j < objKeys.length; ++j) {
@@ -16550,7 +16596,9 @@ var require_stringify = __commonJS({
           formatter,
           encodeValuesOnly,
           charset,
-          valueSideChannel
+          valueSideChannel,
+          depth,
+          currentDepth + 1
         ));
       }
       return values;
@@ -16605,6 +16653,7 @@ var require_stringify = __commonJS({
         charsetSentinel: typeof opts.charsetSentinel === "boolean" ? opts.charsetSentinel : defaults.charsetSentinel,
         commaRoundTrip: !!opts.commaRoundTrip,
         delimiter: typeof opts.delimiter === "undefined" ? defaults.delimiter : opts.delimiter,
+        depth: typeof opts.depth === "number" ? opts.depth : defaults.depth,
         encode: typeof opts.encode === "boolean" ? opts.encode : defaults.encode,
         encodeDotInKeys: typeof opts.encodeDotInKeys === "boolean" ? opts.encodeDotInKeys : defaults.encodeDotInKeys,
         encoder: typeof opts.encoder === "function" ? opts.encoder : defaults.encoder,
@@ -16652,9 +16701,10 @@ var require_stringify = __commonJS({
         if (options.skipNulls && value === null) {
           continue;
         }
+        var encodedKey = options.encodeDotInKeys ? String(key).replace(/\./g, "%2E") : String(key);
         pushToArray(keys, stringify(
           value,
-          key,
+          encodedKey,
           generateArrayPrefix,
           commaRoundTrip,
           options.allowEmptyArrays,
@@ -16670,7 +16720,9 @@ var require_stringify = __commonJS({
           options.formatter,
           options.encodeValuesOnly,
           options.charset,
-          sideChannel
+          sideChannel,
+          options.depth,
+          0
         ));
       }
       var joined = keys.join(options.delimiter);
@@ -16725,6 +16777,17 @@ var require_parse = __commonJS({
     };
     var parseArrayValue = function(val, options, currentArrayLength) {
       if (val && typeof val === "string" && options.comma && val.indexOf(",") > -1) {
+        if (options.throwOnLimitExceeded) {
+          var commaCount = 0;
+          var commaIndex = val.indexOf(",");
+          while (commaIndex > -1) {
+            commaCount += 1;
+            if (commaCount >= options.arrayLimit) {
+              throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+            }
+            commaIndex = val.indexOf(",", commaIndex + 1);
+          }
+        }
         return val.split(",");
       }
       if (options.throwOnLimitExceeded && currentArrayLength >= options.arrayLimit) {
@@ -16796,10 +16859,7 @@ var require_parse = __commonJS({
           val = isArray(val) ? [val] : val;
         }
         if (options.comma && isArray(val) && val.length > options.arrayLimit) {
-          if (options.throwOnLimitExceeded) {
-            throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
-          }
-          val = utils.combine([], val, options.arrayLimit, options.plainObjects);
+          val = utils.combine([], val, options.arrayLimit, options.plainObjects, options.throwOnLimitExceeded);
         }
         if (key !== null) {
           var existing = has.call(obj, key);
@@ -16808,7 +16868,8 @@ var require_parse = __commonJS({
               obj[key],
               val,
               options.arrayLimit,
-              options.plainObjects
+              options.plainObjects,
+              options.throwOnLimitExceeded
             );
           } else if (!existing || options.duplicates === "last") {
             obj[key] = val;
@@ -16835,7 +16896,8 @@ var require_parse = __commonJS({
               [],
               leaf,
               options.arrayLimit,
-              options.plainObjects
+              options.plainObjects,
+              options.throwOnLimitExceeded
             );
           }
         } else {
@@ -22886,7 +22948,7 @@ var require_request = __commonJS({
       var method = this.method;
       var res = this.res;
       var status = res.statusCode;
-      if ("GET" !== method && "HEAD" !== method) return false;
+      if ("GET" !== method && "HEAD" !== method && "QUERY" !== method) return false;
       if (status >= 200 && status < 300 || 304 === status) {
         return fresh(this.headers, {
           "etag": res.get("ETag"),
@@ -24440,7 +24502,7 @@ var require_package = __commonJS({
   "node_modules/nodemailer/package.json"(exports2, module2) {
     module2.exports = {
       name: "nodemailer",
-      version: "9.0.6",
+      version: "9.1.1",
       description: "Easy as cake e-mail sending from your Node.js applications",
       main: "lib/nodemailer.js",
       scripts: {
@@ -24467,7 +24529,7 @@ var require_package = __commonJS({
       },
       homepage: "https://nodemailer.com/",
       devDependencies: {
-        "@aws-sdk/client-sesv2": "3.1119.0",
+        "@aws-sdk/client-sesv2": "3.1121.0",
         bunyan: "1.8.15",
         c8: "12.0.0",
         eslint: "10.9.1",
@@ -24479,7 +24541,7 @@ var require_package = __commonJS({
         prettier: "3.9.6",
         proxy: "1.0.2",
         "proxy-test-server": "1.0.0",
-        "smtp-server": "3.19.3"
+        "smtp-server": "3.19.4"
       },
       engines: {
         node: ">=6.0.0"
@@ -24512,6 +24574,7 @@ var require_errors = __commonJS({
       EOAUTH2: "OAuth2 token generation or refresh error",
       // Resource errors
       EMAXLIMIT: "Pool resource limit reached (max messages per connection)",
+      EMAXRECIPIENTS: "Recipient count exceeds maxRecipients",
       // Transport-specific errors
       ESENDMAIL: "Sendmail command error",
       ESES: "AWS SES transport error",
@@ -28400,7 +28463,9 @@ var require_addressparser = __commonJS({
           if (state === "address") {
             token.value = token.value.replace(/^[^<]*<\s*/, "");
           }
-          if (prevToken && prevToken.noBreak && data[state].length) {
+          const parts = data[state];
+          const joins = prevToken && prevToken.noBreak && parts.length && (prevToken.value !== ")" || parts[parts.length - 1].slice(-1) === "@" || token.value.charAt(0) === "@");
+          if (joins) {
             data[state][data[state].length - 1] += token.value;
             if (state === "text" && insideQuotes) {
               data.textWasQuoted[data.textWasQuoted.length - 1] = true;
@@ -28619,18 +28684,22 @@ var require_addressparser = __commonJS({
       }
       addresses.forEach((addr) => {
         const handled = _handleAddress(addr, depth);
-        if (handled.length) {
-          parsedAddresses = parsedAddresses.concat(handled);
+        for (let i = 0; i < handled.length; i++) {
+          parsedAddresses.push(handled[i]);
         }
       });
-      for (let i = parsedAddresses.length - 2; i >= 0; i--) {
+      const mergedAddresses = [];
+      for (let i = parsedAddresses.length - 1; i >= 0; i--) {
         const current = parsedAddresses[i];
-        const next = parsedAddresses[i + 1];
-        if (current.address === "" && current.name && !current.group && next.address && next.name) {
+        const next = mergedAddresses.length ? mergedAddresses[mergedAddresses.length - 1] : null;
+        if (next && current.address === "" && current.name && !current.group && next.address && next.name) {
           next.name = current.name + ", " + next.name;
-          parsedAddresses.splice(i, 1);
+        } else {
+          mergedAddresses.push(current);
         }
       }
+      mergedAddresses.reverse();
+      parsedAddresses = mergedAddresses;
       if (options.flatten) {
         const flatAddresses = [];
         const walkAddressList = (list) => {
@@ -28769,6 +28838,7 @@ var require_mime_node = __commonJS({
     var punycode = require_punycode();
     var { PassThrough } = require("stream");
     var shared = require_shared();
+    var urlModule = require("url");
     var mimeFuncs = require_mime_funcs();
     var qp = require_qp();
     var base643 = require_base64();
@@ -28783,6 +28853,17 @@ var require_mime_node = __commonJS({
     var DOT_ATOM = new RegExp("^" + ATEXT + "+(?:\\." + ATEXT + "+)*$");
     var QUOTED_STRING = /^"(?:[^"\\]|\\[\s\S])*"$/;
     var PLAIN_ADDRESS = /^[^\s"(),:;<>@[\\\]]+@[^\s"(),:;<>@[\\\]]+$/;
+    var URL_PARSER_UNSAFE = /[/\\?#%\x00-\x20\x7F]/;
+    function normalizeDomain(domain, toUnicode) {
+      const mapper = toUnicode ? urlModule.domainToUnicode : urlModule.domainToASCII;
+      if (typeof mapper === "function" && !URL_PARSER_UNSAFE.test(domain)) {
+        const mapped = mapper(domain);
+        if (mapped) {
+          return mapped;
+        }
+      }
+      return toUnicode ? punycode.toUnicode(domain) : punycode.toASCII(domain);
+    }
     var MimeNode = class _MimeNode {
       constructor(contentType, options) {
         this.nodeCounter = 0;
@@ -28843,6 +28924,9 @@ var require_mime_node = __commonJS({
        * @return {Object} Appended node object
        */
       appendChild(childNode) {
+        if (childNode.parentNode && childNode.parentNode !== this) {
+          childNode.remove();
+        }
         if (childNode.rootNode !== this.rootNode) {
           childNode.rootNode = this.rootNode;
           childNode._nodeId = ++this.rootNode.nodeCounter;
@@ -29368,9 +29452,10 @@ var require_mime_node = __commonJS({
             this._envelope.from = list[0].address;
           }
         }
+        const seenRecipients = /* @__PURE__ */ new Set();
         ["to", "cc", "bcc"].forEach((key) => {
           if (envelope[key]) {
-            this._convertAddresses(this._parseEnvelopeAddresses(envelope[key]), this._envelope.to);
+            this._convertAddresses(this._parseEnvelopeAddresses(envelope[key]), this._envelope.to, seenRecipients);
           }
         });
         this._envelope.to = this._envelope.to.map((to) => to.address).filter((address) => address);
@@ -29385,13 +29470,15 @@ var require_mime_node = __commonJS({
        */
       getAddresses() {
         const addresses = {};
+        const seenByKey = /* @__PURE__ */ new Map();
         this._headers.forEach((header) => {
           const key = header.key.toLowerCase();
           if (["from", "sender", "reply-to", "to", "cc", "bcc"].includes(key)) {
             if (!Array.isArray(addresses[key])) {
               addresses[key] = [];
+              seenByKey.set(key, /* @__PURE__ */ new Set());
             }
-            this._convertAddresses(this._parseAddresses(header.value), addresses[key]);
+            this._convertAddresses(this._parseAddresses(header.value), addresses[key], seenByKey.get(key));
           }
         });
         return addresses;
@@ -29409,6 +29496,7 @@ var require_mime_node = __commonJS({
           from: false,
           to: []
         };
+        const seenRecipients = /* @__PURE__ */ new Set();
         this._headers.forEach((header) => {
           const list = [];
           if (header.key === "From" || !envelope.from && ["Reply-To", "Sender"].includes(header.key)) {
@@ -29417,7 +29505,7 @@ var require_mime_node = __commonJS({
               envelope.from = list[0].address;
             }
           } else if (["To", "Cc", "Bcc"].includes(header.key)) {
-            this._convertAddresses(this._parseAddresses(header.value), envelope.to);
+            this._convertAddresses(this._parseAddresses(header.value), envelope.to, seenRecipients);
           }
         });
         envelope.to = envelope.to.map((to) => to.address);
@@ -29454,6 +29542,25 @@ var require_mime_node = __commonJS({
       }
       /////// PRIVATE METHODS
       /**
+       * Checks an access policy flag for this node and every node above it. The flags are set
+       * from the options the node was built with, and createChild only ever sees the options
+       * the caller passed, so a child of a closed tree starts out open. Reading the answer off
+       * the parent chain keeps it right whatever order the tree was assembled in.
+       *
+       * @param {String} flag Either 'disableFileAccess' or 'disableUrlAccess'
+       * @return {Boolean} true if this node or an ancestor closed that access
+       */
+      _accessDisabled(flag) {
+        let node = this;
+        while (node) {
+          if (node[flag]) {
+            return true;
+          }
+          node = node.parentNode;
+        }
+        return false;
+      }
+      /**
        * Detects and returns handle to a stream related with the content.
        *
        * @param {Mixed} content Node content
@@ -29476,7 +29583,7 @@ var require_mime_node = __commonJS({
           return content;
         }
         if (content && typeof content.path === "string" && !content.href) {
-          if (this.disableFileAccess) {
+          if (this._accessDisabled("disableFileAccess")) {
             contentStream = new PassThrough();
             setImmediate(() => {
               const err = new Error("File access rejected for " + content.path);
@@ -29488,7 +29595,7 @@ var require_mime_node = __commonJS({
           return fs.createReadStream(content.path);
         }
         if (content && typeof content.href === "string") {
-          if (this.disableUrlAccess) {
+          if (this._accessDisabled("disableUrlAccess")) {
             contentStream = new PassThrough();
             setImmediate(() => {
               const err = new Error("Url access rejected for " + content.href);
@@ -29517,22 +29624,26 @@ var require_mime_node = __commonJS({
        * @return {Array} An array of address objects
        */
       _parseAddresses(addresses) {
-        return [].concat.apply(
-          [],
-          [].concat(addresses).map((address) => {
-            if (address && address.address) {
-              const normalized = this._normalizeAddress(address.address);
-              if (normalized === address.address && typeof address.name === "string") {
-                return [address];
-              }
-              const copy2 = shared.copyOwnKeys({}, address);
-              copy2.address = normalized;
-              copy2.name = address.name || "";
-              return [copy2];
+        const flattened = [];
+        [].concat(addresses).forEach((address) => {
+          if (address && address.address) {
+            const normalized = this._normalizeAddress(address.address);
+            if (normalized === address.address && typeof address.name === "string") {
+              flattened.push(address);
+              return;
             }
-            return this._normalizeParsedAddresses(addressparser(address));
-          })
-        );
+            const copy2 = shared.copyOwnKeys({}, address);
+            copy2.address = normalized;
+            copy2.name = address.name || "";
+            flattened.push(copy2);
+            return;
+          }
+          const parsed = this._normalizeParsedAddresses(addressparser(address));
+          for (let i = 0; i < parsed.length; i++) {
+            flattened.push(parsed[i]);
+          }
+        });
+        return flattened;
       }
       /**
        * Normalizes the addresses of a freshly parsed address list, groups included.
@@ -29674,9 +29785,15 @@ var require_mime_node = __commonJS({
        * @param {Array} [uniqueList] An array to be populated with addresses
        * @return {String} address string
        */
-      _convertAddresses(addresses, uniqueList) {
+      _convertAddresses(addresses, uniqueList, seenAddresses) {
         const values = [];
         uniqueList = uniqueList || [];
+        if (!seenAddresses) {
+          seenAddresses = /* @__PURE__ */ new Set();
+          for (let i = 0; i < uniqueList.length; i++) {
+            seenAddresses.add(uniqueList[i].address);
+          }
+        }
         [].concat(addresses || []).forEach((address) => {
           if (address.address) {
             address.address = this._normalizeAddress(address.address);
@@ -29685,11 +29802,12 @@ var require_mime_node = __commonJS({
             } else {
               values.push(`${this._encodeAddressName(address.name)} <${address.address}>`);
             }
-            if (!uniqueList.some((a) => a.address === address.address)) {
+            if (!seenAddresses.has(address.address)) {
+              seenAddresses.add(address.address);
               uniqueList.push(address);
             }
           } else if (address.group) {
-            const groupListAddresses = (address.group.length ? this._convertAddresses(address.group, uniqueList) : "").trim();
+            const groupListAddresses = (address.group.length ? this._convertAddresses(address.group, uniqueList, seenAddresses) : "").trim();
             values.push(`${this._encodeAddressName(address.name)}:${groupListAddresses};`);
           }
         });
@@ -29713,12 +29831,9 @@ var require_mime_node = __commonJS({
         const user = address.substr(0, lastAt);
         const domain = address.substr(lastAt + 1);
         let encodedDomain = domain;
+        const smtputf8 = /[\x80-\uFFFF]/.test(user);
         try {
-          if (/[\x80-\uFFFF]/.test(user)) {
-            encodedDomain = punycode.toUnicode(domain.toLowerCase());
-          } else {
-            encodedDomain = punycode.toASCII(domain.toLowerCase());
-          }
+          encodedDomain = normalizeDomain(domain.toLowerCase(), smtputf8);
         } catch (_err) {
         }
         return `${this._normalizeLocalPart(user)}@${encodedDomain}`;
@@ -30953,14 +31068,28 @@ var require_mail_message = __commonJS({
         this.data.headers = this.data.headers || {};
         shared.copyOwnKeys(this.data, defaults, (key) => hasOwn(this.data, key));
         shared.copyOwnKeys(this.data.headers, defaults.headers, (key) => hasOwn(this.data.headers, key));
-        ["disableFileAccess", "disableUrlAccess", "normalizeHeaderKey"].forEach((key) => {
+        ["disableFileAccess", "disableUrlAccess", "normalizeHeaderKey", "maxRecipients"].forEach((key) => {
           if (key in options) {
             this.data[key] = options[key];
           }
         });
+        ["disableFileAccess", "disableUrlAccess"].forEach((key) => {
+          if (!(key in options) && hasOwn(defaults, key)) {
+            this.data[key] = this.data[key] || defaults[key];
+          }
+        });
       }
-      resolveContent(...args) {
-        return shared.resolveContent(...args);
+      resolveContent(data, key, options, callback) {
+        if (!callback && typeof options === "function") {
+          callback = options;
+          options = false;
+        }
+        options = options || {};
+        const policy = {
+          disableFileAccess: this.data.disableFileAccess || options.disableFileAccess,
+          disableUrlAccess: this.data.disableUrlAccess || options.disableUrlAccess
+        };
+        return shared.resolveContent(data, key, policy, callback);
       }
       resolveAll(callback) {
         const keys = [
@@ -31200,6 +31329,7 @@ var require_mailer = __commonJS({
     var net = require("net");
     var dns = require("dns");
     var crypto5 = require("crypto");
+    var DEFAULT_MAX_RECIPIENTS = 1e5;
     var Mail = class extends EventEmitter {
       constructor(transporter, options, defaults) {
         super();
@@ -31335,6 +31465,24 @@ var require_mailer = __commonJS({
           mail.setMailerHeader();
           mail.setPriorityHeaders();
           mail.setListHeaders();
+          const maxRecipients = mail.data.maxRecipients === void 0 ? DEFAULT_MAX_RECIPIENTS : mail.data.maxRecipients;
+          const recipientCount = mail.message.getEnvelope().to.length;
+          if (maxRecipients && recipientCount > maxRecipients) {
+            const err2 = new Error(
+              `Message has ${recipientCount} recipients, which is over the ${maxRecipients} allowed by maxRecipients`
+            );
+            err2.code = errors.EMAXRECIPIENTS;
+            this.logger.error(
+              {
+                err: err2,
+                tnx: "transport",
+                action: "send"
+              },
+              "Send Error: %s",
+              err2.message
+            );
+            return callback(err2);
+          }
           this._processPlugins("stream", mail, (err2) => {
             if (err2) {
               this.logger.error(
