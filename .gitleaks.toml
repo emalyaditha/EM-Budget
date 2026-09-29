@@ -1,0 +1,9 @@
+[allowlist]
+  description = "Generated bundles and caches (false positives: bundled crypto lib identifiers and file hashes)"
+  paths = [
+    '''^api/index\.js$''',
+    '''^api/index\.js\.map$''',
+    '''^graphify-out/''',
+    '''^dist/''',
+    '''^coverage/''',
+  ]
