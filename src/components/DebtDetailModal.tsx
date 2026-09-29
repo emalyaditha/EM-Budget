@@ -90,6 +90,8 @@ export default function DebtDetailModal({
       return a.id.localeCompare(b.id);
     });
     return events;
+    // resolveAccountName reads cashAccounts/cards, both already listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debt, cashAccounts, cards]);
 
   const handleIncrease = (e: React.FormEvent) => {

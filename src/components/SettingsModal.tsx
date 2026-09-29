@@ -98,7 +98,6 @@ export default function SettingsModal({
   const [purgeError, setPurgeError] = useState<string | null>(null);
   const [purgeDevOtp, setPurgeDevOtp] = useState<string | null>(null);
   const [expandedSection, setExpandedSection] = useState<'none' | 'sql' | 'flutter' | 'upgrade'>('none');
-  const [sqlCopied, setSqlCopied] = useState(false);
   const [flutterCopied, setFlutterCopied] = useState(false);
   const [appLockStatus, setAppLockStatus] = useState<{
     appLockEnabled: boolean;
@@ -176,14 +175,9 @@ export default function SettingsModal({
         })
         .catch(() => {});
     }
+    // refreshAppLock depends on userEmail which is stable for the modal's lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-
-  const handleSaveCredentials = () => {
-    saveSupabaseConfig(supabaseUrl.trim(), supabaseKey.trim(), autoSync);
-    setSyncStatus('success');
-    setSyncMessage('Credentials saved.');
-    setTimeout(() => setSyncMessage(null), 3000);
-  };
 
   const handlePushSync = async () => {
     saveSupabaseConfig(supabaseUrl.trim(), supabaseKey.trim(), autoSync);
@@ -341,7 +335,7 @@ export default function SettingsModal({
     }
   };
 
-  const copyToClipboard = (text: string, type: 'sql' | 'flutter' | 'upgrade') => {
+  const copyToClipboard = (text: string, _type: 'sql' | 'flutter' | 'upgrade') => {
     navigator.clipboard.writeText(text);
     setFlutterCopied(true);
     setTimeout(() => setFlutterCopied(false), 2000);
@@ -654,7 +648,7 @@ class CloudSyncService {
                   )}
                   {!appLockStatus && appLockLoadFailed && (
                     <p className="text-[12px] text-[var(--ink-3)]">
-                      Couldn’t load app lock status.{" "}
+                      Couldn’t load app lock status.{' '}
                       <button
                         type="button"
                         className="underline text-[var(--ink-2)] hover:text-[var(--ink)]"

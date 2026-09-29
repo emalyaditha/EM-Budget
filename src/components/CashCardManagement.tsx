@@ -13,7 +13,6 @@ import {
   Lock,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
 
 interface CashCardManagementProps {
@@ -1012,21 +1011,30 @@ export default function CashCardManagement({
                                   <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-[var(--line)]">
                                     <div className="min-w-0">
                                       <span className="eyebrow block">Total</span>
-                                      <span className="mono text-xs font-bold truncate block tabular-nums" title={`${currency}${card.currentBalance.toLocaleString()}`}>
+                                      <span
+                                        className="mono text-xs font-bold truncate block tabular-nums"
+                                        title={`${currency}${card.currentBalance.toLocaleString()}`}
+                                      >
                                         {currency}
                                         {card.currentBalance.toLocaleString()}
                                       </span>
                                     </div>
                                     <div className="border-x border-[var(--line)] min-w-0">
                                       <span className="eyebrow block">Locked</span>
-                                      <span className="mono text-xs font-bold text-amber-600 truncate block tabular-nums" title={`${currency}${lockedAmt.toLocaleString()}`}>
+                                      <span
+                                        className="mono text-xs font-bold text-amber-600 truncate block tabular-nums"
+                                        title={`${currency}${lockedAmt.toLocaleString()}`}
+                                      >
                                         {currency}
                                         {lockedAmt.toLocaleString()}
                                       </span>
                                     </div>
                                     <div className="min-w-0">
                                       <span className="eyebrow block">Spendable</span>
-                                      <span className="mono text-xs font-bold text-[var(--success)] truncate block tabular-nums" title={`${currency}${Math.max(0, card.currentBalance - lockedAmt).toLocaleString()}`}>
+                                      <span
+                                        className="mono text-xs font-bold text-[var(--success)] truncate block tabular-nums"
+                                        title={`${currency}${Math.max(0, card.currentBalance - lockedAmt).toLocaleString()}`}
+                                      >
                                         {currency}
                                         {Math.max(0, card.currentBalance - lockedAmt).toLocaleString()}
                                       </span>
@@ -1058,21 +1066,30 @@ export default function CashCardManagement({
                                       <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-[var(--line)]">
                                         <div className="min-w-0">
                                           <span className="eyebrow block">Limit</span>
-                                          <span className="mono text-xs font-bold truncate block tabular-nums" title={`${currency}${lim.toLocaleString()}`}>
+                                          <span
+                                            className="mono text-xs font-bold truncate block tabular-nums"
+                                            title={`${currency}${lim.toLocaleString()}`}
+                                          >
                                             {currency}
                                             {lim.toLocaleString()}
                                           </span>
                                         </div>
                                         <div className="border-x border-[var(--line)] min-w-0">
                                           <span className="eyebrow block">Used</span>
-                                          <span className="mono text-xs font-bold text-[var(--danger)] truncate block tabular-nums" title={`${currency}${used.toLocaleString()}`}>
+                                          <span
+                                            className="mono text-xs font-bold text-[var(--danger)] truncate block tabular-nums"
+                                            title={`${currency}${used.toLocaleString()}`}
+                                          >
                                             {currency}
                                             {used.toLocaleString()}
                                           </span>
                                         </div>
                                         <div className="min-w-0">
                                           <span className="eyebrow block">Avail</span>
-                                          <span className="mono text-xs font-bold text-[var(--success)] truncate block tabular-nums" title={`${currency}${Math.max(0, avail).toLocaleString()}`}>
+                                          <span
+                                            className="mono text-xs font-bold text-[var(--success)] truncate block tabular-nums"
+                                            title={`${currency}${Math.max(0, avail).toLocaleString()}`}
+                                          >
                                             {currency}
                                             {Math.max(0, avail).toLocaleString()}
                                           </span>

@@ -29,8 +29,9 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     // Telemetry hook: surface crash details to the console for support diagnostics.
     logger.error('👾 [CRITICAL SYSTEM ERRROR DETECTED BY BOUNDARY]:', error, errorInfo);
     this.setState({ errorInfo });
-    if ((window as any).Sentry) {
-      (window as any).Sentry.captureException(error);
+    const sentry = (window as unknown as { Sentry?: { captureException: (e: unknown) => void } }).Sentry;
+    if (sentry) {
+      sentry.captureException(error);
     }
   }
 

@@ -17,7 +17,6 @@ import type { Worker, LoggerMessage } from 'tesseract.js';
 import { useNotifications } from '../context/NotificationContext';
 import type { ScannedTransaction } from '../utils/freeOcrParser';
 import { parseReceiptText } from '../utils/freeOcrParser';
-import { authSession } from '../services/authSession';
 
 interface ReceiptScannerProps {
   onScanSuccess: (data: {

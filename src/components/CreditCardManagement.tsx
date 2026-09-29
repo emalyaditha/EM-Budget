@@ -25,7 +25,6 @@ import {
   Percent,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
 import { isMinimumSatisfied } from '../lib/creditCards';
 import InstallmentSchedule from './InstallmentSchedule';

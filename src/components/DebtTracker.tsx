@@ -2,7 +2,6 @@
 import type { Debt, CashAccount, BankCard } from '../types';
 import { Plus, AlertCircle, Calendar, Wallet, CornerDownRight, Eye } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
 import { compareMoney } from '../lib/money';
 import DebtDetailModal from './DebtDetailModal';
 

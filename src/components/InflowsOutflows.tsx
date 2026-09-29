@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import type { CashAccount, BankCard, CategoryIncome, CategoryExpense } from '../types';
 import { PlusCircle, MinusCircle, Sparkles } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
 import ReceiptScanner from './ReceiptScanner';
 import { todayLocal } from '../utils';
 

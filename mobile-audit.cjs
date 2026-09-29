@@ -32,7 +32,13 @@ const VIEWS = [
     if (mint.success && mint.token) {
       // Cookie — the API prefers the httpOnly session cookie
       await page.context().addCookies([
-        { name: 'session_token', value: mint.token, url: 'http://localhost:3000', httpOnly: true, sameSite: 'Strict' },
+        {
+          name: 'session_token',
+          value: mint.token,
+          url: 'http://localhost:3000',
+          httpOnly: true,
+          sameSite: 'Strict',
+        },
       ]);
       minted = true;
       console.log('SESSION MINTED for', email);
@@ -45,9 +51,7 @@ const VIEWS = [
 
   if (!minted) {
     // Fallback: OTP registration flow (only works when SMTP is unavailable so devOtp is returned)
-    const emailInput = page
-      .locator('input[type="email"], input[name="email"], input[placeholder*="mail" i]')
-      .first();
+    const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="mail" i]').first();
     if (await emailInput.count()) {
       try {
         const sendResp = await page.request.post('http://localhost:3000/api/auth/send-otp', { data: { email } });
@@ -98,9 +102,7 @@ const VIEWS = [
     for (const view of VIEWS) {
       try {
         // Try bottom nav / sidebar buttons by visible text
-        const navBtn = page
-          .locator(`button:has-text("${view.nav}"), a:has-text("${view.nav}")`)
-          .first();
+        const navBtn = page.locator(`button:has-text("${view.nav}"), a:has-text("${view.nav}")`).first();
         if (await navBtn.count()) {
           await navBtn.click({ timeout: 3000 }).catch(() => {});
           await page.waitForTimeout(1200);
@@ -118,7 +120,7 @@ const VIEWS = [
             if (r.width > 0 && (r.right > vw + 1 || r.left < -1)) {
               const cls = (el.className && String(el.className).slice(0, 80)) || '';
               offenders.push(`${el.tagName.toLowerCase()}.${cls} right=${Math.round(r.right)}`);
-              if ( offenders.length >= 6) break;
+              if (offenders.length >= 6) break;
             }
           }
         }

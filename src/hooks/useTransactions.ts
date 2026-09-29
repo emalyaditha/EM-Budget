@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Transaction } from '../types';
+import type { Transaction } from '../types';
 
 export function useTransactions(transactions: Transaction[]) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -8,7 +8,7 @@ export function useTransactions(transactions: Transaction[]) {
   const [accountFilter, setAccountFilter] = useState('ALL');
 
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(tx => {
+    return transactions.filter((tx) => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesTitle = tx.title?.toLowerCase().includes(q);
@@ -37,6 +37,6 @@ export function useTransactions(transactions: Transaction[]) {
     setTypeFilter,
     accountFilter,
     setAccountFilter,
-    filteredTransactions
+    filteredTransactions,
   };
 }

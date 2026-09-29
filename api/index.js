@@ -89040,6 +89040,35 @@ async function createApp() {
       }
     });
   });
+  app.post("/api/dev/mint-session", rateLimitIp(10, 60 * 1e3), async (req, res) => {
+    if (IS_PRODUCTION2 || process.env.DEV_OTP_RESPONSE !== "true") {
+      res.status(404).json({ success: false, error: "Not found." });
+      return;
+    }
+    try {
+      const { email } = req.body || {};
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+      const normalizedEmail = email.trim().toLowerCase();
+      const devSupabase = getSupabase(req);
+      const exists = await checkAccountExists(normalizedEmail, devSupabase);
+      if (!exists) {
+        await saveAccount(
+          { email: normalizedEmail, passwordHash: "dev-audit-no-login", createdAt: Date.now() },
+          devSupabase
+        );
+      }
+      const token = generateSecureToken(normalizedEmail, SESSION_TTL_SHORT, sessionSecret);
+      setSessionCookie(res, token);
+      res.json({ success: true, token, email: normalizedEmail });
+    } catch (err) {
+      console.error("[DEV MINT SESSION] failed:", errorMessage(err));
+      res.status(500).json({ success: false, error: "Mint failed." });
+    }
+  });
   app.post(
     "/api/auth/check-email",
     rateLimitIp(60, 60 * 1e3),

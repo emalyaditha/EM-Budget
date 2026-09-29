@@ -114,7 +114,7 @@ export default function TransactionEditModal({
       });
       showToast('success', 'Transaction updated successfully!');
       onClose();
-    } catch (err) {
+    } catch {
       showToast('error', 'Failed to update transaction.');
     } finally {
       setIsProcessing(false);
@@ -127,7 +127,7 @@ export default function TransactionEditModal({
       onDelete(transaction.id);
       showToast('info', 'Transaction deleted.');
       onClose();
-    } catch (err) {
+    } catch {
       showToast('error', 'Failed to delete transaction.');
       setIsProcessing(false);
     }

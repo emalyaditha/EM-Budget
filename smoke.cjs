@@ -13,8 +13,8 @@ const { chromium } = require('@playwright/test');
   await page.goto('http://localhost:3000', { waitUntil: 'load', timeout: 60000 });
   await page.waitForTimeout(5000);
 
-  const rootLen = await page.evaluate(
-    () => (document.getElementById('root') ? document.getElementById('root').innerHTML.length : -1),
+  const rootLen = await page.evaluate(() =>
+    document.getElementById('root') ? document.getElementById('root').innerHTML.length : -1,
   );
   const title = await page.title();
   const bodyText = await page.evaluate(() => document.body.innerText.slice(0, 300));

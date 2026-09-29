@@ -47,6 +47,9 @@ export function AnimatedCountUp({
       cancelled = true;
       window.cancelAnimationFrame(rafId);
     };
+    // displayValue is intentionally omitted: the animation must run once per
+    // `value` change, not restart on every internal frame update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, duration]);
 
   return (
@@ -125,16 +128,19 @@ export default function Dashboard({
   aggregateActiveWealth,
   totalCashAmount,
   totalDebitCardsAmount,
-  totalCreditCardsAmount,
-  totalDebtsAmount,
-  totalLoansGiven,
+  // totalCreditCardsAmount/totalDebtsAmount/totalLoansGiven and
+  // onNotificationClick are part of the stable public props contract (passed by
+  // App.tsx); they are not consumed in this layout yet.
+  totalCreditCardsAmount: _totalCreditCardsAmount,
+  totalDebtsAmount: _totalDebtsAmount,
+  totalLoansGiven: _totalLoansGiven,
   currentMonthLabel,
   currentMonthInflow,
   currentMonthOutflow,
   setActiveTab,
   setEditingTransactionId,
   onProfileClick,
-  onNotificationClick,
+  onNotificationClick: _onNotificationClick,
   onAddIncome,
   onAddExpense,
 }: DashboardProps) {
@@ -173,44 +179,6 @@ export default function Dashboard({
     if (t.type === 'expense') return -Math.abs(t.amount);
     return 0;
   };
-
-  const transactionDates = useMemo(() => {
-    return Array.from(new Set(state.transactions.filter((t) => t.date).map((t) => t.date.split('T')[0]))).sort();
-  }, [state.transactions]);
-
-  const sparklineData = useMemo(() => {
-    const hasAnyRecords =
-      state.cashAccounts.length > 0 ||
-      state.cards.length > 0 ||
-      state.transactions.length > 0 ||
-      state.debts.length > 0;
-    if (!hasAnyRecords || transactionDates.length === 0) {
-      return [];
-    }
-    const last6Dates = transactionDates.slice(-6);
-    const orderedTxs = [...state.transactions].sort((a, b) => {
-      if (!a.date || !b.date) return 0;
-      return a.date.localeCompare(b.date);
-    });
-    const totalImpact = orderedTxs.reduce((sum, t) => sum + getTransactionImpact(t), 0);
-    const baseNetWorth = aggregateActiveWealth - totalImpact;
-    return last6Dates.map((dateStr) => {
-      const impactUpToDate = orderedTxs
-        .filter((t) => t.date && t.date.split('T')[0] <= dateStr)
-        .reduce((sum, t) => sum + getTransactionImpact(t), 0);
-      return {
-        date: dateStr,
-        value: baseNetWorth + impactUpToDate,
-      };
-    });
-  }, [
-    state.transactions,
-    transactionDates,
-    aggregateActiveWealth,
-    state.cashAccounts.length,
-    state.cards.length,
-    state.debts.length,
-  ]);
 
   const fullTrendChartData = useMemo(() => {
     let daysCount = 30;

@@ -1543,37 +1543,36 @@ export async function createApp(): Promise<express.Express> {
   });
 
   // -1. DEV-ONLY: mint a session for automated UI audits (blocked in production)
-  app.post(
-    '/api/dev/mint-session',
-    rateLimitIp(10, 60 * 1000),
-    async (req: express.Request, res: express.Response) => {
-      if (IS_PRODUCTION || process.env.DEV_OTP_RESPONSE !== 'true') {
-        res.status(404).json({ success: false, error: 'Not found.' });
+  app.post('/api/dev/mint-session', rateLimitIp(10, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    if (IS_PRODUCTION || process.env.DEV_OTP_RESPONSE !== 'true') {
+      res.status(404).json({ success: false, error: 'Not found.' });
+      return;
+    }
+    try {
+      const { email } = req.body || {};
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
         return;
       }
-      try {
-        const { email } = req.body || {};
-        const emailErr = validateEmail(email);
-        if (emailErr) {
-          res.status(400).json({ success: false, error: emailErr });
-          return;
-        }
-        const normalizedEmail = email.trim().toLowerCase();
-        // Auto-create the account in dev so verify-session's existence check passes.
-        const devSupabase = getSupabase(req);
-        const exists = await checkAccountExists(normalizedEmail, devSupabase);
-        if (!exists) {
-          await saveAccount({ email: normalizedEmail, passwordHash: 'dev-audit-no-login', createdAt: Date.now() }, devSupabase);
-        }
-        const token = generateSecureToken(normalizedEmail, SESSION_TTL_SHORT, sessionSecret);
-        setSessionCookie(res, token);
-        res.json({ success: true, token, email: normalizedEmail });
-      } catch (err) {
-        console.error('[DEV MINT SESSION] failed:', errorMessage(err));
-        res.status(500).json({ success: false, error: 'Mint failed.' });
+      const normalizedEmail = email.trim().toLowerCase();
+      // Auto-create the account in dev so verify-session's existence check passes.
+      const devSupabase = getSupabase(req);
+      const exists = await checkAccountExists(normalizedEmail, devSupabase);
+      if (!exists) {
+        await saveAccount(
+          { email: normalizedEmail, passwordHash: 'dev-audit-no-login', createdAt: Date.now() },
+          devSupabase,
+        );
       }
-    },
-  );
+      const token = generateSecureToken(normalizedEmail, SESSION_TTL_SHORT, sessionSecret);
+      setSessionCookie(res, token);
+      res.json({ success: true, token, email: normalizedEmail });
+    } catch (err) {
+      console.error('[DEV MINT SESSION] failed:', errorMessage(err));
+      res.status(500).json({ success: false, error: 'Mint failed.' });
+    }
+  });
 
   // 0. Check Email Route
   app.post(

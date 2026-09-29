@@ -12,7 +12,6 @@ import type {
   AppNotification,
   CategoryIncome,
   CategoryExpense,
-  CreditCard,
   CreditCardPurchase,
   CreditCardInstallmentPayment,
   Subscription,
@@ -93,8 +92,8 @@ import {
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 import type { AppLockStatus } from './lib/appLock';
-import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice, revokeAllDevices } from './lib/appLock';
-import { calculateNetWorth, EXPENSE_COLORS } from './utils';
+import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice } from './lib/appLock';
+import { calculateNetWorth } from './utils';
 import { toMinorUnits } from './lib/money';
 import {
   validateData,
@@ -227,6 +226,7 @@ function mergeCloudIntoLocal(cloud: AppState, local: AppState): AppState {
 }
 
 export default function App() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- showConfirm kept for the pending app-lock confirm flow
   const { showConfirm, showToast } = useNotifications();
   const { theme, toggleTheme } = useTheme();
   const { isOnline, isSupabaseReachable } = useOnlineStatus(getSupabaseConfig().url);
@@ -234,8 +234,14 @@ export default function App() {
   const [state, setState] = useState<AppState>(DEFAULT_APP_STATE);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  // App-lock gate state. isAppLocked/isAppLockInit/appLockStatus are written by
+  // determineAppLock and the boot flow; the LockScreen gate UI is not wired up
+  // yet, so these are currently informational only.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isAppLocked, setIsAppLocked] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isAppLockInit, setIsAppLockInit] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [appLockStatus, setAppLockStatus] = useState<AppLockStatus | null>(null);
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'accounts' | 'inflow_outflow' | 'budgets' | 'goals' | 'debts' | 'loans' | 'reports'
@@ -244,8 +250,6 @@ export default function App() {
 
   // Modals & Panels Toggles
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [newPinCode, setNewPinCode] = useState('');
-  const [showConfigPanel, setShowConfigPanel] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -259,11 +263,6 @@ export default function App() {
     'idle',
   );
   const [realtimeSyncError, setRealtimeSyncError] = useState<string | null>(null);
-
-  // States for Unified search & filters on history
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterAccount, setFilterAccount] = useState<string>('all');
 
   const reconcileSubscriptionsWithTransactions = (
     subscriptions: Subscription[],
@@ -418,27 +417,6 @@ export default function App() {
     }
   };
 
-  // Full logout: clear stored credentials, revoke trusted-device cookie(s) for
-  // this account so a future login goes back through the app-lock gate.
-  const handleLogout = () => {
-    const email = userEmail;
-    authSession.clear();
-    resetLoadedFromCloud();
-    setState(DEFAULT_APP_STATE);
-    setIsUnlocked(false);
-    setIsAppLocked(false);
-    setIsAppLockInit(false);
-    setIsProfileOpen(false);
-    setIsSettingsOpen(false);
-    if (email) {
-      try {
-        void revokeAllDevices(email);
-      } catch (err) {
-        logger.warn('Could not revoke trusted devices on logout:', err);
-      }
-    }
-  };
-
   // Verify remembered device on mount
   useEffect(() => {
     // StrictMode double-mounts effects in dev — run the boot chain once.
@@ -547,6 +525,9 @@ export default function App() {
     };
 
     verifyDevice();
+    // Mount-only boot gate: migrateStateCards is a stable component-scoped
+    // function; the session check must run exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Scroll to the top of the page when the active tab/view changes
@@ -1052,7 +1033,6 @@ export default function App() {
       const newAlertNotifications: AppNotification[] = [];
 
       const totalDeductionCents = toMinorUnits(amount) + toMinorUnits(bankCharge);
-      const totalDeduction = totalDeductionCents / 100;
 
       if (paymentMethodType === 'cash') {
         updatedCash = updatedCash.map((c) => {
@@ -1792,13 +1772,6 @@ export default function App() {
     });
   };
 
-  const handleAddCreditCard = (card: Omit<CreditCard, 'id'>) => {
-    updateState((prev) => ({
-      ...prev,
-      creditCards: [...prev.creditCards, { ...card, id: `cc-${Date.now()}` } as CreditCard],
-    }));
-  };
-
   const handleUpdateCard = (updatedCard: BankCard) => {
     updateState((prev) => ({
       ...prev,
@@ -1951,7 +1924,6 @@ export default function App() {
       const newAlertNotifications: AppNotification[] = [];
 
       const totalDeductionCents = toMinorUnits(sub.amount) + toMinorUnits(bankCharge);
-      const totalDeduction = totalDeductionCents / 100;
 
       let accountName = '';
       if (accountType === 'cash') {
@@ -3264,18 +3236,6 @@ export default function App() {
     }));
   };
 
-  // Reset demo setup
-  const triggerResetDemo = () => {
-    showConfirm({
-      message:
-        'Are you sure you want to restore all ledger books to initial demo genesis states? This replaces modifications.',
-      onConfirm: () => {
-        updateState(() => DEFAULT_APP_STATE);
-        showToast('success', 'Ledger re-seeded beautifully.');
-      },
-    });
-  };
-
   // JSON state upload restoration
   const handleJSONRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -3348,7 +3308,7 @@ export default function App() {
         } else {
           showToast('error', 'Invalid backup file. Requisite database structures were missing.');
         }
-      } catch (err) {
+      } catch {
         showToast('error', 'File decode failure. Try with a valid export JSON backup.');
       }
     };
@@ -3418,38 +3378,6 @@ export default function App() {
     };
   });
 
-  // 4. TRANSACTION FILTERING METHOD
-  const filteredHistory = [...state.transactions]
-    .filter((t) => {
-      const matchesSearch =
-        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.category.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesType = filterType === 'all' || t.type === filterType;
-      const matchesAccount = filterAccount === 'all' || t.accountId === filterAccount;
-
-      return matchesSearch && matchesType && matchesAccount;
-    })
-    .sort((a, b) => {
-      const getTs = (item: any): number => {
-        const raw = item.updated_at || item.updatedAt || item.created_at || item.createdAt || item.date;
-        if (!raw) return 0;
-        const time = new Date(raw).getTime();
-        return isNaN(time) ? 0 : time;
-      };
-
-      const timeA = getTs(a);
-      const timeB = getTs(b);
-      if (timeA !== timeB) return timeB - timeA;
-
-      const dateCompare = b.date.localeCompare(a.date);
-      if (dateCompare !== 0) return dateCompare;
-      const aNum = parseInt(a.id.replace(/\D/g, ''), 10);
-      const bNum = parseInt(b.id.replace(/\D/g, ''), 10);
-      if (!isNaN(aNum) && !isNaN(bNum)) return bNum - aNum;
-      return b.id.localeCompare(a.id);
-    });
-
   // Minimal auth gate — center card with mono
   if (isCheckingAuth) {
     return (
@@ -3467,28 +3395,6 @@ export default function App() {
       </div>
     );
   }
-
-  // Spend category calculations for Category Spread Analysis
-  const expensesByCategory: Record<string, number> = {};
-  state.transactions
-    .filter((t) => t.type === 'expense')
-    .forEach((t) => {
-      expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + Math.abs(t.amount);
-    });
-
-  const totalExpenseCategorySum = Object.values(expensesByCategory).reduce((s, v) => s + v, 0) || 1;
-  const appCategoryChartList = Object.entries(expensesByCategory)
-    .map(([name, val]) => {
-      const percentage = Math.round((val / totalExpenseCategorySum) * 100);
-      return {
-        name,
-        value: val,
-        percentage,
-        color: EXPENSE_COLORS[name] || '#6B7280',
-      };
-    })
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 4);
 
   return (
     <div

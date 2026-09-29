@@ -13,16 +13,31 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
     return (
       <div className="flex flex-col gap-1.5 w-full text-left">
-        {label && <label htmlFor={inputId} className="eyebrow">{label}</label>}
+        {label && (
+          <label htmlFor={inputId} className="eyebrow">
+            {label}
+          </label>
+        )}
         <div className="relative flex items-center">
-          {leftIcon && <div className="absolute left-3.5 text-[var(--ink-3)] pointer-events-none flex items-center justify-center">{leftIcon}</div>}
-          <input id={inputId} ref={ref} className={`input ${leftIcon ? '!pl-10' : ''} ${rightIcon ? '!pr-10' : ''} ${error ? '!border-[var(--danger)] focus:!border-[var(--danger)]' : ''} ${className}`} {...props} />
-          {rightIcon && <div className="absolute right-3.5 text-[var(--ink-3)] flex items-center justify-center">{rightIcon}</div>}
+          {leftIcon && (
+            <div className="absolute left-3.5 text-[var(--ink-3)] pointer-events-none flex items-center justify-center">
+              {leftIcon}
+            </div>
+          )}
+          <input
+            id={inputId}
+            ref={ref}
+            className={`input ${leftIcon ? '!pl-10' : ''} ${rightIcon ? '!pr-10' : ''} ${error ? '!border-[var(--danger)] focus:!border-[var(--danger)]' : ''} ${className}`}
+            {...props}
+          />
+          {rightIcon && (
+            <div className="absolute right-3.5 text-[var(--ink-3)] flex items-center justify-center">{rightIcon}</div>
+          )}
         </div>
         {error && <p className="text-[11px] text-[var(--danger)]">{error}</p>}
         {helperText && !error && <p className="text-[11px] text-[var(--ink-3)]">{helperText}</p>}
       </div>
     );
-  }
+  },
 );
 Input.displayName = 'Input';

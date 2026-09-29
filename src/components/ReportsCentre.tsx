@@ -3,7 +3,6 @@ import type { Transaction, Income, Expense, Debt, CashAccount, BankCard, LoanGiv
 import { exportTransactionsToCSV, EXPENSE_COLORS } from '../utils';
 import { FileDown, Printer, BarChart3, PieChart, TrendingUp, Landmark, Search } from 'lucide-react';
 import { IncomeVsExpenseBar, CategorySpreadAnalysis, TrendAnalysisChart } from './Charts';
-import { DatePicker } from './DatePicker';
 import AuditPanel from './AuditPanel';
 
 interface ReportsCentreProps {

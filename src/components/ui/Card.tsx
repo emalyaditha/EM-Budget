@@ -1,5 +1,6 @@
 import React from 'react';
-import { motion, HTMLMotionProps } from 'motion/react';
+import type { HTMLMotionProps } from 'motion/react';
+import { motion } from 'motion/react';
 
 export interface CardProps extends HTMLMotionProps<'div'> {
   children: React.ReactNode;
@@ -9,17 +10,29 @@ export interface CardProps extends HTMLMotionProps<'div'> {
   hoverEffect?: boolean;
 }
 
-export function Card({ children, variant = 'default', padding = 'md', className = '', hoverEffect = false, ...props }: CardProps) {
+export function Card({
+  children,
+  variant = 'default',
+  padding = 'md',
+  className = '',
+  hoverEffect = false,
+  ...props
+}: CardProps) {
   const base = 'card overflow-hidden motion-reduce:transition-none';
-  const variants: Record<string,string> = {
+  const variants: Record<string, string> = {
     default: '',
     surface: 'bg-[var(--surface-2)]',
     outline: 'bg-transparent border-dashed',
     interactive: 'cursor-pointer hover:border-[var(--line-strong)]',
   };
-  const paddings: Record<string,string> = { none: 'p-0', sm: 'p-4', md: 'p-5 sm:p-6', lg: 'p-6 sm:p-8' };
+  const paddings: Record<string, string> = { none: 'p-0', sm: 'p-4', md: 'p-5 sm:p-6', lg: 'p-6 sm:p-8' };
   return (
-    <motion.div whileHover={hoverEffect ? { y: -1 } : undefined} transition={{ duration: 0.15 }} className={`${base} ${variants[variant]} ${paddings[padding]} ${className}`} {...props}>
+    <motion.div
+      whileHover={hoverEffect ? { y: -1 } : undefined}
+      transition={{ duration: 0.15 }}
+      className={`${base} ${variants[variant]} ${paddings[padding]} ${className}`}
+      {...props}
+    >
       {children}
     </motion.div>
   );

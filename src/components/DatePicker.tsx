@@ -13,8 +13,18 @@ interface DatePickerProps {
 }
 
 const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -72,7 +82,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         top: 0,
         left: 0,
         placement: 'bottom',
-        isMobile: true
+        isMobile: true,
       });
       return;
     }
@@ -84,7 +94,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     // Check vertical space
     const spaceBelow = height - triggerRect.bottom;
     const spaceAbove = triggerRect.top;
-    
+
     let placement: 'top' | 'bottom' = 'bottom';
     if (spaceBelow < calendarHeight && spaceAbove > spaceBelow) {
       placement = 'top';
@@ -109,7 +119,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       top,
       left,
       placement,
-      isMobile: false
+      isMobile: false,
     });
   };
 
@@ -117,7 +127,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   useEffect(() => {
     if (isOpen) {
       updatePosition();
-      
+
       // Secondary update immediately after paint to ensure correct size-based layout
       const timer = setTimeout(() => {
         updatePosition();
@@ -133,6 +143,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         window.removeEventListener('scroll', updatePosition, true);
       };
     }
+    // updatePosition closes over isOpen, which is already the effect trigger;
+    // re-running on its identity change would add no behavior.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Click outside to close handler (checks both input element container and the portal-rendered calendar)
@@ -157,7 +170,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
   // Create calendar cells (previous month padding + current month days + next month padding)
   const prevMonthDays = new Date(viewYear, viewMonth, 0).getDate();
-  
+
   const cells: { day: number; month: 'prev' | 'current' | 'next'; dateString: string }[] = [];
 
   // Padding from previous month
@@ -276,14 +289,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      <div 
-        className="relative flex items-center cursor-pointer"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-      >
-        <CalendarIcon 
-          size={iconSize} 
+      <div className="relative flex items-center cursor-pointer" onClick={() => !disabled && setIsOpen(!isOpen)}>
+        <CalendarIcon
+          size={iconSize}
           style={{ left: iconLeft }}
-          className="text-emerald-400 absolute top-1/2 -translate-y-1/2 pointer-events-none z-10" 
+          className="text-emerald-400 absolute top-1/2 -translate-y-1/2 pointer-events-none z-10"
         />
         <input
           type="text"
@@ -293,25 +303,154 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           required={required}
           disabled={disabled}
           className={`date-picker-input input cursor-pointer select-none ${paddingClasses} ${
-            error 
-              ? '!border-[var(--danger)] focus:!border-[var(--danger)]' 
-              : isOpen 
-              ? '!border-emerald-500 shadow-[0_0_0_3px_rgba(52,211,153,0.15)]' 
-              : ''
+            error
+              ? '!border-[var(--danger)] focus:!border-[var(--danger)]'
+              : isOpen
+                ? '!border-emerald-500 shadow-[0_0_0_3px_rgba(52,211,153,0.15)]'
+                : ''
           } ${className}`}
         />
       </div>
 
-      {isOpen && typeof document !== 'undefined' && createPortal(
-        coords.isMobile ? (
-          // Mobile Screen Center-Modal Layout (Clean Backdrop Overlay & Centered Focus)
-          <div 
-            className="fixed inset-0 bg-black/75 z-[9999] flex items-center justify-center p-4 backdrop-blur-xs animate-brand-fade-in"
-            onClick={() => setIsOpen(false)}
-          >
-            <div 
+      {isOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          coords.isMobile ? (
+            // Mobile Screen Center-Modal Layout (Clean Backdrop Overlay & Centered Focus)
+            <div
+              className="fixed inset-0 bg-black/75 z-[9999] flex items-center justify-center p-4 backdrop-blur-xs animate-brand-fade-in"
+              onClick={() => setIsOpen(false)}
+            >
+              <div
+                ref={calendarRef}
+                className="relative w-full max-w-sm bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 shadow-2xl flex flex-col justify-center select-none"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={handlePrevYear}
+                      title="Previous Year"
+                      className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
+                    >
+                      <ChevronsLeft size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrevMonth}
+                      title="Previous Month"
+                      className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                  </div>
+
+                  <div className="text-sm font-bold mono text-[var(--ink)] tracking-wide">
+                    {MONTH_NAMES[viewMonth]} {viewYear}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={handleNextMonth}
+                      title="Next Month"
+                      className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNextYear}
+                      title="Next Year"
+                      className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
+                    >
+                      <ChevronsRight size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Weekday labels */}
+                <div className="grid grid-cols-7 gap-1.5 mb-2">
+                  {WEEK_DAYS.map((day) => (
+                    <div key={day} className="eyebrow text-center py-1">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Day cells */}
+                <div className="grid grid-cols-7 gap-1.5">
+                  {cells.map((cell, index) => {
+                    const isSelected = cell.dateString === value;
+                    const isCurrentMonth = cell.month === 'current';
+
+                    return (
+                      <button
+                        key={`${cell.dateString}-${index}`}
+                        type="button"
+                        onClick={(e) => handleSelectDay(cell.dateString, e)}
+                        className={`aspect-square text-xs mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[var(--ink)] text-[var(--accent-fg)] font-bold shadow-md'
+                            : isCurrentMonth
+                              ? 'text-[var(--ink)] hover:bg-[var(--surface-2)]'
+                              : 'text-[var(--ink-3)] hover:bg-[var(--surface-2)]'
+                        }`}
+                      >
+                        {cell.day}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Quick Select Buttons */}
+                <div className="mt-4 pt-3.5 ledger-rule grid grid-cols-2 gap-3 pt-3.5 border-t border-[var(--line)]">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      handleSelectDay(todayStr, e);
+                    }}
+                    className="py-2 px-3 text-xs mono bg-[var(--surface-2)] hover:bg-[var(--surface)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-xl transition-colors cursor-pointer text-center font-medium border border-[var(--line)]"
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      const yesterday = new Date();
+                      yesterday.setDate(yesterday.getDate() - 1);
+                      const yesterdayStr = yesterday.toISOString().split('T')[0];
+                      handleSelectDay(yesterdayStr, e);
+                    }}
+                    className="py-2 px-3 text-xs mono bg-[var(--surface-2)] hover:bg-[var(--surface)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-xl transition-colors cursor-pointer text-center font-medium border border-[var(--line)]"
+                  >
+                    Yesterday
+                  </button>
+                </div>
+
+                {/* Mobile Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="mt-4 w-full py-2.5 bg-[var(--surface-2)] hover:bg-[var(--surface)] border border-[var(--line)] text-[var(--ink)] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                >
+                  Close Picker
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Desktop Screen Smart Positioned Fixed-Overlay Layout
+            <div
               ref={calendarRef}
-              className="relative w-full max-w-sm bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 shadow-2xl flex flex-col justify-center select-none"
+              style={{
+                position: 'fixed',
+                top: `${coords.top}px`,
+                left: `${coords.left}px`,
+              }}
+              className="z-[9999] w-72 bg-[var(--surface)]/95 backdrop-blur-md border border-[var(--line)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-4 select-none animate-brand-fade-up before:absolute before:top-0 before:left-6 before:right-6 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-[var(--ink)]/15 before:to-transparent"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -321,21 +460,21 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     type="button"
                     onClick={handlePrevYear}
                     title="Previous Year"
-                    className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
+                    className="p-1 hover:bg-[var(--surface-2)] rounded-md text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
                   >
-                    <ChevronsLeft size={18} />
+                    <ChevronsLeft size={15} />
                   </button>
                   <button
                     type="button"
                     onClick={handlePrevMonth}
                     title="Previous Month"
-                    className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
+                    className="p-1 hover:bg-[var(--surface-2)] rounded-md text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
                   >
-                    <ChevronLeft size={18} />
+                    <ChevronLeft size={15} />
                   </button>
                 </div>
-                
-                <div className="text-sm font-bold mono text-[var(--ink)] tracking-wide">
+
+                <div className="text-xs font-bold mono text-[var(--ink)] tracking-wide">
                   {MONTH_NAMES[viewMonth]} {viewYear}
                 </div>
 
@@ -344,23 +483,23 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     type="button"
                     onClick={handleNextMonth}
                     title="Next Month"
-                    className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
+                    className="p-1 hover:bg-[var(--surface-2)] rounded-md text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
                   >
-                    <ChevronRight size={18} />
+                    <ChevronRight size={15} />
                   </button>
                   <button
                     type="button"
                     onClick={handleNextYear}
                     title="Next Year"
-                    className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
+                    className="p-1 hover:bg-[var(--surface-2)] rounded-md text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
                   >
-                    <ChevronsRight size={18} />
+                    <ChevronsRight size={15} />
                   </button>
                 </div>
               </div>
 
               {/* Weekday labels */}
-              <div className="grid grid-cols-7 gap-1.5 mb-2">
+              <div className="grid grid-cols-7 gap-1 mb-2">
                 {WEEK_DAYS.map((day) => (
                   <div key={day} className="eyebrow text-center py-1">
                     {day}
@@ -369,22 +508,22 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               </div>
 
               {/* Day cells */}
-              <div className="grid grid-cols-7 gap-1.5">
+              <div className="grid grid-cols-7 gap-1">
                 {cells.map((cell, index) => {
                   const isSelected = cell.dateString === value;
                   const isCurrentMonth = cell.month === 'current';
-                  
+
                   return (
                     <button
                       key={`${cell.dateString}-${index}`}
                       type="button"
                       onClick={(e) => handleSelectDay(cell.dateString, e)}
-                      className={`aspect-square text-xs mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                      className={`aspect-square text-[11px] mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                         isSelected
                           ? 'bg-[var(--ink)] text-[var(--accent-fg)] font-bold shadow-md'
                           : isCurrentMonth
-                          ? 'text-[var(--ink)] hover:bg-[var(--surface-2)]'
-                          : 'text-[var(--ink-3)] hover:bg-[var(--surface-2)]'
+                            ? 'text-[var(--ink)] hover:bg-[var(--surface-2)]'
+                            : 'text-[var(--ink-3)] hover:bg-[var(--surface-2)]'
                       }`}
                     >
                       {cell.day}
@@ -394,14 +533,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               </div>
 
               {/* Quick Select Buttons */}
-              <div className="mt-4 pt-3.5 ledger-rule grid grid-cols-2 gap-3 pt-3.5 border-t border-[var(--line)]">
+              <div className="mt-3 pt-2.5 border-t border-[var(--line)] grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={(e) => {
                     const todayStr = new Date().toISOString().split('T')[0];
                     handleSelectDay(todayStr, e);
                   }}
-                  className="py-2 px-3 text-xs mono bg-[var(--surface-2)] hover:bg-[var(--surface)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-xl transition-colors cursor-pointer text-center font-medium border border-[var(--line)]"
+                  className="py-1 px-2 text-[10px] mono bg-[var(--surface-2)] hover:bg-[var(--surface)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-lg transition-colors cursor-pointer"
                 >
                   Today
                 </button>
@@ -413,142 +552,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     const yesterdayStr = yesterday.toISOString().split('T')[0];
                     handleSelectDay(yesterdayStr, e);
                   }}
-                  className="py-2 px-3 text-xs mono bg-[var(--surface-2)] hover:bg-[var(--surface)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-xl transition-colors cursor-pointer text-center font-medium border border-[var(--line)]"
+                  className="py-1 px-2 text-[10px] mono bg-[var(--surface-2)] hover:bg-[var(--surface)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-lg transition-colors cursor-pointer"
                 >
                   Yesterday
                 </button>
               </div>
-
-              {/* Mobile Close Button */}
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="mt-4 w-full py-2.5 bg-[var(--surface-2)] hover:bg-[var(--surface)] border border-[var(--line)] text-[var(--ink)] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-              >
-                Close Picker
-              </button>
             </div>
-          </div>
-        ) : (
-          // Desktop Screen Smart Positioned Fixed-Overlay Layout
-          <div 
-            ref={calendarRef}
-            style={{
-              position: 'fixed',
-              top: `${coords.top}px`,
-              left: `${coords.left}px`,
-            }}
-            className="z-[9999] w-72 bg-[var(--surface)]/95 backdrop-blur-md border border-[var(--line)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] p-4 select-none animate-brand-fade-up before:absolute before:top-0 before:left-6 before:right-6 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-[var(--ink)]/15 before:to-transparent"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handlePrevYear}
-                  title="Previous Year"
-                  className="p-1 hover:bg-[var(--surface-2)] rounded-md text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
-                >
-                  <ChevronsLeft size={15} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePrevMonth}
-                  title="Previous Month"
-                  className="p-1 hover:bg-[var(--surface-2)] rounded-md text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
-                >
-                  <ChevronLeft size={15} />
-                </button>
-              </div>
-
-              <div className="text-xs font-bold mono text-[var(--ink)] tracking-wide">
-                {MONTH_NAMES[viewMonth]} {viewYear}
-              </div>
-
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handleNextMonth}
-                  title="Next Month"
-                  className="p-1 hover:bg-[var(--surface-2)] rounded-md text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
-                >
-                  <ChevronRight size={15} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleNextYear}
-                  title="Next Year"
-                  className="p-1 hover:bg-[var(--surface-2)] rounded-md text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors cursor-pointer"
-                >
-                  <ChevronsRight size={15} />
-                </button>
-              </div>
-            </div>
-
-            {/* Weekday labels */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {WEEK_DAYS.map((day) => (
-                <div key={day} className="eyebrow text-center py-1">
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            {/* Day cells */}
-            <div className="grid grid-cols-7 gap-1">
-              {cells.map((cell, index) => {
-                const isSelected = cell.dateString === value;
-                const isCurrentMonth = cell.month === 'current';
-                
-                return (
-                  <button
-                    key={`${cell.dateString}-${index}`}
-                    type="button"
-                    onClick={(e) => handleSelectDay(cell.dateString, e)}
-                    className={`aspect-square text-[11px] mono rounded-lg flex items-center justify-center transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-[var(--ink)] text-[var(--accent-fg)] font-bold shadow-md'
-                        : isCurrentMonth
-                        ? 'text-[var(--ink)] hover:bg-[var(--surface-2)]'
-                        : 'text-[var(--ink-3)] hover:bg-[var(--surface-2)]'
-                    }`}
-                  >
-                    {cell.day}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Quick Select Buttons */}
-            <div className="mt-3 pt-2.5 border-t border-[var(--line)] grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  const todayStr = new Date().toISOString().split('T')[0];
-                  handleSelectDay(todayStr, e);
-                }}
-                className="py-1 px-2 text-[10px] mono bg-[var(--surface-2)] hover:bg-[var(--surface)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-lg transition-colors cursor-pointer"
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  const yesterday = new Date();
-                  yesterday.setDate(yesterday.getDate() - 1);
-                  const yesterdayStr = yesterday.toISOString().split('T')[0];
-                  handleSelectDay(yesterdayStr, e);
-                }}
-                className="py-1 px-2 text-[10px] mono bg-[var(--surface-2)] hover:bg-[var(--surface)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-lg transition-colors cursor-pointer"
-              >
-                Yesterday
-              </button>
-            </div>
-          </div>
-        ),
-        document.body
-      )}
+          ),
+          document.body,
+        )}
     </div>
   );
 };

@@ -3,7 +3,6 @@ import { motion } from 'motion/react';
 import type { CashAccount, BankCard, Subscription, CategoryExpense } from '../types';
 import { Plus, Trash2, Calendar, CreditCard, Play, Pause, CheckCircle2, Clock, DollarSign } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
 
 interface SubscriptionManagementProps {

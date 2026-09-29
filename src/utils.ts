@@ -108,6 +108,7 @@ export function generateUniqueId(prefix = ''): string {
 // Download state as backup JSON file
 export function exportStateAsJSON(state: AppState, userEmail?: string) {
   // Strip sensitive security PIN from exports
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured solely to omit it from sanitizedState
   const { pinCode, ...sanitizedState } = state;
   const payload = {
     version: 'EM_BUDGET_SECURE_EX_V1',
@@ -115,9 +116,9 @@ export function exportStateAsJSON(state: AppState, userEmail?: string) {
     exportedAt: new Date().toISOString(),
     data: sanitizedState,
   };
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(payload, null, 2));
   const downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute('href', dataStr);
   const stamp = new Date().toISOString().split('T')[0];
   const emailPrefix = userEmail ? `${userEmail.split('@')[0]}_` : '';
   downloadBlob(

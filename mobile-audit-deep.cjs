@@ -27,7 +27,13 @@ const VIEWS = [
     const mint = await mintResp.json().catch(() => ({}));
     if (mint.success && mint.token) {
       await page.context().addCookies([
-        { name: 'session_token', value: mint.token, url: 'http://localhost:3000', httpOnly: true, sameSite: 'Strict' },
+        {
+          name: 'session_token',
+          value: mint.token,
+          url: 'http://localhost:3000',
+          httpOnly: true,
+          sameSite: 'Strict',
+        },
       ]);
       minted = true;
       console.log('SESSION MINTED for', email);
@@ -82,7 +88,9 @@ const VIEWS = [
             // Horizontal offenders (visible elements only)
             if (issues.overflow && (r.right > vw + 1 || r.left < -1)) {
               const cls = String(el.className || '').slice(0, 70);
-              issues.offscreen.push(`${el.tagName.toLowerCase()}.${cls} left=${Math.round(r.left)} right=${Math.round(r.right)}`);
+              issues.offscreen.push(
+                `${el.tagName.toLowerCase()}.${cls} left=${Math.round(r.left)} right=${Math.round(r.right)}`,
+              );
             }
 
             // Touch targets: interactive elements smaller than 40x40 (iOS/Android minimum ~44/48)
@@ -92,7 +100,10 @@ const VIEWS = [
               tag === 'a' ||
               tag === 'select' ||
               tag === 'input' ||
-              (tag === 'div' && (el.getAttribute('onclick') || el.getAttribute('role') === 'button' || el.getAttribute('tabindex') !== null));
+              (tag === 'div' &&
+                (el.getAttribute('onclick') ||
+                  el.getAttribute('role') === 'button' ||
+                  el.getAttribute('tabindex') !== null));
             if (isInteractive) {
               const w = Math.max(r.width, parseFloat(cs.minWidth) || 0);
               const h = Math.max(r.height, parseFloat(cs.minHeight) || 0);
@@ -140,7 +151,9 @@ const VIEWS = [
   const overflowCount = bad;
   const touchIssues = results.reduce((s, r) => s + r.smallTouchCount, 0);
   const textIssues = results.reduce((s, r) => s + r.tinyTextCount, 0);
-  console.log(`\nSUMMARY: ${overflowCount} overflow combos, ${touchIssues} small touch targets, ${textIssues} tiny text nodes`);
+  console.log(
+    `\nSUMMARY: ${overflowCount} overflow combos, ${touchIssues} small touch targets, ${textIssues} tiny text nodes`,
+  );
 
   await browser.close();
   process.exit(overflowCount === 0 ? 0 : 2);

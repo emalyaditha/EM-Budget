@@ -1,5 +1,5 @@
 import React from 'react';
-import { BankCard, CashAccount } from '../../types';
+import type { BankCard, CashAccount } from '../../types';
 import { Wallet, Plus, Trash2, Edit } from 'lucide-react';
 
 interface CashCardListProps {
@@ -22,7 +22,7 @@ export function CashCardList({
   onAddCardClick,
   onEditCashAccount,
   onDeleteCashAccount,
-  renderInteractiveCard
+  renderInteractiveCard,
 }: CashCardListProps) {
   return (
     <div className="space-y-8">
@@ -49,7 +49,7 @@ export function CashCardList({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {cashAccounts.map((account) => (
-              <div 
+              <div
                 key={account.id}
                 className="card p-5 flex flex-col justify-between h-36 hover:border-[var(--line-strong)]"
               >
@@ -91,7 +91,8 @@ export function CashCardList({
                   <div className="ledger-rule mb-2" />
                   <span className="eyebrow block">Vault Balance</span>
                   <p className="text-xl font-bold mono text-[var(--ink)] mt-0.5">
-                    {currency}{account.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    {currency}
+                    {account.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>

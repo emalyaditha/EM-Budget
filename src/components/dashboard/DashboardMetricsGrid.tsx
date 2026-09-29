@@ -97,14 +97,20 @@ export function DashboardMetricsGrid({
                   <div className="grid grid-cols-3 gap-2 min-w-0">
                     <div className="min-w-0">
                       <p className="eyebrow">Target</p>
-                      <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)] truncate" title={`${currency}${g.target.toLocaleString()}`}>
+                      <p
+                        className="mono text-[11px] font-bold tabular-nums text-[var(--ink)] truncate"
+                        title={`${currency}${g.target.toLocaleString()}`}
+                      >
                         {currency}
                         {g.target.toLocaleString()}
                       </p>
                     </div>
                     <div className="min-w-0">
                       <p className="eyebrow">Saved</p>
-                      <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)] truncate" title={`${currency}${g.current.toLocaleString()}`}>
+                      <p
+                        className="mono text-[11px] font-bold tabular-nums text-[var(--ink)] truncate"
+                        title={`${currency}${g.current.toLocaleString()}`}
+                      >
                         {currency}
                         {g.current.toLocaleString()}
                       </p>

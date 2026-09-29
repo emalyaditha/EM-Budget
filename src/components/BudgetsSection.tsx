@@ -367,7 +367,10 @@ export default function BudgetsSection({
                   <div className="grid grid-cols-3 gap-2 min-w-0">
                     <div className="min-w-0">
                       <p className="eyebrow !tracking-[0.12em]">Limit</p>
-                      <p className="mono text-[11px] font-bold mt-1 leading-none truncate tabular-nums" title={`${currency}${budget.limit.toLocaleString()}`}>
+                      <p
+                        className="mono text-[11px] font-bold mt-1 leading-none truncate tabular-nums"
+                        title={`${currency}${budget.limit.toLocaleString()}`}
+                      >
                         {currency}
                         {budget.limit.toLocaleString()}
                       </p>

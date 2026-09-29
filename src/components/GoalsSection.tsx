@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { SavingsGoal, CashAccount } from '../types';
 import { Plus, X, Trash2, MinusCircle, PlusCircle } from 'lucide-react';
-import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
 
 interface GoalsSectionProps {
@@ -277,14 +276,20 @@ export default function GoalsSection({
                   <div className="grid grid-cols-3 gap-2 min-w-0">
                     <div className="min-w-0">
                       <p className="eyebrow !tracking-[0.12em]">Target</p>
-                      <p className="mono text-[11px] font-bold mt-1 leading-none truncate tabular-nums" title={`${currency}${goal.target.toLocaleString()}`}>
+                      <p
+                        className="mono text-[11px] font-bold mt-1 leading-none truncate tabular-nums"
+                        title={`${currency}${goal.target.toLocaleString()}`}
+                      >
                         {currency}
                         {goal.target.toLocaleString()}
                       </p>
                     </div>
                     <div className="min-w-0">
                       <p className="eyebrow !tracking-[0.12em]">Saved</p>
-                      <p className="mono text-[11px] font-bold mt-1 leading-none truncate tabular-nums" title={`${currency}${goal.current.toLocaleString()}`}>
+                      <p
+                        className="mono text-[11px] font-bold mt-1 leading-none truncate tabular-nums"
+                        title={`${currency}${goal.current.toLocaleString()}`}
+                      >
                         {currency}
                         {goal.current.toLocaleString()}
                       </p>

@@ -13,7 +13,6 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { DatePicker } from './DatePicker';
 import { todayLocal } from '../utils';
 
 interface LoansTrackerProps {

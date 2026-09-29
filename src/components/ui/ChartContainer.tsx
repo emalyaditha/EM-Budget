@@ -10,7 +10,14 @@ export interface ChartContainerProps {
   className?: string;
 }
 
-export function ChartContainer({ title, subtitle, children, action, height = 300, className = '' }: ChartContainerProps) {
+export function ChartContainer({
+  title,
+  subtitle,
+  children,
+  action,
+  height = 300,
+  className = '',
+}: ChartContainerProps) {
   return (
     <Card className={`flex flex-col ${className}`}>
       <div className="flex items-center justify-between pb-3">
@@ -21,7 +28,9 @@ export function ChartContainer({ title, subtitle, children, action, height = 300
         {action && <div>{action}</div>}
       </div>
       <div className="ledger-rule mb-4" />
-      <div className="flex-1 w-full" style={{ minHeight: height }}>{children}</div>
+      <div className="flex-1 w-full" style={{ minHeight: height }}>
+        {children}
+      </div>
     </Card>
   );
 }
