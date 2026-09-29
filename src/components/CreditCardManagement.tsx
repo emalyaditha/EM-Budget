@@ -22,6 +22,7 @@ import {
   ChevronUp,
   Repeat,
   CheckCircle2,
+  Percent,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { DatePicker } from './DatePicker';
@@ -65,6 +66,22 @@ function calculateInterest(balance: number, apr: number, days: number): number {
   if (balance >= 0 || apr <= 0) return 0;
   const dailyRate = apr / 100 / 365;
   return Math.abs(balance) * dailyRate * days;
+}
+
+/** Short badge label + tone for a card charge type (cut-off fee taxonomy). */
+function chargeBadge(t: string): { label: string; tone: string } {
+  switch (t) {
+    case 'Interest Charge':
+      return { label: 'Interest', tone: 'text-amber-500 border-amber-500/40 bg-amber-500/10' };
+    case 'Late Payment Fee':
+      return { label: 'Late fee', tone: 'text-[var(--danger)] border-[var(--danger)]/40 bg-[var(--danger)]/10' };
+    case 'Over-Limit Fee':
+      return { label: 'Over-limit', tone: 'text-orange-400 border-orange-400/40 bg-orange-400/10' };
+    case 'Annual Fee':
+      return { label: 'Annual', tone: 'text-[var(--ink-2)] border-[var(--line)] bg-[var(--surface-2)]' };
+    default:
+      return { label: 'Other', tone: 'text-[var(--ink-2)] border-[var(--line)] bg-[var(--surface-2)]' };
+  }
 }
 
 export default function CreditCardManagement({
@@ -244,9 +261,33 @@ export default function CreditCardManagement({
   };
 
   const getCardPayments = (cardId: string) => {
+    // Every payment INTO this card: matched structurally on targetAccountId so
+    // card renames can't orphan history. The legacy title prefix is kept as a
+    // fallback for older records predating targetAccountId. Installment
+    // payments are included via their referenceId (pay-<installmentId>...).
+    const installmentIds = new Set(creditCardInstallments.filter((i) => i.cardId === cardId).map((i) => i.id));
+    return transactions
+      .filter((t) => {
+        if (t.type !== 'debt_payment') return false;
+        if (t.targetAccountId === cardId && t.targetAccountType === 'card') return true;
+        const legacyCard = creditCards.find((c) => c.id === cardId);
+        if (legacyCard && t.title === `Credit Card Settlement: ${legacyCard.cardName}`) return true;
+        return !!(t.referenceId && installmentIds.has(t.referenceId.replace(/^pay-/, '').split('-')[0]));
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  // Cut-offs & charges for this card: interest cuts, late payment fees,
+  // over-limit and annual fees recorded as credit_card_charge transactions.
+  // Matched on accountId (structural) with a title fallback for legacy rows.
+  const getCardCharges = (cardId: string) => {
     const card = creditCards.find((c) => c.id === cardId);
     return transactions
-      .filter((t) => t.type === 'debt_payment' && !!card && t.title === `Credit Card Settlement: ${card.cardName}`)
+      .filter((t) => {
+        if (t.type !== 'credit_card_charge') return false;
+        if (t.accountId === cardId) return true;
+        return !!card && t.title.startsWith(`Credit Card Charge: `) && t.title.includes(card.cardName);
+      })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
@@ -283,6 +324,13 @@ export default function CreditCardManagement({
               const monthlyInterest = calculateInterest(c.currentBalance, c.apr || 0, 30);
               const cardPurchases = getCardPurchases(c.id);
               const cardPayments = getCardPayments(c.id);
+              const cardCharges = getCardCharges(c.id);
+              const interestTotal = cardCharges
+                .filter((t) => t.title.includes('Interest'))
+                .reduce((s, t) => s + Math.abs(t.amount), 0);
+              const lateTotal = cardCharges
+                .filter((t) => t.title.includes('Late Payment'))
+                .reduce((s, t) => s + Math.abs(t.amount), 0);
               const minSatisfied = isMinimumSatisfied(c, transactions);
 
               return (
@@ -582,7 +630,7 @@ export default function CreditCardManagement({
                     )}
                   </div>
 
-                  {/* Purchase & Payment History Toggle */}
+                  {/* Purchase / Payment / Cut-off History Toggles */}
                   <div className="flex gap-2 pt-2 border-t border-[var(--line)]">
                     <button
                       onClick={() => setShowHistory((p) => ({ ...p, [`${c.id}-purchases`]: !p[`${c.id}-purchases`] }))}
@@ -597,6 +645,15 @@ export default function CreditCardManagement({
                     >
                       <ArrowUpRight size={10} /> Payments ({cardPayments.length})
                       {showHistory[`${c.id}-payments`] ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                    </button>
+                    <button
+                      onClick={() => setShowHistory((p) => ({ ...p, [`${c.id}-charges`]: !p[`${c.id}-charges`] }))}
+                      className={`btn-ghost !text-[10px] flex items-center gap-1 flex-1 ${
+                        cardCharges.length > 0 ? '!border-amber-500/40 !text-amber-500' : ''
+                      }`}
+                    >
+                      <Percent size={10} /> Cut-offs ({cardCharges.length})
+                      {showHistory[`${c.id}-charges`] ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                     </button>
                   </div>
 
@@ -653,6 +710,78 @@ export default function CreditCardManagement({
                           );
                         })
                       )}
+                    </div>
+                  )}
+
+                  {/* Cut-offs & Charges: interest cuts, late payment fees, over-limit, annual */}
+                  {showHistory[`${c.id}-charges`] && (
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto scrollbar-none">
+                      {cardCharges.length === 0 ? (
+                        <p className="text-[11px] text-[var(--ink-3)] text-center py-2">
+                          No interest cuts or late fees on this card
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="p-2 rounded-lg border border-amber-500/40 bg-amber-500/10">
+                            <span className="eyebrow normal-case !text-[9px] flex items-center gap-1">
+                              <Percent size={9} /> Interest cuts
+                            </span>
+                            <span className="mono text-[12px] font-bold text-amber-500">
+                              {currency}
+                              {interestTotal.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="p-2 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/10">
+                            <span className="eyebrow normal-case !text-[9px] flex items-center gap-1">
+                              <AlertTriangle size={9} /> Late fees
+                            </span>
+                            <span className="mono text-[12px] font-bold text-[var(--danger)]">
+                              {currency}
+                              {lateTotal.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {cardCharges.map((t) => {
+                        const badge = chargeBadge(
+                          t.title.includes('Interest')
+                            ? 'Interest Charge'
+                            : t.title.includes('Late Payment')
+                              ? 'Late Payment Fee'
+                              : t.title.includes('Over-Limit')
+                                ? 'Over-Limit Fee'
+                                : t.title.includes('Annual')
+                                  ? 'Annual Fee'
+                                  : 'Custom Charge',
+                        );
+                        return (
+                          <div
+                            key={t.id}
+                            className="flex items-center justify-between py-1.5 px-2 rounded bg-[var(--surface)] text-[11px]"
+                          >
+                            <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                              <span
+                                className={`text-[9px] mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${badge.tone}`}
+                              >
+                                {badge.label}
+                              </span>
+                              <div className="min-w-0">
+                                <span className="font-medium text-[var(--ink)] block truncate">{t.title}</span>
+                                {t.category && (
+                                  <span className="text-[var(--ink-3)] text-[10px] block truncate">{t.category}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0 ml-2">
+                              <span className="mono font-bold text-[var(--danger)]">
+                                +{currency}
+                                {Math.abs(t.amount).toFixed(2)}
+                              </span>
+                              <span className="block text-[10px] text-[var(--ink-3)]">{t.date}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 

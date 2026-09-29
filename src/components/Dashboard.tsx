@@ -456,7 +456,7 @@ export default function Dashboard({
             </div>
             <button
               onClick={() => setActiveTab('reports')}
-              className="text-xs font-medium text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+              className="text-xs font-medium text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors py-2 px-1 -my-2"
             >
               See all →
             </button>
@@ -593,7 +593,7 @@ export default function Dashboard({
             </div>
             <button
               onClick={() => setActiveTab('inflow_outflow')}
-              className="text-xs font-medium text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors"
+              className="text-xs font-medium text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors py-2 px-1 -my-2"
             >
               Configure →
             </button>

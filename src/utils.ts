@@ -23,20 +23,33 @@ export function todayLocal(): string {
 }
 
 const STORAGE_KEY = 'cashflow_manager_state_v1';
+const STORAGE_OWNER_KEY = 'cashflow_manager_state_owner_v1';
 
-// Synchronize state with offline-first client-side storage
-export function saveStateToStorage(state: AppState) {
+// Synchronize state with offline-first client-side storage. The mirror is
+// tagged with the owning account so a shared device never paints one user's
+// ledger for another (the boot fast-path reads this mirror before the cloud
+// sync completes, so the owner check must be enforced here).
+export function saveStateToStorage(state: AppState, ownerEmail?: string) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (ownerEmail) localStorage.setItem(STORAGE_OWNER_KEY, ownerEmail.trim().toLowerCase());
   } catch (error) {
     logger.error('Failed to preserve financial state offline:', error);
   }
 }
 
-export function loadStateFromStorage(defaultState: AppState): AppState {
+export function loadStateFromStorage(defaultState: AppState, ownerEmail?: string): AppState {
   try {
     const serialized = localStorage.getItem(STORAGE_KEY);
     if (!serialized) return defaultState;
+    // Owner guard: a mirror written by a different account must not be shown
+    // for this user. Drop it instead of revealing another user's data.
+    const owner = (localStorage.getItem(STORAGE_OWNER_KEY) || '').trim().toLowerCase();
+    if (ownerEmail && owner && owner !== ownerEmail.trim().toLowerCase()) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_OWNER_KEY);
+      return defaultState;
+    }
     const parsed = JSON.parse(serialized);
 
     // Check if the persisted data is the old default seed test data (containing specific seed IDs)

@@ -248,7 +248,7 @@ export function CategorySpreadAnalysis({
           </svg>
           <div className="absolute inset-0 grid place-items-center text-center pointer-events-none">
             <div>
-              <p className="eyebrow !text-[8px]">Total</p>
+              <p className="eyebrow">Total</p>
               <p className="mono text-[15px] font-bold tracking-tight">
                 {currency}
                 {total.toLocaleString(undefined, { maximumFractionDigits: 0 })}

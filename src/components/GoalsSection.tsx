@@ -274,23 +274,23 @@ export default function GoalsSection({
                   </div>
 
                   {/* 3 cols — Target / Saved / Deadline (mono 11px) */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <p className="eyebrow !text-[8px] !tracking-[0.12em]">Target</p>
-                      <p className="mono text-[11px] font-bold mt-1 leading-none">
+                  <div className="grid grid-cols-3 gap-2 min-w-0">
+                    <div className="min-w-0">
+                      <p className="eyebrow !tracking-[0.12em]">Target</p>
+                      <p className="mono text-[11px] font-bold mt-1 leading-none truncate tabular-nums" title={`${currency}${goal.target.toLocaleString()}`}>
                         {currency}
                         {goal.target.toLocaleString()}
                       </p>
                     </div>
-                    <div>
-                      <p className="eyebrow !text-[8px] !tracking-[0.12em]">Saved</p>
-                      <p className="mono text-[11px] font-bold mt-1 leading-none">
+                    <div className="min-w-0">
+                      <p className="eyebrow !tracking-[0.12em]">Saved</p>
+                      <p className="mono text-[11px] font-bold mt-1 leading-none truncate tabular-nums" title={`${currency}${goal.current.toLocaleString()}`}>
                         {currency}
                         {goal.current.toLocaleString()}
                       </p>
                     </div>
                     <div>
-                      <p className="eyebrow !text-[8px] !tracking-[0.12em]">Deadline</p>
+                      <p className="eyebrow !tracking-[0.12em]">Deadline</p>
                       <p className="mono text-[11px] font-bold mt-1 leading-none">{formatFecha(goal.targetDate)}</p>
                     </div>
                   </div>

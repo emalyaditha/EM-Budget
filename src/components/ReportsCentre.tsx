@@ -223,29 +223,35 @@ export default function ReportsCentre({
             <div className="gradient-card p-6 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
               <p className="eyebrow !text-white/60">Executive summary</p>
               <p className="eyebrow !text-white/40 !text-[9px] mt-1">Period net surplus</p>
-              <h2 className="mono text-[28px] font-extrabold tracking-tight mt-1 text-white tabular-nums">
+              <h2 className="mono text-[28px] font-extrabold tracking-tight mt-1 text-white tabular-nums break-all">
                 {currency}
                 {netSavings.toLocaleString()}
               </h2>
               <p className="text-[12px] leading-relaxed mt-2 text-white/60">
                 Inflows minus outflows and debt paydowns for selected period.
               </p>
-              <div className="grid grid-cols-3 gap-3 mt-5 relative z-10">
-                <div className="rounded-[12px] p-3 bg-white/10 border border-white/10 text-center">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-3 mt-5 relative z-10">
+                <div className="rounded-[12px] p-3 bg-white/10 border border-white/10 text-center min-w-0">
                   <p className="eyebrow !text-white/60 !text-[9px]">Collected</p>
-                  <p className="mono text-[12px] font-bold mt-1 text-white">
+                  <p
+                    className="mono text-[12px] font-bold mt-1 text-white truncate tabular-nums"
+                    title={`+${currency}${totalIncome.toLocaleString()}`}
+                  >
                     +{currency}
                     {totalIncome.toLocaleString()}
                   </p>
                 </div>
-                <div className="rounded-[12px] p-3 bg-white/10 border border-white/10 text-center">
+                <div className="rounded-[12px] p-3 bg-white/10 border border-white/10 text-center min-w-0">
                   <p className="eyebrow !text-white/60 !text-[9px]">Settled</p>
-                  <p className="mono text-[12px] font-bold mt-1 text-white">
+                  <p
+                    className="mono text-[12px] font-bold mt-1 text-white truncate tabular-nums"
+                    title={`-${currency}${totalExpense.toLocaleString()}`}
+                  >
                     -{currency}
                     {totalExpense.toLocaleString()}
                   </p>
                 </div>
-                <div className="rounded-[12px] p-3 bg-white/10 border border-white/10 text-center">
+                <div className="rounded-[12px] p-3 bg-white/10 border border-white/10 text-center min-w-0">
                   <p className="eyebrow !text-white/60 !text-[9px]">Surplus</p>
                   <p className="mono text-[12px] font-bold mt-1 text-white">
                     {savingsRate > 0 ? `+${savingsRate}%` : `${savingsRate}%`}
@@ -366,7 +372,7 @@ export default function ReportsCentre({
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="input !py-2.5 text-[12px]"
+                  className="input !py-3 text-[12px]"
                 >
                   <option value="all">All</option>
                   <option value="income">Incomes</option>
@@ -382,7 +388,7 @@ export default function ReportsCentre({
                 <select
                   value={filterAccount}
                   onChange={(e) => setFilterAccount(e.target.value)}
-                  className="input !py-2.5 text-[12px]"
+                  className="input !py-3 text-[12px]"
                 >
                   <option value="all">All wallets/cards</option>
                   {cashAccounts.map((c) => (

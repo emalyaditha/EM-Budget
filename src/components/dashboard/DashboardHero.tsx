@@ -135,7 +135,7 @@ export function DashboardHero({
         {/* Net worth for context beside the Liquid cash headline */}
         <div className="flex items-center justify-center gap-2 w-full max-w-[280px]">
           <div className="rounded-[12px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-center space-y-0.5 flex-1">
-            <p className="eyebrow !text-[8px]">Net worth</p>
+            <p className="eyebrow">Net worth</p>
             <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
               {currency}
               {aggregateActiveWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -200,7 +200,7 @@ export function DashboardHero({
           <button
             type="button"
             onClick={onViewTransactions}
-            className="w-7 h-7 rounded-full bg-white/10 border border-white/15 grid place-items-center text-white/80 hover:bg-white/15 transition-colors"
+            className="w-9 h-9 rounded-full bg-white/10 border border-white/15 grid place-items-center text-white/80 hover:bg-white/15 transition-colors"
           >
             <Eye size={12} />
           </button>

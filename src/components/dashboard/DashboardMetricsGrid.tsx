@@ -94,23 +94,23 @@ export function DashboardMetricsGrid({
                   <div className="h-2 rounded-full bg-[var(--surface-3)] overflow-hidden">
                     <div className="h-full mw-progress" style={{ width: pct + '%' }} />
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <p className="eyebrow !text-[8px]">Target</p>
-                      <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
+                  <div className="grid grid-cols-3 gap-2 min-w-0">
+                    <div className="min-w-0">
+                      <p className="eyebrow">Target</p>
+                      <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)] truncate" title={`${currency}${g.target.toLocaleString()}`}>
                         {currency}
                         {g.target.toLocaleString()}
                       </p>
                     </div>
-                    <div>
-                      <p className="eyebrow !text-[8px]">Saved</p>
-                      <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
+                    <div className="min-w-0">
+                      <p className="eyebrow">Saved</p>
+                      <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)] truncate" title={`${currency}${g.current.toLocaleString()}`}>
                         {currency}
                         {g.current.toLocaleString()}
                       </p>
                     </div>
-                    <div>
-                      <p className="eyebrow !text-[8px]">Progress</p>
+                    <div className="min-w-0">
+                      <p className="eyebrow">Progress</p>
                       <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">{pct}%</p>
                     </div>
                   </div>
@@ -122,7 +122,7 @@ export function DashboardMetricsGrid({
         <button
           type="button"
           onClick={handleNavigate}
-          className="w-full text-center mono text-[11px] font-medium text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors py-1"
+          className="w-full text-center mono text-[11px] font-medium text-[var(--ink-2)] hover:text-[var(--ink)] transition-colors py-2"
         >
           View all goals →
         </button>

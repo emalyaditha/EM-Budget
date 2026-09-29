@@ -172,6 +172,60 @@ function sanitizeImportedList(value: unknown): { records: Record<string, unknown
   return { records, dropped };
 }
 
+// Boot dedupe: React 18 StrictMode double-invokes effects in development,
+// which used to fire the whole verify-session → sync chain twice on every
+// cold load (visible as duplicate API calls and doubled boot latency).
+let bootChainStarted = false;
+
+// Set while background hydration is in flight; updateState flips it so the
+// hydration result is merged instead of replacing the user's in-flight edits.
+// Without this flag the cloud snapshot replaces local state wholesale, which
+// keeps deletion propagation intact for the common (no-edit) case.
+const hydrationInFlight: { current: boolean; edited: boolean } = { current: false, edited: false };
+
+// Union-merge cloud data into the current local state. Used when the app
+// unlocked from the local mirror (fast paint) and the background hydration
+// lands afterwards: edits made during the hydration window are preserved by
+// unioning collections by id instead of letting the cloud snapshot replace
+// them wholesale. Scalars prefer cloud, except currency where the user's
+// pending local change wins.
+function mergeCloudIntoLocal(cloud: AppState, local: AppState): AppState {
+  const union = <T extends { id: string }>(cloudArr: T[] | undefined, localArr: T[] | undefined): T[] => {
+    const byId = new Map<string, T>();
+    for (const item of [...(localArr || []), ...(cloudArr || [])]) {
+      if (item && item.id && !byId.has(item.id)) byId.set(item.id, item);
+    }
+    return Array.from(byId.values());
+  };
+  return {
+    ...local,
+    ...cloud,
+    cards: union(cloud.cards as { id: string }[], local.cards as { id: string }[]) as AppState['cards'],
+    cashAccounts: union(
+      cloud.cashAccounts as { id: string }[],
+      local.cashAccounts as { id: string }[],
+    ) as AppState['cashAccounts'],
+    transactions: union(cloud.transactions, local.transactions),
+    creditCardPurchases: union(cloud.creditCardPurchases, local.creditCardPurchases),
+    debts: union(cloud.debts, local.debts),
+    incomes: union(cloud.incomes, local.incomes),
+    expenses: union(cloud.expenses, local.expenses),
+    notifications: union(cloud.notifications, local.notifications),
+    subscriptions: union(cloud.subscriptions, local.subscriptions),
+    loansGiven: union(cloud.loansGiven, local.loansGiven),
+    budgets: union(cloud.budgets, local.budgets),
+    savingsGoals: union(cloud.savingsGoals, local.savingsGoals),
+    creditCardInstallments: union(cloud.creditCardInstallments, local.creditCardInstallments),
+    creditCardInstallmentPayments: union(cloud.creditCardInstallmentPayments, local.creditCardInstallmentPayments),
+    currency: local.currency || cloud.currency,
+    userProfile: {
+      ...(local.userProfile || cloud.userProfile),
+      ...(cloud.userProfile || {}),
+      email: local.userProfile?.email || cloud.userProfile?.email,
+    },
+  };
+}
+
 export default function App() {
   const { showConfirm, showToast } = useNotifications();
   const { theme, toggleTheme } = useTheme();
@@ -387,6 +441,9 @@ export default function App() {
 
   // Verify remembered device on mount
   useEffect(() => {
+    // StrictMode double-mounts effects in dev — run the boot chain once.
+    if (bootChainStarted) return;
+    bootChainStarted = true;
     const verifyDevice = async () => {
       // Load system-provided environments on mount to ensure fresh configuration matches backend
       try {
@@ -415,40 +472,66 @@ export default function App() {
           authSession.setEmail(email);
           setUserEmail(email);
 
-          // Ensure Supabase config is available before sync.
-          await ensureSupabaseConfigFromBackend();
-
-          // Run the three heavy async operations in parallel — they are
-          // independent of each other and all depend only on the verified
-          // session.  Each has its own timeout; the global deadline above
-          // prevents the whole block from exceeding ~12 s.
-          const syncPromise = syncStateFromSupabase(email);
-          const subsPromise = refreshSubscriptionsFromBackend(email, activeToken);
-          const lockPromise = determineAppLock(email);
-
-          const [result, backendSubs] = await Promise.all([syncPromise, subsPromise]);
-
-          if (result.success && result.state) {
-            setState(migrateStateCards(result.state));
-          } else {
-            // Supabase unavailable or returned no state — fall back to the
-            // local mirror so recent offline edits are not dropped. It will
-            // be pushed up by the next successful background sync.
-            const localState = loadStateFromStorage(DEFAULT_APP_STATE);
-            if (localState.transactions.length > 0 || (localState.cashAccounts || []).length > 0) {
-              setState(migrateStateCards(localState));
-            }
+          // FAST PAINT: unlock immediately using the local mirror instead of
+          // waiting for the full cloud round-trip (verify-session → 14-table
+          // pull with retry backoff routinely took 10s+ on slow links). The
+          // sync safety guard (isEmailLoadedFromCloud) still blocks auto-push
+          // until a pull succeeds, so painting early cannot clobber cloud data.
+          const localState = migrateStateCards(loadStateFromStorage(DEFAULT_APP_STATE, email));
+          if (localState.transactions.length > 0 || (localState.cashAccounts || []).length > 0) {
+            setState(localState);
           }
-          if (backendSubs && backendSubs.length > 0) {
-            setState((prev) => ({ ...prev, subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs) }));
-          }
-
-          // determineAppLock already ran in parallel — its side effects
-          // (setIsAppLocked) are safe to apply now.
-          await lockPromise;
-
           setIsUnlocked(true);
+          setIsCheckingAuth(false);
           setIsAppLockInit(false);
+
+          // BACKGROUND HYDRATION: cloud pull + config + app-lock now run
+          // without blocking the UI. If the user edits while this is in
+          // flight, mergeCloudIntoLocal preserves those edits by id.
+          hydrationInFlight.current = true;
+          hydrationInFlight.edited = false;
+          void (async () => {
+            try {
+              await ensureSupabaseConfigFromBackend();
+
+              const syncPromise = syncStateFromSupabase(email);
+              const subsPromise = refreshSubscriptionsFromBackend(email, activeToken);
+              const lockPromise = determineAppLock(email);
+
+              const [result, backendSubs] = await Promise.all([syncPromise, subsPromise]);
+
+              if (result.success && result.state) {
+                const cloudState = migrateStateCards(result.state);
+                const userEditedDuringHydration = hydrationInFlight.edited;
+                hydrationInFlight.current = false;
+                setState((prev) => {
+                  const hasLocalEdits =
+                    prev.transactions.length > 0 ||
+                    prev.cards.length > 0 ||
+                    prev.cashAccounts.length > 0 ||
+                    prev.debts.length > 0;
+                  return hasLocalEdits && userEditedDuringHydration
+                    ? mergeCloudIntoLocal(cloudState, prev)
+                    : cloudState;
+                });
+              } else if (localState.transactions.length === 0) {
+                // No local data either — surface the empty state; next
+                // successful sync pushes it up (guard allows after pull).
+                logger.warn('Cloud sync unavailable and no local mirror; starting with empty ledger.');
+              }
+              if (backendSubs && backendSubs.length > 0) {
+                setState((prev) => ({
+                  ...prev,
+                  subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs),
+                }));
+              }
+
+              await lockPromise;
+            } catch (err) {
+              hydrationInFlight.current = false;
+              logger.warn('Background hydration failed (app stays on local mirror):', err);
+            }
+          })();
         } else {
           logger.warn('Session invalid or expired:', vData?.error);
           authSession.clear();
@@ -492,6 +575,11 @@ export default function App() {
 
   // Synchronize state with Storage whenever it edits
   const updateState = (updater: (prev: AppState) => AppState) => {
+    if (hydrationInFlight.current) {
+      // Edits made while cloud hydration is landing — the hydration result
+      // must merge with this state, not replace it.
+      hydrationInFlight.edited = true;
+    }
     setState((oldState) => {
       const nextState = updater(oldState);
       const sanitizedTransactions = nextState.transactions;
@@ -557,13 +645,14 @@ export default function App() {
 
   // Local-first durability: keep a debounced localStorage mirror of state so
   // recent changes survive a tab close/crash even when Supabase is unreachable.
-  // On reload, Supabase is preferred (idempotent upsert by user_email); this
-  // mirror is the safety net that lets the next sync upload any offline edits.
+  // On reload, the boot fast-path paints from this mirror (owner-checked), then
+  // Supabase hydration reconciles on top; the mirror is the safety net that
+  // lets the next sync upload any offline edits.
   useEffect(() => {
     if (!isUnlocked) return;
-    const t = window.setTimeout(() => saveStateToStorage(state), 1500);
+    const t = window.setTimeout(() => saveStateToStorage(state, userEmail), 1500);
     return () => window.clearTimeout(t);
-  }, [state, isUnlocked]);
+  }, [state, isUnlocked, userEmail]);
 
   // Update-state and toast are recreated every render, so capture the current
   // versions in refs — the rollover interval can then stay mounted without
@@ -674,7 +763,7 @@ export default function App() {
     if (typeof window === 'undefined') return;
     const handler = (_e: BeforeUnloadEvent) => {
       if (!isUnlocked) return;
-      saveStateToStorage(state);
+      saveStateToStorage(state, userEmail);
       if (userEmail && isOnline && isSupabaseReachable) {
         void syncStateToSupabase(userEmail, state).catch(() => {});
       }
@@ -3593,7 +3682,7 @@ export default function App() {
                     <p className="text-[11px] font-bold text-[var(--ink)] leading-none truncate">
                       {state.userProfile?.name || 'Owner Profile'}
                     </p>
-                    <p className="text-[8.5px] text-[var(--ink-2)] mono leading-none mt-1 truncate">
+                    <p className="text-[10px] text-[var(--ink-2)] mono leading-none mt-1 truncate">
                       {userEmail || 'Local Vault'}
                     </p>
                   </div>
@@ -3727,7 +3816,7 @@ export default function App() {
             <button
               onClick={toggleTheme}
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="w-8 h-8 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+              className="w-9 h-9 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
               title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
             >
               <motion.span
@@ -3758,7 +3847,7 @@ export default function App() {
             <button
               onClick={() => setIsCommandPaletteOpen(true)}
               aria-label="Search"
-              className="sm:hidden w-8 h-8 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center"
+              className="sm:hidden w-9 h-9 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center"
             >
               <Search size={14} />
             </button>
@@ -3767,7 +3856,7 @@ export default function App() {
             <button
               onClick={() => setIsNotifOpen(true)}
               aria-label={`Notifications${state.notifications.filter((n) => !n.read).length ? ` (${state.notifications.filter((n) => !n.read).length} unread)` : ''}`}
-              className="relative w-8 h-8 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+              className="relative w-9 h-9 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
               id="header-notification-trigger"
             >
               <Bell size={14} />
@@ -3783,7 +3872,7 @@ export default function App() {
             <button
               onClick={() => setIsProfileOpen(true)}
               aria-label="Open profile"
-              className="w-8 h-8 rounded-full overflow-hidden border border-[var(--line)] bg-[var(--surface-2)] flex items-center justify-center text-[11px] font-bold text-[var(--ink)] hover:border-[var(--line-strong)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+              className="w-9 h-9 rounded-full overflow-hidden border border-[var(--line)] bg-[var(--surface-2)] flex items-center justify-center text-[11px] font-bold text-[var(--ink)] hover:border-[var(--line-strong)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
               id="header-profile-trigger"
             >
               {state.userProfile?.avatarUrl ? (
@@ -3843,24 +3932,48 @@ export default function App() {
                 authSession.setDeviceToken(deviceToken);
               }
               setUserEmail(email);
-              try {
-                await ensureSupabaseConfigFromBackend();
-                const result = await syncStateFromSupabase(email);
-                if (result.success && result.state) {
-                  setState(migrateStateCards(result.state));
-                }
-                const backendSubs = await refreshSubscriptionsFromBackend(email, token);
-                if (backendSubs && backendSubs.length > 0) {
-                  setState((prev) => ({
-                    ...prev,
-                    subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs),
-                  }));
-                }
-              } catch (err) {
-                logger.warn('Fatal error syncing from database, continuing offline...', err);
+              // FAST PAINT: unlock right away from the local mirror, then let
+              // the cloud sync land in the background (same pattern as the
+              // mount boot gate). Local edits survive via mergeCloudIntoLocal.
+              const localState = migrateStateCards(loadStateFromStorage(DEFAULT_APP_STATE, email));
+              if (localState.transactions.length > 0 || (localState.cashAccounts || []).length > 0) {
+                setState(localState);
               }
               setIsUnlocked(true);
               setActiveTab('dashboard');
+              hydrationInFlight.current = true;
+              hydrationInFlight.edited = false;
+              void (async () => {
+                try {
+                  await ensureSupabaseConfigFromBackend();
+                  const result = await syncStateFromSupabase(email);
+                  if (result.success && result.state) {
+                    const cloudState = migrateStateCards(result.state);
+                    const userEditedDuringHydration = hydrationInFlight.edited;
+                    hydrationInFlight.current = false;
+                    setState((prev) => {
+                      const hasLocalEdits =
+                        prev.transactions.length > 0 ||
+                        prev.cards.length > 0 ||
+                        prev.cashAccounts.length > 0 ||
+                        prev.debts.length > 0;
+                      return hasLocalEdits && userEditedDuringHydration
+                        ? mergeCloudIntoLocal(cloudState, prev)
+                        : cloudState;
+                    });
+                  }
+                  const backendSubs = await refreshSubscriptionsFromBackend(email, token);
+                  if (backendSubs && backendSubs.length > 0) {
+                    setState((prev) => ({
+                      ...prev,
+                      subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs),
+                    }));
+                  }
+                } catch (err) {
+                  hydrationInFlight.current = false;
+                  logger.warn('Fatal error syncing from database, continuing offline...', err);
+                }
+              })();
               // App-lock is intentionally NOT gated here: after a fresh password
               // login the user goes straight into the app. The lock screen is
               // shown only on reload/app-reopen (see verifyDevice mount gate) or
@@ -3926,7 +4039,7 @@ export default function App() {
                 {/* Notifications trigger bell */}
                 <button
                   onClick={() => setIsNotifOpen(true)}
-                  className="p-2 sm:p-3 bg-[var(--surface-2)] border border-[var(--line)] rounded-full text-[var(--ink-2)] hover:text-[var(--ink)] hover:border-[var(--line-strong)] relative cursor-pointer shadow-sm transition-all flex items-center justify-center shrink-0"
+                  className="p-3 sm:p-3 bg-[var(--surface-2)] border border-[var(--line)] rounded-full text-[var(--ink-2)] hover:text-[var(--ink)] hover:border-[var(--line-strong)] relative cursor-pointer shadow-sm transition-all flex items-center justify-center shrink-0"
                 >
                   <Bell size={15} />
                   {state.notifications.filter((n) => !n.read).length > 0 && (
@@ -4304,7 +4417,7 @@ export default function App() {
                               <div>
                                 <span className="text-[11px] font-bold block">{item.title}</span>
                                 <span
-                                  className={`text-[8.5px] block ${isActive ? 'text-[var(--accent-fg)]/80 font-medium' : 'text-[var(--ink-2)]'}`}
+                                  className={`text-[10px] block ${isActive ? 'text-[var(--accent-fg)]/80 font-medium' : 'text-[var(--ink-2)]'}`}
                                 >
                                   {item.desc}
                                 </span>
@@ -4499,7 +4612,7 @@ export default function App() {
                 href="https://emalyaditha.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[var(--ink)] hover:underline transition-colors"
+                className="text-[var(--ink)] hover:underline transition-colors inline-block py-3 -my-2 px-1"
               >
                 Emal Yaditha
               </a>

@@ -108,6 +108,7 @@ export default function SettingsModal({
     biometricCount: number;
   } | null>(null);
   const [appLockBusy, setAppLockBusy] = useState(false);
+  const [appLockLoadFailed, setAppLockLoadFailed] = useState(false);
   const [appLockMsg, setAppLockMsg] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [newPin, setNewPin] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
@@ -123,6 +124,7 @@ export default function SettingsModal({
   const refreshAppLock = async () => {
     if (!userEmail) return;
     const status = await getAppLockStatus(userEmail);
+    setAppLockLoadFailed(!status);
     setAppLockStatus(
       status
         ? {
@@ -154,6 +156,9 @@ export default function SettingsModal({
 
   useEffect(() => {
     if (isOpen) {
+      // Load app-lock status (and trusted devices) every time the modal opens.
+      setAppLockLoadFailed(false);
+      refreshAppLock().catch(() => {});
       const config = getSupabaseConfig();
       setSupabaseUrl(config.url);
       setSupabaseKey(config.key);
@@ -644,7 +649,21 @@ class CloudSyncService {
                   </span>
                 </div>
                 <div className="card-flat p-5 space-y-4">
-                  {!appLockStatus && <p className="text-[12px] text-[var(--ink-3)]">Loading app lock status…</p>}
+                  {!appLockStatus && !appLockLoadFailed && (
+                    <p className="text-[12px] text-[var(--ink-3)]">Loading app lock status…</p>
+                  )}
+                  {!appLockStatus && appLockLoadFailed && (
+                    <p className="text-[12px] text-[var(--ink-3)]">
+                      Couldn’t load app lock status.{" "}
+                      <button
+                        type="button"
+                        className="underline text-[var(--ink-2)] hover:text-[var(--ink)]"
+                        onClick={() => refreshAppLock().catch(() => {})}
+                      >
+                        Retry
+                      </button>
+                    </p>
+                  )}
                   {appLockStatus && (
                     <>
                       <div className="flex items-start gap-2.5 text-[12px] leading-5 text-[var(--ink-2)]">

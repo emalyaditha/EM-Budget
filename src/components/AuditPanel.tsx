@@ -483,7 +483,7 @@ export default function AuditPanel({
                           <div className="flex items-center gap-2.5">
                             <span className="text-xs font-bold text-[var(--ink)] truncate">{sub.name}</span>
                             <span
-                              className={`text-[8.5px] mono px-2 py-0.5 rounded-full border ${health.color} uppercase font-extrabold tracking-wider`}
+                              className={`text-[10px] mono px-2 py-0.5 rounded-full border ${health.color} uppercase font-extrabold tracking-wider`}
                             >
                               {health.label}
                             </span>
@@ -651,7 +651,7 @@ export default function AuditPanel({
                         {acc.balance.toLocaleString()}
                       </span>
                       <span
-                        className={`text-[8.5px] mono font-bold uppercase ${isWarn ? 'text-amber-500' : 'text-emerald-500'}`}
+                        className={`text-[10px] mono font-bold uppercase ${isWarn ? 'text-amber-500' : 'text-emerald-500'}`}
                       >
                         {isWarn ? 'Low Balance' : 'Nominal Balance'}
                       </span>
@@ -686,7 +686,7 @@ export default function AuditPanel({
                           {owns.toLocaleString()}
                         </span>
                         <span
-                          className={`text-[8.5px] mono font-bold uppercase ${
+                          className={`text-[10px] mono font-bold uppercase ${
                             isDanger ? 'text-[var(--danger)]' : isWarn ? 'text-amber-500' : 'text-emerald-500'
                           }`}
                         >

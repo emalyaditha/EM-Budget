@@ -141,14 +141,14 @@ export default function BudgetsSection({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="eyebrow !text-[8px]">Presupuestado</p>
+                <p className="eyebrow">Presupuestado</p>
                 <p className="mono text-[11px] font-bold mt-1">
                   {currency}
                   {totalBudgeted.toLocaleString()}
                 </p>
               </div>
               <div>
-                <p className="eyebrow !text-[8px]">Safe per day</p>
+                <p className="eyebrow">Safe per day</p>
                 <p className="mono text-[11px] font-bold mt-1">
                   {currency}
                   {Math.max(0, Math.round((totalBudgeted - totalSpent) / (daysRemaining || 1))).toLocaleString()}/d
@@ -364,18 +364,18 @@ export default function BudgetsSection({
                   </div>
 
                   {/* 3 cols — Limit / Spent / Remaining (mono 11px) */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <p className="eyebrow !text-[8px] !tracking-[0.12em]">Limit</p>
-                      <p className="mono text-[11px] font-bold mt-1 leading-none">
+                  <div className="grid grid-cols-3 gap-2 min-w-0">
+                    <div className="min-w-0">
+                      <p className="eyebrow !tracking-[0.12em]">Limit</p>
+                      <p className="mono text-[11px] font-bold mt-1 leading-none truncate tabular-nums" title={`${currency}${budget.limit.toLocaleString()}`}>
                         {currency}
                         {budget.limit.toLocaleString()}
                       </p>
                     </div>
-                    <div>
-                      <p className="eyebrow !text-[8px] !tracking-[0.12em]">Spent</p>
+                    <div className="min-w-0">
+                      <p className="eyebrow !tracking-[0.12em]">Spent</p>
                       <p
-                        className="mono text-[11px] font-bold mt-1 leading-none"
+                        className="mono text-[11px] font-bold mt-1 leading-none truncate tabular-nums"
                         style={{ color: isOver ? 'var(--danger)' : 'var(--ink)' }}
                       >
                         {currency}
@@ -383,7 +383,7 @@ export default function BudgetsSection({
                       </p>
                     </div>
                     <div>
-                      <p className="eyebrow !text-[8px] !tracking-[0.12em]">Remaining</p>
+                      <p className="eyebrow !tracking-[0.12em]">Remaining</p>
                       <p className="mono text-[11px] font-bold mt-1 leading-none">
                         {currency}
                         {Math.max(0, budget.limit - budget.spent).toLocaleString()}
@@ -442,7 +442,7 @@ export default function BudgetsSection({
                                   className="rounded-[10px] border p-2.5"
                                   style={{ borderColor: 'var(--line)', background: 'var(--surface-2)' }}
                                 >
-                                  <p className="eyebrow !text-[8px]">Allocation</p>
+                                  <p className="eyebrow">Allocation</p>
                                   <p className="mono text-[12px] font-bold mt-1">
                                     {currency}
                                     {selectedBudget.limit.toLocaleString()}
@@ -452,14 +452,14 @@ export default function BudgetsSection({
                                   className="rounded-[10px] border p-2.5"
                                   style={{ borderColor: 'var(--line)', background: 'var(--surface-2)' }}
                                 >
-                                  <p className="eyebrow !text-[8px]">Spent</p>
+                                  <p className="eyebrow">Spent</p>
                                   <p className="mono text-[12px] font-bold mt-1">
                                     {currency}
                                     {selectedBudget.spent.toLocaleString()}
                                   </p>
                                 </div>
                               </div>
-                              <p className="eyebrow !text-[8px] mt-1">Entries</p>
+                              <p className="eyebrow mt-1">Entries</p>
                               <div className="divide-y" style={{ borderTop: '1px solid var(--line)' }}>
                                 {selectedBudget.subBreakdown?.length ? (
                                   selectedBudget.subBreakdown.map((item, i) => (
