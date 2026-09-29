@@ -83,6 +83,7 @@ import LazyTab from './components/LazyTab';
 import {
   getSupabaseConfig,
   syncStateToSupabase,
+  isEmailLoadedFromCloud,
   syncStateFromSupabase,
   forceCancelCardInSupabase,
   resetLoadedFromCloud,
@@ -603,6 +604,12 @@ export default function App() {
 
     const syncTimeout = setTimeout(() => {
       if (!userEmail) return;
+      // Wait for the first successful cloud pull before any push; the hydration
+      // setState re-fires this effect once isEmailLoadedFromCloud flips true.
+      if (!isEmailLoadedFromCloud(userEmail)) {
+        setRealtimeSyncStatus('idle');
+        return;
+      }
       syncStateToSupabase(userEmail, state)
         .then((res) => {
           if (!res.success) {
