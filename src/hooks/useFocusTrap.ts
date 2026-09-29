@@ -27,6 +27,10 @@ function getFocusable(el: HTMLElement): HTMLElement[] {
  */
 export function useFocusTrap<T extends HTMLElement>(enabled: boolean, onEscape?: () => void) {
   const ref = useRef<T | null>(null);
+  const onEscapeRef = useRef(onEscape);
+  useEffect(() => {
+    onEscapeRef.current = onEscape;
+  });
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -43,7 +47,7 @@ export function useFocusTrap<T extends HTMLElement>(enabled: boolean, onEscape?:
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onEscape?.();
+        onEscapeRef.current?.();
         return;
       }
       if (e.key !== 'Tab') return;
@@ -72,7 +76,7 @@ export function useFocusTrap<T extends HTMLElement>(enabled: boolean, onEscape?:
       document.removeEventListener('keydown', onKeyDown, true);
       previouslyFocused?.focus?.();
     };
-  }, [enabled, onEscape]);
+  }, [enabled]);
 
   return ref;
 }

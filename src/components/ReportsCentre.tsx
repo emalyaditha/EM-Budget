@@ -485,6 +485,11 @@ export default function ReportsCentre({
           </div>
         </div>
       )}
+      <div id="print-report-footer" className="hidden print:block">
+        <p className="eyebrow !text-[10px] mt-4 text-[var(--ink-2)]">
+          EM Budget · Confidential financial record · Printed {new Date().toLocaleDateString()}
+        </p>
+      </div>
     </div>
   );
 }

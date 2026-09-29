@@ -19,3 +19,6 @@ api/index.js.map
 .superpowers/
 
 results.sarif
+
+test-results/
+playwright-report/

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { apiUrl, safeJson } from '../lib/api';
 import {
   Settings,
@@ -118,7 +119,7 @@ export default function SettingsModal({
   const [confirmRemoveBiometric, setConfirmRemoveBiometric] = useState<string | null>(null);
   const [idleMinutes, setIdleMinutes] = useState(1);
   const [, setSqlScript] = useState<string | null>(null);
-  const settingsDrawerRef = useRef<HTMLDivElement>(null);
+  const settingsDrawerRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   const refreshAppLock = async () => {
     if (!userEmail) return;
