@@ -10,3 +10,5 @@ graphify-out
 *.log
 package-lock.json
 supabase/.temp
+# gitleaks CI artifact
+results.sarif

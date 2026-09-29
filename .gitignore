@@ -17,3 +17,5 @@ api/index.js.map
 
 # SDD plan execution workspace (superpowers)
 .superpowers/
+
+results.sarif
