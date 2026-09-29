@@ -75908,7 +75908,7 @@ function errorMessage(err) {
 async function sendEmailViaResend(opts) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("RESEND_API_KEY is not configured.");
-  const from = process.env.RESEND_FROM || "Secure Vault <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM || "EM Budget <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -77129,14 +77129,14 @@ async function createApp() {
         try {
           await sendEmailViaResend({
             to: normalizedEmail,
-            subject: "\u{1F6E1}\uFE0F Secure Vault 2FA One-Time Passcode",
-            text: `Your Secure Vault One-Time Passcode is: ${otp}. It will expire in 5 minutes.`,
+            subject: "\u{1F6E1}\uFE0F EM Budget One-Time Passcode",
+            text: `Your EM Budget One-Time Passcode is: ${otp}. It will expire in 5 minutes.`,
             html: `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: auto; padding: 30px; border: 1px solid #1f1f1f; border-radius: 16px; background: #0c0c0e; color: #ffffff; box-shadow: 0 4px 20px rgba(0,0,0,0.45);">
                 <div style="text-align: center; margin-bottom: 20px;">
                   <span style="font-size: 28px;">\u{1F6E1}\uFE0F</span>
                 </div>
-                <h2 style="font-weight: 800; text-align: center; color: #ffffff; letter-spacing: -0.025em; border-bottom: 1px solid #27272a; padding-bottom: 20px; margin: 0 0 20px 0; font-size: 20px;">SECURE VAULT COGNITIVE</h2>
+                <h2 style="font-weight: 800; text-align: center; color: #ffffff; letter-spacing: -0.025em; border-bottom: 1px solid #27272a; padding-bottom: 20px; margin: 0 0 20px 0; font-size: 20px;">EM BUDGET</h2>
                 <p style="color: #a1a1aa; font-size: 13px; line-height: 1.6; text-align: center; margin: 0 0 24px 0;">
                   You requested secure entry into your Web Ledger. Input the following 2FA passcode into the authentication window:
                 </p>
