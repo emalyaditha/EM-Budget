@@ -165,10 +165,11 @@ function InteractiveBankCard({
                 setEditCardMinPayment?.(card.minPayment !== undefined ? String(card.minPayment) : '');
                 setEditCardStatementCloseDate?.(card.statementCloseDate || '');
               }}
-              className="btn-ghost !px-2.5 !py-1 !text-[11px] flex items-center gap-1"
+              className="w-8 h-8 btn-ghost !p-0 flex items-center justify-center"
+              title="Edit card"
+              aria-label="Edit card"
             >
-              <Edit size={11} />
-              Edit
+              <Edit size={12} />
             </button>
             <button
               onClick={(e) => {
@@ -176,10 +177,11 @@ function InteractiveBankCard({
                 onUpdateCard({ ...card, isFrozen: true });
                 showToast('warning', `${card.cardName} frozen.`);
               }}
-              className="btn-ghost !px-2.5 !py-1 !text-[11px] flex items-center gap-1"
+              className="w-8 h-8 btn-ghost !p-0 flex items-center justify-center"
+              title="Freeze card"
+              aria-label="Freeze card"
             >
-              <Snowflake size={11} />
-              Freeze
+              <Snowflake size={12} />
             </button>
           </div>
         )}
