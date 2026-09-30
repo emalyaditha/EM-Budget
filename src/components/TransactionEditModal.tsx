@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import type { Transaction, CashAccount, BankCard, TransactionUpdate } from '../types';
 import { X, Save, Trash2, Edit3 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { CategoryChip } from './ui/CategoryChip';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils';
 
 interface TransactionEditModalProps {
   transaction: Transaction | null;
@@ -140,12 +143,23 @@ export default function TransactionEditModal({
       role="dialog"
       aria-modal="true"
       aria-label="Edit transaction"
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-4"
     >
-      <div
-        className="bg-[var(--surface)] border border-[var(--line)] p-6 md:p-8 rounded-[24px] shadow-2xl max-w-sm w-full relative overflow-hidden"
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.18 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ y: '100%', opacity: 0.6 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: 'spring', damping: 26, stiffness: 240 }}
+        className="relative z-10 w-full md:max-w-sm max-h-[92dvh] overflow-y-auto bg-[var(--surface)] border-t md:border border-[var(--line)] rounded-t-[var(--r-lg)] md:rounded-[var(--r-lg)] p-6 md:p-8 shadow-[var(--shadow-float)]"
         id="edit-transaction-modal-container"
       >
+        <div className="w-10 h-1 bg-[var(--line-strong)] rounded-full mx-auto mb-4 md:hidden" />
         <div className="flex justify-between items-center mb-6">
           <div>
             <span className="eyebrow bg-[var(--surface-2)] px-2 py-0.5 rounded-full border border-[var(--line)]">
@@ -185,18 +199,25 @@ export default function TransactionEditModal({
 
           <div>
             <label className="eyebrow block mb-1.5">Amount ({currency})</label>
-            <input
-              ref={amountInputRef}
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => {
-                const val = e.target.value === '' ? '' : Number(e.target.value);
-                setAmount(val);
-                validateTxForm(title, val, date, submitted);
-              }}
-              className={`input mono font-bold ${errors.amount ? '!border-[var(--danger)] focus:!border-[var(--danger)]' : amount !== '' && !errors.amount ? '!border-emerald-500/50' : ''}`}
-            />
+            <div
+              className={`flex items-center gap-2 rounded-[var(--r-md)] border bg-[var(--surface-2)] px-4 py-2.5 transition-colors ${errors.amount ? 'border-[var(--danger)]' : amount !== '' && !errors.amount ? 'border-emerald-500/50' : 'border-[var(--line)]'}`}
+            >
+              <span className="mono text-[15px] font-bold text-[var(--ink-3)] shrink-0">{currency}</span>
+              <input
+                ref={amountInputRef}
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                value={amount}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? '' : Number(e.target.value);
+                  setAmount(val);
+                  validateTxForm(title, val, date, submitted);
+                }}
+                placeholder="0.00"
+                className="w-full bg-transparent outline-none mono font-bold text-[28px] tabular-nums text-[var(--ink)] placeholder:text-[var(--ink-3)]/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+            </div>
             {errors.amount && (
               <span className="text-[var(--danger)] mono text-[10px] pl-1 mt-1.5 block">{errors.amount}</span>
             )}
@@ -205,6 +226,7 @@ export default function TransactionEditModal({
           <div>
             <label className="eyebrow block mb-1.5">Calendar Date</label>
             <input
+              ref={dateInputRef}
               type="date"
               value={date}
               onChange={(e) => {
@@ -220,11 +242,32 @@ export default function TransactionEditModal({
 
           <div>
             <label className="eyebrow block mb-1.5">Categorization Tag</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {[...new Set([category, ...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].filter(Boolean))]
+                .slice(0, 12)
+                .map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCategory(cat)}
+                    aria-pressed={category === cat}
+                    className={`pill pressable !py-1.5 !text-[11px] flex items-center gap-1.5 ${
+                      category === cat
+                        ? 'pill-active'
+                        : 'bg-[var(--surface-2)] border-[var(--line)] text-[var(--ink-2)] hover:border-[var(--line-strong)]'
+                    }`}
+                  >
+                    <CategoryChip category={cat} size="xs" />
+                    {cat}
+                  </button>
+                ))}
+            </div>
             <input
               type="text"
               required
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+              placeholder="Custom tag"
               className="input font-bold"
             />
           </div>
@@ -320,7 +363,7 @@ export default function TransactionEditModal({
             )}
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }

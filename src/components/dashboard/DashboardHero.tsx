@@ -1,5 +1,7 @@
-import { Menu, Search, Plus, ArrowUpRight, ArrowDownLeft, ChevronDown, Send, Download, Eye } from 'lucide-react';
+import type React from 'react';
+import { Plus, ArrowDownLeft, Send, BarChart3 } from 'lucide-react';
 import type { Transaction } from '../../types';
+import { AnimatedCountUp } from '../ui/AnimatedCountUp';
 
 interface DashboardHeroProps {
   currency: string;
@@ -18,12 +20,49 @@ interface DashboardHeroProps {
   onProfileClick?: () => void;
 }
 
-const PASTEL_CLASSES = ['bar-pink', 'bar-mint', 'bar-yellow', 'bar-lavender', 'bar-blue'] as const;
+const TONE_BG: Record<string, string> = {
+  pink: 'var(--pastel-pink)',
+  mint: 'var(--pastel-mint)',
+  yellow: 'var(--pastel-yellow)',
+  lavender: 'var(--pastel-lavender)',
+  blue: 'var(--pastel-blue)',
+  ink: 'var(--surface-3)',
+};
 
 function getFirstName(full: string) {
   if (!full) return '';
   const n = full.trim().split(/\s+/)[0];
   return n.charAt(0).toUpperCase() + n.slice(1);
+}
+
+function QuickAction({
+  label,
+  tone,
+  onClick,
+  icon: Icon,
+}: {
+  label: string;
+  tone: string;
+  onClick?: () => void;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+}) {
+  return (
+    <button type="button" onClick={onClick} className="flex flex-col items-center gap-1.5 group cursor-pointer min-w-0">
+      <span
+        className="w-12 h-12 rounded-full grid place-items-center pressable transition-colors group-hover:text-[var(--ink)]"
+        style={{
+          background: `color-mix(in oklab, ${TONE_BG[tone] ?? tone} 55%, var(--surface))`,
+          border: `1px solid color-mix(in oklab, ${TONE_BG[tone] ?? tone} 70%, var(--line))`,
+          color: 'var(--ink)',
+        }}
+      >
+        <Icon size={18} strokeWidth={2.2} />
+      </span>
+      <span className="text-[10px] font-bold text-[var(--ink-2)] group-hover:text-[var(--ink)] whitespace-nowrap">
+        {label}
+      </span>
+    </button>
+  );
 }
 
 export function DashboardHero({
@@ -33,208 +72,89 @@ export function DashboardHero({
   totalDebitCardsAmount = 0,
   currentMonthInflow = 0,
   currentMonthOutflow = 0,
-  transactions = [],
   userName = '',
   userAvatarUrl,
   onAddExpense,
   onAddIncome,
   onViewTransactions,
   onSend,
+  onProfileClick,
 }: DashboardHeroProps) {
   const firstName = getFirstName(userName);
-  // Liquid cash = spendable balances: cash vaults + debit cards (locked amounts excluded upstream).
   const liquidCash = totalCashAmount + totalDebitCardsAmount;
-
-  const report = (() => {
-    const expenseTx = transactions.filter(
-      (t) => t.type === 'expense' || (typeof t.amount === 'number' && t.amount < 0),
-    );
-    const byCat = new Map<string, number>();
-    for (const t of expenseTx) {
-      const cat = (t.category || 'Otros').trim() || 'Otros';
-      byCat.set(cat, (byCat.get(cat) || 0) + Math.abs(t.amount));
-    }
-    const entries = Array.from(byCat.entries())
-      .map(([category, total]) => ({ category, total }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
-    const max = Math.max(...entries.map((e) => e.total), 1);
-    return entries.map((e, i) => ({
-      ...e,
-      pct: e.total === 0 ? 0 : Math.max(14, Math.round((e.total / max) * 100)),
-      pastel: PASTEL_CLASSES[i % PASTEL_CLASSES.length],
-    }));
-  })();
+  const net = currentMonthInflow - currentMonthOutflow;
+  const positive = net >= 0;
 
   return (
-    <div className="card p-5 sm:p-6 flex flex-col gap-5 rounded-[20px] text-left overflow-hidden">
-      {/* Top row: hamburger + search + avatar */}
+    <section className="card card-lg p-5 sm:p-7 flex flex-col gap-6 text-left" aria-label="Balance overview">
+      {/* Greeting + avatar */}
       <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          aria-label="Menu"
-          className="w-9 h-9 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)] hover:text-[var(--ink)] hover:border-[var(--line-strong)] flex items-center justify-center shrink-0 transition-colors"
-        >
-          <Menu size={16} />
-        </button>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-label="Search"
-            className="w-9 h-9 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center shrink-0 transition-colors"
-          >
-            <Search size={14} />
-          </button>
-          <div className="w-9 h-9 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] font-semibold text-xs flex items-center justify-center overflow-hidden border border-[var(--line)] shrink-0">
-            {userAvatarUrl ? (
-              <img
-                src={userAvatarUrl}
-                alt={userName}
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              firstName.charAt(0).toUpperCase()
-            )}
-          </div>
+        <div className="min-w-0">
+          <p className="eyebrow">{firstName ? `Welcome back, ${firstName}` : 'Welcome back'}</p>
+          <p className="text-[13px] font-semibold text-[var(--ink)] mt-1">Here is your money today.</p>
         </div>
-      </div>
-
-      {/* Welcome */}
-      <div className="space-y-1">
-        <p className="eyebrow">Welcome</p>
-        <h2 className="text-[26px] sm:text-[28px] font-bold tracking-tight leading-none text-[var(--ink)]">
-          <span className="font-normal">Welcome</span> <span className="font-extrabold">{firstName || 'there'}!</span>
-        </h2>
-      </div>
-
-      {/* Aivo huge centered balance — pins: Aivo $126k + Janvis pills + Raul 3 pills */}
-      <div className="rounded-[20px] border border-[var(--line)] bg-[var(--surface-2)]/70 p-5 sm:p-6 flex flex-col items-center gap-3 text-center">
-        {/* currency selector pill */}
         <button
           type="button"
-          className="pill mono !py-1.5 !px-3 !text-[11px] tracking-wide !bg-[var(--surface)] hover:border-[var(--line-strong)]"
-          aria-label="Currency selector"
-          onClick={onViewTransactions}
+          onClick={onProfileClick}
+          aria-label="Open profile"
+          className="w-10 h-10 rounded-full overflow-hidden border border-[var(--line)] bg-[var(--accent)] text-[var(--accent-fg)] font-bold text-sm grid place-items-center shrink-0 pressable"
         >
-          <span className="w-5 h-5 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] grid place-items-center text-[9px] font-bold">
-            ●
-          </span>
-          {currency} <ChevronDown size={12} className="opacity-60" />
+          {userAvatarUrl ? (
+            <img
+              src={userAvatarUrl}
+              alt={userName}
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            (firstName.charAt(0) || 'E').toUpperCase()
+          )}
         </button>
+      </div>
 
-        {/* huge 32px mono bold tabular */}
-        <div className="flex flex-col items-center gap-1">
-          <p className="mono text-[30px] sm:text-[32px] font-bold tracking-tight tabular-nums leading-none text-[var(--ink)]">
-            {currency}
-            {liquidCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      {/* Giant balance + delta chip */}
+      <div className="flex flex-col gap-2.5">
+        <p className="eyebrow !text-[10px]">Total balance</p>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p className="money-display text-[var(--ink)]">
+            <AnimatedCountUp value={liquidCash} duration={900} prefix={`${currency} `} />
           </p>
-          <p className="eyebrow !text-[10px]">Liquid cash</p>
+          <span className={`delta-chip ${positive ? 'delta-up' : 'delta-down'}`} title="This month net">
+            {positive ? '▲' : '▼'} {currency}
+            {Math.abs(net).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          </span>
         </div>
-
-        {/* Net worth for context beside the Liquid cash headline */}
-        <div className="flex items-center justify-center gap-2 w-full max-w-[280px]">
-          <div className="rounded-[12px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-center space-y-0.5 flex-1">
-            <p className="eyebrow">Net worth</p>
-            <p className="mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
-              {currency}
-              {aggregateActiveWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </p>
-          </div>
-        </div>
-
-        {/* 3 pills Add / Receive / Send — like Raul + Janvis */}
-        <div className="flex flex-wrap justify-center gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onAddExpense}
-            className="pill pill-active !py-2 !px-4 mono !text-[12px] font-semibold"
-          >
-            <Plus size={13} strokeWidth={2.4} /> Add
-          </button>
-          <button
-            type="button"
-            onClick={onAddIncome}
-            className="pill !py-2 !px-4 mono !text-[12px] font-semibold bg-[var(--surface)]"
-          >
-            <Download size={13} strokeWidth={2} /> Receive
-          </button>
-          <button
-            type="button"
-            onClick={onSend}
-            className="pill !py-2 !px-4 mono !text-[12px] font-semibold bg-[var(--surface)]"
-          >
-            <Send size={13} strokeWidth={2} /> Send
-          </button>
-        </div>
+        <p className="text-[11px] text-[var(--ink-3)] money">
+          Net worth {currency}
+          {aggregateActiveWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        </p>
       </div>
 
-      {/* Income / Expenses row — retains real data */}
-      <div className="grid grid-cols-2 gap-4 border-y border-[var(--line)] py-4">
-        <div className="space-y-1">
-          <p className="eyebrow !text-[10px]">Income</p>
-          <p className="mono text-sm font-semibold tracking-tight tabular-nums text-[var(--ink)] flex items-center gap-1.5">
-            <span className="w-6 h-6 rounded-full border border-[var(--line)] bg-[var(--surface-2)] flex items-center justify-center text-[var(--ink-2)] shrink-0">
-              <ArrowDownLeft size={11} />
-            </span>
-            {currency}
+      {/* Quick actions row */}
+      <div className="flex items-start justify-between gap-2 px-1">
+        <QuickAction label="Add" tone={TONE_BG.pink} icon={Plus} onClick={onAddExpense} />
+        <QuickAction label="Receive" tone={TONE_BG.mint} icon={ArrowDownLeft} onClick={onAddIncome} />
+        <QuickAction label="Send" tone={TONE_BG.blue} icon={Send} onClick={onSend} />
+        <QuickAction label="Reports" tone={TONE_BG.lavender} icon={BarChart3} onClick={onViewTransactions} />
+      </div>
+
+      {/* Income / spend strip */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-[var(--r-sm)] border border-[var(--line)] bg-[var(--surface-2)] p-3.5">
+          <p className="eyebrow !text-[9px]">Income · month</p>
+          <p className="money text-sm font-bold mt-1" style={{ color: 'var(--success)' }}>
+            + {currency}
             {currentMonthInflow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </p>
         </div>
-        <div className="space-y-1">
-          <p className="eyebrow !text-[10px]">Expenses</p>
-          <p className="mono text-sm font-semibold tracking-tight tabular-nums text-[var(--ink)] flex items-center gap-1.5">
-            <span className="w-6 h-6 rounded-full border border-[var(--line)] bg-[var(--surface-2)] flex items-center justify-center text-[var(--ink-2)] shrink-0">
-              <ArrowUpRight size={11} />
-            </span>
-            {currency}
+        <div className="rounded-[var(--r-sm)] border border-[var(--line)] bg-[var(--surface-2)] p-3.5">
+          <p className="eyebrow !text-[9px]">Spent · month</p>
+          <p className="money text-sm font-bold mt-1" style={{ color: 'var(--danger)' }}>
+            − {currency}
             {currentMonthOutflow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </p>
         </div>
       </div>
-
-      {/* Financial report — pastel bars INSIDE card-dark (Ultra requirement) */}
-      <div className="card-dark p-4 sm:p-5 flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-[13px] font-bold tracking-tight text-white">Informe financiero</h3>
-          <button
-            type="button"
-            onClick={onViewTransactions}
-            className="w-9 h-9 rounded-full bg-white/10 border border-white/15 grid place-items-center text-white/80 hover:bg-white/15 transition-colors"
-          >
-            <Eye size={12} />
-          </button>
-        </div>
-        <div className="space-y-2.5">
-          {report.length === 0 ? (
-            <div className="rounded-[12px] border border-dashed border-white/15 bg-white/[0.04] px-4 py-6 text-center">
-              <p className="text-[12px] text-white/60">No spending yet.</p>
-              <p className="text-[10px] text-white/35 mt-1">Add an expense to see your financial breakdown.</p>
-            </div>
-          ) : (
-            report.map((row) => (
-              <div key={row.category} className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="mono text-[10px] font-semibold tracking-wide uppercase text-white/70 truncate">
-                    {row.category}
-                  </span>
-                  <span className="mono text-[10px] font-medium tabular-nums text-white/50 shrink-0">
-                    {currency}
-                    {row.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-                <div className="h-10 w-full rounded-[12px] bg-white/[0.08] border border-white/10 overflow-hidden p-1">
-                  <div
-                    className={`h-full rounded-[8px] ${row.pastel} transition-all duration-700`}
-                    style={{ width: `${row.pct}%` }}
-                    aria-label={`${row.category} ${row.pct}%`}
-                  />
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }

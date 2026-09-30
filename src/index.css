@@ -2,104 +2,222 @@
 @import 'tailwindcss';
 
 /* =========================================================
-   EM BUDGET — design system v2
-   "Pinterest fintech" pass: tinted neutrals, per-section
-   hero hues, display/body/mono type triangle, full
-   interactive-state discipline. Shared class contract with
-   components is unchanged (.card .pill .btn-* .input
-   .gradient-card .hero-* .eyebrow .mono .rainbow-bar).
+   EM BUDGET — design system v3 (OKLCH)
+   Pinterest mobile-banking pass: hue-anchored palette,
+   12/20/28 radius scale, layered shadows, 5-step type
+   scale. Shared class contract unchanged (.card .pill
+   .btn-* .input .gradient-card .hero-* .eyebrow .mono
+   .rainbow-bar) plus new tokens consumed by /ui primitives
+   (BalanceCard, CashCard, TransactionRow, ProgressRing,
+   BottomSheet, BottomNav, SegmentedControl).
    ========================================================= */
+
+:root {
+  --r-sm: 12px;
+  --r-md: 20px;
+  --r-lg: 28px;
+  --text-2xs: 11px;
+  --text-xs: 13px;
+  --text-sm: 15px;
+  --text-lg: 20px;
+  --text-display: clamp(34px, 9vw, 44px);
+  --hue-violet: oklch(62% 0.15 300);
+  --hue-blue: oklch(62% 0.15 255);
+  --hue-cyan: oklch(72% 0.11 215);
+  --hue-teal: oklch(72% 0.12 185);
+  --hue-mint: oklch(80% 0.1 160);
+  --hue-emerald: oklch(69% 0.14 160);
+  --hue-amber: oklch(75% 0.14 80);
+  --hue-orange: oklch(70% 0.16 45);
+  --hue-rose: oklch(65% 0.17 15);
+  --hue-indigo: oklch(55% 0.18 280);
+  --hue-slate: oklch(60% 0.03 265);
+  --chip-gold: oklch(78% 0.13 85);
+  --chip-gold-deep: oklch(62% 0.13 70);
+}
 
 .light {
   color-scheme: light;
-  --bg: #f4f4f8;
-  --bg-2: #ececf3;
-  --surface: #fcfcfe;
-  --surface-2: #f1f2f7;
-  --surface-3: #e7e8f0;
-  --ink: #14151c;
-  --ink-2: #5d6170;
-  --ink-3: #9498a8;
-  --line: #e3e4ec;
-  --line-strong: #cdd0dd;
-  --accent: #171a25;
-  --accent-fg: #fbfbff;
-  --danger: #d64550;
-  --danger-bg: rgba(214, 69, 80, 0.08);
-  --success: #1e9e63;
-  --success-bg: rgba(30, 158, 99, 0.1);
-  --warning: #b97d1e;
-  --warning-bg: rgba(185, 125, 30, 0.12);
-  --shadow: 0 1px 2px rgba(20, 21, 28, 0.04), 0 6px 24px rgba(20, 21, 28, 0.05);
-  --shadow-hover: 0 1px 2px rgba(20, 21, 28, 0.05), 0 10px 32px rgba(20, 21, 28, 0.08);
-  --pastel-pink: #f4b5be;
-  --pastel-mint: #c8e9d5;
-  --pastel-yellow: #f5e6a3;
-  --pastel-lavender: #d4c5f9;
-  --pastel-blue: #b8d4f0;
-  --gradient-nueva: linear-gradient(135deg, #fff9b5 0%, #e0f2f7 100%);
-  --gradient-card-orange: linear-gradient(135deg, #ffd2bd 0%, #ffc2cc 100%);
-  --gradient-card-blue: linear-gradient(135deg, #cfe3fb 0%, #c9d9fb 100%);
-  --gradient-card-dark: linear-gradient(180deg, #ffffff 0%, #f1f2f7 100%);
-  --gradient-card-light: linear-gradient(180deg, #ffffff 0%, #f1f2f7 100%);
+  --bg: oklch(97% 0.005 275);
+  --bg-2: oklch(93.5% 0.01 280);
+  --surface: oklch(99% 0.003 280);
+  --surface-2: oklch(95% 0.008 278);
+  --surface-3: oklch(92.5% 0.012 272);
+  --ink: oklch(21% 0.02 270);
+  --ink-2: oklch(48% 0.03 268);
+  --ink-3: oklch(68% 0.026 265);
+  --line: oklch(91% 0.01 272);
+  --line-strong: oklch(84.5% 0.015 270);
+  --accent: oklch(23% 0.028 268);
+  --accent-fg: oklch(99% 0.004 280);
+  --danger: oklch(59% 0.19 22);
+  --danger-bg: oklch(59% 0.19 22 / 0.08);
+  --success: oklch(62% 0.14 155);
+  --success-bg: oklch(62% 0.14 155 / 0.1);
+  --warning: oklch(62% 0.13 70);
+  --warning-bg: oklch(62% 0.13 70 / 0.12);
+  --shadow: 0 1px 2px oklch(21% 0.02 270 / 0.04), 0 6px 24px oklch(21% 0.02 270 / 0.05);
+  --shadow-hover: 0 1px 2px oklch(21% 0.02 270 / 0.05), 0 10px 32px oklch(21% 0.02 270 / 0.08);
+  --shadow-float: 0 2px 6px oklch(21% 0.02 270 / 0.06), 0 18px 44px oklch(21% 0.02 270 / 0.14);
+  --pastel-pink: oklch(81% 0.08 10);
+  --pastel-mint: oklch(89% 0.06 155);
+  --pastel-yellow: oklch(91% 0.08 95);
+  --pastel-lavender: oklch(83% 0.06 285);
+  --pastel-blue: oklch(84% 0.06 240);
+  --gradient-nueva: linear-gradient(135deg, oklch(95% 0.07 95) 0%, oklch(93% 0.04 215) 100%);
+  --gradient-card-orange: linear-gradient(135deg, oklch(87% 0.06 45) 0%, oklch(86% 0.07 15) 100%);
+  --gradient-card-blue: linear-gradient(135deg, oklch(89% 0.05 240) 0%, oklch(87% 0.06 275) 100%);
+  --gradient-card-dark: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  --gradient-card-light: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  --face-anchor: oklch(35% 0.04 270);
   --rainbow: linear-gradient(90deg, var(--pastel-lavender) 0%, var(--pastel-blue) 45%, transparent 100%);
-  --hero-violet: linear-gradient(160deg, #f0e9fc 0%, #e6e3f8 60%, #edeef9 100%);
-  --hero-blue: linear-gradient(160deg, #e4edfb 0%, #dbe9f9 60%, #e9eff9 100%);
-  --hero-cyan: linear-gradient(160deg, #dff0f6 0%, #dbeaf4 60%, #e8f1f8 100%);
-  --hero-teal: linear-gradient(160deg, #dcf0ec 0%, #d9ecf1 60%, #e7f2f3 100%);
-  --hero-mint: linear-gradient(160deg, #e0f2e6 0%, #dcefe6 60%, #e9f4ee 100%);
-  --hero-emerald: linear-gradient(160deg, #d8eee4 0%, #d6ecdf 60%, #e4f2ea 100%);
-  --hero-amber: linear-gradient(160deg, #f8eed3 0%, #f6ebd0 60%, #f7f2e2 100%);
-  --hero-orange: linear-gradient(160deg, #fbe7d8 0%, #f9e3d3 60%, #f8eee2 100%);
-  --hero-rose: linear-gradient(160deg, #f9e3e6 0%, #f7dfe4 60%, #f7ecf0 100%);
-  --hero-indigo: linear-gradient(160deg, #e4e6f8 0%, #dee2f6 60%, #e9ecf8 100%);
-  --hero-slate: linear-gradient(160deg, #e8eaf1 0%, #e2e5ee 60%, #eceef5 100%);
+  --hero-violet: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-violet) 18%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-violet) 8%, var(--bg)) 100%
+  );
+  --hero-blue: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-blue) 18%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-blue) 8%, var(--bg)) 100%
+  );
+  --hero-cyan: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-cyan) 18%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-cyan) 8%, var(--bg)) 100%
+  );
+  --hero-teal: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-teal) 18%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-teal) 8%, var(--bg)) 100%
+  );
+  --hero-mint: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-mint) 18%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-mint) 8%, var(--bg)) 100%
+  );
+  --hero-emerald: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-emerald) 20%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-emerald) 9%, var(--bg)) 100%
+  );
+  --hero-amber: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-amber) 20%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-amber) 9%, var(--bg)) 100%
+  );
+  --hero-orange: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-orange) 20%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-orange) 9%, var(--bg)) 100%
+  );
+  --hero-rose: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-rose) 18%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-rose) 8%, var(--bg)) 100%
+  );
+  --hero-indigo: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-indigo) 16%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-indigo) 8%, var(--bg)) 100%
+  );
+  --hero-slate: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-slate) 16%, var(--surface)) 0%,
+    color-mix(in oklab, var(--hue-slate) 8%, var(--bg)) 100%
+  );
 }
 
 .dark {
   color-scheme: dark;
-  --bg: #0a0c12;
-  --bg-2: #10131b;
-  --surface: #171a23;
-  --surface-2: #1f232e;
-  --surface-3: #282d3b;
-  --ink: #f2f3f8;
-  --ink-2: #a7adc0;
-  --ink-3: #757c92;
-  --line: #262b38;
-  --line-strong: #363d4f;
-  --accent: #f2f3f8;
-  --accent-fg: #12141c;
-  --danger: #f2777e;
-  --danger-bg: rgba(242, 119, 126, 0.12);
-  --success: #4ac28e;
-  --success-bg: rgba(74, 194, 142, 0.12);
-  --warning: #e0a352;
-  --warning-bg: rgba(224, 163, 82, 0.14);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 28px rgba(0, 0, 0, 0.35);
-  --shadow-hover: 0 1px 2px rgba(0, 0, 0, 0.45), 0 12px 36px rgba(0, 0, 0, 0.45);
-  --pastel-pink: #f4b5be;
-  --pastel-mint: #c8e9d5;
-  --pastel-yellow: #f5e6a3;
-  --pastel-lavender: #d4c5f9;
-  --pastel-blue: #b8d4f0;
-  --gradient-nueva: linear-gradient(135deg, #fff9b5 0%, #e0f2f7 100%);
-  --gradient-card-orange: linear-gradient(135deg, #ff8a5b 0%, #ff6b8a 100%);
-  --gradient-card-blue: linear-gradient(135deg, #60a5fa 0%, #6366f1 100%);
-  --gradient-card-dark: linear-gradient(180deg, #20242f 0%, #14161d 100%);
-  --gradient-card-light: linear-gradient(180deg, #20242f 0%, #14161d 100%);
+  --bg: oklch(17% 0.02 268);
+  --bg-2: oklch(21% 0.024 270);
+  --surface: oklch(25% 0.027 270);
+  --surface-2: oklch(30% 0.03 270);
+  --surface-3: oklch(35% 0.035 272);
+  --ink: oklch(96% 0.007 270);
+  --ink-2: oklch(74% 0.03 270);
+  --ink-3: oklch(58% 0.04 272);
+  --line: oklch(32% 0.03 270);
+  --line-strong: oklch(40% 0.038 272);
+  --accent: oklch(96% 0.007 270);
+  --accent-fg: oklch(20% 0.026 268);
+  --danger: oklch(70% 0.14 15);
+  --danger-bg: oklch(70% 0.14 15 / 0.12);
+  --success: oklch(74% 0.13 160);
+  --success-bg: oklch(74% 0.13 160 / 0.12);
+  --warning: oklch(75% 0.12 75);
+  --warning-bg: oklch(75% 0.12 75 / 0.14);
+  --shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 8px 28px oklch(0% 0 0 / 0.35);
+  --shadow-hover: 0 1px 2px oklch(0% 0 0 / 0.45), 0 12px 36px oklch(0% 0 0 / 0.45);
+  --shadow-float: 0 2px 8px oklch(0% 0 0 / 0.45), 0 18px 44px oklch(0% 0 0 / 0.5);
+  --pastel-pink: oklch(81% 0.08 10);
+  --pastel-mint: oklch(89% 0.06 155);
+  --pastel-yellow: oklch(91% 0.08 95);
+  --pastel-lavender: oklch(83% 0.06 285);
+  --pastel-blue: oklch(84% 0.06 240);
+  --gradient-nueva: linear-gradient(135deg, oklch(95% 0.07 95) 0%, oklch(93% 0.04 215) 100%);
+  --gradient-card-orange: linear-gradient(135deg, oklch(68% 0.17 45) 0%, oklch(66% 0.19 15) 100%);
+  --gradient-card-blue: linear-gradient(135deg, oklch(62% 0.16 255) 0%, oklch(55% 0.18 280) 100%);
+  --gradient-card-dark: linear-gradient(180deg, var(--surface-2) 0%, var(--bg-2) 100%);
+  --gradient-card-light: linear-gradient(180deg, var(--surface-2) 0%, var(--bg-2) 100%);
+  --face-anchor: oklch(24% 0.03 270);
   --rainbow: linear-gradient(90deg, var(--pastel-lavender) 0%, var(--pastel-blue) 45%, transparent 100%);
-  --hero-violet: linear-gradient(160deg, #2c2444 0%, #1b1830 55%, #131322 100%);
-  --hero-blue: linear-gradient(160deg, #1e2c48 0%, #16213a 55%, #121525 100%);
-  --hero-cyan: linear-gradient(160deg, #1b3040 0%, #152436 55%, #111827 100%);
-  --hero-teal: linear-gradient(160deg, #173335 0%, #132834 55%, #101a26 100%);
-  --hero-mint: linear-gradient(160deg, #17362b 0%, #132b28 55%, #101d1f 100%);
-  --hero-emerald: linear-gradient(160deg, #143826 0%, #112c24 55%, #0f1d1c 100%);
-  --hero-amber: linear-gradient(160deg, #3a2d16 0%, #2c2317 55%, #1d1813 100%);
-  --hero-orange: linear-gradient(160deg, #3d2716 0%, #2e1f15 55%, #1e1612 100%);
-  --hero-rose: linear-gradient(160deg, #3d1f28 0%, #2d1922 55%, #1d141b 100%);
-  --hero-indigo: linear-gradient(160deg, #25264c 0%, #1a1b3a 55%, #131327 100%);
-  --hero-slate: linear-gradient(160deg, #272b38 0%, #1c2029 55%, #14161d 100%);
+  --hero-violet: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-violet) 26%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-violet) 10%, var(--bg)) 100%
+  );
+  --hero-blue: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-blue) 26%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-blue) 10%, var(--bg)) 100%
+  );
+  --hero-cyan: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-cyan) 26%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-cyan) 10%, var(--bg)) 100%
+  );
+  --hero-teal: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-teal) 26%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-teal) 10%, var(--bg)) 100%
+  );
+  --hero-mint: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-mint) 26%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-mint) 10%, var(--bg)) 100%
+  );
+  --hero-emerald: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-emerald) 26%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-emerald) 10%, var(--bg)) 100%
+  );
+  --hero-amber: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-amber) 24%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-amber) 9%, var(--bg)) 100%
+  );
+  --hero-orange: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-orange) 24%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-orange) 9%, var(--bg)) 100%
+  );
+  --hero-rose: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-rose) 24%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-rose) 9%, var(--bg)) 100%
+  );
+  --hero-indigo: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-indigo) 26%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-indigo) 10%, var(--bg)) 100%
+  );
+  --hero-slate: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--hue-slate) 30%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-slate) 12%, var(--bg)) 100%
+  );
 }
 
 @theme {
@@ -155,20 +273,23 @@ h4 {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: var(--r-md);
   box-shadow: var(--shadow);
   transition: border-color 0.15s var(--ease-out, ease-out);
 }
 .card:hover {
   border-color: var(--line-strong);
 }
+.card-lg {
+  border-radius: var(--r-lg);
+}
 .card-dark {
   background: var(--gradient-card-dark);
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: var(--r-md);
 }
 .gradient-card {
-  border-radius: 24px;
+  border-radius: var(--r-md);
   border: 1px solid color-mix(in srgb, var(--ink) 8%, var(--line));
   color: white;
   position: relative;
@@ -446,6 +567,251 @@ h4 {
 .light .gradient-card [class*='bg-white'],
 .light .card-dark [class*='bg-white'] {
   background: color-mix(in srgb, var(--ink) 8%, transparent) !important;
+}
+
+/* =========================================================
+   v3 PRIMITIVES — Pinterest layout vocabulary
+   Consumed by BalanceCard / CashCard / TransactionRow /
+   BottomNav / SegmentedControl / ProgressRing / skeletons.
+   Everything here is token-driven; no hex in components.
+   ========================================================= */
+.money-display {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.money {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.delta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.delta-up {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.delta-down {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.icon-chip {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+.icon-chip-lg {
+  width: 44px;
+  height: 44px;
+}
+.tx-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 4px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease-out,
+    transform 0.12s ease-out;
+}
+.tx-row:hover {
+  background: var(--surface-2);
+}
+.tx-row:active {
+  transform: scale(0.99);
+}
+.day-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 6px 4px;
+}
+.floating-nav {
+  position: fixed;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(100% - 24px, 460px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-float);
+}
+.nav-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 44px;
+  height: 48px;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: var(--ink-3);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 0.15s ease-out;
+}
+.nav-item:hover {
+  color: var(--ink-2);
+}
+.nav-item-active {
+  color: var(--accent-fg);
+}
+.nav-fab {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 3px solid var(--bg);
+  box-shadow: var(--shadow-float);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: -14px;
+  transition: transform 0.15s ease-out;
+}
+.nav-fab:active {
+  transform: scale(0.94);
+}
+.card-face {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  color: white;
+  box-shadow: var(--shadow-float);
+}
+.card-face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 85% 10%, rgba(255, 255, 255, 0.22) 0%, transparent 50%),
+    repeating-linear-gradient(115deg, transparent 0 34px, rgba(255, 255, 255, 0.04) 34px 36px);
+  pointer-events: none;
+}
+.card-face-chip {
+  width: 30px;
+  height: 22px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, var(--chip-gold) 0%, var(--chip-gold-deep) 100%);
+  position: relative;
+}
+.card-face-chip::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+}
+.face-violet {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--hue-indigo) 82%, var(--face-anchor)) 0%,
+    color-mix(in oklab, var(--hue-violet) 70%, var(--face-anchor)) 100%
+  );
+}
+.face-blue {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--hue-blue) 80%, var(--face-anchor)) 0%,
+    color-mix(in oklab, var(--hue-cyan) 68%, var(--face-anchor)) 100%
+  );
+}
+.face-teal {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--hue-teal) 80%, var(--face-anchor)) 0%,
+    color-mix(in oklab, var(--hue-emerald) 68%, var(--face-anchor)) 100%
+  );
+}
+.face-amber {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--hue-amber) 78%, var(--face-anchor)) 0%,
+    color-mix(in oklab, var(--hue-orange) 70%, var(--face-anchor)) 100%
+  );
+}
+.face-rose {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--hue-rose) 78%, var(--face-anchor)) 0%,
+    color-mix(in oklab, var(--hue-violet) 66%, var(--face-anchor)) 100%
+  );
+}
+.face-graphite {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--hue-slate) 60%, var(--face-anchor)) 0%,
+    var(--face-anchor) 100%
+  );
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--surface) 70%, transparent) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.4s ease-in-out infinite;
+  transform: translateX(-100%);
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.pressable {
+  transition: transform 0.15s ease-out;
+}
+.pressable:active {
+  transform: scale(0.97);
 }
 
 /* =========================================================

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { Budget, CategoryExpense } from '../types';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { ProgressRing, ProgressBarThick, toneForPercent } from './ui/ProgressRing';
 
 interface BudgetsSectionProps {
   budgets: Budget[];
@@ -10,26 +11,6 @@ interface BudgetsSectionProps {
   onAddBudget: (category: CategoryExpense, limit: number, icon: string) => void;
   onRemoveBudget?: (id: string) => void;
   onClearAllBudgets?: () => void;
-}
-
-function pastelForCategory(cat: string): string {
-  const n = cat.toLowerCase();
-  if (n.includes('food')) return 'bar-pink';
-  if (n.includes('transport')) return 'bar-blue';
-  if (n.includes('shopping')) return 'bar-yellow';
-  if (n.includes('utilities')) return 'bar-mint';
-  if (n.includes('rent')) return 'bar-lavender';
-  if (n.includes('entertainment')) return 'bar-pink';
-  if (n.includes('medical')) return 'bar-mint';
-  if (n.includes('education')) return 'bar-lavender';
-  if (n.includes('insurance')) return 'bar-blue';
-  if (n.includes('loan')) return 'bar-yellow';
-  if (n.includes('other')) return 'bar-mint';
-  if (n.includes('bank')) return 'bar-lavender';
-  const fallback = ['bar-pink', 'bar-mint', 'bar-yellow', 'bar-lavender', 'bar-blue'];
-  let h = 0;
-  for (let i = 0; i < cat.length; i++) h = (h * 31 + cat.charCodeAt(i)) >>> 0;
-  return fallback[h % fallback.length];
 }
 
 export default function BudgetsSection({
@@ -133,7 +114,7 @@ export default function BudgetsSection({
               <span className="eyebrow !text-[9px]">Resumen del mes</span>
               <span className="mono text-[11px] font-bold">{percentSpent}%</span>
             </div>
-            <div className="h-2 rounded-full bg-[var(--surface-3)] overflow-hidden">
+            <div className="h-3 rounded-full bg-[var(--surface-3)] overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{ width: `${Math.min(100, percentSpent)}%`, background: 'var(--ink)' }}
@@ -285,13 +266,12 @@ export default function BudgetsSection({
               const ratio = budget.spent / budget.limit;
               const isOver = ratio > 1;
               const pct = Math.min(100, Math.round(ratio * 100));
-              const pastel = pastelForCategory(budget.category);
               const expanded = expandedId === budget.id;
               const isSelected = selectedBudgetId === budget.id;
               return (
                 <div
                   key={budget.id}
-                  className="bg-[var(--surface-2)] border rounded-[16px] p-4 flex flex-col gap-3"
+                  className="bg-[var(--surface-2)] border rounded-[var(--r-md)] p-4 flex flex-col gap-3"
                   style={{ borderColor: isSelected ? 'var(--ink)' : 'var(--line)' }}
                 >
                   {/* Title row — mono bold + More details + icon */}
@@ -344,23 +324,21 @@ export default function BudgetsSection({
                     </div>
                   </div>
 
-                  {/* Progress eyebrow + % */}
-                  <div className="flex items-center justify-between">
-                    <span className="eyebrow !text-[9px] !tracking-[0.14em]">Progress</span>
-                    <span
-                      className="mono text-[11px] font-bold"
-                      style={{ color: isOver ? 'var(--danger)' : 'var(--ink)' }}
-                    >
-                      {pct}%
-                    </span>
-                  </div>
-
-                  {/* Pastel bar — h-2 rounded-full bg surface-3 inner bar-pink etc */}
-                  <div className="h-2 rounded-full bg-[var(--surface-3)] overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${pastel}`}
-                      style={{ width: `${pct}%` }}
-                    />
+                  {/* Ring + thick bar — safe / warning / over states */}
+                  <div className="flex items-center gap-3.5">
+                    <ProgressRing percent={pct} size={56} tone={toneForPercent(pct)} label={`${pct}%`} />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="eyebrow !text-[9px] !tracking-[0.14em]">Progress</span>
+                        <span
+                          className="mono text-[11px] font-bold"
+                          style={{ color: isOver ? 'var(--danger)' : 'var(--ink)' }}
+                        >
+                          {pct}%
+                        </span>
+                      </div>
+                      <ProgressBarThick percent={pct} tone={toneForPercent(pct)} />
+                    </div>
                   </div>
 
                   {/* 3 cols — Limit / Spent / Remaining (mono 11px) */}

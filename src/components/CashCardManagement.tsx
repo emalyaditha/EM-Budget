@@ -106,27 +106,41 @@ function InteractiveBankCard({
   const isCanceled = card.isCanceled || Boolean((card as unknown as Record<string, unknown>).is_canceled);
   const accent = themeAccent(derivedTheme);
   const isBorderAccent = derivedTheme !== 'obsidian';
+  const FACE_TONES: Record<string, string> = {
+    obsidian: 'graphite',
+    sapphire: 'blue',
+    blue: 'blue',
+    emerald: 'teal',
+    copper: 'amber',
+    ruby: 'rose',
+    amethyst: 'violet',
+    amber: 'amber',
+    silver: 'graphite',
+    slate: 'graphite',
+    graphite: 'graphite',
+  };
+  const faceTone = FACE_TONES[derivedTheme] ?? 'graphite';
 
   return (
     <div
       id={`card-view-${card.id}`}
       onClick={onClick}
-      className={`relative flex flex-col justify-between h-[168px] p-5 card overflow-hidden cursor-pointer ${isCanceled ? 'opacity-50 grayscale' : ''}`}
+      className={`relative flex flex-col justify-between h-[168px] p-5 card-face face-${faceTone} overflow-hidden cursor-pointer ${isCanceled ? 'opacity-50 grayscale' : ''}`}
       style={isBorderAccent ? ({ borderLeft: `3px solid ${accent}` } as React.CSSProperties) : undefined}
     >
       {card.isFrozen && !isCanceled && (
-        <div className="absolute inset-0 z-10 bg-[var(--surface)]/85 backdrop-blur-[6px] flex flex-col items-center justify-center rounded-[16px]">
-          <div className="w-9 h-9 rounded-full border border-[var(--line)] bg-[var(--surface-2)] flex items-center justify-center text-[var(--ink-2)]">
+        <div className="absolute inset-0 z-10 bg-black/55 backdrop-blur-[6px] flex flex-col items-center justify-center rounded-[var(--r-md)]">
+          <div className="w-9 h-9 rounded-full border border-white/20 bg-white/10 flex items-center justify-center text-white">
             <Snowflake size={16} />
           </div>
-          <span className="eyebrow mt-2">TEMP FROZEN</span>
+          <span className="eyebrow mt-2 !text-white/70">TEMP FROZEN</span>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onUpdateCard({ ...card, isFrozen: false });
               showToast('success', `${card.cardName} unfrozen.`);
             }}
-            className="btn-ghost mt-3 !py-1.5 !text-xs flex items-center gap-1.5"
+            className="mt-3 h-9 px-4 rounded-full bg-white text-[#101014] mono font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5"
           >
             <Snowflake size={12} />
             Unfreeze
@@ -135,16 +149,16 @@ function InteractiveBankCard({
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start relative z-[1]">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="eyebrow truncate">{card.bankName}</span>
-            <span className="w-1 h-1 rounded-full bg-[var(--line-strong)] shrink-0" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border border-[var(--line)] text-[var(--ink-2)]">
+            <span className="eyebrow truncate !text-white/60">{card.bankName}</span>
+            <span className="w-1 h-1 rounded-full bg-white/30 shrink-0" />
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border border-white/20 text-white/80">
               {card.cardType}
             </span>
           </div>
-          <h4 className="mono font-semibold text-[14px] tracking-tight text-[var(--ink)] mt-1 truncate max-w-[170px]">
+          <h4 className="mono font-semibold text-[14px] tracking-tight text-white mt-1 truncate max-w-[170px]">
             {card.cardName}
           </h4>
         </div>
@@ -165,7 +179,7 @@ function InteractiveBankCard({
                 setEditCardMinPayment?.(card.minPayment !== undefined ? String(card.minPayment) : '');
                 setEditCardStatementCloseDate?.(card.statementCloseDate || '');
               }}
-              className="w-8 h-8 btn-ghost !p-0 flex items-center justify-center"
+              className="w-8 h-8 rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/20 flex items-center justify-center transition-colors"
               title="Edit card"
               aria-label="Edit card"
             >
@@ -177,7 +191,7 @@ function InteractiveBankCard({
                 onUpdateCard({ ...card, isFrozen: true });
                 showToast('warning', `${card.cardName} frozen.`);
               }}
-              className="w-8 h-8 btn-ghost !p-0 flex items-center justify-center"
+              className="w-8 h-8 rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/20 flex items-center justify-center transition-colors"
               title="Freeze card"
               aria-label="Freeze card"
             >
@@ -188,22 +202,20 @@ function InteractiveBankCard({
       </div>
 
       {/* Chip + number row */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-[26px] rounded-[4px] border border-[var(--line)] bg-[var(--surface-2)] flex items-center justify-center relative overflow-hidden shrink-0">
-          <div className="absolute left-[30%] top-0 bottom-0 w-px bg-[var(--line)]" />
-          <div className="absolute top-1/2 left-0 right-0 h-px bg-[var(--line)]" />
-          <div className="w-3 h-3 rounded-[2px] border border-[var(--line-strong)]/60" />
-        </div>
-        <span className="mono text-[12px] tracking-[0.18em] text-[var(--ink-2)] font-medium">
+      <div className="flex items-center gap-3 relative z-[1]">
+        <div className="card-face-chip shrink-0" />
+        <span className="mono text-[12px] tracking-[0.18em] text-white/85 font-medium">
           {card.cardNumber ? card.cardNumber : '•••• •••• •••• 1234'}
         </span>
       </div>
 
       {/* Balance */}
-      <div className="flex justify-between items-end">
+      <div className="flex justify-between items-end relative z-[1]">
         <div>
-          <span className="eyebrow block">{card.cardType === 'Credit' ? 'Available Limit' : 'Balance'}</span>
-          <span className="mono text-[20px] font-bold tracking-tight text-[var(--ink)] leading-none mt-0.5 block tabular-nums">
+          <span className="eyebrow block !text-white/55">
+            {card.cardType === 'Credit' ? 'Available Limit' : 'Balance'}
+          </span>
+          <span className="mono text-[20px] font-bold tracking-tight text-white leading-none mt-0.5 block tabular-nums">
             {currency}
             {(card.cardType === 'Credit'
               ? (card.limit ?? 0) + card.currentBalance
@@ -211,7 +223,7 @@ function InteractiveBankCard({
             ).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
           {card.cardType === 'Debit' && card.lockedAmount !== undefined && card.lockedAmount > 0 && (
-            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border border-white/20 bg-black/20 text-amber-200">
               <Lock size={9} />
               {currency}
               {card.lockedAmount.toLocaleString()} locked
@@ -225,15 +237,15 @@ function InteractiveBankCard({
                 e.stopPropagation();
                 onDeleteCard(card.id);
               }}
-              className="w-7 h-7 rounded-full border border-[var(--line)] bg-[var(--surface)] flex items-center justify-center text-[var(--ink-3)] hover:text-[var(--danger)] hover:border-[var(--danger)]/30 transition-colors"
+              className="w-7 h-7 rounded-full border border-white/20 bg-white/10 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 transition-colors"
               title="Delete"
             >
               <Trash2 size={11} />
             </button>
           )}
           <div className="hidden sm:flex -space-x-1.5">
-            <span className="w-4 h-4 rounded-full border border-[var(--line)] bg-[var(--surface-2)]" />
-            <span className="w-4 h-4 rounded-full border border-[var(--line)] bg-[var(--surface-2)]" />
+            <span className="w-4 h-4 rounded-full border border-white/25 bg-white/15" />
+            <span className="w-4 h-4 rounded-full border border-white/25 bg-white/15" />
           </div>
         </div>
       </div>
@@ -568,10 +580,10 @@ export default function CashCardManagement({
               <div
                 key={account.id}
                 id={`cash-row-${account.id}`}
-                className="flex flex-col gap-2.5 p-3.5 rounded-[16px] border border-[var(--line)] bg-[var(--surface-2)] hover:border-[var(--line-strong)] transition-colors sm:flex-row sm:items-center sm:gap-3"
+                className="flex flex-col gap-2.5 p-3.5 rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--surface-2)] hover:border-[var(--line-strong)] transition-colors sm:flex-row sm:items-center sm:gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-10 h-10 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] flex items-center justify-center shrink-0">
+                  <div className="icon-chip shrink-0">
                     <Wallet size={15} />
                   </div>
                   <div className="min-w-0 flex-1">
