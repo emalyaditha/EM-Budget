@@ -23,6 +23,8 @@ import {
   Repeat,
   CheckCircle2,
   Percent,
+  Coins,
+  Wallet,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { todayLocal } from '../utils';
@@ -515,9 +517,11 @@ export default function CreditCardManagement({
                           <button
                             type="button"
                             disabled
-                            className="btn-ghost !text-[10px] !py-2 px-2 border border-[var(--success)]/40 !text-[var(--success)] flex items-center gap-1 opacity-80"
+                            title="Minimum paid"
+                            aria-label="Minimum paid"
+                            className="w-10 h-10 shrink-0 btn-ghost !p-0 !text-[var(--success)] border border-[var(--success)]/40 flex items-center justify-center gap-1 opacity-80"
                           >
-                            <CheckCircle2 size={10} /> Min paid
+                            <CheckCircle2 size={14} />
                           </button>
                         ) : (
                           <button
@@ -556,9 +560,11 @@ export default function CreditCardManagement({
                               });
                               showToast('success', `Paid ${currency}${minPayment} minimum`);
                             }}
-                            className="btn-ghost !text-[10px] !py-2 px-2 border border-[var(--line)]"
+                            className="w-10 h-10 shrink-0 btn-ghost !p-0 border border-[var(--line)] flex items-center justify-center"
+                            title="Pay minimum"
+                            aria-label="Pay minimum"
                           >
-                            Pay Min.
+                            <Coins size={14} />
                           </button>
                         ))}
                       <button
@@ -587,9 +593,11 @@ export default function CreditCardManagement({
                             return cp;
                           });
                         }}
-                        className="btn-primary flex-1 !text-xs !py-2.5"
+                        className="w-10 h-10 shrink-0 btn-primary !p-0 flex items-center justify-center"
+                        title="Settle full balance"
+                        aria-label="Settle full balance"
                       >
-                        Settle full
+                        <Wallet size={14} />
                       </button>
                       <button
                         onClick={() => {
@@ -618,7 +626,7 @@ export default function CreditCardManagement({
                             return cp;
                           });
                         }}
-                        className="btn-ghost w-10 !p-0 flex items-center justify-center shrink-0"
+                        className="btn-ghost w-10 h-10 !p-0 flex items-center justify-center shrink-0"
                         title="Pay custom"
                       >
                         <CheckSquare size={14} />
@@ -633,25 +641,31 @@ export default function CreditCardManagement({
                   <div className="flex gap-2 pt-2 border-t border-[var(--line)]">
                     <button
                       onClick={() => setShowHistory((p) => ({ ...p, [`${c.id}-purchases`]: !p[`${c.id}-purchases`] }))}
-                      className="btn-ghost !text-[10px] flex items-center gap-1 flex-1"
+                      className="btn-ghost !text-[10px] flex items-center justify-center gap-1 flex-1"
+                      title="Purchases"
+                      aria-label="Toggle purchases history"
                     >
-                      <Receipt size={10} /> Purchases ({cardPurchases.length})
+                      <Receipt size={12} /> ({cardPurchases.length})
                       {showHistory[`${c.id}-purchases`] ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                     </button>
                     <button
                       onClick={() => setShowHistory((p) => ({ ...p, [`${c.id}-payments`]: !p[`${c.id}-payments`] }))}
-                      className="btn-ghost !text-[10px] flex items-center gap-1 flex-1"
+                      className="btn-ghost !text-[10px] flex items-center justify-center gap-1 flex-1"
+                      title="Payments"
+                      aria-label="Toggle payments history"
                     >
-                      <ArrowUpRight size={10} /> Payments ({cardPayments.length})
+                      <ArrowUpRight size={12} /> ({cardPayments.length})
                       {showHistory[`${c.id}-payments`] ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                     </button>
                     <button
                       onClick={() => setShowHistory((p) => ({ ...p, [`${c.id}-charges`]: !p[`${c.id}-charges`] }))}
-                      className={`btn-ghost !text-[10px] flex items-center gap-1 flex-1 ${
+                      className={`btn-ghost !text-[10px] flex items-center justify-center gap-1 flex-1 ${
                         cardCharges.length > 0 ? '!border-amber-500/40 !text-amber-500' : ''
                       }`}
+                      title="Cut-offs & charges"
+                      aria-label="Toggle cut-offs history"
                     >
-                      <Percent size={10} /> Cut-offs ({cardCharges.length})
+                      <Percent size={12} /> ({cardCharges.length})
                       {showHistory[`${c.id}-charges`] ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                     </button>
                   </div>
