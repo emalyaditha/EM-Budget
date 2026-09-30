@@ -73,59 +73,60 @@
   --rainbow: linear-gradient(90deg, var(--pastel-lavender) 0%, var(--pastel-blue) 45%, transparent 100%);
   --hero-violet: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-violet) 18%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-violet) 8%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-violet) 74%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-violet) 56%, var(--hero-deep)) 100%
   );
   --hero-blue: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-blue) 18%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-blue) 8%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-blue) 74%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-blue) 56%, var(--hero-deep)) 100%
   );
   --hero-cyan: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-cyan) 18%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-cyan) 8%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-cyan) 68%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-cyan) 50%, var(--hero-deep)) 100%
   );
   --hero-teal: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-teal) 18%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-teal) 8%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-teal) 68%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-teal) 50%, var(--hero-deep)) 100%
   );
   --hero-mint: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-mint) 18%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-mint) 8%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-mint) 62%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-mint) 45%, var(--hero-deep)) 100%
   );
   --hero-emerald: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-emerald) 20%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-emerald) 9%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-emerald) 70%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-emerald) 52%, var(--hero-deep)) 100%
   );
   --hero-amber: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-amber) 20%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-amber) 9%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-amber) 66%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-amber) 48%, var(--hero-deep)) 100%
   );
   --hero-orange: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-orange) 20%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-orange) 9%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-orange) 72%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-orange) 54%, var(--hero-deep)) 100%
   );
   --hero-rose: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-rose) 18%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-rose) 8%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-rose) 72%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-rose) 54%, var(--hero-deep)) 100%
   );
   --hero-indigo: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-indigo) 16%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-indigo) 8%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-indigo) 76%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-indigo) 58%, var(--hero-deep)) 100%
   );
   --hero-slate: linear-gradient(
     160deg,
-    color-mix(in oklab, var(--hue-slate) 16%, var(--surface)) 0%,
-    color-mix(in oklab, var(--hue-slate) 8%, var(--bg)) 100%
+    color-mix(in oklab, var(--hue-slate) 70%, var(--hero-deep)) 0%,
+    color-mix(in oklab, var(--hue-slate) 52%, var(--hero-deep)) 100%
   );
+  --hero-deep: oklch(26% 0.02 270);
 }
 
 .dark {
@@ -556,15 +557,15 @@ h4 {
   border: 1px solid var(--line) !important;
   color: var(--ink) !important;
 }
-.light .gradient-card [class*='text-white'],
+.light .gradient-card:not([class*='hero-']) [class*='text-white'],
 .light .card-dark [class*='text-white'] {
   color: var(--ink) !important;
 }
-.light .gradient-card [class*='border-white'],
+.light .gradient-card:not([class*='hero-']) [class*='border-white'],
 .light .card-dark [class*='border-white'] {
   border-color: var(--line) !important;
 }
-.light .gradient-card [class*='bg-white'],
+.light .gradient-card:not([class*='hero-']) [class*='bg-white'],
 .light .card-dark [class*='bg-white'] {
   background: color-mix(in srgb, var(--ink) 8%, transparent) !important;
 }
@@ -667,6 +668,11 @@ h4 {
   -webkit-backdrop-filter: blur(18px);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-float);
+}
+@media (min-width: 768px) {
+  .floating-nav {
+    display: none;
+  }
 }
 .nav-item {
   position: relative;
@@ -851,6 +857,7 @@ h4 {
   /* hide interactive controls */
   #reports-centre-view .card.p-1\.5,
   #reports-centre-view .card.p-3,
+  #reports-centre-view .card-sm,
   #reports-centre-view .btn-ghost,
   #reports-centre-view .btn-primary,
   #reports-centre-view #unified-audits-column {

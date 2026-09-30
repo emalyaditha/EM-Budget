@@ -3,7 +3,8 @@ import type { CashAccount, BankCard, CategoryIncome, CategoryExpense } from '../
 import { PlusCircle, MinusCircle, Sparkles } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import ReceiptScanner from './ReceiptScanner';
-import { todayLocal } from '../utils';
+import { todayLocal, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils';
+import { CategoryChip } from './ui/CategoryChip';
 
 interface InflowsOutflowsProps {
   cashAccounts: CashAccount[];
@@ -308,8 +309,34 @@ export default function InflowsOutflows({
             </div>
             <div className="ledger-rule" />
             <div className="flex flex-col gap-1.5">
-              <label className="eyebrow normal-case tracking-normal">Source</label>
+              <span className="eyebrow">Amount</span>
+              <div className="flex items-center gap-2 rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--surface-2)] px-4 py-2.5">
+                <span className="mono text-[15px] font-bold text-[var(--ink-3)]">{currency}</span>
+                <input
+                  ref={incAmountRef}
+                  type="number"
+                  placeholder="0.00"
+                  value={incAmount}
+                  onChange={(e) => {
+                    setIncAmount(e.target.value);
+                    validateIncome(
+                      incSource,
+                      e.target.value,
+                      incTargetId ? `${incTargetId}:${incTargetType}` : '',
+                      incSubmitted,
+                    );
+                  }}
+                  className="w-full min-w-0 bg-transparent mono font-bold text-[28px] tabular-nums text-[var(--ink)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </div>
+              {incErrors.amount && <span className="mono text-[11px] text-[var(--danger)]">{incErrors.amount}</span>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="eyebrow normal-case tracking-normal" htmlFor="income-source-field">
+                Source
+              </label>
               <input
+                id="income-source-field"
                 ref={incSourceRef}
                 type="text"
                 placeholder="Freelance consulting"
@@ -327,41 +354,23 @@ export default function InflowsOutflows({
               />
               {incErrors.source && <span className="mono text-[11px] text-[var(--danger)]">{incErrors.source}</span>}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="eyebrow normal-case">Amount ({currency})</label>
-                <input
-                  ref={incAmountRef}
-                  type="number"
-                  placeholder="0.00"
-                  value={incAmount}
-                  onChange={(e) => {
-                    setIncAmount(e.target.value);
-                    validateIncome(
-                      incSource,
-                      e.target.value,
-                      incTargetId ? `${incTargetId}:${incTargetType}` : '',
-                      incSubmitted,
-                    );
-                  }}
-                  className="input mono"
-                />
-                {incErrors.amount && <span className="mono text-[11px] text-[var(--danger)]">{incErrors.amount}</span>}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="eyebrow normal-case">Category</label>
-                <select
-                  value={incCategory}
-                  onChange={(e) => setIncCategory(e.target.value as CategoryIncome)}
-                  className="input"
-                >
-                  <option value="Salary">Salary</option>
-                  <option value="Freelance">Freelance</option>
-                  <option value="Business">Business</option>
-                  <option value="Bonus">Bonus</option>
-                  <option value="Commission">Commission</option>
-                  <option value="Other">Other</option>
-                </select>
+            <div className="flex flex-col gap-2">
+              <span className="eyebrow">Category</span>
+              <div className="flex flex-wrap gap-1.5">
+                {INCOME_CATEGORIES.map((cat) => {
+                  const active = incCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setIncCategory(cat as CategoryIncome)}
+                      className={`pill !py-1.5 !px-2.5 gap-1.5 text-[11px] ${active ? 'pill-active' : ''}`}
+                    >
+                      <CategoryChip category={cat} size="xs" />
+                      {cat}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -423,8 +432,30 @@ export default function InflowsOutflows({
             </div>
             <div className="ledger-rule" />
             <div className="flex flex-col gap-1.5">
-              <label className="eyebrow normal-case">Title</label>
+              <span className="eyebrow">Amount</span>
+              <div className="flex items-center gap-2 rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--surface-2)] px-4 py-2.5">
+                <span className="mono text-[15px] font-bold text-[var(--ink-3)]">{currency}</span>
+                <input
+                  ref={expAmountRef}
+                  type="number"
+                  placeholder="0.00"
+                  value={expAmount}
+                  onChange={(e) => {
+                    setExpAmount(e.target.value);
+                    setInsufficiencyError(null);
+                    validateExpense(expTitle, expDesc, e.target.value, expMethodId, expMethodType, expSubmitted);
+                  }}
+                  className="w-full min-w-0 bg-transparent mono font-bold text-[28px] tabular-nums text-[var(--ink)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </div>
+              {expErrors.amount && <span className="mono text-[11px] text-[var(--danger)]">{expErrors.amount}</span>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="eyebrow normal-case" htmlFor="expense-title-field">
+                Title
+              </label>
               <input
+                id="expense-title-field"
                 ref={expTitleRef}
                 type="text"
                 placeholder="Electric bill"
@@ -449,41 +480,23 @@ export default function InflowsOutflows({
                 className="input"
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="eyebrow normal-case">Amount ({currency})</label>
-                <input
-                  ref={expAmountRef}
-                  type="number"
-                  placeholder="0.00"
-                  value={expAmount}
-                  onChange={(e) => {
-                    setExpAmount(e.target.value);
-                    setInsufficiencyError(null);
-                    validateExpense(expTitle, expDesc, e.target.value, expMethodId, expMethodType, expSubmitted);
-                  }}
-                  className="input mono"
-                />
-                {expErrors.amount && <span className="mono text-[11px] text-[var(--danger)]">{expErrors.amount}</span>}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="eyebrow normal-case">Category</label>
-                <select
-                  value={expCategory}
-                  onChange={(e) => setExpCategory(e.target.value as CategoryExpense)}
-                  className="input"
-                >
-                  <option value="Food">Food</option>
-                  <option value="Transport">Transport</option>
-                  <option value="Shopping">Shopping</option>
-                  <option value="Utilities">Utilities</option>
-                  <option value="Rent">Rent</option>
-                  <option value="Entertainment">Entertainment</option>
-                  <option value="Medical">Medical</option>
-                  <option value="Education">Education</option>
-                  <option value="Insurance">Insurance</option>
-                  <option value="Other">Other</option>
-                </select>
+            <div className="flex flex-col gap-2">
+              <span className="eyebrow">Category</span>
+              <div className="flex flex-wrap gap-1.5">
+                {EXPENSE_CATEGORIES.map((cat) => {
+                  const active = expCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setExpCategory(cat as CategoryExpense)}
+                      className={`pill !py-1.5 !px-2.5 gap-1.5 text-[11px] ${active ? 'pill-active' : ''}`}
+                    >
+                      <CategoryChip category={cat} size="xs" />
+                      {cat}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -549,7 +562,7 @@ export default function InflowsOutflows({
               </div>
             </div>
             {insufficiencyError && (
-              <div className="p-3 rounded-[12px] border border-[var(--danger)]/20 bg-[var(--danger-bg)] text-[var(--danger)] text-xs mono">
+              <div className="p-3 rounded-[var(--r-sm)] border border-[var(--danger)]/20 bg-[var(--danger-bg)] text-[var(--danger)] text-xs mono">
                 {insufficiencyError}
               </div>
             )}

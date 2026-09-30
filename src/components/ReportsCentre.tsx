@@ -1,9 +1,23 @@
 ﻿import React, { useState } from 'react';
 import type { Transaction, Income, Expense, Debt, CashAccount, BankCard, LoanGiven, Subscription } from '../types';
 import { exportTransactionsToCSV, EXPENSE_COLORS } from '../utils';
-import { FileDown, Printer, BarChart3, PieChart, TrendingUp, Landmark, Search } from 'lucide-react';
+import {
+  FileDown,
+  Printer,
+  BarChart3,
+  PieChart,
+  TrendingUp,
+  Landmark,
+  Search,
+  CalendarDays,
+  ArrowLeftRight,
+  FileText,
+} from 'lucide-react';
 import { IncomeVsExpenseBar, CategorySpreadAnalysis, TrendAnalysisChart } from './Charts';
 import AuditPanel from './AuditPanel';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { TransactionRow } from './ui/TransactionRow';
+import { ProgressBarThick } from './ui/ProgressRing';
 
 interface ReportsCentreProps {
   transactions: Transaction[];
@@ -147,63 +161,68 @@ export default function ReportsCentre({
           Currency {currency}
         </p>
       </div>
-      <div className="card p-1.5 flex gap-1 overflow-x-auto scrollbar-none">
-        {[
-          { key: 'monthly', label: 'Monthly' },
-          { key: 'yearly', label: 'Annual' },
-          { key: 'category', label: 'Categories' },
-          { key: 'debt', label: 'Debts' },
-          { key: 'audit', label: 'Audit & Health' },
-        ].map((item) => (
-          <button
-            key={item.key}
-            onClick={() => setReportType(item.key as 'monthly' | 'yearly' | 'category' | 'debt' | 'audit')}
-            className={
-              reportType === item.key
-                ? 'pill pill-active !py-2 text-[12px] justify-center whitespace-nowrap shrink-0'
-                : 'pill !py-2 text-[12px] justify-center !border-transparent whitespace-nowrap shrink-0'
-            }
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      {(reportType === 'monthly' || reportType === 'yearly') && (
-        <div className="card p-3 flex gap-2">
-          {reportType === 'monthly' && (
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="input flex-1 !py-2.5"
-            >
-              <option value="01">January</option>
-              <option value="02">February</option>
-              <option value="03">March</option>
-              <option value="04">April</option>
-              <option value="05">May</option>
-              <option value="06">June</option>
-              <option value="07">July</option>
-              <option value="08">August</option>
-              <option value="09">September</option>
-              <option value="10">October</option>
-              <option value="11">November</option>
-              <option value="12">December</option>
-            </select>
-          )}
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="input flex-1 !py-2.5"
-          >
-            {Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - 1 + i).map((y) => (
-              <option key={y} value={String(y)}>
-                {y}
-              </option>
-            ))}
-          </select>
+      {/* Control bar — segmented report switcher + period pickers */}
+      <div className="card card-lg p-3 sm:p-4 flex flex-col gap-3">
+        <div className="overflow-x-auto scrollbar-none -mx-1 px-1">
+          <SegmentedControl
+            ariaLabel="Report type"
+            layoutId="report-type"
+            value={reportType}
+            onChange={(id) => setReportType(id)}
+            options={[
+              { id: 'monthly', label: 'Monthly' },
+              { id: 'yearly', label: 'Annual' },
+              { id: 'category', label: 'Categories' },
+              { id: 'debt', label: 'Debts' },
+              { id: 'audit', label: 'Audit & Health' },
+            ]}
+          />
         </div>
-      )}
+        {(reportType === 'monthly' || reportType === 'yearly') && (
+          <div className="flex flex-wrap items-end gap-2">
+            <span className="icon-chip shrink-0 self-center">
+              <CalendarDays size={15} />
+            </span>
+            {reportType === 'monthly' && (
+              <label className="flex-1 min-w-[140px]">
+                <span className="eyebrow block mb-1">Month</span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="input !py-2.5 cursor-pointer font-semibold"
+                >
+                  <option value="01">January</option>
+                  <option value="02">February</option>
+                  <option value="03">March</option>
+                  <option value="04">April</option>
+                  <option value="05">May</option>
+                  <option value="06">June</option>
+                  <option value="07">July</option>
+                  <option value="08">August</option>
+                  <option value="09">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+              </label>
+            )}
+            <label className="flex-1 min-w-[110px]">
+              <span className="eyebrow block mb-1">Year</span>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="input mono !py-2.5 cursor-pointer font-semibold"
+              >
+                {Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - 1 + i).map((y) => (
+                  <option key={y} value={String(y)}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
+      </div>
 
       {reportType === 'audit' ? (
         <AuditPanel
@@ -219,40 +238,55 @@ export default function ReportsCentre({
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           <div className="lg:col-span-7 space-y-4">
-            <div className="gradient-card hero-indigo p-6 overflow-hidden">
-              <p className="eyebrow !text-white/60">Executive summary</p>
-              <p className="eyebrow !text-white/40 !text-[9px] mt-1">Period net surplus</p>
-              <h2 className="mono text-[28px] font-extrabold tracking-tight mt-1 text-white tabular-nums break-all">
-                {currency}
-                {netSavings.toLocaleString()}
-              </h2>
-              <p className="text-[12px] leading-relaxed mt-2 text-white/60">
+            <div className="gradient-card hero-indigo card-lg p-6 overflow-hidden">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="eyebrow !text-white/60">Executive summary</p>
+                  <p className="mono text-[30px] sm:text-[34px] font-bold tracking-tight mt-1 text-white tabular-nums break-all leading-none">
+                    {netSavings < 0 ? '-' : ''}
+                    {currency}
+                    {Math.abs(netSavings).toLocaleString()}
+                  </p>
+                  <p className="eyebrow !text-white/40 !text-[9px] mt-1.5">Period net surplus</p>
+                </div>
+                <span
+                  className={`delta-chip shrink-0 ${netSavings >= 0 ? 'delta-chip-up' : 'delta-chip-down'}`}
+                  style={{
+                    background: 'rgba(255,255,255,0.12)',
+                    borderColor: 'rgba(255,255,255,0.18)',
+                    color: 'white',
+                  }}
+                >
+                  {savingsRate > 0 ? `▲ ${savingsRate}%` : `▼ ${Math.abs(savingsRate)}%`} saved
+                </span>
+              </div>
+              <p className="text-[12px] leading-relaxed mt-3 text-white/60">
                 Inflows minus outflows and debt paydowns for selected period.
               </p>
               <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-3 mt-5 relative z-10">
-                <div className="rounded-[12px] p-3 bg-white/10 border border-white/10 text-center min-w-0">
+                <div className="rounded-[var(--r-sm)] p-3 bg-white/10 border border-white/10 text-center min-w-0">
                   <p className="eyebrow !text-white/60 !text-[9px]">Collected</p>
                   <p
-                    className="mono text-[12px] font-bold mt-1 text-white truncate tabular-nums"
+                    className="mono text-[13px] font-bold mt-1 text-white truncate tabular-nums"
                     title={`+${currency}${totalIncome.toLocaleString()}`}
                   >
                     +{currency}
                     {totalIncome.toLocaleString()}
                   </p>
                 </div>
-                <div className="rounded-[12px] p-3 bg-white/10 border border-white/10 text-center min-w-0">
+                <div className="rounded-[var(--r-sm)] p-3 bg-white/10 border border-white/10 text-center min-w-0">
                   <p className="eyebrow !text-white/60 !text-[9px]">Settled</p>
                   <p
-                    className="mono text-[12px] font-bold mt-1 text-white truncate tabular-nums"
+                    className="mono text-[13px] font-bold mt-1 text-white truncate tabular-nums"
                     title={`-${currency}${totalExpense.toLocaleString()}`}
                   >
                     -{currency}
                     {totalExpense.toLocaleString()}
                   </p>
                 </div>
-                <div className="rounded-[12px] p-3 bg-white/10 border border-white/10 text-center min-w-0">
+                <div className="rounded-[var(--r-sm)] p-3 bg-white/10 border border-white/10 text-center min-w-0">
                   <p className="eyebrow !text-white/60 !text-[9px]">Surplus</p>
-                  <p className="mono text-[12px] font-bold mt-1 text-white">
+                  <p className="mono text-[13px] font-bold mt-1 text-white tabular-nums">
                     {savingsRate > 0 ? `+${savingsRate}%` : `${savingsRate}%`}
                   </p>
                 </div>
@@ -261,43 +295,53 @@ export default function ReportsCentre({
 
             {reportType !== 'debt' ? (
               <div className="space-y-4">
-                <div>
-                  <p className="eyebrow mb-2 inline-flex items-center gap-1">
-                    <BarChart3 size={11} /> Inflows vs outflows
+                <div className="card p-4 sm:p-5">
+                  <p className="eyebrow mb-3 inline-flex items-center gap-2">
+                    <span className="icon-chip">
+                      <BarChart3 size={13} />
+                    </span>
+                    Cash flow
                   </p>
                   <IncomeVsExpenseBar income={totalIncome} expense={totalExpense} currency={currency} />
                 </div>
-                <div>
-                  <p className="eyebrow mb-2 inline-flex items-center gap-1">
-                    <PieChart size={11} /> Categories
+                <div className="card p-4 sm:p-5">
+                  <p className="eyebrow mb-3 inline-flex items-center gap-2">
+                    <span className="icon-chip">
+                      <PieChart size={13} />
+                    </span>
+                    Category spread
                   </p>
                   <CategorySpreadAnalysis categories={categoryChartList} />
                 </div>
-                <div>
-                  <p className="eyebrow mb-2 inline-flex items-center gap-1">
-                    <TrendingUp size={11} /> Velocity
+                <div className="card p-4 sm:p-5">
+                  <p className="eyebrow mb-3 inline-flex items-center gap-2">
+                    <span className="icon-chip">
+                      <TrendingUp size={13} />
+                    </span>
+                    Spending velocity
                   </p>
                   <TrendAnalysisChart data={sparklineData} currency={currency} />
                 </div>
               </div>
             ) : (
-              <div className="card p-6 space-y-3">
+              <div className="card card-lg p-5 space-y-3">
                 <div
                   className="flex justify-between items-center"
                   style={{ borderBottom: '1px solid var(--line)', paddingBottom: 10 }}
                 >
-                  <h4 className="text-[13px] font-bold inline-flex items-center gap-1.5">
-                    <Landmark size={14} />
+                  <h4 className="text-[13px] font-bold inline-flex items-center gap-2">
+                    <span className="icon-chip">
+                      <Landmark size={13} />
+                    </span>
                     Liabilities
                   </h4>
-                  <span className="mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
-                    {debts.length} records
-                  </span>
+                  <span className="pill mono !text-[10px] !py-1 !px-2.5">{debts.length} records</span>
                 </div>
                 {debts.length === 0 ? (
-                  <p className="mono text-[12px] text-center py-8" style={{ color: 'var(--ink-3)' }}>
-                    No liabilities.
-                  </p>
+                  <div className="empty py-10 flex flex-col items-center gap-2">
+                    <FileText size={20} style={{ color: 'var(--ink-3)' }} />
+                    <p className="mono text-[12px]">No liabilities on the books.</p>
+                  </div>
                 ) : (
                   [...debts]
                     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
@@ -305,19 +349,25 @@ export default function ReportsCentre({
                       const paid = d.totalAmount - d.remainingAmount;
                       const ratio = Math.round((paid / d.totalAmount) * 100);
                       return (
-                        <div key={d.id} className="card-flat p-4 space-y-2">
-                          <div className="flex justify-between mono text-[12px]">
-                            <span className="font-semibold truncate pr-3">{d.debtSource}</span>
-                            <span className="font-bold shrink-0">
+                        <div key={d.id} className="card-flat p-4 space-y-3">
+                          <div className="flex justify-between items-end gap-3">
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-bold truncate">{d.debtSource}</p>
+                              <p className="eyebrow !text-[9px] mt-0.5">
+                                Due {new Date(d.dueDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <p className="money text-[14px] font-extrabold shrink-0 tabular-nums">
                               {currency}
                               {d.remainingAmount.toLocaleString()}
-                            </span>
+                            </p>
                           </div>
-                          <div className="h-[1px] w-full" style={{ background: 'var(--line)' }}>
-                            <div className="h-[1px]" style={{ width: `${ratio}%`, background: 'var(--ink)' }} />
-                          </div>
+                          <ProgressBarThick
+                            percent={ratio}
+                            tone={ratio >= 100 ? 'safe' : ratio >= 50 ? 'warning' : 'danger'}
+                          />
                           <div className="flex justify-between mono text-[10px]" style={{ color: 'var(--ink-3)' }}>
-                            <span>{ratio}% settled</span>
+                            <span className="font-bold">{ratio}% settled</span>
                             <span>
                               Initial {currency}
                               {d.totalAmount.toLocaleString()}
@@ -342,17 +392,25 @@ export default function ReportsCentre({
             </div>
           </div>
 
-          <div className="lg:col-span-5 card p-5 space-y-4 overflow-hidden relative" id="unified-audits-column">
+          <div
+            className="lg:col-span-5 card card-lg p-4 sm:p-5 space-y-4 overflow-hidden relative"
+            id="unified-audits-column"
+          >
             <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-50" />
             <div
               className="flex justify-between items-center"
               style={{ borderBottom: '1px solid var(--line)', paddingBottom: 10 }}
             >
-              <div>
-                <p className="eyebrow">Ledger audit</p>
-                <p className="text-[13px] font-bold">Unified journals</p>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="icon-chip">
+                  <ArrowLeftRight size={14} />
+                </span>
+                <div className="min-w-0">
+                  <p className="eyebrow">Ledger audit</p>
+                  <p className="text-[13px] font-bold truncate">Unified journals</p>
+                </div>
               </div>
-              <span className="pill mono !text-[10px] !py-1 !px-2.5">{filteredHistory.length} events</span>
+              <span className="pill mono !text-[10px] !py-1 !px-2.5 shrink-0">{filteredHistory.length} events</span>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-3" size={14} style={{ color: 'var(--ink-3)' }} />
@@ -361,7 +419,7 @@ export default function ReportsCentre({
                 placeholder="Search journals..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input !pl-9"
+                className="input !pl-9 !bg-[var(--surface-2)]"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -370,7 +428,7 @@ export default function ReportsCentre({
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="input !py-3 text-[12px]"
+                  className="input !py-3 text-[12px] !bg-[var(--surface-2)]"
                 >
                   <option value="all">All</option>
                   <option value="income">Incomes</option>
@@ -386,7 +444,7 @@ export default function ReportsCentre({
                 <select
                   value={filterAccount}
                   onChange={(e) => setFilterAccount(e.target.value)}
-                  className="input !py-3 text-[12px]"
+                  className="input !py-3 text-[12px] !bg-[var(--surface-2)]"
                 >
                   <option value="all">All wallets/cards</option>
                   {cashAccounts.map((c) => (
@@ -407,11 +465,21 @@ export default function ReportsCentre({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <p className="eyebrow !text-[9px] mb-1">Start</p>
-                <input type="date" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <input
+                  type="date"
+                  className="input !bg-[var(--surface-2)]"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
               </div>
               <div>
                 <p className="eyebrow !text-[9px] mb-1">End</p>
-                <input type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <input
+                  type="date"
+                  className="input !bg-[var(--surface-2)]"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
               </div>
             </div>
             {(startDate || endDate) && (
@@ -426,9 +494,12 @@ export default function ReportsCentre({
                 Reset bounds
               </button>
             )}
-            <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1" id="filtered-list">
+            <div className="space-y-1 max-h-[460px] overflow-y-auto pr-1" id="filtered-list">
               {filteredHistory.length === 0 ? (
-                <div className="empty mono text-[12px]">No entries match.</div>
+                <div className="empty py-10 flex flex-col items-center gap-2">
+                  <FileText size={20} style={{ color: 'var(--ink-3)' }} />
+                  <p className="mono text-[12px]">No entries match this filter.</p>
+                </div>
               ) : (
                 filteredHistory.map((t) => {
                   const isInc =
@@ -444,39 +515,18 @@ export default function ReportsCentre({
                   };
                   const accountLabel = getAccountLabel(t.accountId, t.accountType);
                   return (
-                    <button
+                    <TransactionRow
                       key={t.id}
-                      id={`reports-audit-card-${t.id}`}
+                      title={t.title}
+                      subtitle={`${t.date} · ${accountLabel || 'Ledger'}`}
+                      category={t.category}
+                      amountText={`${isInc ? '+' : '-'}${currency}${absAmount.toLocaleString()}`}
+                      isIncome={isInc}
                       onClick={() => onSelectTransaction(t.id)}
-                      className="card-flat w-full text-left p-3 space-y-2 hover:!border-[var(--line-strong)]"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span
-                          className="mono text-[9px] font-bold px-2 py-0.5 rounded-full uppercase"
-                          style={{ border: '1px solid var(--line)', background: 'var(--surface-2)' }}
-                        >
-                          {t.type}
-                        </span>
-                        <span className="mono text-[10px]" style={{ color: 'var(--ink-3)' }}>
-                          {t.date}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center gap-2">
-                        <span className="text-[12px] font-semibold truncate pr-2">{t.title}</span>
-                        <span className="mono text-[11px] font-bold shrink-0">
-                          {isInc ? '+' : '-'}
-                          {currency}
-                          {absAmount.toLocaleString()}
-                        </span>
-                      </div>
-                      <div
-                        className="flex justify-between mono text-[10px]"
-                        style={{ color: 'var(--ink-3)', borderTop: '1px solid var(--line)', paddingTop: 6 }}
-                      >
-                        <span className="truncate pr-2">{t.category}</span>
-                        <span className="shrink-0">{accountLabel || 'Ledger'}</span>
-                      </div>
-                    </button>
+                      trailing={
+                        <span className="pill mono !text-[9px] !py-0.5 !px-2 hidden sm:inline-flex">{t.type}</span>
+                      }
+                    />
                   );
                 })
               )}
