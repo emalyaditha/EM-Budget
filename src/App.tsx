@@ -234,6 +234,9 @@ export default function App() {
   // 1. Core State
   const [state, setState] = useState<AppState>(DEFAULT_APP_STATE);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  // Google SSO profile (name + photo) captured at sign-in; seeded into the
+  // user profile once, and only if it is still the untouched placeholder.
+  const pendingGoogleProfile = useRef<{ name?: string; picture?: string } | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   // App-lock gate state. isAppLocked/isAppLockInit/appLockStatus are written by
   // determineAppLock and the boot flow; the LockScreen gate UI is not wired up
@@ -256,6 +259,27 @@ export default function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
+  useEffect(() => {
+    const gp = pendingGoogleProfile.current;
+    if (!gp || !isUnlocked) return;
+    const up = state.userProfile;
+    if (up?.avatarUrl || (up?.name && up.name !== 'User')) {
+      pendingGoogleProfile.current = null;
+      return;
+    }
+    setState((prev) => {
+      const p = prev.userProfile;
+      if (p?.avatarUrl || (p?.name && p.name !== 'User')) return prev;
+      return {
+        ...prev,
+        userProfile: {
+          name: gp.name || p?.name || 'User',
+          email: p?.email && p.email !== 'user@example.com' ? p.email : userEmail || p?.email || '',
+          avatarUrl: gp.picture,
+        },
+      };
+    });
+  }, [isUnlocked, state.userProfile, userEmail]);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
@@ -3835,7 +3859,10 @@ export default function App() {
         {/* ======================= RE-LOCK SCREEN INTERACTION ======================= */}
         {!isUnlocked && (
           <EmailLogin
-            onUnlocked={async (email, token, rememberMe, deviceToken) => {
+            onUnlocked={async (email, token, rememberMe, deviceToken, googleProfile) => {
+              if (googleProfile?.name || googleProfile?.picture) {
+                pendingGoogleProfile.current = googleProfile;
+              }
               authSession.setToken(token);
               authSession.setEmail(email);
               localStorage.setItem('auth_user_email', email);

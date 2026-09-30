@@ -403,6 +403,8 @@ export async function createApp(): Promise<express.Express> {
     email: string;
     passwordHash: string;
     createdAt: number;
+    name?: string;
+    avatarUrl?: string;
   }
 
   // System token signature generator (signs express backend requests for RLS-by-signature verification blocks)
@@ -546,14 +548,16 @@ export async function createApp(): Promise<express.Express> {
       return;
     }
     try {
-      const { error } = await supabase.from('auth_accounts').upsert(
-        {
-          email: normalizedEmail,
-          password_hash: acc.passwordHash,
-          created_at: new Date(acc.createdAt).toISOString(),
-        },
-        { onConflict: 'email' },
-      );
+      const payload: Record<string, unknown> = {
+        email: normalizedEmail,
+        password_hash: acc.passwordHash,
+        created_at: new Date(acc.createdAt).toISOString(),
+      };
+      // Only write profile columns when known: an upsert with undefined would
+      // blank out a name/avatar the user set in Settings.
+      if (acc.name) payload.name = acc.name;
+      if (acc.avatarUrl) payload.avatar_url = acc.avatarUrl;
+      const { error } = await supabase.from('auth_accounts').upsert(payload, { onConflict: 'email' });
       if (error) {
         console.error('Error saving account to Supabase:', error);
         throw error;
@@ -1983,12 +1987,23 @@ export async function createApp(): Promise<express.Express> {
       }
 
       const supabase = getSupabase(req);
+      const googleName = typeof payload.name === 'string' && payload.name ? payload.name : undefined;
+      const googlePicture = typeof payload.picture === 'string' && payload.picture ? payload.picture : undefined;
       const existing = await getAccountByEmail(normalizedEmail, supabase);
       if (!existing) {
         // Google-only account: bcrypt hash of 256 random bits is computationally
         // unguessable, so password login against this row can never succeed.
         const unusableHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
-        await saveAccount({ email: normalizedEmail, passwordHash: unusableHash, createdAt: Date.now() }, supabase);
+        await saveAccount(
+          {
+            email: normalizedEmail,
+            passwordHash: unusableHash,
+            createdAt: Date.now(),
+            name: googleName,
+            avatarUrl: googlePicture,
+          },
+          supabase,
+        );
       }
 
       const deviceToken = crypto.randomUUID();
@@ -1997,7 +2012,7 @@ export async function createApp(): Promise<express.Express> {
       const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
       const token = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
       setSessionCookie(res, token, rememberMe ? 30 * 24 * 60 * 60 : 86400);
-      res.json({ success: true, token, deviceToken, email: normalizedEmail });
+      res.json({ success: true, token, deviceToken, email: normalizedEmail, name: googleName, picture: googlePicture });
     } catch (err) {
       if (err instanceof DatabaseUnavailableError) {
         res.status(503).json({ success: false, error: err.message });

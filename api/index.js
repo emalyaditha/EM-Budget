@@ -94606,14 +94606,14 @@ async function createApp() {
       return;
     }
     try {
-      const { error } = await supabase.from("auth_accounts").upsert(
-        {
-          email: normalizedEmail,
-          password_hash: acc.passwordHash,
-          created_at: new Date(acc.createdAt).toISOString()
-        },
-        { onConflict: "email" }
-      );
+      const payload = {
+        email: normalizedEmail,
+        password_hash: acc.passwordHash,
+        created_at: new Date(acc.createdAt).toISOString()
+      };
+      if (acc.name) payload.name = acc.name;
+      if (acc.avatarUrl) payload.avatar_url = acc.avatarUrl;
+      const { error } = await supabase.from("auth_accounts").upsert(payload, { onConflict: "email" });
       if (error) {
         console.error("Error saving account to Supabase:", error);
         throw error;
@@ -95763,17 +95763,28 @@ async function createApp() {
         return;
       }
       const supabase = getSupabase(req);
+      const googleName = typeof payload.name === "string" && payload.name ? payload.name : void 0;
+      const googlePicture = typeof payload.picture === "string" && payload.picture ? payload.picture : void 0;
       const existing = await getAccountByEmail(normalizedEmail, supabase);
       if (!existing) {
         const unusableHash = await bcryptjs_default.hash(import_crypto4.default.randomBytes(32).toString("hex"), 10);
-        await saveAccount({ email: normalizedEmail, passwordHash: unusableHash, createdAt: Date.now() }, supabase);
+        await saveAccount(
+          {
+            email: normalizedEmail,
+            passwordHash: unusableHash,
+            createdAt: Date.now(),
+            name: googleName,
+            avatarUrl: googlePicture
+          },
+          supabase
+        );
       }
       const deviceToken = import_crypto4.default.randomUUID();
       await saveDeviceToken(deviceToken, supabase, normalizedEmail);
       const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
       const token = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
       setSessionCookie(res, token, rememberMe ? 30 * 24 * 60 * 60 : 86400);
-      res.json({ success: true, token, deviceToken, email: normalizedEmail });
+      res.json({ success: true, token, deviceToken, email: normalizedEmail, name: googleName, picture: googlePicture });
     } catch (err) {
       if (err instanceof DatabaseUnavailableError) {
         res.status(503).json({ success: false, error: err.message });

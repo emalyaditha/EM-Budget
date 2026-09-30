@@ -5,7 +5,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { getSupabaseConfig } from '../supabase';
 
 interface EmailLoginProps {
-  onUnlocked: (email: string, token: string, rememberMe: boolean, deviceToken?: string) => void;
+  onUnlocked: (
+    email: string,
+    token: string,
+    rememberMe: boolean,
+    deviceToken?: string,
+    googleProfile?: { name?: string; picture?: string },
+  ) => void;
 }
 
 type AuthStep = 'enter-email' | 'login-password' | 'verify-otp' | 'create-password' | 'reset-otp' | 'reset-password';
@@ -97,7 +103,10 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
           throw new Error(`Too many requests. Try again in ${data.retryAfter} seconds.`);
         }
         if (!resp.ok || !data?.success) throw new Error(data?.error || 'Google sign-in failed.');
-        onUnlocked(String(data.email), String(data.token), false, data.deviceToken);
+        onUnlocked(String(data.email), String(data.token), false, data.deviceToken, {
+          name: data.name || undefined,
+          picture: data.picture || undefined,
+        });
       } catch (err: unknown) {
         setErrorMsg(err instanceof Error ? err.message : 'System error. Check connection.');
       } finally {
