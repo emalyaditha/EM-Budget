@@ -228,3 +228,34 @@ describe('check-email enumeration hardening', () => {
     expect(last.status).toBe(429);
   }, 30000);
 });
+
+describe('google sso', () => {
+  it('returns 503 when GOOGLE_CLIENT_ID is not configured', async () => {
+    const { headers } = withIsolation(ctx);
+    const res = await ctx.request.post('/api/auth/google').set(headers).send({ credential: 'x.y.z' });
+    expect(res.status).toBe(503);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('rejects a missing credential with 400', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-google-client-id.apps.googleusercontent.com';
+    try {
+      const { headers } = withIsolation(ctx);
+      const res = await ctx.request.post('/api/auth/google').set(headers).send({});
+      expect(res.status).toBe(400);
+    } finally {
+      delete process.env.GOOGLE_CLIENT_ID;
+    }
+  });
+
+  it('rejects an unverifiable ID token with 401', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-google-client-id.apps.googleusercontent.com';
+    try {
+      const { headers } = withIsolation(ctx);
+      const res = await ctx.request.post('/api/auth/google').set(headers).send({ credential: 'not-a-jwt' });
+      expect(res.status).toBe(401);
+    } finally {
+      delete process.env.GOOGLE_CLIENT_ID;
+    }
+  });
+});

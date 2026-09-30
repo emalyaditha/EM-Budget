@@ -10,6 +10,12 @@ delete process.env.SUPABASE_URL;
 delete process.env.VITE_SUPABASE_ANON_KEY;
 delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 delete process.env.SMTP_HOST;
+// Email must never actually send in tests: without these deletions a real
+// RESEND_API_KEY in the local .env would make send-otp deliver live emails and
+// break the devOtp path the OTP tests rely on.
+delete process.env.RESEND_API_KEY;
+delete process.env.RESEND_FROM;
+delete process.env.GOOGLE_CLIENT_ID;
 process.env.SESSION_SECRET = 'test-session-secret-not-for-production';
 process.env.DEV_OTP_RESPONSE = 'true';
 
@@ -50,6 +56,9 @@ export async function makeTestApp(): Promise<TestContext> {
   delete process.env.VITE_SUPABASE_ANON_KEY;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   delete process.env.SMTP_HOST;
+  delete process.env.RESEND_API_KEY;
+  delete process.env.RESEND_FROM;
+  delete process.env.GOOGLE_CLIENT_ID;
   process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-session-secret-not-for-production';
   process.env.DEV_OTP_RESPONSE = 'true';
   const app = await createApp();

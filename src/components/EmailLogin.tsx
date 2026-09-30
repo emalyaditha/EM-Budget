@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiUrl, safeJson } from '../lib/api';
 import { Mail, ShieldCheck, KeyRound, AlertCircle, RefreshCw, Lock, ArrowRight, Eye, EyeOff, Key } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -9,6 +9,31 @@ interface EmailLoginProps {
 }
 
 type AuthStep = 'enter-email' | 'login-password' | 'verify-otp' | 'create-password' | 'reset-otp' | 'reset-password';
+
+// Minimal typings for the Google Identity Services script (accounts.google.com/gsi/client).
+interface GsiCredentialResponse {
+  credential?: string;
+}
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: {
+            client_id: string;
+            callback: (response: GsiCredentialResponse) => void;
+          }) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: { theme?: string; size?: string; text?: string; width?: number },
+          ) => void;
+        };
+      };
+    };
+  }
+}
+
+const GSI_SCRIPT_ID = 'google-gsi-script';
 
 export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
   const [step, setStep] = useState<AuthStep>('enter-email');
@@ -45,6 +70,77 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
       if (rateLimitTimerRef.current) clearTimeout(rateLimitTimerRef.current);
     };
   }, [rateLimitTimer]);
+
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+  const gsiButtonRef = useRef<HTMLDivElement | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleCredential = useCallback(
+    async (credential: string) => {
+      setGoogleLoading(true);
+      setErrorMsg(null);
+      setInfoMsg(null);
+      try {
+        const config = getSupabaseConfig();
+        const resp = await fetch(apiUrl('/api/auth/google'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-supabase-url': config.url,
+            'x-supabase-key': config.key,
+          },
+          body: JSON.stringify({ credential }),
+        });
+        const data = await safeJson(resp);
+        if (resp.status === 429 && data?.retryAfter) {
+          setRateLimitTimer(data.retryAfter);
+          throw new Error(`Too many requests. Try again in ${data.retryAfter} seconds.`);
+        }
+        if (!resp.ok || !data?.success) throw new Error(data?.error || 'Google sign-in failed.');
+        onUnlocked(String(data.email), String(data.token), false, data.deviceToken);
+      } catch (err: unknown) {
+        setErrorMsg(err instanceof Error ? err.message : 'System error. Check connection.');
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    [onUnlocked],
+  );
+
+  // Latest handler via ref so the GSI callback never goes stale, while the
+  // initialize/renderButton effect only depends on client id + step.
+  const handleGoogleCredentialRef = useRef(handleGoogleCredential);
+  useEffect(() => {
+    handleGoogleCredentialRef.current = handleGoogleCredential;
+  }, [handleGoogleCredential]);
+
+  useEffect(() => {
+    if (!googleClientId || step !== 'enter-email') return;
+    const setup = () => {
+      const container = gsiButtonRef.current;
+      const gsi = window.google?.accounts?.id;
+      if (!container || !gsi) return;
+      gsi.initialize({
+        client_id: googleClientId,
+        callback: (response) => {
+          if (response.credential) void handleGoogleCredentialRef.current(response.credential);
+        },
+      });
+      if (container.childElementCount === 0) {
+        gsi.renderButton(container, { theme: 'outline', size: 'large', text: 'continue_with', width: 340 });
+      }
+    };
+    setup();
+    if (!document.getElementById(GSI_SCRIPT_ID)) {
+      const script = document.createElement('script');
+      script.id = GSI_SCRIPT_ID;
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = setup;
+      document.head.appendChild(script);
+    }
+  }, [googleClientId, step]);
 
   const getHeaders = () => {
     const config = getSupabaseConfig();
@@ -612,6 +708,20 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
               </motion.form>
             )}
           </AnimatePresence>
+
+          {step === 'enter-email' && googleClientId && (
+            <div className="mt-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="ledger-rule flex-1 !my-0" />
+                <span className="eyebrow shrink-0">or</span>
+                <div className="ledger-rule flex-1 !my-0" />
+              </div>
+              <div ref={gsiButtonRef} className="flex justify-center min-h-[40px]" />
+              {googleLoading && (
+                <p className="text-[11px] text-[var(--ink-3)] text-center mt-2">Completing Google sign-in…</p>
+              )}
+            </div>
+          )}
 
           <AnimatePresence>
             {errorMsg && (

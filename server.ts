@@ -17,6 +17,7 @@ import { logDbFailure, newRequestId } from './api-src/log';
 import { applyInMemoryRateLimit, FAIL_OPEN_EXPLICIT } from './api-src/rate-limit';
 import { DatabaseUnavailableError, failClosedOnDbError } from './api-src/db-unavailable';
 import { generateSecureToken, verifySecureToken, timingSafeEqualString } from './server/security';
+import { OAuth2Client, type TokenPayload } from 'google-auth-library';
 
 function withTimeout<T>(promise: PromiseLike<T>, ms: number, label = 'Operation'): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -121,6 +122,9 @@ export async function createApp(): Promise<express.Express> {
       const host = new URL(supabaseUrl).host;
       connectSrc = `'self' ${origin} wss://${host} https://fonts.googleapis.com https://fonts.gstatic.com`;
     }
+    // Google Identity Services: the button script, its auth popup iframe and
+    // its token/style fetches all live under accounts.google.com.
+    const googleSso = 'https://accounts.google.com';
     const isProd = process.env.NODE_ENV === 'production';
     if (!isProd) {
       // Development only: Vite's middleware-mode HMR websocket runs on its own
@@ -129,11 +133,12 @@ export async function createApp(): Promise<express.Express> {
     }
     return [
       `default-src 'self'`,
-      `script-src 'self'${isProd ? '' : " 'unsafe-inline'"}`,
-      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      `script-src 'self' ${googleSso}${isProd ? '' : " 'unsafe-inline'"}`,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${googleSso}`,
       `font-src 'self' https://fonts.gstatic.com`,
       `img-src 'self' data: https:`,
-      `connect-src ${connectSrc}`,
+      `connect-src ${connectSrc}${connectSrc.includes(googleSso) ? '' : ` ${googleSso}`}`,
+      `frame-src 'self' ${googleSso}`,
       `frame-ancestors 'self'`,
       `object-src 'none'`,
       `base-uri 'self'`,
@@ -1550,6 +1555,7 @@ export async function createApp(): Promise<express.Express> {
         SESSION_SECRET: has('SESSION_SECRET'),
         GEMINI_API_KEY: has('GEMINI_API_KEY'),
         RESEND_API_KEY: has('RESEND_API_KEY'),
+        GOOGLE_CLIENT_ID: has('GOOGLE_CLIENT_ID'),
         NODE_ENV: process.env.NODE_ENV || 'not set',
         VERCEL: process.env.VERCEL || 'not set',
       },
@@ -1934,7 +1940,75 @@ export async function createApp(): Promise<express.Express> {
     },
   );
 
-  // 2d. Reset Password Route
+  // 2d. Google SSO Route (Google Identity Services ID-token assertion).
+  // The frontend obtains `credential` from the GSI button; this endpoint
+  // verifies signature/iss/aud/exp with Google's JWKS, requires a verified
+  // email, then mints the SAME HMAC session token as login-password, so RLS
+  // and the Supabase sync layer need no changes.
+  app.post('/api/auth/google', rateLimitAuth(8, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const googleClientId = process.env.GOOGLE_CLIENT_ID;
+      if (!googleClientId) {
+        res.status(503).json({ success: false, error: 'Google sign-in is not configured on this deployment.' });
+        return;
+      }
+      const { credential, rememberMe } = req.body;
+      if (typeof credential !== 'string' || !credential) {
+        res.status(400).json({ success: false, error: 'Missing Google credential.' });
+        return;
+      }
+
+      let payload: TokenPayload | undefined;
+      try {
+        const ticket = await withTimeout(
+          new OAuth2Client(googleClientId).verifyIdToken({ idToken: credential, audience: googleClientId }),
+          10000,
+          'Google token verification',
+        );
+        payload = ticket.getPayload();
+      } catch {
+        res.status(401).json({ success: false, error: 'Google credential could not be verified.' });
+        return;
+      }
+      if (!payload?.email || payload.email_verified !== true) {
+        res.status(401).json({ success: false, error: 'Google account email is not verified.' });
+        return;
+      }
+
+      const normalizedEmail = payload.email.trim().toLowerCase();
+      const emailErr = validateEmail(normalizedEmail);
+      if (emailErr) {
+        res.status(400).json({ success: false, error: emailErr });
+        return;
+      }
+
+      const supabase = getSupabase(req);
+      const existing = await getAccountByEmail(normalizedEmail, supabase);
+      if (!existing) {
+        // Google-only account: bcrypt hash of 256 random bits is computationally
+        // unguessable, so password login against this row can never succeed.
+        const unusableHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+        await saveAccount({ email: normalizedEmail, passwordHash: unusableHash, createdAt: Date.now() }, supabase);
+      }
+
+      const deviceToken = crypto.randomUUID();
+      await saveDeviceToken(deviceToken, supabase, normalizedEmail);
+
+      const sessionTtlMs = rememberMe ? SESSION_TTL_LONG : SESSION_TTL_SHORT;
+      const token = generateSecureToken(normalizedEmail, sessionTtlMs, sessionSecret);
+      setSessionCookie(res, token, rememberMe ? 30 * 24 * 60 * 60 : 86400);
+      res.json({ success: true, token, deviceToken, email: normalizedEmail });
+    } catch (err) {
+      if (err instanceof DatabaseUnavailableError) {
+        res.status(503).json({ success: false, error: err.message });
+        return;
+      }
+      console.error('[SECURITY LOG] Google SSO failed:', errorMessage(err));
+      res.status(500).json({ success: false, error: 'System authentication service error.' });
+    }
+  });
+
+  // 2e. Reset Password Route
   app.post(
     '/api/auth/reset-password',
     rateLimitAuth(5, 60 * 1000),
