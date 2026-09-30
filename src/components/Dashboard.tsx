@@ -356,14 +356,14 @@ export default function Dashboard({
           </div>
           <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory pb-1 -mx-1 px-1">
             {cashAccounts.map((acc) => (
-              <div key={acc.id} className="snap-start shrink-0 w-[210px]">
+              <div key={acc.id} className="snap-start shrink-0 w-[250px]">
                 <CardFace
                   bankName={acc.name}
                   cardName="Cash wallet"
                   balance={acc.balance}
                   currency={state.currency}
                   tone={faceToneForSeed(acc.id)}
-                  width={210}
+                  width={250}
                   onClick={() => setActiveTab('accounts')}
                   badge={
                     <span className="text-[9px] font-extrabold uppercase tracking-widest text-white/70 border border-white/25 rounded-full px-2 py-0.5">
@@ -374,7 +374,7 @@ export default function Dashboard({
               </div>
             ))}
             {debitCards.map((card) => (
-              <div key={card.id} className="snap-start shrink-0 w-[210px]">
+              <div key={card.id} className="snap-start shrink-0 w-[250px]">
                 <CardFace
                   bankName={card.bankName}
                   cardName={card.cardName}
@@ -382,7 +382,7 @@ export default function Dashboard({
                   currency={state.currency}
                   cardNumber={card.cardNumber}
                   tone={faceToneForSeed(card.id)}
-                  width={210}
+                  width={250}
                   onClick={() => setActiveTab('accounts')}
                   badge={
                     card.isFrozen ? (

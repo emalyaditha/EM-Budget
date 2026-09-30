@@ -47,8 +47,8 @@ export function CardFace({
   onClick,
   badge,
 }: CardFaceProps) {
-  const className = `card-face ${tone} w-full text-left p-4 flex flex-col justify-between gap-4 pressable ${onClick ? 'cursor-pointer' : ''}`;
-  const style = { width, aspectRatio: '1.586', minWidth: width ?? 240 };
+  const className = `card-face ${tone} w-full text-left p-3.5 flex flex-col justify-between gap-2 pressable ${onClick ? 'cursor-pointer' : ''}`;
+  const style = { width, aspectRatio: '1.586', minWidth: width ?? 250 };
   const inner = (
     <>
       <div className="flex items-start justify-between gap-2 relative z-10">
@@ -69,10 +69,14 @@ export function CardFace({
           {balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
         </p>
       </div>
-      <div className="flex items-center justify-between gap-3 relative z-10">
-        <span className="card-face-chip" aria-hidden />
-        <span className="mono text-[11px] tracking-[0.18em] text-white/80">{maskCardNumber(cardNumber)}</span>
-        {onClick && <ChevronRight size={14} className="text-white/60" />}
+      <div className="relative z-10 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="card-face-chip" aria-hidden />
+          {onClick && <ChevronRight size={14} className="text-white/60" />}
+        </div>
+        <p className="mono text-[10px] tracking-[0.14em] text-white/80 whitespace-nowrap">
+          {maskCardNumber(cardNumber)}
+        </p>
       </div>
     </>
   );

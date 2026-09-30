@@ -1,4 +1,4 @@
-import { LayoutDashboard, Wallet, ArrowLeftRight, PieChart, Menu, Plus } from 'lucide-react';
+import { LayoutDashboard, Wallet, ArrowLeftRight, Menu, Plus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -14,10 +14,7 @@ const TABS = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'wallets', label: 'Wallets', icon: Wallet },
 ];
-const TABS_RIGHT = [
-  { id: 'transactions', label: 'Ledger', icon: ArrowLeftRight },
-  { id: 'reports', label: 'Stats', icon: PieChart },
-];
+const TABS_RIGHT = [{ id: 'transactions', label: 'Ledger', icon: ArrowLeftRight }];
 
 export function BottomNavigation({
   activeTab,
