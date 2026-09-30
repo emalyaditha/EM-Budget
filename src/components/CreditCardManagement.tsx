@@ -294,7 +294,7 @@ export default function CreditCardManagement({
 
   return (
     <div className="space-y-6" id="credit-cards-vault">
-      <div className="gradient-card p-5 md:p-6 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
+      <div className="gradient-card hero-violet p-5 md:p-6 overflow-hidden">
         <div className="flex items-center gap-3 pb-4 border-b border-white/10 relative z-10">
           <div className="w-8 h-8 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-white">
             <CcIcon size={14} />
@@ -307,7 +307,6 @@ export default function CreditCardManagement({
             {creditCards.length} cards
           </span>
         </div>
-        <div className="rainbow-bar mt-4 relative z-10 opacity-80" />
 
         <div className="mt-4 space-y-3">
           {creditCards.length === 0 ? (

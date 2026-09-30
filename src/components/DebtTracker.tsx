@@ -193,7 +193,7 @@ export default function DebtTracker({
 
   return (
     <div id="debt-tracker-vault-view" className="space-y-6">
-      <div className="gradient-card p-6 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
+      <div className="gradient-card hero-rose p-6 overflow-hidden">
         <div className="flex flex-col sm:flex-row justify-between gap-4 relative z-10">
           <div>
             <p className="eyebrow !text-white/60">Liabilities</p>
@@ -216,7 +216,6 @@ export default function DebtTracker({
             </div>
           </div>
         </div>
-        <div className="rainbow-bar mt-5 relative z-10 opacity-80" />
       </div>
 
       <div className="flex justify-between items-center">

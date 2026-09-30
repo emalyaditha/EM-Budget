@@ -359,8 +359,7 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
 
                   <button
                     onClick={applyToForm}
-                    className="w-full py-2.5 text-xs flex items-center justify-center gap-1.5 rounded-full font-bold text-white"
-                    style={{ background: 'var(--gradient-card-dark)', color: 'white' }}
+                    className="btn-primary w-full !py-2.5 !text-xs flex items-center justify-center gap-1.5"
                   >
                     <ClipboardCopy size={13} />
                     Auto-Fill Ledger Form

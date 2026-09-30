@@ -527,7 +527,7 @@ export default function CashCardManagement({
   return (
     <div id="cash-card-vault-view" className="space-y-6">
       {/* Vault total — ULTRA Mitchell + Aivo pill — gradient-card-dark with huge mono */}
-      <div className="gradient-card p-6 md:p-8 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
+      <div className="gradient-card hero-blue p-6 md:p-8 overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 relative z-10">
           <div>
             <span className="eyebrow !text-white/60">Vault — Cash in hand</span>
@@ -543,7 +543,6 @@ export default function CashCardManagement({
             ● Live ledger
           </span>
         </div>
-        <div className="rainbow-bar mt-6 relative z-10 opacity-90" />
       </div>
 
       {/* Cash Accounts */}

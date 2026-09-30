@@ -47,10 +47,7 @@ export function TransactionTimeline({
   return (
     <div className="space-y-5">
       {/* Header — ultra gradient dark like Mitchell/Aivo */}
-      <div
-        className="gradient-card p-4 sm:p-5 space-y-4 overflow-hidden"
-        style={{ background: 'var(--gradient-card-dark)' }}
-      >
+      <div className="gradient-card hero-cyan p-4 sm:p-5 space-y-4 overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
           <div>
             <span className="eyebrow !text-white/60">Ledger</span>
@@ -61,7 +58,6 @@ export function TransactionTimeline({
             {filteredTransactions.length} entries
           </span>
         </div>
-        <div className="rainbow-bar relative z-10 opacity-80" />
 
         {/* Filters — pill inputs Aivo style — rendered outside dark header but pill aesthetic */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_auto_auto_auto] gap-3 items-end relative z-10 pt-2">

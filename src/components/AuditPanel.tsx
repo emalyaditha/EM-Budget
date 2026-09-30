@@ -308,10 +308,7 @@ export default function AuditPanel({
   return (
     <div className="space-y-6 animate-fade-in" id="audit-report-dashboard">
       {/* SCORE HEADER — ULTRA gradient-card-dark + rainbow + Raul arc imitation */}
-      <div
-        className="gradient-card p-6 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden"
-        style={{ background: 'var(--gradient-card-dark)' }}
-      >
+      <div className="gradient-card hero-slate p-6 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden">
         <div className="flex items-center gap-4 relative z-10">
           <div className="w-12 h-12 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-white">
             <ShieldCheck size={28} className="text-white" />
@@ -336,7 +333,6 @@ export default function AuditPanel({
             <span className="text-sm font-extrabold block text-white">{auditReport.rating}</span>
           </div>
         </div>
-        <div className="rainbow-bar absolute bottom-0 left-0 right-0 !h-1 !rounded-none opacity-80" />
       </div>
 
       {/* STATS OVERVIEW — pill icons */}

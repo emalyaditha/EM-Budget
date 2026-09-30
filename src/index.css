@@ -1,72 +1,116 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import 'tailwindcss';
 
 /* =========================================================
-   EM BUDGET — ULTRA PINTEREST HIGH-END
-   Pins: Money Wise (dark pastel) + Aivo ($126k) + Mitchell
-   ($13k gradient) + Raul (orange card) + Janvis (One Platform)
+   EM BUDGET — design system v2
+   "Pinterest fintech" pass: tinted neutrals, per-section
+   hero hues, display/body/mono type triangle, full
+   interactive-state discipline. Shared class contract with
+   components is unchanged (.card .pill .btn-* .input
+   .gradient-card .hero-* .eyebrow .mono .rainbow-bar).
    ========================================================= */
 
 .light {
-  --bg: #f6f7f9;
-  --bg-2: #eff1f4;
-  --surface: #ffffff;
-  --surface-2: #f1f3f6;
-  --surface-3: #e8ebef;
-  --ink: #0a0a0f;
-  --ink-2: #6b7280;
-  --ink-3: #9ca3af;
-  --line: #e5e7eb;
-  --line-strong: #d1d5db;
-  --accent: #0a0a0f;
-  --accent-fg: #ffffff;
-  --shadow: 0 8px 32px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.08);
+  color-scheme: light;
+  --bg: #f4f4f8;
+  --bg-2: #ececf3;
+  --surface: #fcfcfe;
+  --surface-2: #f1f2f7;
+  --surface-3: #e7e8f0;
+  --ink: #14151c;
+  --ink-2: #5d6170;
+  --ink-3: #9498a8;
+  --line: #e3e4ec;
+  --line-strong: #cdd0dd;
+  --accent: #171a25;
+  --accent-fg: #fbfbff;
+  --danger: #d64550;
+  --danger-bg: rgba(214, 69, 80, 0.08);
+  --success: #1e9e63;
+  --success-bg: rgba(30, 158, 99, 0.1);
+  --warning: #b97d1e;
+  --warning-bg: rgba(185, 125, 30, 0.12);
+  --shadow: 0 1px 2px rgba(20, 21, 28, 0.04), 0 6px 24px rgba(20, 21, 28, 0.05);
+  --shadow-hover: 0 1px 2px rgba(20, 21, 28, 0.05), 0 10px 32px rgba(20, 21, 28, 0.08);
   --pastel-pink: #f4b5be;
   --pastel-mint: #c8e9d5;
   --pastel-yellow: #f5e6a3;
   --pastel-lavender: #d4c5f9;
   --pastel-blue: #b8d4f0;
   --gradient-nueva: linear-gradient(135deg, #fff9b5 0%, #e0f2f7 100%);
-  --gradient-card-orange: linear-gradient(135deg, #ff8a5b 0%, #ff6b8a 50%, #ff5a7a 100%);
-  --gradient-card-blue: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%);
-  --gradient-card-dark: linear-gradient(180deg, #1c1c1f 0%, #0a0a0c 100%);
-  --rainbow: linear-gradient(90deg, #f4b5be 0%, #c8e9d5 25%, #f5e6a3 50%, #d4c5f9 75%, #b8d4f0 100%);
+  --gradient-card-orange: linear-gradient(135deg, #ffd2bd 0%, #ffc2cc 100%);
+  --gradient-card-blue: linear-gradient(135deg, #cfe3fb 0%, #c9d9fb 100%);
+  --gradient-card-dark: linear-gradient(180deg, #ffffff 0%, #f1f2f7 100%);
+  --gradient-card-light: linear-gradient(180deg, #ffffff 0%, #f1f2f7 100%);
+  --rainbow: linear-gradient(90deg, var(--pastel-lavender) 0%, var(--pastel-blue) 45%, transparent 100%);
+  --hero-violet: linear-gradient(160deg, #f0e9fc 0%, #e6e3f8 60%, #edeef9 100%);
+  --hero-blue: linear-gradient(160deg, #e4edfb 0%, #dbe9f9 60%, #e9eff9 100%);
+  --hero-cyan: linear-gradient(160deg, #dff0f6 0%, #dbeaf4 60%, #e8f1f8 100%);
+  --hero-teal: linear-gradient(160deg, #dcf0ec 0%, #d9ecf1 60%, #e7f2f3 100%);
+  --hero-mint: linear-gradient(160deg, #e0f2e6 0%, #dcefe6 60%, #e9f4ee 100%);
+  --hero-emerald: linear-gradient(160deg, #d8eee4 0%, #d6ecdf 60%, #e4f2ea 100%);
+  --hero-amber: linear-gradient(160deg, #f8eed3 0%, #f6ebd0 60%, #f7f2e2 100%);
+  --hero-orange: linear-gradient(160deg, #fbe7d8 0%, #f9e3d3 60%, #f8eee2 100%);
+  --hero-rose: linear-gradient(160deg, #f9e3e6 0%, #f7dfe4 60%, #f7ecf0 100%);
+  --hero-indigo: linear-gradient(160deg, #e4e6f8 0%, #dee2f6 60%, #e9ecf8 100%);
+  --hero-slate: linear-gradient(160deg, #e8eaf1 0%, #e2e5ee 60%, #eceef5 100%);
 }
 
 .dark {
-  --bg: #070709;
-  --bg-2: #0f1012;
-  --surface: #1b1d20;
-  --surface-2: #24262b;
-  --surface-3: #2e3238;
-  --ink: #ffffff;
-  --ink-2: #a1a1aa;
-  --ink-3: #71717a;
-  --line: #2a2e33;
-  --line-strong: #3a3e45;
-  --accent: #ffffff;
-  --accent-fg: #070709;
-  --shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+  --bg: #0a0c12;
+  --bg-2: #10131b;
+  --surface: #171a23;
+  --surface-2: #1f232e;
+  --surface-3: #282d3b;
+  --ink: #f2f3f8;
+  --ink-2: #a7adc0;
+  --ink-3: #757c92;
+  --line: #262b38;
+  --line-strong: #363d4f;
+  --accent: #f2f3f8;
+  --accent-fg: #12141c;
+  --danger: #f2777e;
+  --danger-bg: rgba(242, 119, 126, 0.12);
+  --success: #4ac28e;
+  --success-bg: rgba(74, 194, 142, 0.12);
+  --warning: #e0a352;
+  --warning-bg: rgba(224, 163, 82, 0.14);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 28px rgba(0, 0, 0, 0.35);
+  --shadow-hover: 0 1px 2px rgba(0, 0, 0, 0.45), 0 12px 36px rgba(0, 0, 0, 0.45);
   --pastel-pink: #f4b5be;
   --pastel-mint: #c8e9d5;
   --pastel-yellow: #f5e6a3;
   --pastel-lavender: #d4c5f9;
   --pastel-blue: #b8d4f0;
   --gradient-nueva: linear-gradient(135deg, #fff9b5 0%, #e0f2f7 100%);
-  --gradient-card-orange: linear-gradient(135deg, #ff6b5b 0%, #ff8a5b 50%, #ff6b8a 100%);
-  --gradient-card-blue: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-  --gradient-card-dark: linear-gradient(180deg, #24262b 0%, #1b1d20 100%);
-  --rainbow: linear-gradient(90deg, #f4b5be 0%, #c8e9d5 25%, #f5e6a3 50%, #d4c5f9 75%, #b8d4f0 100%);
+  --gradient-card-orange: linear-gradient(135deg, #ff8a5b 0%, #ff6b8a 100%);
+  --gradient-card-blue: linear-gradient(135deg, #60a5fa 0%, #6366f1 100%);
+  --gradient-card-dark: linear-gradient(180deg, #20242f 0%, #14161d 100%);
+  --gradient-card-light: linear-gradient(180deg, #20242f 0%, #14161d 100%);
+  --rainbow: linear-gradient(90deg, var(--pastel-lavender) 0%, var(--pastel-blue) 45%, transparent 100%);
+  --hero-violet: linear-gradient(160deg, #2c2444 0%, #1b1830 55%, #131322 100%);
+  --hero-blue: linear-gradient(160deg, #1e2c48 0%, #16213a 55%, #121525 100%);
+  --hero-cyan: linear-gradient(160deg, #1b3040 0%, #152436 55%, #111827 100%);
+  --hero-teal: linear-gradient(160deg, #173335 0%, #132834 55%, #101a26 100%);
+  --hero-mint: linear-gradient(160deg, #17362b 0%, #132b28 55%, #101d1f 100%);
+  --hero-emerald: linear-gradient(160deg, #143826 0%, #112c24 55%, #0f1d1c 100%);
+  --hero-amber: linear-gradient(160deg, #3a2d16 0%, #2c2317 55%, #1d1813 100%);
+  --hero-orange: linear-gradient(160deg, #3d2716 0%, #2e1f15 55%, #1e1612 100%);
+  --hero-rose: linear-gradient(160deg, #3d1f28 0%, #2d1922 55%, #1d141b 100%);
+  --hero-indigo: linear-gradient(160deg, #25264c 0%, #1a1b3a 55%, #131327 100%);
+  --hero-slate: linear-gradient(160deg, #272b38 0%, #1c2029 55%, #14161d 100%);
 }
 
 @theme {
   --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
+
 html {
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 body {
   font-family: var(--font-sans);
@@ -75,11 +119,23 @@ body {
   min-height: 100dvh;
 }
 .dark body {
-  background: radial-gradient(100% 60% at 50% 0%, #1e2025 0%, var(--bg) 60%);
+  background: radial-gradient(90% 55% at 50% 0%, #181c28 0%, var(--bg) 62%);
   background-attachment: fixed;
 }
 #root {
   min-height: 100dvh;
+}
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-style: normal;
+  letter-spacing: -0.011em;
+}
+::selection {
+  background: color-mix(in srgb, var(--pastel-lavender) 65%, transparent);
+  color: var(--ink);
 }
 .mono {
   font-family: var(--font-mono);
@@ -88,7 +144,7 @@ body {
 .eyebrow {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
@@ -99,55 +155,97 @@ body {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 24px;
   box-shadow: var(--shadow);
+  transition: border-color 0.15s var(--ease-out, ease-out);
 }
 .card:hover {
-  box-shadow: var(--shadow-hover);
+  border-color: var(--line-strong);
 }
 .card-dark {
-  background: linear-gradient(180deg, #24262b 0%, #1b1d20 100%);
+  background: var(--gradient-card-dark);
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 24px;
 }
 .gradient-card {
-  border-radius: 20px;
-  border: none;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, var(--line));
   color: white;
   position: relative;
   overflow: hidden;
+}
+.dark .gradient-card {
+  border-color: var(--line);
 }
 .gradient-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(80% 100% at 100% 0%, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+  background: radial-gradient(90% 110% at 100% 0%, rgba(255, 255, 255, 0.12) 0%, transparent 55%);
   pointer-events: none;
 }
+.hero-violet {
+  background: var(--hero-violet);
+}
+.hero-blue {
+  background: var(--hero-blue);
+}
+.hero-cyan {
+  background: var(--hero-cyan);
+}
+.hero-teal {
+  background: var(--hero-teal);
+}
+.hero-mint {
+  background: var(--hero-mint);
+}
+.hero-emerald {
+  background: var(--hero-emerald);
+}
+.hero-amber {
+  background: var(--hero-amber);
+}
+.hero-orange {
+  background: var(--hero-orange);
+}
+.hero-rose {
+  background: var(--hero-rose);
+}
+.hero-indigo {
+  background: var(--hero-indigo);
+}
+.hero-slate {
+  background: var(--hero-slate);
+}
 .pill {
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 8px 14px;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
   transition:
-    border-color 0.15s,
-    background 0.15s,
-    color 0.15s,
-    transform 0.12s;
+    border-color 0.15s ease-out,
+    background-color 0.15s ease-out,
+    color 0.15s ease-out;
   user-select: none;
 }
 .pill:hover {
   border-color: var(--line-strong);
-  transform: translateY(-1px);
+  background: var(--surface-2);
 }
 .pill:active {
-  transform: translateY(0);
+  background: var(--surface-3);
+}
+.pill:disabled,
+.pill[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .pill-active {
   background: var(--ink);
@@ -155,16 +253,17 @@ body {
   border-color: var(--ink);
 }
 .pill-active:hover {
-  opacity: 0.92;
+  background: color-mix(in srgb, var(--ink) 90%, var(--surface));
+  border-color: color-mix(in srgb, var(--ink) 90%, var(--surface));
 }
 .rainbow-bar {
-  height: 6px;
+  height: 3px;
   border-radius: 999px;
   background: var(--rainbow);
 }
 .mw-nueva {
   background: var(--gradient-nueva);
-  border-radius: 20px;
+  border-radius: 24px;
   color: #0a0a0c;
 }
 .mw-progress {
@@ -200,28 +299,71 @@ body {
   background: var(--accent);
   color: var(--accent-fg);
   border-radius: 999px;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 13px;
   padding: 11px 20px;
   border: 1px solid var(--accent);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease-out,
+    border-color 0.15s ease-out,
+    transform 0.1s ease-out;
+}
+.btn-primary:hover {
+  background: color-mix(in srgb, var(--accent) 88%, var(--surface));
+}
+.btn-primary:active {
+  transform: translateY(1px);
+}
+.btn-primary:disabled,
+.btn-primary[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 .btn-ghost {
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: 999px;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 13px;
   padding: 11px 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease-out,
+    border-color 0.15s ease-out,
+    transform 0.1s ease-out;
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+.btn-ghost:active {
+  transform: translateY(1px);
+  background: var(--surface-3);
+}
+.btn-ghost:disabled,
+.btn-ghost[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 .input {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 11px 14px;
   font-size: 13.5px;
   color: var(--ink);
   width: 100%;
+  transition:
+    border-color 0.15s ease-out,
+    box-shadow 0.15s ease-out;
 }
 .input::placeholder {
   color: var(--ink-3);
@@ -229,7 +371,7 @@ body {
 .input:focus {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 18%, transparent);
 }
 .nav-pill {
   background: var(--surface);
@@ -261,11 +403,16 @@ body {
 }
 *:focus-visible {
   outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 .light .bg-black,
@@ -277,18 +424,12 @@ body {
 }
 
 /* =========================================================
-   LIGHT MODE — theme-aware "gradient-card-dark" headers
-   The gradient summary headers (Debts, Credit, Subscriptions,
-   Loans, Reports, Transfer, Timeline, Cash/Credit mgmt, Audit,
-   Dashboard hero) stay dark in light mode because the dark
-   gradient variable is hard-coded for both themes. In light
-   mode we flip them to a light surface and re-theme their
-   white text/overlay utilities so nothing renders dark-on-dark.
+   LIGHT MODE — generic dark gradient headers fall back to
+   a light surface and re-theme their white text/overlay
+   utilities. Hue-pinned hero panels (.hero-*) define their
+   own light-mode gradients and are excluded here.
    ========================================================= */
-.light {
-  --gradient-card-light: linear-gradient(180deg, #ffffff 0%, #f1f3f6 100%);
-}
-.light .gradient-card,
+.light .gradient-card:not([class*='hero-']),
 .light .card-dark {
   background: var(--gradient-card-light) !important;
   border: 1px solid var(--line) !important;

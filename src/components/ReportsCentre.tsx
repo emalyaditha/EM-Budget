@@ -219,7 +219,7 @@ export default function ReportsCentre({
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           <div className="lg:col-span-7 space-y-4">
-            <div className="gradient-card p-6 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
+            <div className="gradient-card hero-indigo p-6 overflow-hidden">
               <p className="eyebrow !text-white/60">Executive summary</p>
               <p className="eyebrow !text-white/40 !text-[9px] mt-1">Period net surplus</p>
               <h2 className="mono text-[28px] font-extrabold tracking-tight mt-1 text-white tabular-nums break-all">
@@ -257,7 +257,6 @@ export default function ReportsCentre({
                   </p>
                 </div>
               </div>
-              <div className="rainbow-bar mt-5 relative z-10 opacity-80" />
             </div>
 
             {reportType !== 'debt' ? (

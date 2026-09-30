@@ -1,6 +1,8 @@
 node_modules
 dist
 coverage
+# third-party skill docs (not project source)
+.qoder/skills
 api/index.js
 .env*
 backups

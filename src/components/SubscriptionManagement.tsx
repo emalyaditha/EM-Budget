@@ -162,7 +162,7 @@ export default function SubscriptionManagement({
 
   return (
     <div className="space-y-6" id="subscription-management-section">
-      <div className="gradient-card p-6 overflow-hidden" style={{ background: 'var(--gradient-card-dark)' }}>
+      <div className="gradient-card hero-mint p-6 overflow-hidden">
         <div className="flex flex-col sm:flex-row justify-between gap-4 relative z-10">
           <div>
             <p className="eyebrow !text-white/60">Recurring</p>
@@ -210,7 +210,6 @@ export default function SubscriptionManagement({
             </p>
           </div>
         </div>
-        <div className="rainbow-bar mt-5 relative z-10 opacity-80" />
       </div>
 
       {isAdding && (

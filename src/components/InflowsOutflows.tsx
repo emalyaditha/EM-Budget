@@ -409,8 +409,7 @@ export default function InflowsOutflows({
             <button
               type="submit"
               disabled={isProcessing}
-              className="w-full flex items-center justify-center gap-2 disabled:opacity-50 text-white font-bold text-[13px] py-3 rounded-full"
-              style={{ background: 'var(--gradient-card-dark)', color: 'white' }}
+              className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 !text-[13px]"
             >
               <PlusCircle size={14} />
               {isProcessing ? 'Processing…' : 'Record inflow'}
