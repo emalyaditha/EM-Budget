@@ -17,6 +17,7 @@ import { logDbFailure, newRequestId } from './api-src/log';
 import { applyInMemoryRateLimit, FAIL_OPEN_EXPLICIT } from './api-src/rate-limit';
 import { DatabaseUnavailableError, failClosedOnDbError } from './api-src/db-unavailable';
 import { generateSecureToken, verifySecureToken, timingSafeEqualString } from './server/security';
+import { createOcrSemaphore, OcrBusyError } from './server/ocr-semaphore';
 import { OAuth2Client, type TokenPayload } from 'google-auth-library';
 
 function withTimeout<T>(promise: PromiseLike<T>, ms: number, label = 'Operation'): Promise<T> {
@@ -408,10 +409,17 @@ export async function createApp(): Promise<express.Express> {
   }
 
   // System token signature generator (signs express backend requests for RLS-by-signature verification blocks)
+  // The token is minted per Supabase client and only has to outlive a single
+  // request, so a short TTL bounds replay of a captured header without
+  // risking mid-request expiry.
+  const SYSTEM_TOKEN_TTL_MS = 5 * 60 * 1000;
+
   function generateSystemToken(): string {
+    const now = Date.now();
     const payload = {
       system: 'express-server',
-      timestamp: Date.now(),
+      timestamp: now,
+      expiresAt: now + SYSTEM_TOKEN_TTL_MS,
     };
     const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
     const signature = crypto.createHmac('sha256', sessionSecret).update(payloadStr).digest('hex');
@@ -3324,6 +3332,24 @@ Return a JSON object matching this schema:
     },
   );
 
+  // Each recognition spins up a native worker holding a ~10MB model, so the
+  // gate bounds resident workers to two with three queued uploads; beyond that
+  // callers get a retryable 503 rather than an OOM-killed instance.
+  const OCR_MAX_CONCURRENT = 2;
+  const OCR_MAX_QUEUED = 3;
+  const OCR_RECOGNIZE_TIMEOUT_MS = 30_000;
+  const ocrGate = createOcrSemaphore(OCR_MAX_CONCURRENT, OCR_MAX_QUEUED);
+
+  async function runOcrRecognition(imgBuffer: Buffer) {
+    const { createWorker } = await import('tesseract.js');
+    const worker = await createWorker('eng');
+    try {
+      return await withTimeout(worker.recognize(imgBuffer), OCR_RECOGNIZE_TIMEOUT_MS, 'OCR recognition');
+    } finally {
+      await worker.terminate();
+    }
+  }
+
   // Free Server-Side OCR Endpoint via Tesseract.js (Works in all environments/sandboxes) - C3 FIX: auth + 2mb validation
   app.post(
     '/api/ocr/free-scan',
@@ -3369,23 +3395,22 @@ Return a JSON object matching this schema:
         }
 
         const imgBuffer = Buffer.from(base64Data, 'base64');
-        const { createWorker } = await import('tesseract.js');
-        const worker = await createWorker('eng');
-        try {
-          const ret = await worker.recognize(imgBuffer);
-          const extractedText = ret?.data?.text || '';
-          if (!extractedText.trim()) {
-            return res.status(422).json({
-              success: false,
-              error: 'No legible text found in image. Try a clearer photo or enter manually.',
-            });
-          }
-
-          res.json({ success: true, text: extractedText });
-        } finally {
-          await worker.terminate();
+        const ret = await ocrGate.run(() => runOcrRecognition(imgBuffer));
+        const extractedText = ret?.data?.text || '';
+        if (!extractedText.trim()) {
+          return res.status(422).json({
+            success: false,
+            error: 'No legible text found in image. Try a clearer photo or enter manually.',
+          });
         }
+
+        res.json({ success: true, text: extractedText });
       } catch (err) {
+        if (err instanceof OcrBusyError) {
+          return res
+            .status(503)
+            .json({ success: false, error: 'OCR service is busy right now. Please try again in a moment.' });
+        }
         console.error('[Free Server OCR Error]', errorMessage(err));
         res
           .status(500)

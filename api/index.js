@@ -94252,6 +94252,50 @@ function verifySecureToken(token, sessionSecret) {
   }
 }
 
+// server/ocr-semaphore.ts
+var OcrBusyError = class extends Error {
+  constructor() {
+    super("OCR concurrency limit reached");
+    this.name = "OcrBusyError";
+  }
+};
+function createOcrSemaphore(maxConcurrent, maxQueued) {
+  let active = 0;
+  const waiters = [];
+  const acquire = () => {
+    if (active < maxConcurrent) {
+      active += 1;
+      return Promise.resolve();
+    }
+    if (waiters.length >= maxQueued) {
+      return Promise.reject(new OcrBusyError());
+    }
+    return new Promise((resolve) => {
+      waiters.push(() => {
+        active += 1;
+        resolve();
+      });
+    });
+  };
+  const release = () => {
+    active -= 1;
+    const next = waiters.shift();
+    if (next) next();
+  };
+  return {
+    async run(task) {
+      await acquire();
+      try {
+        return await task();
+      } finally {
+        release();
+      }
+    },
+    inFlight: () => active,
+    queued: () => waiters.length
+  };
+}
+
 // server.ts
 var import_google_auth_library = __toESM(require_src10(), 1);
 function withTimeout(promise, ms, label = "Operation") {
@@ -94487,10 +94531,13 @@ async function createApp() {
       if (!IS_PRODUCTION2) mockDb.otps = mockDb.otps.filter((item) => item.email !== storageEmail);
     }
   }
+  const SYSTEM_TOKEN_TTL_MS = 5 * 60 * 1e3;
   function generateSystemToken() {
+    const now = Date.now();
     const payload = {
       system: "express-server",
-      timestamp: Date.now()
+      timestamp: now,
+      expiresAt: now + SYSTEM_TOKEN_TTL_MS
     };
     const payloadStr = Buffer.from(JSON.stringify(payload)).toString("base64url");
     const signature = import_crypto4.default.createHmac("sha256", sessionSecret).update(payloadStr).digest("hex");
@@ -96914,6 +96961,19 @@ Return a JSON object matching this schema:
       }
     }
   );
+  const OCR_MAX_CONCURRENT = 2;
+  const OCR_MAX_QUEUED = 3;
+  const OCR_RECOGNIZE_TIMEOUT_MS = 3e4;
+  const ocrGate = createOcrSemaphore(OCR_MAX_CONCURRENT, OCR_MAX_QUEUED);
+  async function runOcrRecognition(imgBuffer) {
+    const { createWorker } = await import("tesseract.js");
+    const worker = await createWorker("eng");
+    try {
+      return await withTimeout(worker.recognize(imgBuffer), OCR_RECOGNIZE_TIMEOUT_MS, "OCR recognition");
+    } finally {
+      await worker.terminate();
+    }
+  }
   app.post(
     "/api/ocr/free-scan",
     import_express.default.json({ limit: "2mb" }),
@@ -96952,22 +97012,19 @@ Return a JSON object matching this schema:
           base64Data = base64Data.split(";base64,").pop() || "";
         }
         const imgBuffer = Buffer.from(base64Data, "base64");
-        const { createWorker } = await import("tesseract.js");
-        const worker = await createWorker("eng");
-        try {
-          const ret = await worker.recognize(imgBuffer);
-          const extractedText = ret?.data?.text || "";
-          if (!extractedText.trim()) {
-            return res.status(422).json({
-              success: false,
-              error: "No legible text found in image. Try a clearer photo or enter manually."
-            });
-          }
-          res.json({ success: true, text: extractedText });
-        } finally {
-          await worker.terminate();
+        const ret = await ocrGate.run(() => runOcrRecognition(imgBuffer));
+        const extractedText = ret?.data?.text || "";
+        if (!extractedText.trim()) {
+          return res.status(422).json({
+            success: false,
+            error: "No legible text found in image. Try a clearer photo or enter manually."
+          });
         }
+        res.json({ success: true, text: extractedText });
       } catch (err) {
+        if (err instanceof OcrBusyError) {
+          return res.status(503).json({ success: false, error: "OCR service is busy right now. Please try again in a moment." });
+        }
         console.error("[Free Server OCR Error]", errorMessage(err));
         res.status(500).json({ success: false, error: "Failed to scan image. Please try again or enter text manually." });
       }
