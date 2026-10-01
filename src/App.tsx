@@ -468,15 +468,36 @@ export default function App() {
     }
   };
 
-  const handleAppLockSwitchAccount = () => {
+  // Single logout authority. Clearing localStorage is not enough: the httpOnly
+  // session_token and app_lock_trust cookies can only be expired server-side,
+  // otherwise the boot verify-session silently logs the user back in and the
+  // vault PIN becomes the only gate after a "logout".
+  const performLogout = () => {
+    const token = authSession.getToken();
+    void fetchWithTimeout(apiUrl('/api/auth/logout'), {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({}),
+    }).catch(() => {
+      /* offline logout: local reset still applies; the cookie expires on its own */
+    });
     localStorage.removeItem('auth_user_email');
     localStorage.removeItem('auth_session_token');
     localStorage.removeItem('auth_device_token');
+    authSession.clear();
     resetLoadedFromCloud();
     setState(DEFAULT_APP_STATE);
     setIsAppLocked(false);
     setAppLockStatus(null);
     setIsUnlocked(false);
+  };
+
+  const handleAppLockSwitchAccount = () => {
+    performLogout();
   };
 
   const handleAppLockForgotPin = async () => {
@@ -3649,12 +3670,7 @@ export default function App() {
                   <button
                     onClick={() => {
                       setIsMoreMenuOpen(false);
-                      localStorage.removeItem('auth_user_email');
-                      localStorage.removeItem('auth_session_token');
-                      localStorage.removeItem('auth_device_token');
-                      resetLoadedFromCloud();
-                      setState(DEFAULT_APP_STATE);
-                      setIsUnlocked(false);
+                      performLogout();
                     }}
                     className="w-full text-left py-2 px-2.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-[var(--danger)] hover:text-rose-600 dark:hover:text-rose-400 rounded-xl text-xs font-semibold transition-all flex items-center gap-2.5 cursor-pointer border-t border-[var(--line)] pt-2 mt-1"
                   >
@@ -3901,13 +3917,7 @@ export default function App() {
                   setIsSettingsOpen(true);
                 }}
                 onLogout={() => {
-                  localStorage.removeItem('auth_user_email');
-                  localStorage.removeItem('auth_session_token');
-                  localStorage.removeItem('auth_device_token');
-                  authSession.clear();
-                  resetLoadedFromCloud();
-                  setState(DEFAULT_APP_STATE);
-                  setIsUnlocked(false);
+                  performLogout();
                   setIsProfileOpen(false);
                 }}
                 onClose={() => setIsProfileOpen(false)}
@@ -4509,12 +4519,7 @@ export default function App() {
                 }
               }}
               onLogout={() => {
-                localStorage.removeItem('auth_user_email');
-                localStorage.removeItem('auth_session_token');
-                localStorage.removeItem('auth_device_token');
-                resetLoadedFromCloud();
-                setState(DEFAULT_APP_STATE);
-                setIsUnlocked(false);
+                performLogout();
                 setIsSettingsOpen(false);
               }}
             />

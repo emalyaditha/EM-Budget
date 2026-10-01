@@ -129,6 +129,46 @@ describe('verify-session', () => {
   });
 });
 
+describe('logout', () => {
+  it('expires the session and trust cookies and revokes trusted devices', async () => {
+    const { email, headers } = withIsolation(ctx);
+    await sendOtp(email, headers);
+    const dev = await ctx.request.post('/api/auth/send-otp').set(headers).send({ email });
+    const v = await ctx.request.post('/api/auth/verify-otp').set(headers).send({ email, otp: dev.body.devOtp });
+    const token = v.body.token as string;
+    const sessionCookie = ((v.headers['set-cookie'] ?? []) as unknown as string[]).find((c: string) =>
+      c.startsWith('session_token='),
+    );
+    const authed = { ...headers, Cookie: sessionCookie!.split(';')[0] };
+
+    const issue = await ctx.request.post('/api/app-lock/device/issue').set(authed).send({ email, token });
+    const trustCookie = ((issue.headers['set-cookie'] ?? []) as unknown as string[]).find((c: string) =>
+      c.startsWith('app_lock_trust='),
+    );
+    expect(trustCookie).toBeTruthy();
+
+    const out = await ctx.request.post('/api/auth/logout').set(authed).send({});
+    expect(out.status).toBe(200);
+    expect(out.body.success).toBe(true);
+    const cleared = ((out.headers['set-cookie'] ?? []) as unknown as string[]).join('|');
+    expect(cleared).toMatch(/session_token=;.*Max-Age=0/);
+    expect(cleared).toMatch(/app_lock_trust=;.*Max-Age=0/);
+
+    // The revoked device no longer checks out even with the old trust cookie.
+    const after = await ctx.request
+      .post('/api/app-lock/device/check')
+      .set({ ...headers, Cookie: trustCookie!.split(';')[0] });
+    expect(after.body.trusted).toBe(false);
+  });
+
+  it('is idempotent without a session', async () => {
+    const { headers } = withIsolation(ctx);
+    const res = await ctx.request.post('/api/auth/logout').set(headers).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+});
+
 describe('app-lock PIN', () => {
   it('sets a PIN, verifies it, and locks out after 5 bad attempts', async () => {
     const { email, headers } = withIsolation(ctx);

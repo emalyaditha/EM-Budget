@@ -68,4 +68,25 @@ test.describe.serial('App lock gate', () => {
     // No further interaction: the 5s idle timeout re-arms the gate.
     await expect(page.getByRole('heading', { name: 'App Locked' })).toBeVisible({ timeout: 15000 });
   });
+
+  test('logout clears the server session: reload asks for the password login, not the PIN', async ({ page }) => {
+    await loginUser(page, user);
+    // PIN is set for this user and this context has no trusted device, so
+    // boot gates the vault: unlock first, then log out from inside the app.
+    await expect(page.getByRole('heading', { name: 'App Locked' })).toBeVisible();
+    await enterPin(page, PIN);
+    await expect(page.locator('#full-workspace-view')).toBeVisible();
+
+    await page.locator('#sidebar-more-button-desktop').click();
+    const logoutResp = page.waitForResponse((r) => r.url().includes('/api/auth/logout'));
+    await page.getByRole('button', { name: /Disconnect Session/ }).click();
+    expect((await logoutResp).status()).toBe(200);
+
+    // The httpOnly session cookie was expired by the logout response, so the
+    // boot verify-session must fail and land on email/password sign-in —
+    // never on the vault PIN gate (the old logout bug).
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'App Locked' })).toHaveCount(0);
+    await expect(page.getByPlaceholder('you@domain.com')).toBeVisible();
+  });
 });

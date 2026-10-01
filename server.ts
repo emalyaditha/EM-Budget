@@ -1334,6 +1334,10 @@ export async function createApp(): Promise<express.Express> {
     const secure = IS_PRODUCTION ? '; Secure' : '';
     res.append('Set-Cookie', `app_lock_trust=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
   }
+  function clearSessionCookie(res: express.Response) {
+    const secure = IS_PRODUCTION ? '; Secure' : '';
+    res.append('Set-Cookie', `session_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
+  }
   function getTokenFromRequest(req: express.Request) {
     const auth = req.headers.authorization;
     if (auth && auth.startsWith('Bearer ')) return auth.split(' ')[1];
@@ -3174,6 +3178,31 @@ export async function createApp(): Promise<express.Express> {
         console.error('[SECURITY LOG] Verify Session Token failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'Internal session validation error.' });
       }
+    },
+  );
+
+  // Logout — the client can only drop localStorage; the httpOnly session and
+  // device-trust cookies can only be expired here. The email is taken from the
+  // verified token (never the body) so one account can never revoke another's
+  // trusted devices. With no valid session this is a plain cookie clear.
+  app.post(
+    '/api/auth/logout',
+    rateLimitAuth(10, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const token = getTokenFromRequest(req);
+        const decoded = token ? verifySecureToken(token, sessionSecret) : null;
+        if (decoded) {
+          const supabase = getSupabase(req);
+          await deleteAllTrustedDevices(decoded.email, supabase);
+        }
+      } catch (err) {
+        // Device revocation must not block the cookie clear below.
+        console.error('[SECURITY LOG] Logout device revoke failed:', errorMessage(err));
+      }
+      clearSessionCookie(res);
+      clearTrustCookie(res);
+      res.json({ success: true });
     },
   );
 
