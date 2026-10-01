@@ -44,14 +44,8 @@ test.describe.serial('App lock gate', () => {
   });
 
   test('seconds idle timeout is persisted and re-locks the vault', async ({ page }) => {
-    // Fresh context: log in again. The PIN gate appears at boot (trusted-device
-    // issuance in test 1 is fire-and-forget, so treat the gate as expected).
+    // Fresh context: log in again.
     await loginUser(page, user);
-    const locked = await page
-      .getByRole('heading', { name: 'App Locked' })
-      .waitFor({ timeout: 8000 })
-      .then(() => true)
-      .catch(() => false);
 
     const idle = await page.request.post('/api/app-lock/pin/idle-seconds', {
       data: { email: user.email, seconds: 5 },
@@ -64,15 +58,12 @@ test.describe.serial('App lock gate', () => {
     }
     expect((await status.json()).lockIdleSeconds).toBe(5);
 
-    if (locked) {
-      await enterPin(page, PIN);
-      await expect(page.locator('#full-workspace-view')).toBeVisible();
-    } else {
-      await page.reload();
-      await expect(page.getByRole('heading', { name: 'App Locked' })).toBeVisible();
-      await enterPin(page, PIN);
-      await expect(page.locator('#full-workspace-view')).toBeVisible();
-    }
+    // Reload so the client re-reads lock status at boot and arms the hook with
+    // the new 5s timeout (in-app changes only come from Settings, not the API).
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'App Locked' })).toBeVisible();
+    await enterPin(page, PIN);
+    await expect(page.locator('#full-workspace-view')).toBeVisible();
 
     // No further interaction: the 5s idle timeout re-arms the gate.
     await expect(page.getByRole('heading', { name: 'App Locked' })).toBeVisible({ timeout: 15000 });

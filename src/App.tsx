@@ -454,6 +454,13 @@ export default function App() {
     setAppLockStatus((prev) => (prev ? { ...prev, failedAttempts: 0, lockedUntil: null } : prev));
     notifyActivity();
     showToast('Vault unlocked.', 'success');
+    // Re-read status so idle-timeout changes made elsewhere (another device,
+    // or while this tab sat on the lock screen) arm the hook with fresh values.
+    void getAppLockStatus(userEmail)
+      .then((s) => {
+        if (s) setAppLockStatus(s);
+      })
+      .catch(() => {});
     if (!appLockStatus?.lockOnOpen) {
       void issueTrustedDevice(userEmail).catch((err) => {
         logger.warn('Could not issue trusted-device cookie:', err);
