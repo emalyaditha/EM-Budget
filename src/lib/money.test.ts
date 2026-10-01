@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toMinorUnits, toMajorUnits, addMoney, subtractMoney, sumMoney, compareMoney, multiplyMoney } from './money';
+import { toMinorUnits, toMajorUnits, addMoney, subtractMoney, sumMoney, compareMoney, multiplyMoney, formatMoney } from './money';
 
 describe('money helpers (B6)', () => {
   describe('toMinorUnits', () => {
@@ -68,6 +68,30 @@ describe('money helpers (B6)', () => {
       expect(multiplyMoney(1.5, 2)).toBe(3);
       expect(multiplyMoney(0.1, 3)).toBe(0.3);
       expect(multiplyMoney(2.005, 1)).toBe(2.01);
+    });
+  });
+
+  describe('formatMoney', () => {
+    it('renders currency-prefixed grouped amounts', () => {
+      expect(formatMoney('Rs.', 1234)).toBe('Rs.1,234');
+      expect(formatMoney('Rs.', 1234.5)).toBe('Rs.1,234.5');
+      expect(formatMoney('Rs.', 1234.567)).toBe('Rs.1,234.57');
+    });
+
+    it('never leaks a minus into the number; direction is color\'s job', () => {
+      expect(formatMoney('Rs.', -500)).toBe('Rs.500');
+      expect(formatMoney('Rs.', -500, { signed: true })).toBe('-Rs.500');
+    });
+
+    it('honors decimal options and clamps min below max', () => {
+      expect(formatMoney('Rs.', 45000, { maxFractionDigits: 0 })).toBe('Rs.45,000');
+      expect(formatMoney('Rs.', 3200, { minFractionDigits: 2 })).toBe('Rs.3,200.00');
+      expect(formatMoney('Rs.', 5, { minFractionDigits: 2, maxFractionDigits: 0 })).toBe('Rs.5');
+    });
+
+    it('treats non-finite input as zero', () => {
+      expect(formatMoney('Rs.', NaN)).toBe('Rs.0');
+      expect(formatMoney('Rs.', Infinity)).toBe('Rs.0');
     });
   });
 });

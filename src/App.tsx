@@ -30,7 +30,7 @@ import {
   loadStateFromStorage,
   savePreRestoreBackup,
 } from './utils';
-import { addMoney, subtractMoney, compareMoney } from './lib/money';
+import { addMoney, subtractMoney, compareMoney, formatMoney } from './lib/money';
 import {
   calculateInstallmentFee,
   calculateMonthlyPayment,
@@ -93,7 +93,9 @@ import {
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 import type { AppLockStatus } from './lib/appLock';
-import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice } from './lib/appLock';
+import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice, resetPin, resolveIdleTimeoutSeconds } from './lib/appLock';
+import { useIdleAutoLock } from './hooks/useIdleAutoLock';
+import LockScreen from './components/LockScreen';
 import { calculateNetWorth } from './utils';
 import { toMinorUnits } from './lib/money';
 import {
@@ -238,14 +240,10 @@ export default function App() {
   // user profile once, and only if it is still the untouched placeholder.
   const pendingGoogleProfile = useRef<{ name?: string; picture?: string } | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  // App-lock gate state. isAppLocked/isAppLockInit/appLockStatus are written by
-  // determineAppLock and the boot flow; the LockScreen gate UI is not wired up
-  // yet, so these are currently informational only.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // App-lock gate state. Written by determineAppLock at boot, the idle re-lock
+  // timer, and the SettingsModal refresh; read by the LockScreen early return.
   const [isAppLocked, setIsAppLocked] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isAppLockInit, setIsAppLockInit] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [appLockStatus, setAppLockStatus] = useState<AppLockStatus | null>(null);
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'accounts' | 'inflow_outflow' | 'budgets' | 'goals' | 'debts' | 'loans' | 'reports'
@@ -442,6 +440,50 @@ export default function App() {
     }
   };
 
+  // Idle auto-lock: re-locks the vault after the configured timeout (seconds
+  // take precedence over minutes). Trusted devices only skip the boot gate —
+  // they still get idle-locked.
+  const { notifyActivity } = useIdleAutoLock({
+    enabled: isUnlocked && !isAppLocked && !!appLockStatus?.appLockEnabled,
+    timeoutSeconds: resolveIdleTimeoutSeconds(appLockStatus),
+    onLock: () => setIsAppLocked(true),
+  });
+
+  const handleAppLockUnlocked = () => {
+    setIsAppLocked(false);
+    setAppLockStatus((prev) => (prev ? { ...prev, failedAttempts: 0, lockedUntil: null } : prev));
+    notifyActivity();
+    showToast('Vault unlocked.', 'success');
+    if (!appLockStatus?.lockOnOpen) {
+      void issueTrustedDevice(userEmail).catch((err) => {
+        logger.warn('Could not issue trusted-device cookie:', err);
+      });
+    }
+  };
+
+  const handleAppLockSwitchAccount = () => {
+    localStorage.removeItem('auth_user_email');
+    localStorage.removeItem('auth_session_token');
+    localStorage.removeItem('auth_device_token');
+    resetLoadedFromCloud();
+    setState(DEFAULT_APP_STATE);
+    setIsAppLocked(false);
+    setAppLockStatus(null);
+    setIsUnlocked(false);
+  };
+
+  const handleAppLockForgotPin = async () => {
+    const r = await resetPin(userEmail);
+    if (r.ok) {
+      setIsAppLocked(false);
+      notifyActivity();
+      setAppLockStatus((prev) => (prev ? { ...prev, pinEnabled: false, hasPin: false } : prev));
+      showToast('App-lock PIN cleared — set a new one in Settings → App Lock.', 'success');
+    } else {
+      showToast(r.error || 'Failed to reset the app-lock PIN.', 'error');
+    }
+  };
+
   // Verify remembered device on mount
   useEffect(() => {
     // StrictMode double-mounts effects in dev — run the boot chain once.
@@ -450,7 +492,6 @@ export default function App() {
     const verifyDevice = async () => {
       // Load system-provided environments on mount to ensure fresh configuration matches backend
       try {
-        setIsAppLockInit(true);
         const vRes = await fetchWithTimeout(
           apiUrl('/api/auth/verify-session'),
           {
@@ -475,6 +516,17 @@ export default function App() {
           authSession.setEmail(email);
           setUserEmail(email);
 
+          // APP-LOCK GATE: resolve the lock decision while the auth spinner is
+          // still up ("Checking app locks…") so a locked account never paints
+          // ledger DOM. determineAppLock falls open on any error; the 4s race
+          // cap keeps a dead backend from stalling cold start.
+          setIsAppLockInit(true);
+          await Promise.race([
+            determineAppLock(email),
+            new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 4000)),
+          ]);
+          setIsAppLockInit(false);
+
           // FAST PAINT: unlock immediately using the local mirror instead of
           // waiting for the full cloud round-trip (verify-session → 14-table
           // pull with retry backoff routinely took 10s+ on slow links). The
@@ -486,7 +538,6 @@ export default function App() {
           }
           setIsUnlocked(true);
           setIsCheckingAuth(false);
-          setIsAppLockInit(false);
 
           // BACKGROUND HYDRATION: cloud pull + config + app-lock now run
           // without blocking the UI. If the user edits while this is in
@@ -499,7 +550,6 @@ export default function App() {
 
               const syncPromise = syncStateFromSupabase(email);
               const subsPromise = refreshSubscriptionsFromBackend(email, activeToken);
-              const lockPromise = determineAppLock(email);
 
               const [result, backendSubs] = await Promise.all([syncPromise, subsPromise]);
 
@@ -528,8 +578,6 @@ export default function App() {
                   subscriptions: mergeSubscriptionsList(prev.subscriptions, backendSubs),
                 }));
               }
-
-              await lockPromise;
             } catch (err) {
               hydrationInFlight.current = false;
               logger.warn('Background hydration failed (app stays on local mirror):', err);
@@ -3418,12 +3466,30 @@ export default function App() {
             className="w-7 h-7 rounded-full border border-[var(--line)] border-t-[var(--ink)] animate-spin mx-auto motion-reduce:animate-none"
             aria-hidden
           />
-          <p className="eyebrow mt-4">{isCheckingAuth ? 'Checking session' : 'Unlocking vault'}</p>
+          <p className="eyebrow mt-4">{isAppLockInit ? 'Verifying locks' : 'Checking session'}</p>
           <p className="mono text-[12px] text-[var(--ink-2)] mt-1.5">
-            {isCheckingAuth ? 'Verifying secure device…' : 'Checking app locks…'}
+            {isAppLockInit ? 'Checking app locks…' : 'Verifying secure device…'}
           </p>
         </div>
       </div>
+    );
+  }
+
+  // ======================= APP-LOCK GATE =======================
+  // Rendered INSTEAD of the whole workspace while locked: no ledger DOM mounts
+  // until the PIN/passkey is verified. isUnlocked stays true, so background
+  // sync/realtime effects keep the session warm underneath the gate.
+  if (isAppLocked) {
+    return (
+      <LockScreen
+        email={userEmail}
+        appLockEnabled={!!appLockStatus?.appLockEnabled}
+        pinEnabled={!!appLockStatus?.pinEnabled}
+        hasBiometric={(appLockStatus?.biometricCount ?? 0) > 0}
+        onUnlocked={handleAppLockUnlocked}
+        onSwitchAccount={handleAppLockSwitchAccount}
+        onForgotPin={handleAppLockForgotPin}
+      />
     );
   }
 
@@ -3601,28 +3667,15 @@ export default function App() {
                 {/* Profile Card Trigger */}
                 <button
                   onClick={() => setIsProfileOpen(true)}
-                  className="flex items-center gap-2 text-left hover:opacity-80 transition-all cursor-pointer overflow-hidden shrink min-w-0"
+                  aria-label="Open profile"
+                  className="group flex flex-col gap-0.5 items-start text-left rounded-xl border border-[var(--line)] bg-[var(--surface-2)] hover:bg-[var(--surface)] hover:border-[var(--line-strong)] px-3 py-2 transition-colors cursor-pointer overflow-hidden min-w-0 flex-1 mr-2"
                 >
-                  <div className="w-7 h-7 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] font-bold overflow-hidden border border-[var(--line)] flex items-center justify-center shrink-0">
-                    {state.userProfile?.avatarUrl ? (
-                      <img
-                        src={state.userProfile.avatarUrl}
-                        alt={state.userProfile.name}
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      state.userProfile?.name?.charAt(0) || 'U'
-                    )}
-                  </div>
-                  <div className="truncate text-left min-w-0">
-                    <p className="text-[11px] font-bold text-[var(--ink)] leading-none truncate">
-                      {state.userProfile?.name || 'Owner Profile'}
-                    </p>
-                    <p className="text-[10px] text-[var(--ink-2)] mono leading-none mt-1 truncate">
-                      {userEmail || 'Local Vault'}
-                    </p>
-                  </div>
+                  <span className="text-[11px] font-bold text-[var(--ink)] leading-none truncate w-full">
+                    {state.userProfile?.name || 'Owner Profile'}
+                  </span>
+                  <span className="text-[10px] text-[var(--ink-2)] mono leading-none mt-1 truncate w-full">
+                    {userEmail || 'Local Vault'}
+                  </span>
                 </button>
 
                 {/* More Icon Trigger */}
@@ -3917,7 +3970,7 @@ export default function App() {
               // App-lock is intentionally NOT gated here: after a fresh password
               // login the user goes straight into the app. The lock screen is
               // shown only on reload/app-reopen (see verifyDevice mount gate) or
-              // after the 60-second idle timeout (see idle re-lock effect below).
+              // after the configured idle auto-lock timeout (see useIdleAutoLock).
               // Remember this device for future app-lock skips
               if (rememberMe) {
                 try {
@@ -4048,7 +4101,6 @@ export default function App() {
                     currentMonthOutflow={currentMonthOutflow}
                     setActiveTab={setActiveTab}
                     setEditingTransactionId={setEditingTransactionId}
-                    onProfileClick={() => setIsProfileOpen(true)}
                     onNotificationClick={() => setIsNotifOpen(true)}
                     onAddIncome={handleAddIncome}
                     onAddExpense={handleAddExpense}
@@ -4249,9 +4301,10 @@ export default function App() {
                     <div className="p-4 bg-[var(--surface-2)] border border-[var(--line)] rounded-2xl flex justify-around items-center gap-3">
                       <div className="text-center">
                         <span className="eyebrow block mb-0.5">Net Worth</span>
-                        <span className="text-xs font-mono font-bold text-[var(--ink)] leading-none">
-                          {state.currency}
-                          {aggregateActiveWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        <span
+                          className={`text-xs font-mono font-bold leading-none ${aggregateActiveWealth < 0 ? 'text-[var(--danger)]' : 'text-[var(--ink)]'}`}
+                        >
+                          {formatMoney(state.currency, aggregateActiveWealth, { maxFractionDigits: 0 })}
                         </span>
                       </div>
                       <div className="w-px h-6 bg-[var(--line)]" />
@@ -4260,10 +4313,8 @@ export default function App() {
                         <span
                           className={`text-xs mono font-bold leading-none ${currentMonthInflow - currentMonthOutflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--danger)]'}`}
                         >
-                          {currentMonthInflow - currentMonthOutflow >= 0 ? '+' : ''}
-                          {state.currency}
-                          {(currentMonthInflow - currentMonthOutflow).toLocaleString(undefined, {
-                            maximumFractionDigits: 0,
+                          {formatMoney(state.currency, currentMonthInflow - currentMonthOutflow, {
+                            maxFractionDigits: 0,
                           })}
                         </span>
                       </div>
@@ -4440,7 +4491,16 @@ export default function App() {
               exportStateAsJSON={exportStateAsJSON}
               handleJSONRestore={handleJSONRestore}
               isOpen={isSettingsOpen}
-              onClose={() => setIsSettingsOpen(false)}
+              onClose={() => {
+                setIsSettingsOpen(false);
+                // Pick up app-lock changes (PIN, always-lock, idle timeout)
+                // without needing a reload.
+                if (userEmail) {
+                  void getAppLockStatus(userEmail).then((s) => {
+                    if (s) setAppLockStatus(s);
+                  });
+                }
+              }}
               onLogout={() => {
                 localStorage.removeItem('auth_user_email');
                 localStorage.removeItem('auth_session_token');

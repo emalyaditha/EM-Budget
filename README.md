@@ -10,7 +10,7 @@ EM Budget is a premium, minimalist, and mobile-oriented personal finance applica
 
 - **Email + Password Auth with OTP Verification**: Account access is controlled through email/password login reinforced by ephemeral 6-digit OTP passcodes delivered over email, plus a dedicated password-reset flow.
 - **Google SSO**: Optional one-tap sign-in via Google Identity Services; the ID token is verified server-side as the OAuth audience (`GOOGLE_CLIENT_ID`).
-- **App Lock PIN & Passkeys**: An optional per-user app-lock PIN protects the ledger on shared devices, with email-OTP self-reset. Unlock is further accelerated by **WebAuthn/passkey biometrics** and trusted-device tokens, with configurable always-lock mode and idle auto-lock minutes.
+- **App Lock PIN & Passkeys**: An optional per-user app-lock PIN gates the ledger on shared devices, with email-OTP self-reset. Unlock is further accelerated by **WebAuthn/passkey biometrics** and trusted-device tokens, with configurable always-lock mode and a **seconds- or minutes-granularity idle auto-lock** — the lock screen is enforced both on app open and after inactivity.
 - **Identity-Linked Operations**: All financial cards, cash vaults, and transactions are securely coupled with your normalized (lower-case) email identity.
 
 ### 💾 2. Transferable JSON Export & Restore

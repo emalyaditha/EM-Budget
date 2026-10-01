@@ -39,3 +39,29 @@ export function compareMoney(a: number, b: number): number {
 export function multiplyMoney(amount: number, factor: number): number {
   return Math.round(toMinorUnits(amount) * factor) / 100;
 }
+
+export interface FormatMoneyOptions {
+  /** Minimum decimal places shown (default 0). */
+  minFractionDigits?: number;
+  /** Maximum decimal places shown (default 2). Use 0 for rounded display. */
+  maxFractionDigits?: number;
+  /** Render a leading '-' for negative values. Off by default: the app conveys
+   *  direction with red/green coloring, never with sign characters. */
+  signed?: boolean;
+}
+
+/**
+ * Single source of truth for rendering a money value: "Rs.1,234.50".
+ * Always strips the sign from the number itself (unless `signed`) so amounts
+ * never render as "Rs.-500"; direction belongs to the surrounding color.
+ */
+export function formatMoney(currency: string, amount: number, options: FormatMoneyOptions = {}): string {
+  const { minFractionDigits = 0, maxFractionDigits = 2, signed = false } = options;
+  const safe = Number.isFinite(amount) ? amount : 0;
+  const digits = Math.min(minFractionDigits, maxFractionDigits);
+  const body = Math.abs(safe).toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: maxFractionDigits,
+  });
+  return `${signed && safe < 0 ? '-' : ''}${currency}${body}`;
+}

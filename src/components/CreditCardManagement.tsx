@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { todayLocal } from '../utils';
+import { formatMoney } from '../lib/money';
 import { isMinimumSatisfied } from '../lib/creditCards';
 import InstallmentSchedule from './InstallmentSchedule';
 import InstallmentPlanModal from './InstallmentPlanModal';
@@ -317,6 +318,7 @@ export default function CreditCardManagement({
           ) : (
             creditCards.map((c) => {
               const debt = c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0;
+              const avail = (c.limit ?? 0) + c.currentBalance;
               const util = c.limit && c.limit > 0 ? Math.round((debt / c.limit) * 100) : 0;
               const daysLeft = daysUntil(c.dueDate || '');
               const isOverdue = daysLeft < 0;
@@ -359,8 +361,7 @@ export default function CreditCardManagement({
                     <div className="text-left sm:text-right">
                       <span className="eyebrow normal-case tracking-normal">Outstanding</span>
                       <span className="mono text-sm font-bold text-[var(--danger)] block">
-                        {currency}
-                        {debt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatMoney(currency, debt, { minFractionDigits: 2, maxFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>
@@ -470,9 +471,10 @@ export default function CreditCardManagement({
                     </button>
                     <span className="ml-auto text-[11px] text-[var(--ink-3)]">
                       Available:{' '}
-                      <span className="mono font-bold text-[var(--success)]">
-                        {currency}
-                        {((c.limit ?? 0) + c.currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      <span
+                        className={`mono font-bold ${avail < 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}
+                      >
+                        {formatMoney(currency, avail, { minFractionDigits: 2 })}
                       </span>
                     </span>
                   </div>
@@ -712,8 +714,7 @@ export default function CreditCardManagement({
                                 )}
                                 <div className="text-right">
                                   <span className="mono font-bold text-[var(--danger)]">
-                                    -{currency}
-                                    {p.amount.toFixed(2)}
+                                    {formatMoney(currency, p.amount, { minFractionDigits: 2, maxFractionDigits: 2 })}
                                   </span>
                                   <span className="block text-[10px] text-[var(--ink-3)]">{p.date}</span>
                                 </div>
@@ -786,8 +787,7 @@ export default function CreditCardManagement({
                             </div>
                             <div className="text-right shrink-0 ml-2">
                               <span className="mono font-bold text-[var(--danger)]">
-                                +{currency}
-                                {Math.abs(t.amount).toFixed(2)}
+                                {formatMoney(currency, t.amount, { minFractionDigits: 2, maxFractionDigits: 2 })}
                               </span>
                               <span className="block text-[10px] text-[var(--ink-3)]">{t.date}</span>
                             </div>
@@ -840,8 +840,7 @@ export default function CreditCardManagement({
                             </div>
                             <div className="text-right shrink-0 ml-2">
                               <span className="mono font-bold text-[var(--success)]">
-                                +{currency}
-                                {Math.abs(t.amount).toFixed(2)}
+                                {formatMoney(currency, t.amount, { minFractionDigits: 2, maxFractionDigits: 2 })}
                               </span>
                               <span className="block text-[10px] text-[var(--ink-3)]">{t.date}</span>
                             </div>
@@ -880,8 +879,12 @@ export default function CreditCardManagement({
               <option value="">Select card</option>
               {creditCards.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.cardName} (Avail {currency}
-                  {((c.limit ?? 0) + c.currentBalance).toFixed(2)})
+                  {c.cardName} ({(c.limit ?? 0) + c.currentBalance < 0 ? 'Over' : 'Avail'}{' '}
+                  {formatMoney(currency, (c.limit ?? 0) + c.currentBalance, {
+                    minFractionDigits: 2,
+                    maxFractionDigits: 2,
+                  })}
+                  )
                 </option>
               ))}
             </select>

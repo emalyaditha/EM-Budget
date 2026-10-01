@@ -20,6 +20,8 @@ import { TransactionRow } from './ui/TransactionRow';
 import { CategoryChip } from './ui/CategoryChip';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { ProgressBarThick, toneForPercent } from './ui/ProgressRing';
+import { todayLocal } from '../utils';
+import { formatMoney } from '../lib/money';
 
 interface DashboardProps {
   state: AppState;
@@ -35,7 +37,6 @@ interface DashboardProps {
   currentMonthOutflow: number;
   setActiveTab: (tab: AppTab) => void;
   setEditingTransactionId: (id: string | null) => void;
-  onProfileClick: () => void;
   onNotificationClick: () => void;
   onAddIncome?: (
     amount: number,
@@ -104,7 +105,6 @@ export default function Dashboard({
   currentMonthOutflow,
   setActiveTab,
   setEditingTransactionId,
-  onProfileClick,
   onAddIncome,
   onAddExpense,
 }: DashboardProps) {
@@ -191,6 +191,13 @@ export default function Dashboard({
   }, [state.transactions, monthPrefix]);
   const donutTotal = donutData.reduce((s, d) => s + d.value, 0);
 
+  const todayOutflow = useMemo(() => {
+    const today = todayLocal();
+    return state.transactions
+      .filter((t) => t.type === 'expense' && t.date && t.date.startsWith(today))
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [state.transactions]);
+
   const recentActivity = useMemo(() => {
     const combined: ActivityLogItem[] = [
       ...state.transactions.map((t, idx) => ({ ...t, logType: 'transaction' as const, originalIdx: idx })),
@@ -225,16 +232,22 @@ export default function Dashboard({
     ];
     return combined
       .sort((a, b) => {
-        const getTs = (item: ActivityLogItem): number => {
-          const raw =
-            item.updated_at || item.updatedAt || item.created_at || item.createdAt || item.date || item.dateGiven;
+        // Order by ledger day first, not by when the row was last touched —
+        // back-dating yesterday's entries today must not float them into Today.
+        const dayOf = (item: ActivityLogItem) => (item.date || (item as { dateGiven?: string }).dateGiven || '').slice(0, 10);
+        const tsOf = (raw?: string): number => {
           if (!raw) return 0;
-          const time = new Date(raw).getTime();
-          return isNaN(time) ? 0 : time;
+          const t = new Date(raw).getTime();
+          return isNaN(t) ? 0 : t;
         };
-        const timeA = getTs(a);
-        const timeB = getTs(b);
+        const dayCompare = dayOf(b).localeCompare(dayOf(a));
+        if (dayCompare !== 0) return dayCompare;
+        const timeA = tsOf(a.date) || tsOf((a as { dateGiven?: string }).dateGiven);
+        const timeB = tsOf(b.date) || tsOf((b as { dateGiven?: string }).dateGiven);
         if (timeA !== timeB) return timeB - timeA;
+        const updA = Math.max(tsOf(a.updated_at), tsOf(a.updatedAt), tsOf(a.created_at), tsOf(a.createdAt));
+        const updB = Math.max(tsOf(b.updated_at), tsOf(b.updatedAt), tsOf(b.created_at), tsOf(b.createdAt));
+        if (updA !== updB) return updB - updA;
         const dateA = a.date || (a as { dateGiven?: string }).dateGiven || '';
         const dateB = b.date || (b as { dateGiven?: string }).dateGiven || '';
         const dateCompare = dateB.localeCompare(dateA);
@@ -326,9 +339,9 @@ export default function Dashboard({
         totalCashAmount={totalCashAmount}
         totalDebitCardsAmount={totalDebitCardsAmount}
         userName={state.userProfile?.name && state.userProfile.name !== 'User' ? state.userProfile.name : ''}
-        userAvatarUrl={state.userProfile?.avatarUrl}
         currentMonthInflow={currentMonthInflow}
         currentMonthOutflow={currentMonthOutflow}
+        todayOutflow={todayOutflow}
         transactions={state.transactions}
         onAddExpense={() => openQuick('expense')}
         onAddIncome={() => openQuick('income')}
@@ -339,7 +352,6 @@ export default function Dashboard({
             document.getElementById('transfer-capital')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }, 60);
         }}
-        onProfileClick={onProfileClick}
       />
 
       {/* Accounts carousel — wallet tiles + realistic debit card faces */}
@@ -589,7 +601,7 @@ export default function Dashboard({
                           subtitle={t.accountType === 'cash' ? 'Cash' : 'Card'}
                           category={t.category}
                           isIncome={isInc}
-                          amountText={`${isInc ? '+' : '−'}${state.currency}${Math.abs(t.amount).toLocaleString()}`}
+                          amountText={formatMoney(state.currency, t.amount)}
                           onClick={t.logType === 'transaction' ? () => setEditingTransactionId(t.id) : undefined}
                         />
                       </div>

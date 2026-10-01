@@ -44,6 +44,7 @@ import {
   disablePin,
   setLockOnOpen,
   setLockIdleMinutes,
+  setLockIdleSeconds,
   startBiometricRegistration,
   removeBiometricCredential,
   listBiometricCredentials,
@@ -117,7 +118,8 @@ export default function SettingsModal({
   const [devices, setDevices] = useState<{ id: string; label: string; lastUsed: string }[]>([]);
   const [biometricCredIds, setBiometricCredIds] = useState<string[]>([]);
   const [confirmRemoveBiometric, setConfirmRemoveBiometric] = useState<string | null>(null);
-  const [idleMinutes, setIdleMinutes] = useState(1);
+  const [idleValue, setIdleValue] = useState(1);
+  const [idleUnit, setIdleUnit] = useState<'minutes' | 'seconds'>('minutes');
   const [, setSqlScript] = useState<string | null>(null);
   const settingsDrawerRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
@@ -136,7 +138,13 @@ export default function SettingsModal({
           }
         : null,
     );
-    setIdleMinutes(status?.lockIdleMinutes ?? 1);
+    if (status?.lockIdleSeconds != null) {
+      setIdleUnit('seconds');
+      setIdleValue(status.lockIdleSeconds);
+    } else {
+      setIdleUnit('minutes');
+      setIdleValue(status?.lockIdleMinutes ?? 1);
+    }
     const devs = await listTrustedDevices(userEmail);
     setDevices(
       devs.map((d) => ({
@@ -403,16 +411,22 @@ export default function SettingsModal({
     } else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to update lock preference.' });
   };
 
-  const handleSaveIdleMinutes = async () => {
-    const minutes = Math.round(Number(idleMinutes) || 1);
-    const clamped = Math.min(240, Math.max(1, minutes));
-    setIdleMinutes(clamped);
+  const handleSaveIdleTimeout = async () => {
+    const raw = Math.round(Number(idleValue) || 1);
+    const clamped = idleUnit === 'seconds' ? Math.min(86400, Math.max(5, raw)) : Math.min(240, Math.max(1, raw));
+    setIdleValue(clamped);
     setAppLockBusy(true);
     setAppLockMsg(null);
-    const r = await setLockIdleMinutes(userEmail, clamped);
+    const r =
+      idleUnit === 'seconds'
+        ? await setLockIdleSeconds(userEmail, clamped)
+        : await setLockIdleMinutes(userEmail, clamped);
     setAppLockBusy(false);
     if (r.ok) {
-      setAppLockMsg({ kind: 'success', text: `App will auto-lock after ${clamped} min of inactivity.` });
+      setAppLockMsg({
+        kind: 'success',
+        text: `App will auto-lock after ${clamped} ${idleUnit === 'seconds' ? 'seconds' : 'minutes'} of inactivity.`,
+      });
       await refreshAppLock();
     } else setAppLockMsg({ kind: 'error', text: r.error || 'Failed to update idle-lock timeout.' });
   };
@@ -769,7 +783,7 @@ class CloudSyncService {
                           <div>
                             <p className="text-[12px] font-semibold text-[var(--ink)]">Auto-lock after inactivity</p>
                             <p className="text-[11px] leading-4 text-[var(--ink-3)] mt-0.5">
-                              Locks the app after this many minutes of inactivity. Defaults to 1.
+                              Locks the app after this period of inactivity (1–240 minutes or 5–86400 seconds).
                             </p>
                           </div>
                         </div>
@@ -777,20 +791,34 @@ class CloudSyncService {
                           <input
                             type="number"
                             inputMode="numeric"
-                            min={1}
-                            max={240}
-                            value={idleMinutes}
+                            min={idleUnit === 'seconds' ? 5 : 1}
+                            max={idleUnit === 'seconds' ? 86400 : 240}
+                            value={idleValue}
                             disabled={appLockBusy}
-                            onChange={(e) => setIdleMinutes(Number(e.target.value))}
-                            onBlur={handleSaveIdleMinutes}
-                            aria-label="Auto-lock minutes"
+                            onChange={(e) => setIdleValue(Number(e.target.value))}
+                            onBlur={handleSaveIdleTimeout}
+                            aria-label="Auto-lock timeout"
                             className="input w-16 text-center text-[12px] mono"
                           />
-                          <span className="text-[11px] text-[var(--ink-3)]">min</span>
+                          <select
+                            value={idleUnit}
+                            disabled={appLockBusy}
+                            onChange={(e) => {
+                              const unit = e.target.value as 'minutes' | 'seconds';
+                              setIdleUnit(unit);
+                              // Keep the number meaningful when switching units.
+                              setIdleValue((v) => (unit === 'seconds' ? Math.max(5, Math.min(86400, v)) : Math.max(1, Math.min(240, v))));
+                            }}
+                            aria-label="Auto-lock timeout unit"
+                            className="input w-16 text-center text-[12px]"
+                          >
+                            <option value="minutes">min</option>
+                            <option value="seconds">sec</option>
+                          </select>
                           <button
                             type="button"
-                            onClick={handleSaveIdleMinutes}
-                            disabled={appLockBusy || !idleMinutes}
+                            onClick={handleSaveIdleTimeout}
+                            disabled={appLockBusy || !idleValue}
                             className="btn-ghost justify-center text-[12px] disabled:opacity-50"
                           >
                             Save

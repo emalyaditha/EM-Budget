@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
 import type { BankCard, CreditCardPurchase } from '../types';
 import { formatFeeBreakdown } from '../lib/installments';
+import { formatMoney } from '../lib/money';
 import { Calendar, CreditCard, AlertTriangle, Check, Info } from 'lucide-react';
 
 interface Props {
@@ -51,8 +52,7 @@ export default function InstallmentPlanModal({ isOpen, onClose, card, purchase, 
             <span className="text-[10px] text-[var(--ink-3)]">{purchase.date}</span>
           </div>
           <span className="mono text-sm font-bold text-[var(--ink)] shrink-0">
-            {currency}
-            {purchase.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {formatMoney(currency, purchase.amount, { minFractionDigits: 2 })}
           </span>
         </div>
 
@@ -94,8 +94,7 @@ export default function InstallmentPlanModal({ isOpen, onClose, card, purchase, 
                   <span className="text-[10px] text-[var(--ink-3)] block mt-0.5">{opt.description}</span>
                   {fee.processingFee > 0 && (
                     <span className="mono text-[10px] text-[var(--danger)] block mt-1">
-                      +{currency}
-                      {fee.processingFee.toLocaleString()} fee
+                      {formatMoney(currency, fee.processingFee)} fee
                     </span>
                   )}
                 </button>
@@ -113,8 +112,7 @@ export default function InstallmentPlanModal({ isOpen, onClose, card, purchase, 
           <div className="flex justify-between text-xs">
             <span className="text-[var(--ink-3)]">Purchase amount</span>
             <span className="mono font-medium text-[var(--ink)]">
-              {currency}
-              {purchase.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {formatMoney(currency, purchase.amount, { minFractionDigits: 2 })}
             </span>
           </div>
           <div className="flex justify-between text-xs">
@@ -122,14 +120,13 @@ export default function InstallmentPlanModal({ isOpen, onClose, card, purchase, 
             <span
               className={`mono font-medium ${breakdown.processingFee > 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}
             >
-              {breakdown.processingFee > 0 ? `+${currency}${breakdown.processingFee.toLocaleString()}` : 'FREE'}
+              {breakdown.processingFee > 0 ? formatMoney(currency, breakdown.processingFee) : 'FREE'}
             </span>
           </div>
           <div className="border-t border-[var(--line)] pt-2 flex justify-between text-xs">
             <span className="font-medium text-[var(--ink)]">Total cost</span>
             <span className="mono font-bold text-[var(--ink)]">
-              {currency}
-              {breakdown.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {formatMoney(currency, breakdown.totalCost, { minFractionDigits: 2 })}
             </span>
           </div>
           <div className="flex justify-between text-xs">

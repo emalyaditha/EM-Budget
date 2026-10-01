@@ -18,6 +18,7 @@ import AuditPanel from './AuditPanel';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { TransactionRow } from './ui/TransactionRow';
 import { ProgressBarThick } from './ui/ProgressRing';
+import { formatMoney } from '../lib/money';
 
 interface ReportsCentreProps {
   transactions: Transaction[];
@@ -242,10 +243,10 @@ export default function ReportsCentre({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="eyebrow !text-white/60">Executive summary</p>
-                  <p className="mono text-[30px] sm:text-[34px] font-bold tracking-tight mt-1 text-white tabular-nums break-all leading-none">
-                    {netSavings < 0 ? '-' : ''}
-                    {currency}
-                    {Math.abs(netSavings).toLocaleString()}
+                  <p
+                    className={`mono text-[30px] sm:text-[34px] font-bold tracking-tight mt-1 tabular-nums break-all leading-none ${netSavings < 0 ? 'text-red-300' : 'text-white'}`}
+                  >
+                    {formatMoney(currency, netSavings)}
                   </p>
                   <p className="eyebrow !text-white/40 !text-[9px] mt-1.5">Period net surplus</p>
                 </div>
@@ -267,21 +268,19 @@ export default function ReportsCentre({
                 <div className="rounded-[var(--r-sm)] p-3 bg-white/10 border border-white/10 text-center min-w-0">
                   <p className="eyebrow !text-white/60 !text-[9px]">Collected</p>
                   <p
-                    className="mono text-[13px] font-bold mt-1 text-white truncate tabular-nums"
-                    title={`+${currency}${totalIncome.toLocaleString()}`}
+                    className="mono text-[13px] font-bold mt-1 text-emerald-300 truncate tabular-nums"
+                    title={formatMoney(currency, totalIncome)}
                   >
-                    +{currency}
-                    {totalIncome.toLocaleString()}
+                    {formatMoney(currency, totalIncome)}
                   </p>
                 </div>
                 <div className="rounded-[var(--r-sm)] p-3 bg-white/10 border border-white/10 text-center min-w-0">
                   <p className="eyebrow !text-white/60 !text-[9px]">Settled</p>
                   <p
-                    className="mono text-[13px] font-bold mt-1 text-white truncate tabular-nums"
-                    title={`-${currency}${totalExpense.toLocaleString()}`}
+                    className="mono text-[13px] font-bold mt-1 text-red-300 truncate tabular-nums"
+                    title={formatMoney(currency, totalExpense)}
                   >
-                    -{currency}
-                    {totalExpense.toLocaleString()}
+                    {formatMoney(currency, totalExpense)}
                   </p>
                 </div>
                 <div className="rounded-[var(--r-sm)] p-3 bg-white/10 border border-white/10 text-center min-w-0">
@@ -520,7 +519,7 @@ export default function ReportsCentre({
                       title={t.title}
                       subtitle={`${t.date} · ${accountLabel || 'Ledger'}`}
                       category={t.category}
-                      amountText={`${isInc ? '+' : '-'}${currency}${absAmount.toLocaleString()}`}
+                      amountText={formatMoney(currency, absAmount)}
                       isIncome={isInc}
                       onClick={() => onSelectTransaction(t.id)}
                       trailing={

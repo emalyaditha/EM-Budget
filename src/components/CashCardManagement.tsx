@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { todayLocal } from '../utils';
+import { formatMoney } from '../lib/money';
 
 interface CashCardManagementProps {
   cashAccounts: CashAccount[];
@@ -1006,11 +1007,10 @@ export default function CashCardManagement({
                                 <>
                                   <div className="flex justify-between items-center">
                                     <span className="eyebrow normal-case">Spendable</span>
-                                    <span className="mono text-sm font-bold text-[var(--success)]">
-                                      {currency}
-                                      {(card.currentBalance - lockedAmt).toLocaleString(undefined, {
-                                        minimumFractionDigits: 2,
-                                      })}
+                                    <span
+                                      className={`mono text-sm font-bold ${card.currentBalance - lockedAmt < 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}
+                                    >
+                                      {formatMoney(currency, card.currentBalance - lockedAmt, { minFractionDigits: 2 })}
                                     </span>
                                   </div>
                                   <div className="w-full h-1.5 bg-[var(--surface-2)] border border-[var(--line)] rounded-full overflow-hidden">
@@ -1025,31 +1025,28 @@ export default function CashCardManagement({
                                     <div className="min-w-0">
                                       <span className="eyebrow block">Total</span>
                                       <span
-                                        className="mono text-xs font-bold truncate block tabular-nums"
-                                        title={`${currency}${card.currentBalance.toLocaleString()}`}
+                                        className={`mono text-xs font-bold truncate block tabular-nums ${card.currentBalance < 0 ? 'text-[var(--danger)]' : ''}`}
+                                        title={formatMoney(currency, card.currentBalance)}
                                       >
-                                        {currency}
-                                        {card.currentBalance.toLocaleString()}
+                                        {formatMoney(currency, card.currentBalance)}
                                       </span>
                                     </div>
                                     <div className="border-x border-[var(--line)] min-w-0">
                                       <span className="eyebrow block">Locked</span>
                                       <span
                                         className="mono text-xs font-bold text-amber-600 truncate block tabular-nums"
-                                        title={`${currency}${lockedAmt.toLocaleString()}`}
+                                        title={formatMoney(currency, lockedAmt)}
                                       >
-                                        {currency}
-                                        {lockedAmt.toLocaleString()}
+                                        {formatMoney(currency, lockedAmt)}
                                       </span>
                                     </div>
                                     <div className="min-w-0">
                                       <span className="eyebrow block">Spendable</span>
                                       <span
                                         className="mono text-xs font-bold text-[var(--success)] truncate block tabular-nums"
-                                        title={`${currency}${Math.max(0, card.currentBalance - lockedAmt).toLocaleString()}`}
+                                        title={formatMoney(currency, Math.max(0, card.currentBalance - lockedAmt))}
                                       >
-                                        {currency}
-                                        {Math.max(0, card.currentBalance - lockedAmt).toLocaleString()}
+                                        {formatMoney(currency, Math.max(0, card.currentBalance - lockedAmt))}
                                       </span>
                                     </div>
                                   </div>
@@ -1062,9 +1059,7 @@ export default function CashCardManagement({
                                     <span
                                       className={`mono text-sm font-bold ${hasNeg ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}
                                     >
-                                      {hasNeg ? '-' : ''}
-                                      {currency}
-                                      {out.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      {formatMoney(currency, out, { minFractionDigits: 2 })}
                                     </span>
                                   </div>
                                   {lim > 0 && (
@@ -1348,8 +1343,7 @@ export default function CashCardManagement({
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <span className="mono text-xs font-bold text-[var(--danger)]">
-                                  -{currency}
-                                  {ch.amount.toLocaleString()}
+                                  {formatMoney(currency, ch.amount)}
                                 </span>
                                 <button
                                   type="button"

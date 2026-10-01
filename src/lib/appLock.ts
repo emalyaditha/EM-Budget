@@ -6,6 +6,7 @@ import {
 } from '@simplewebauthn/browser';
 import { apiUrl, safeJson, fetchWithTimeout } from './api';
 import { getSupabaseConfig } from '../supabase';
+import { getSessionToken } from './authSession';
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
@@ -13,17 +14,23 @@ function errorMessage(err: unknown, fallback: string): string {
 
 const jsonHeaders = () => {
   const cfg = getSupabaseConfig();
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-supabase-url': cfg.url,
     'x-supabase-key': cfg.key,
   };
+  // The server accepts the session via httpOnly cookie OR Bearer header; attach
+  // the in-memory token when present so calls survive cookie-less/cross-origin setups.
+  const token = getSessionToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 };
 
 export type AppLockStatus = {
   appLockEnabled: boolean;
   lockOnOpen: boolean;
   lockIdleMinutes: number | null;
+  lockIdleSeconds: number | null;
   pinEnabled: boolean;
   hasPin: boolean;
   biometricCount: number;
@@ -115,6 +122,31 @@ export async function setLockIdleMinutes(email: string, minutes: number): Promis
   } catch (err: unknown) {
     return { ok: false, error: errorMessage(err, 'Failed to update idle-lock timeout.') };
   }
+}
+
+// Idle auto-lock timeout in seconds (5–86400). Takes precedence over the
+// minutes value when set server-side.
+export async function setLockIdleSeconds(email: string, seconds: number): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { resp, data } = await post<{ success?: boolean; error?: string }>('/api/app-lock/pin/idle-seconds', {
+      email,
+      seconds,
+    });
+    return {
+      ok: resp.ok && !!data?.success,
+      error: data?.error || (resp.ok ? undefined : 'Failed to update idle-lock timeout.'),
+    };
+  } catch (err: unknown) {
+    return { ok: false, error: errorMessage(err, 'Failed to update idle-lock timeout.') };
+  }
+}
+
+// Effective idle-lock timeout in seconds, honoring precedence
+// seconds > minutes > 60s default. Returns null when app lock is off.
+export function resolveIdleTimeoutSeconds(status: AppLockStatus | null): number | null {
+  if (!status?.appLockEnabled) return null;
+  const seconds = status.lockIdleSeconds ?? (status.lockIdleMinutes ? status.lockIdleMinutes * 60 : 60);
+  return Math.min(86400, Math.max(5, Math.round(seconds)));
 }
 
 type PinVerifyResult = {

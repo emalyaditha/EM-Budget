@@ -2,7 +2,7 @@
 import type { Debt, CashAccount, BankCard } from '../types';
 import { Plus, AlertCircle, Calendar, Wallet, CornerDownRight, Eye } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { compareMoney } from '../lib/money';
+import { compareMoney, formatMoney } from '../lib/money';
 import DebtDetailModal from './DebtDetailModal';
 
 interface DebtTrackerProps {
@@ -665,8 +665,8 @@ export default function DebtTracker({
                             <span style={{ color: 'var(--ink-2)' }}>
                               {p.date} · {p.paidFromType}
                             </span>
-                            <span className="font-bold">
-                              -{currency} {p.amount.toLocaleString()}
+                            <span className="font-bold" style={{ color: 'var(--danger)' }}>
+                              {formatMoney(currency, p.amount)}
                             </span>
                           </div>
                         ))}

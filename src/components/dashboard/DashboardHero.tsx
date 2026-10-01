@@ -2,6 +2,7 @@ import type React from 'react';
 import { Plus, ArrowDownLeft, Send, BarChart3 } from 'lucide-react';
 import type { Transaction } from '../../types';
 import { AnimatedCountUp } from '../ui/AnimatedCountUp';
+import { formatMoney } from '../../lib/money';
 
 interface DashboardHeroProps {
   currency: string;
@@ -9,15 +10,14 @@ interface DashboardHeroProps {
   totalCashAmount?: number;
   totalDebitCardsAmount?: number;
   userName?: string;
-  userAvatarUrl?: string;
   currentMonthInflow?: number;
   currentMonthOutflow?: number;
+  todayOutflow?: number;
   transactions?: Transaction[];
   onAddExpense?: () => void;
   onAddIncome?: () => void;
   onViewTransactions?: () => void;
   onSend?: () => void;
-  onProfileClick?: () => void;
 }
 
 const TONE_BG: Record<string, string> = {
@@ -72,13 +72,12 @@ export function DashboardHero({
   totalDebitCardsAmount = 0,
   currentMonthInflow = 0,
   currentMonthOutflow = 0,
+  todayOutflow = 0,
   userName = '',
-  userAvatarUrl,
   onAddExpense,
   onAddIncome,
   onViewTransactions,
   onSend,
-  onProfileClick,
 }: DashboardHeroProps) {
   const firstName = getFirstName(userName);
   const liquidCash = totalCashAmount + totalDebitCardsAmount;
@@ -87,46 +86,43 @@ export function DashboardHero({
 
   return (
     <section className="card card-lg p-5 sm:p-7 flex flex-col gap-6 text-left" aria-label="Balance overview">
-      {/* Greeting + avatar */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Greeting + today's spend */}
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="eyebrow">{firstName ? `Welcome back, ${firstName}` : 'Welcome back'}</p>
           <p className="text-[13px] font-semibold text-[var(--ink)] mt-1">Here is your money today.</p>
         </div>
-        <button
-          type="button"
-          onClick={onProfileClick}
-          aria-label="Open profile"
-          className="w-10 h-10 rounded-full overflow-hidden border border-[var(--line)] bg-[var(--accent)] text-[var(--accent-fg)] font-bold text-sm grid place-items-center shrink-0 pressable"
+        <div
+          className="shrink-0 text-right rounded-[var(--r-sm)] border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2"
+          title="Spent today"
         >
-          {userAvatarUrl ? (
-            <img
-              src={userAvatarUrl}
-              alt={userName}
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+          <p className="eyebrow !text-[9px]">Spent · today</p>
+          {todayOutflow > 0 ? (
+            <p className="money text-sm font-bold mt-0.5" style={{ color: 'var(--danger)' }}>
+              {formatMoney(currency, todayOutflow, { maxFractionDigits: 0 })}
+            </p>
           ) : (
-            (firstName.charAt(0) || 'E').toUpperCase()
+            <p className="money text-sm font-bold mt-0.5 text-[var(--ink-3)]">No spend yet</p>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Giant balance + delta chip */}
       <div className="flex flex-col gap-2.5">
         <p className="eyebrow !text-[10px]">Total balance</p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <p className="money-display text-[var(--ink)]">
-            <AnimatedCountUp value={liquidCash} duration={900} prefix={`${currency} `} />
+          <p className={`money-display ${liquidCash < 0 ? 'text-[var(--danger)]' : 'text-[var(--ink)]'}`}>
+            <AnimatedCountUp value={Math.abs(liquidCash)} duration={900} prefix={`${currency} `} />
           </p>
           <span className={`delta-chip ${positive ? 'delta-up' : 'delta-down'}`} title="This month net">
-            {positive ? '▲' : '▼'} {currency}
-            {Math.abs(net).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            {positive ? '▲' : '▼'} {formatMoney(currency, net, { maxFractionDigits: 0 })}
           </span>
         </div>
-        <p className="text-[11px] text-[var(--ink-3)] money">
-          Net worth {currency}
-          {aggregateActiveWealth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        <p className="text-[11px] money text-[var(--ink-3)]">
+          Net worth{' '}
+          <span className={aggregateActiveWealth < 0 ? 'text-[var(--danger)] font-semibold' : undefined}>
+            {formatMoney(currency, aggregateActiveWealth, { maxFractionDigits: 0 })}
+          </span>
         </p>
       </div>
 
@@ -143,15 +139,13 @@ export function DashboardHero({
         <div className="rounded-[var(--r-sm)] border border-[var(--line)] bg-[var(--surface-2)] p-3.5">
           <p className="eyebrow !text-[9px]">Income · month</p>
           <p className="money text-sm font-bold mt-1" style={{ color: 'var(--success)' }}>
-            + {currency}
-            {currentMonthInflow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            {formatMoney(currency, currentMonthInflow, { maxFractionDigits: 0 })}
           </p>
         </div>
         <div className="rounded-[var(--r-sm)] border border-[var(--line)] bg-[var(--surface-2)] p-3.5">
           <p className="eyebrow !text-[9px]">Spent · month</p>
           <p className="money text-sm font-bold mt-1" style={{ color: 'var(--danger)' }}>
-            − {currency}
-            {currentMonthOutflow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            {formatMoney(currency, currentMonthOutflow, { maxFractionDigits: 0 })}
           </p>
         </div>
       </div>

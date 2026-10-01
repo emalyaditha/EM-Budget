@@ -175,6 +175,50 @@ describe('app-lock PIN', () => {
   });
 });
 
+describe('app-lock idle timeout', () => {
+  async function authedLockSession() {
+    const { email, headers } = withIsolation(ctx);
+    await sendOtp(email, headers);
+    const dev = await ctx.request.post('/api/auth/send-otp').set(headers).send({ email });
+    const v = await ctx.request.post('/api/auth/verify-otp').set(headers).send({ email, otp: dev.body.devOtp });
+    const sessionCookie = ((v.headers['set-cookie'] ?? []) as unknown as string[]).find((c: string) =>
+      c.startsWith('session_token='),
+    );
+    expect(sessionCookie).toBeTruthy();
+    return { email, authed: { ...headers, Cookie: sessionCookie!.split(';')[0] } };
+  }
+
+  it('validates bounds, surfaces lockIdleSeconds, and minutes clear the seconds override', async () => {
+    const { email, authed } = await authedLockSession();
+
+    for (const bad of [4, 86401, 1.5]) {
+      const res = await ctx.request.post('/api/app-lock/pin/idle-seconds').set(authed).send({ email, seconds: bad });
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    }
+
+    const ok = await ctx.request.post('/api/app-lock/pin/idle-seconds').set(authed).send({ email, seconds: 30 });
+    expect(ok.status).toBe(200);
+    expect(ok.body.seconds).toBe(30);
+
+    const status = await ctx.request.post('/api/app-lock/status').set(authed).send({ email });
+    expect(status.body.success).toBe(true);
+    expect(status.body.lockIdleSeconds).toBe(30);
+
+    const min = await ctx.request.post('/api/app-lock/pin/idle-minutes').set(authed).send({ email, minutes: 5 });
+    expect(min.status).toBe(200);
+    const status2 = await ctx.request.post('/api/app-lock/status').set(authed).send({ email });
+    expect(status2.body.lockIdleMinutes).toBe(5);
+    expect(status2.body.lockIdleSeconds).toBeNull();
+  });
+
+  it('rejects idle-seconds without a session', async () => {
+    const { email, headers } = withIsolation(ctx);
+    const res = await ctx.request.post('/api/app-lock/pin/idle-seconds').set(headers).send({ email, seconds: 30 });
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('device trust', () => {
   it('issue -> check (cookie) -> revoke-all clears trust', async () => {
     const { email, headers } = withIsolation(ctx);

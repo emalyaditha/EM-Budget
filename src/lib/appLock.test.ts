@@ -24,7 +24,8 @@ vi.mock('../lib/api', () => ({
 }));
 
 // ─── Imports after mocks ─────────────────────────────────────────────────────
-import { verifyPin, setPin, disablePin, getAppLockStatus } from './appLock';
+import { verifyPin, setPin, disablePin, getAppLockStatus, setLockIdleSeconds } from './appLock';
+import { resolveIdleTimeoutSeconds, type AppLockStatus } from './appLock';
 import { fetchWithTimeout } from './api';
 
 const mockFetchWithTimeout = fetchWithTimeout as ReturnType<typeof vi.fn>;
@@ -233,5 +234,64 @@ describe('appLock.ts — getAppLockStatus', () => {
     mockFetchWithTimeout.mockRejectedValue(new Error('offline'));
     const result = await getAppLockStatus('user@test.com');
     expect(result).toBeNull();
+  });
+});
+
+describe('appLock.ts — setLockIdleSeconds', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('posts seconds to the idle-seconds route', async () => {
+    mockFetchWithTimeout.mockResolvedValue(makeResponse({ success: true, seconds: 30 }));
+    const result = await setLockIdleSeconds('user@test.com', 30);
+    expect(result.ok).toBe(true);
+    expect(mockFetchWithTimeout.mock.calls[0][0]).toBe('/api/app-lock/pin/idle-seconds');
+    const init = mockFetchWithTimeout.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({ email: 'user@test.com', seconds: 30 });
+  });
+
+  it('returns ok:false on validation failure', async () => {
+    mockFetchWithTimeout.mockResolvedValue(makeResponse({ success: false, error: 'bad range' }, 400));
+    const result = await setLockIdleSeconds('user@test.com', 1);
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('bad range');
+  });
+
+  it('returns ok:false on network error', async () => {
+    mockFetchWithTimeout.mockRejectedValue(new Error('timeout'));
+    const result = await setLockIdleSeconds('user@test.com', 30);
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe('appLock.ts — resolveIdleTimeoutSeconds', () => {
+  const base: AppLockStatus = {
+    appLockEnabled: true,
+    lockOnOpen: false,
+    lockIdleMinutes: null,
+    lockIdleSeconds: null,
+    pinEnabled: true,
+    hasPin: true,
+    biometricCount: 0,
+    failedAttempts: 0,
+    lockedUntil: null,
+  };
+
+  it('returns null when lock is disabled or status is absent', () => {
+    expect(resolveIdleTimeoutSeconds(null)).toBeNull();
+    expect(resolveIdleTimeoutSeconds({ ...base, appLockEnabled: false })).toBeNull();
+  });
+
+  it('seconds take precedence over minutes', () => {
+    expect(resolveIdleTimeoutSeconds({ ...base, lockIdleSeconds: 30, lockIdleMinutes: 5 })).toBe(30);
+  });
+
+  it('falls back to minutes, then the 60s default', () => {
+    expect(resolveIdleTimeoutSeconds({ ...base, lockIdleMinutes: 3 })).toBe(180);
+    expect(resolveIdleTimeoutSeconds({ ...base })).toBe(60);
+  });
+
+  it('clamps out-of-range values to 5..86400', () => {
+    expect(resolveIdleTimeoutSeconds({ ...base, lockIdleSeconds: 1 })).toBe(5);
+    expect(resolveIdleTimeoutSeconds({ ...base, lockIdleSeconds: 999999 })).toBe(86400);
   });
 });

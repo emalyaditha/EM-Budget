@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { todayLocal } from '../utils';
+import { formatMoney } from '../lib/money';
 
 interface LoansTrackerProps {
   loans: LoanGiven[];
@@ -677,8 +678,8 @@ export default function LoansTracker({
                                   {s.date}
                                 </p>
                               </div>
-                              <span className="mono text-[12px] font-bold">
-                                + {currency} {s.amount.toLocaleString()}
+                              <span className="mono text-[12px] font-bold" style={{ color: 'var(--success)' }}>
+                                {formatMoney(currency, s.amount)}
                               </span>
                             </div>
                           ))

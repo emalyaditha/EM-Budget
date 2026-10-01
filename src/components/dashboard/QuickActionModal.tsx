@@ -4,6 +4,7 @@ import { X, Sparkles } from 'lucide-react';
 import type { AppState, CategoryIncome, CategoryExpense } from '../../types';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, todayLocal } from '../../utils';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { formatMoney } from '../../lib/money';
 
 interface QuickActionModalProps {
   isOpen: boolean;
@@ -170,9 +171,7 @@ export function QuickActionModal({
                   <span
                     className={`text-sm font-black mono ${txType === 'expense' ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}
                   >
-                    {txType === 'expense' ? '-' : '+'}
-                    {state.currency}
-                    {parseFloat(txAmount || '0').toLocaleString()}
+                    {formatMoney(state.currency, parseFloat(txAmount || '0'))}
                   </span>
                 </div>
                 <div className="flex justify-between text-[9px] mono text-[var(--ink-3)] border-t border-[var(--line)] pt-2">

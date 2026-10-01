@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { Debt, CashAccount, BankCard } from '../types';
 import { X, Plus, CornerDownRight, Wallet, Calendar, FileText } from 'lucide-react';
-import { compareMoney } from '../lib/money';
+import { compareMoney, formatMoney } from '../lib/money';
 
 interface DebtDetailModalProps {
   debt: Debt;
@@ -289,10 +289,9 @@ export default function DebtDetailModal({
                         </div>
                         <span
                           className="mono text-[12px] font-bold shrink-0"
-                          style={{ color: ev.type === 'Added' ? '#16a34a' : 'var(--ink)' }}
+                          style={{ color: ev.type === 'Added' ? 'var(--success)' : 'var(--danger)' }}
                         >
-                          {ev.type === 'Added' ? '+' : '-'}
-                          {currency} {ev.amount.toLocaleString()}
+                          {formatMoney(currency, ev.amount)}
                         </span>
                       </div>
                     </div>

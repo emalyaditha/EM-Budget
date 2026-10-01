@@ -62,12 +62,14 @@ interface AppLockFields {
   lockedUntil?: number | null;
   lockOnOpen?: boolean;
   lockIdleMinutes?: number | null;
+  lockIdleSeconds?: number | null;
   pin_hash?: string | null;
   pin_enabled?: boolean;
   failed_attempts?: number;
   locked_until?: number | null;
   lock_on_open?: boolean;
   lock_idle_minutes?: number | null;
+  lock_idle_seconds?: number | null;
   updated_at?: string;
 }
 
@@ -245,6 +247,7 @@ export async function createApp(): Promise<express.Express> {
       lockedUntil: number | null;
       lockOnOpen?: boolean;
       lockIdleMinutes?: number | null;
+      lockIdleSeconds?: number | null;
     }[],
     webauthnCreds: [] as {
       email: string;
@@ -695,6 +698,7 @@ export async function createApp(): Promise<express.Express> {
         lockedUntil: data.locked_until ? Number(data.locked_until) : null,
         lockOnOpen: !!data.lock_on_open,
         lockIdleMinutes: data.lock_idle_minutes != null ? Number(data.lock_idle_minutes) : null,
+        lockIdleSeconds: data.lock_idle_seconds != null ? Number(data.lock_idle_seconds) : null,
       };
     } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
@@ -725,20 +729,40 @@ export async function createApp(): Promise<express.Express> {
         ...(fields.lock_on_open !== undefined ? { lockOnOpen: fields.lock_on_open } : {}),
         ...(fields.lockIdleMinutes !== undefined ? { lockIdleMinutes: fields.lockIdleMinutes } : {}),
         ...(fields.lock_idle_minutes !== undefined ? { lockIdleMinutes: fields.lock_idle_minutes } : {}),
+        ...(fields.lockIdleSeconds !== undefined ? { lockIdleSeconds: fields.lockIdleSeconds } : {}),
+        ...(fields.lock_idle_seconds !== undefined ? { lockIdleSeconds: fields.lock_idle_seconds } : {}),
       });
       return;
     }
+    const payload: Record<string, unknown> = { user_email: e, ...fields, updated_at: new Date().toISOString() };
+    const runUpsert = () =>
+      supabase
+        .from('app_lock_credentials')
+        .upsert(payload, { onConflict: 'user_email' })
+        .select('user_email')
+        .maybeSingle();
     try {
-      const { error } = await withTimeout(
-        supabase
-          .from('app_lock_credentials')
-          .upsert({ user_email: e, ...fields, updated_at: new Date().toISOString() }, { onConflict: 'user_email' })
-          .select('user_email')
-          .maybeSingle(),
-        5000,
-        'upsertAppLock',
-      );
-      if (error) throw error;
+      try {
+        const { error } = await withTimeout(runUpsert(), 5000, 'upsertAppLock');
+        if (error) throw error;
+        return;
+      } catch (err) {
+        // Pre-migration resilience: if the new lock_idle_seconds column has not
+        // been applied yet (PGRST202/42703), retry the write without it so
+        // minutes-based locking keeps working on older databases.
+        const info = err as { code?: string; message?: string };
+        const unknownColumn =
+          /lock_idle_seconds/i.test(info.message || '') ||
+          info.code === 'PGRST202' ||
+          info.code === 'PGRST204' ||
+          info.code === '42703';
+        if (!unknownColumn || !('lock_idle_seconds' in payload)) throw err;
+        console.warn('[AppLock] lock_idle_seconds column missing (migration not applied); retrying without it.');
+        delete payload.lock_idle_seconds;
+        const { error } = await withTimeout(runUpsert(), 5000, 'upsertAppLock.retryWithoutSecondsColumn');
+        if (error) throw error;
+        return;
+      }
     } catch (err) {
       failClosedOnDbError(IS_PRODUCTION, err);
       logDbFailure('[AppLock] upsertAppLock fallback', err);
@@ -755,6 +779,8 @@ export async function createApp(): Promise<express.Express> {
       if (fields.lock_on_open !== undefined) rec.lockOnOpen = fields.lock_on_open;
       if (fields.lock_idle_minutes !== undefined)
         rec.lockIdleMinutes = fields.lock_idle_minutes != null ? Number(fields.lock_idle_minutes) : null;
+      if (fields.lock_idle_seconds !== undefined)
+        rec.lockIdleSeconds = fields.lock_idle_seconds != null ? Number(fields.lock_idle_seconds) : null;
     }
   }
 
@@ -2188,6 +2214,7 @@ export async function createApp(): Promise<express.Express> {
           appLockEnabled: !!lock?.pinEnabled || creds.length > 0,
           lockOnOpen: !!lock?.lockOnOpen,
           lockIdleMinutes: lock?.lockIdleMinutes ?? null,
+          lockIdleSeconds: lock?.lockIdleSeconds ?? null,
           pinEnabled: !!lock?.pinEnabled,
           hasPin: !!lock?.pinHash,
           biometricCount: creds.length,
@@ -2321,7 +2348,7 @@ export async function createApp(): Promise<express.Express> {
         const supabase = getSupabase(req);
         await upsertAppLock(
           normalizedEmail,
-          { lock_idle_minutes: Math.round(minutes), updated_at: new Date().toISOString() },
+          { lock_idle_minutes: Math.round(minutes), lock_idle_seconds: null, updated_at: new Date().toISOString() },
           supabase,
         );
         console.log(`[AppLock] idle-lock timeout set to ${Math.round(minutes)} min for ${normalizedEmail}.`);
@@ -2332,6 +2359,45 @@ export async function createApp(): Promise<express.Express> {
           return;
         }
         console.error('[SECURITY LOG] App-lock idle-minutes update failed:', errorMessage(err));
+        res.status(500).json({ success: false, error: 'System app-lock service error.' });
+      }
+    },
+  );
+
+  // --- PIN: idle-lock timeout (seconds) ---
+  // Finer-grained alternative to /pin/idle-minutes. When set, the seconds value
+  // takes precedence over lock_idle_minutes for the client-side idle timer.
+  app.post(
+    '/api/app-lock/pin/idle-seconds',
+    rateLimitAuth(8, 60 * 1000),
+    async (req: express.Request, res: express.Response) => {
+      try {
+        const { email, seconds } = req.body;
+        const emailErr = validateEmail(email);
+        if (
+          emailErr ||
+          typeof seconds !== 'number' ||
+          !Number.isInteger(seconds) ||
+          seconds < 5 ||
+          seconds > 86400
+        ) {
+          res
+            .status(400)
+            .json({ success: false, error: emailErr || '`seconds` must be a whole number between 5 and 86400.' });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await upsertAppLock(normalizedEmail, { lock_idle_seconds: seconds, updated_at: new Date().toISOString() }, supabase);
+        console.log(`[AppLock] idle-lock timeout set to ${seconds}s for ${normalizedEmail}.`);
+        res.json({ success: true, seconds });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error('[SECURITY LOG] App-lock idle-seconds update failed:', errorMessage(err));
         res.status(500).json({ success: false, error: 'System app-lock service error.' });
       }
     },

@@ -13,7 +13,7 @@ import {
   Check,
   AlertCircle,
 } from 'lucide-react';
-import { compareMoney } from '../lib/money';
+import { compareMoney, formatMoney } from '../lib/money';
 import { todayLocal } from '../utils';
 
 interface AuditPanelProps {
@@ -125,7 +125,7 @@ export default function AuditPanel({
           type: 'danger',
           section: 'accounts',
           title: `Overdrawn Cash Account: ${acc.name}`,
-          desc: `Account balance is negative (${currency}${acc.balance.toLocaleString()}). Check if expenses are over-recorded.`,
+          desc: `Account balance is negative (${formatMoney(currency, acc.balance)}). Check if expenses are over-recorded.`,
         });
       } else if (acc.balance < 5000) {
         score -= 3;
@@ -177,7 +177,7 @@ export default function AuditPanel({
             type: 'danger',
             section: 'accounts',
             title: `Overdrawn Debit Card: ${card.cardName}`,
-            desc: `Debit Card balance is negative (${currency}${card.currentBalance.toLocaleString()}).`,
+            desc: `Debit Card balance is negative (${formatMoney(currency, card.currentBalance)}).`,
           });
         } else if (card.currentBalance < 5000) {
           score -= 2;
@@ -642,9 +642,10 @@ export default function AuditPanel({
                       <span className="eyebrow mt-1 block">Cash Account</span>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="text-xs mono font-extrabold text-[var(--ink)] block">
-                        {currency}
-                        {acc.balance.toLocaleString()}
+                      <span
+                        className={`text-xs mono font-extrabold block ${acc.balance < 0 ? 'text-[var(--danger)]' : 'text-[var(--ink)]'}`}
+                      >
+                        {formatMoney(currency, acc.balance)}
                       </span>
                       <span
                         className={`text-[10px] mono font-bold uppercase ${isWarn ? 'text-amber-500' : 'text-emerald-500'}`}
@@ -677,9 +678,10 @@ export default function AuditPanel({
                         </span>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="text-xs mono font-extrabold text-[var(--ink)] block">
-                          {currency}
-                          {owns.toLocaleString()}
+                        <span
+                          className={`text-xs mono font-extrabold block ${owns < 0 ? 'text-[var(--danger)]' : 'text-[var(--ink)]'}`}
+                        >
+                          {formatMoney(currency, owns)}
                         </span>
                         <span
                           className={`text-[10px] mono font-bold uppercase ${
