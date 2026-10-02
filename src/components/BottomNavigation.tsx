@@ -8,6 +8,9 @@ interface BottomNavigationProps {
   onQuickActionClick: () => void;
   onMoreClick: () => void;
   isMoreOpen?: boolean;
+  /** The login overlay is fixed and covers this bar, but it does not remove it
+   *  from the tab order. Callers set this while that overlay is up. */
+  inert?: boolean;
 }
 
 const TABS = [
@@ -22,6 +25,7 @@ export function BottomNavigation({
   onQuickActionClick,
   onMoreClick,
   isMoreOpen = false,
+  inert = false,
 }: BottomNavigationProps) {
   const isActive = (id: string) => (id === 'more' ? isMoreOpen : activeTab === id && !isMoreOpen);
 
@@ -52,7 +56,7 @@ export function BottomNavigation({
   };
 
   return (
-    <nav aria-label="Bottom Navigation" className="floating-nav md:hidden">
+    <nav aria-label="Bottom Navigation" className="floating-nav md:hidden" inert={inert}>
       {TABS.map(renderItem)}
       <button
         onClick={onQuickActionClick}

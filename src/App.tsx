@@ -29,6 +29,10 @@ import {
   saveStateToStorage,
   loadStateFromStorage,
   savePreRestoreBackup,
+  markStateDirty,
+  isStateDirty,
+  recordDeletions,
+  getTombstonedIds,
 } from './utils';
 import { addMoney, subtractMoney, compareMoney, formatMoney } from './lib/money';
 import {
@@ -109,6 +113,7 @@ import {
 } from './validators';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { logger } from './lib/logger';
+import { deriveSyncStatus, type SyncPhase } from './lib/syncStatus';
 
 // Merge locally-held subscriptions with ones freshly fetched from the backend
 // (by id), preferring the fetched values then filling in any local-only rows.
@@ -191,11 +196,13 @@ const hydrationInFlight: { current: boolean; edited: boolean } = { current: fals
 // unioning collections by id instead of letting the cloud snapshot replace
 // them wholesale. Scalars prefer cloud, except currency where the user's
 // pending local change wins.
-function mergeCloudIntoLocal(cloud: AppState, local: AppState): AppState {
+function mergeCloudIntoLocal(cloud: AppState, local: AppState, tombstones: Set<string> = new Set()): AppState {
   const union = <T extends { id: string }>(cloudArr: T[] | undefined, localArr: T[] | undefined): T[] => {
     const byId = new Map<string, T>();
     for (const item of [...(localArr || []), ...(cloudArr || [])]) {
-      if (item && item.id && !byId.has(item.id)) byId.set(item.id, item);
+      // A tombstoned id was deleted locally while the push was interrupted; the
+      // cloud copy is the stale one, so it must not be resurrected by the union.
+      if (item && item.id && !tombstones.has(item.id) && !byId.has(item.id)) byId.set(item.id, item);
     }
     return Array.from(byId.values());
   };
@@ -282,10 +289,18 @@ export default function App() {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
   // Supabase real-time status tracker
-  const [realtimeSyncStatus, setRealtimeSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error' | 'disabled'>(
-    'idle',
-  );
+  const [realtimeSyncStatus, setRealtimeSyncStatus] = useState<SyncPhase>('idle');
   const [realtimeSyncError, setRealtimeSyncError] = useState<string | null>(null);
+
+  // Single source of truth for how sync is presented: the avatar dot, the header
+  // pill and the footer all read this, so they can never disagree about whether
+  // the user's data is safe.
+  const syncView = deriveSyncStatus({
+    phase: realtimeSyncStatus,
+    isOnline,
+    isReachable: isSupabaseReachable,
+    error: realtimeSyncError,
+  });
 
   const reconcileSubscriptionsWithTransactions = (
     subscriptions: Subscription[],
@@ -585,14 +600,21 @@ export default function App() {
                 const cloudState = migrateStateCards(result.state);
                 const userEditedDuringHydration = hydrationInFlight.edited;
                 hydrationInFlight.current = false;
+                const tombstones = getTombstonedIds(email);
                 setState((prev) => {
                   const hasLocalEdits =
                     prev.transactions.length > 0 ||
                     prev.cards.length > 0 ||
                     prev.cashAccounts.length > 0 ||
                     prev.debts.length > 0;
-                  return hasLocalEdits && userEditedDuringHydration
-                    ? mergeCloudIntoLocal(cloudState, prev)
+                  // The dirty marker is the durable signal that local holds an
+                  // edit the cloud never received (interrupted push). Replacing
+                  // on `userEditedDuringHydration` alone only catches edits made
+                  // inside this window — edits from the previous session would be
+                  // silently destroyed by the older cloud copy.
+                  const localAheadOfCloud = userEditedDuringHydration || isStateDirty(email);
+                  return hasLocalEdits && localAheadOfCloud
+                    ? mergeCloudIntoLocal(cloudState, prev, tombstones)
                     : cloudState;
                 });
               } else if (localState.transactions.length === 0) {
@@ -657,6 +679,12 @@ export default function App() {
 
   // Synchronize state with Storage whenever it edits
   const updateState = (updater: (prev: AppState) => AppState) => {
+    // Mark unsynced at edit time, not at push time. The push is debounced and
+    // may never run (tab killed, offline, safety guard), and between the edit
+    // and a confirmed server write the local copy is the only place this change
+    // exists. Without a synchronous durable flag here, the next boot would see
+    // a clean mirror and let the older cloud copy overwrite it.
+    markStateDirty(userEmail);
     if (hydrationInFlight.current) {
       // Edits made while cloud hydration is landing — the hydration result
       // must merge with this state, not replace it.
@@ -699,7 +727,13 @@ export default function App() {
       return;
     }
 
-    setRealtimeSyncStatus('syncing');
+    // Only claim "syncing" when the local copy genuinely holds something the
+    // cloud has not confirmed. This effect also re-runs whenever the Settings
+    // modal opens or closes, and flipping unconditionally made the indicator go
+    // orange for a ledger that was already fully synced. A failed push always
+    // leaves the marker set (it is written before the attempt), so this cannot
+    // hide a real backlog.
+    if (isStateDirty(userEmail)) setRealtimeSyncStatus('syncing');
     setRealtimeSyncError(null);
 
     const syncTimeout = setTimeout(() => {
@@ -731,15 +765,14 @@ export default function App() {
     return () => clearTimeout(syncTimeout);
   }, [state, isSettingsOpen, isUnlocked, userEmail, isOnline, isSupabaseReachable]);
 
-  // Local-first durability: keep a debounced localStorage mirror of state so
-  // recent changes survive a tab close/crash even when Supabase is unreachable.
-  // On reload, the boot fast-path paints from this mirror (owner-checked), then
-  // Supabase hydration reconciles on top; the mirror is the safety net that
-  // lets the next sync upload any offline edits.
+  // Local-first durability: mirror state to localStorage the moment it changes.
+  // This write is deliberately NOT debounced. A debounced mirror is worthless on
+  // mobile, where a swiped-away tab is killed without any unload hook firing, so
+  // edits made in the trailing window would be lost from every layer at once.
+  // The mirror is the safety net that lets the next boot replay offline edits.
   useEffect(() => {
     if (!isUnlocked) return;
-    const t = window.setTimeout(() => saveStateToStorage(state, userEmail), 1500);
-    return () => window.clearTimeout(t);
+    saveStateToStorage(state, userEmail);
   }, [state, isUnlocked, userEmail]);
 
   // Update-state and toast are recreated every render, so capture the current
@@ -844,20 +877,37 @@ export default function App() {
     return () => window.clearInterval(interval);
   }, [state, isUnlocked, isOnline, isSupabaseReachable]);
 
-  // Best-effort flush on leave: persist locally AND fire one final Supabase
-  // sync so a quick close doesn't drop the latest edit. Supabase upsert is
-  // idempotent, so re-running it cannot create duplicate rows.
+  // Flush on leave. beforeunload is the wrong tool for mobile: iOS Safari and
+  // Android Chrome do not fire it when a tab is swiped away or the app is
+  // backgrounded — the page is frozen and killed with no unload hook at all.
+  // visibilitychange->hidden and pagehide are the events that actually fire on
+  // those platforms, so the durable mirror write happens there. The network push
+  // is strictly best-effort: an async request issued while the page is dying may
+  // never complete, which is exactly why the localStorage mirror plus the dirty
+  // marker (replayed on next boot) carry the real durability guarantee.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const handler = (_e: BeforeUnloadEvent) => {
-      if (!isUnlocked) return;
+    if (!isUnlocked) return;
+
+    const flush = () => {
       saveStateToStorage(state, userEmail);
-      if (userEmail && isOnline && isSupabaseReachable) {
-        void syncStateToSupabase(userEmail, state).catch(() => {});
-      }
+      if (!userEmail || !isOnline || !isSupabaseReachable) return;
+      if (!isEmailLoadedFromCloud(userEmail)) return;
+      void syncStateToSupabase(userEmail, state).catch(() => {});
     };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [state, isUnlocked, userEmail, isOnline, isSupabaseReachable]);
 
   // Budgets & Savings goals action logic
@@ -1325,6 +1375,7 @@ export default function App() {
   };
 
   const handleDeleteDebt = (debtId: string) => {
+    recordDeletions(userEmail, [debtId]);
     updateState((prev) => {
       const debtToDelete = prev.debts.find((d) => d.id === debtId);
       if (!debtToDelete) return prev;
@@ -1666,6 +1717,7 @@ export default function App() {
   };
 
   const handleDeleteLoan = (loanId: string) => {
+    recordDeletions(userEmail, [loanId]);
     updateState((prev) => {
       const loanToDelete = (prev.loansGiven || []).find((l) => l.id === loanId);
       if (!loanToDelete) return prev;
@@ -1975,6 +2027,7 @@ export default function App() {
   };
 
   const handleDeleteSubscription = (id: string) => {
+    recordDeletions(userEmail, [id]);
     updateState((prev) => {
       const subToDelete = (prev.subscriptions || []).find((s) => s.id === id);
       if (!subToDelete) return prev;
@@ -2854,6 +2907,10 @@ export default function App() {
     }
     if (!accountToDelete) return;
 
+    // The account row itself is hard-deleted; the audit transaction that records
+    // this deletion only references the id, so tombstone the account alone.
+    recordDeletions(userEmail, [id]);
+
     const nowIso = new Date().toISOString();
     const auditTransaction: Transaction = {
       id: `trans-cash-del-${Date.now()}`,
@@ -2876,6 +2933,15 @@ export default function App() {
 
   // Notification Modifiers
   const handleDeleteTransaction = (txId: string) => {
+    // Tombstone the ledger row plus the underlying record it was generated from
+    // (income/expense/purchase), both of which are hard-deleted below. Computed
+    // from current state, outside the updater (B5).
+    const target = state.transactions.find((t) => t.id === txId);
+    if (target && (target.type === 'income' || target.type === 'expense') && target.referenceId) {
+      recordDeletions(userEmail, [txId, target.referenceId]);
+    } else if (target) {
+      recordDeletions(userEmail, [txId]);
+    }
     updateState((prev) => {
       const tx = prev.transactions.find((t) => t.id === txId);
       if (!tx) return prev;
@@ -3743,10 +3809,13 @@ export default function App() {
           isUnlocked ? (isNavCollapsed ? 'lg:pl-20' : 'lg:pl-64') : ''
         }`}
       >
-        {/* Top header — minimal sticky h-14, hairline ledger rule */}
+        {/* Top header — minimal sticky h-14, hairline ledger rule. `inert` while
+            the login overlay is up: it is fixed and covers this chrome, but an
+            overlay alone leaves everything under it in the tab order. */}
         <header
           className="sticky top-0 z-20 h-14 bg-[var(--surface)]/80 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface)]/80 border-b border-[var(--line)] flex items-center justify-between gap-3 px-4 md:px-6"
           id="header-brand-rail"
+          inert={!isUnlocked}
         >
           {/* left: breadcrumb eyebrow */}
           <div className="flex items-center gap-3 min-w-0">
@@ -3791,36 +3860,17 @@ export default function App() {
           </div>
 
           {/* center: sync pill */}
-          <div className="hidden md:flex items-center justify-center flex-1 px-4">
-            {(() => {
-              const label =
-                realtimeSyncStatus === 'syncing'
-                  ? 'Syncing'
-                  : realtimeSyncStatus === 'synced'
-                    ? 'Synced'
-                    : realtimeSyncStatus === 'error'
-                      ? 'Sync error'
-                      : realtimeSyncStatus === 'disabled'
-                        ? 'Offline'
-                        : 'Idle';
-              const dot =
-                realtimeSyncStatus === 'syncing'
-                  ? 'bg-amber-500 animate-pulse'
-                  : realtimeSyncStatus === 'synced'
-                    ? 'bg-[var(--success)]'
-                    : realtimeSyncStatus === 'error'
-                      ? 'bg-[var(--danger)] animate-pulse'
-                      : 'bg-[var(--ink-3)]';
-              return (
-                <span
-                  className="mono text-[11px] inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]"
-                  title={realtimeSyncError || label}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${dot} motion-reduce:animate-none`} aria-hidden />
-                  {label}
-                </span>
-              );
-            })()}
+          <div id="header-sync-pill" className="hidden md:flex items-center justify-center flex-1 px-4">
+            <span
+              className="mono text-[11px] inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)]"
+              title={syncView.detail}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${syncView.dotClass} motion-reduce:animate-none`}
+                aria-hidden
+              />
+              {syncView.label}
+            </span>
           </div>
 
           {/* right: controls */}
@@ -3881,24 +3931,49 @@ export default function App() {
               )}
             </button>
 
-            {/* profile avatar */}
-            <button
-              onClick={() => setIsProfileOpen(true)}
-              aria-label="Open profile"
-              className="w-9 h-9 rounded-full overflow-hidden border border-[var(--line)] bg-[var(--surface-2)] flex items-center justify-center text-[11px] font-bold text-[var(--ink)] hover:border-[var(--line-strong)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
-              id="header-profile-trigger"
-            >
-              {state.userProfile?.avatarUrl ? (
-                <img
-                  src={state.userProfile.avatarUrl}
-                  alt={state.userProfile.name || 'Profile'}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
+            {/* profile avatar + sync dot */}
+            <div className="relative shrink-0" id="header-profile-cluster">
+              <button
+                onClick={() => setIsProfileOpen(true)}
+                aria-label="Open profile"
+                className="w-9 h-9 rounded-full overflow-hidden border border-[var(--line)] bg-[var(--surface-2)] flex items-center justify-center text-[11px] font-bold text-[var(--ink)] hover:border-[var(--line-strong)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+                id="header-profile-trigger"
+              >
+                {state.userProfile?.avatarUrl ? (
+                  <img
+                    src={state.userProfile.avatarUrl}
+                    alt={state.userProfile.name || 'Profile'}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span>{(state.userProfile?.name?.charAt(0) || 'U').toUpperCase()}</span>
+                )}
+              </button>
+
+              {/* Sync is only ever shown as text on md+ (the pill) and in a footer
+                  that scrolls away, so on a phone there was no way to tell whether a
+                  saved edit had reached the cloud. The dot carries the colour at every
+                  width; tapping it reads out the reason, since mobile has no hover. */}
+              <button
+                type="button"
+                onClick={() =>
+                  showToast(
+                    syncView.detail,
+                    syncView.tone === 'synced' ? 'success' : syncView.tone === 'pending' ? 'info' : 'warning',
+                  )
+                }
+                title={syncView.detail}
+                aria-label={`Cloud sync: ${syncView.label}. ${syncView.detail}`}
+                className="absolute -bottom-1.5 -right-1.5 flex items-center justify-center p-1.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+                id="header-sync-indicator"
+              >
+                <span
+                  className={`w-2.5 h-2.5 rounded-full border-2 border-[var(--surface)] ${syncView.dotClass} motion-reduce:animate-none`}
+                  aria-hidden
                 />
-              ) : (
-                <span>{(state.userProfile?.name?.charAt(0) || 'U').toUpperCase()}</span>
-              )}
-            </button>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -3961,14 +4036,16 @@ export default function App() {
                     const cloudState = migrateStateCards(result.state);
                     const userEditedDuringHydration = hydrationInFlight.edited;
                     hydrationInFlight.current = false;
+                    const tombstones = getTombstonedIds(email);
                     setState((prev) => {
                       const hasLocalEdits =
                         prev.transactions.length > 0 ||
                         prev.cards.length > 0 ||
                         prev.cashAccounts.length > 0 ||
                         prev.debts.length > 0;
-                      return hasLocalEdits && userEditedDuringHydration
-                        ? mergeCloudIntoLocal(cloudState, prev)
+                      const localAheadOfCloud = userEditedDuringHydration || isStateDirty(email);
+                      return hasLocalEdits && localAheadOfCloud
+                        ? mergeCloudIntoLocal(cloudState, prev, tombstones)
                         : cloudState;
                     });
                   }
@@ -4001,7 +4078,10 @@ export default function App() {
         )}
 
         {/* 2. MAIN VIEWPORT AREA */}
-        <main className="flex-1 w-full max-w-[1500px] mx-auto p-4 md:p-8 space-y-6 relative pb-28 lg:pb-12 text-left">
+        <main
+          className="flex-1 w-full max-w-[1500px] mx-auto p-4 md:p-8 space-y-6 relative pb-28 lg:pb-12 text-left"
+          inert={!isUnlocked}
+        >
           {/* =================== WEB CONTENT CANVAS =================== */}
           <section className="space-y-6 w-full animate-fade-in" id="central-web-canvas">
             {/* Header block for current active tab */}
@@ -4580,42 +4660,17 @@ export default function App() {
           }}
           onMoreClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
           onQuickActionClick={() => setIsCommandPaletteOpen(true)}
+          inert={!isUnlocked}
         />
 
         {/* 3. WORKSPACE FOOTER CORE STATUS */}
-        <footer className="bg-[var(--surface)] border-t border-[var(--line)] px-6 py-3.5 z-10 flex flex-col md:flex-row justify-between items-center text-[11px] text-[var(--ink-2)] mono gap-3">
+        <footer
+          className="bg-[var(--surface)] border-t border-[var(--line)] px-6 py-3.5 z-10 flex flex-col md:flex-row justify-between items-center text-[11px] text-[var(--ink-2)] mono gap-3"
+          inert={!isUnlocked}
+        >
           <div className="flex items-center gap-2">
-            <CircleDot
-              size={12}
-              className={
-                !isOnline
-                  ? 'text-[var(--danger)] animate-pulse'
-                  : !isSupabaseReachable
-                    ? 'text-amber-500 animate-pulse'
-                    : realtimeSyncStatus === 'syncing'
-                      ? 'text-amber-500 animate-pulse'
-                      : realtimeSyncStatus === 'synced'
-                        ? 'text-emerald-400'
-                        : realtimeSyncStatus === 'error'
-                          ? 'text-[var(--danger)] animate-pulse'
-                          : 'text-[var(--ink-3)]'
-              }
-            />
-            <span title={realtimeSyncError || undefined}>
-              {!isOnline
-                ? 'Offline — no internet connection.'
-                : !isSupabaseReachable
-                  ? 'Online — cloud unreachable.'
-                  : realtimeSyncStatus === 'syncing'
-                    ? 'Syncing with cloud…'
-                    : realtimeSyncStatus === 'synced'
-                      ? 'Local database mirror synchronized fully.'
-                      : realtimeSyncStatus === 'error'
-                        ? `Sync error — ${realtimeSyncError || 'will retry'}.`
-                        : realtimeSyncStatus === 'disabled'
-                          ? 'Offline — auto-sync disabled.'
-                          : 'Ready to sync.'}
-            </span>
+            <CircleDot size={12} className={`${syncView.textClass} motion-reduce:animate-none`} />
+            <span title={syncView.detail}>{syncView.detail}</span>
           </div>
           <div className="flex gap-4">
             <span>
