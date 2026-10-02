@@ -5,6 +5,7 @@ import { DEFAULT_APP_STATE } from './initialData';
 import { authSession } from './services/authSession';
 import { safeJson, fetchWithTimeout, withTimeout, retryWithBackoff } from './lib/api';
 import { logger } from './lib/logger';
+import { clearStateDirty, clearTombstones, markStateDirty } from './utils';
 
 const URL_STORAGE_KEY = 'cashflow_supabase_url_v1';
 const KEY_STORAGE_KEY = 'cashflow_supabase_key_v1';
@@ -543,8 +544,17 @@ export async function syncStateToSupabase(
   const currentStateString = JSON.stringify(state);
   const cacheKey = email.trim().toLowerCase();
   if (lastSyncedStatesCache[cacheKey] === currentStateString) {
+    // This exact state already reached the server in this session, so the cloud
+    // is not behind it and the durable marker can be released.
+    clearStateDirty(email);
+    clearTombstones(email);
     return { success: true };
   }
+
+  // The client holds data the server has not confirmed. Marked before the
+  // attempt so a push interrupted by a mobile tab kill leaves a durable trail
+  // for the next boot instead of silently reverting to the stale cloud copy.
+  markStateDirty(email);
 
   const doPush = async (): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -802,6 +812,11 @@ export async function syncStateToSupabase(
       }
 
       lastSyncedStatesCache[cacheKey] = currentStateString;
+      // Server-confirmed: the cloud now holds this state, so the durable
+      // unsynced marker is released and a later boot may safely accept the
+      // cloud copy over the local mirror.
+      clearStateDirty(email);
+      clearTombstones(email);
       // Always persist the full state JSON snapshot (including subscriptions) to
       // ledger_states.state, even though the RPC succeeded. The app falls back to
       // this JSON when relational-table reads are blocked (e.g. RLS), so it must

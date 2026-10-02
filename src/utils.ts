@@ -24,6 +24,101 @@ export function todayLocal(): string {
 
 const STORAGE_KEY = 'cashflow_manager_state_v1';
 const STORAGE_OWNER_KEY = 'cashflow_manager_state_owner_v1';
+const STORAGE_DIRTY_OWNER_KEY = 'cashflow_manager_state_dirty_owner_v1';
+
+// Durable "local is ahead of cloud" marker.
+//
+// Mobile browsers do not reliably fire beforeunload (a swiped-away tab on iOS /
+// Android Chrome is simply killed), so an in-flight or debounced push can be lost
+// with no hook left to retry it. On the next boot the app cannot tell whether the
+// local mirror is merely stale or holds edits the cloud has never seen — and the
+// hydration path replaces local with cloud unless it knows the difference. This
+// flag closes that gap: it is set the instant state changes and cleared only when
+// the server confirms the push, so an interrupted sync survives the reload.
+export function markStateDirty(ownerEmail?: string) {
+  if (!ownerEmail) return;
+  try {
+    localStorage.setItem(STORAGE_DIRTY_OWNER_KEY, ownerEmail.trim().toLowerCase());
+  } catch (error) {
+    logger.error('Failed to record unsynced state marker:', error);
+  }
+}
+
+export function clearStateDirty(ownerEmail?: string) {
+  if (!ownerEmail) return;
+  try {
+    if (isStateDirty(ownerEmail)) localStorage.removeItem(STORAGE_DIRTY_OWNER_KEY);
+  } catch (error) {
+    logger.error('Failed to clear unsynced state marker:', error);
+  }
+}
+
+export function isStateDirty(ownerEmail?: string): boolean {
+  if (!ownerEmail) return false;
+  try {
+    const dirtyOwner = (localStorage.getItem(STORAGE_DIRTY_OWNER_KEY) || '').trim().toLowerCase();
+    return dirtyOwner !== '' && dirtyOwner === ownerEmail.trim().toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+const DELETED_IDS_KEY = 'cashflow_manager_deleted_ids_v1';
+
+// Deletion tombstones. A merge that unions local and cloud by id has no way to
+// distinguish "this record was deleted locally" from "this record was never seen
+// locally", so any cloud copy of a deleted row is resurrected on the next sync.
+// Deletions therefore need their own durable record, kept until a push confirms
+// the removal reached the server.
+function readTombstones(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(DELETED_IDS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Record<string, string[]> = {};
+    for (const [email, ids] of Object.entries(parsed as Record<string, unknown>)) {
+      if (Array.isArray(ids)) out[email.trim().toLowerCase()] = ids.filter((x): x is string => typeof x === 'string');
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function recordDeletions(ownerEmail: string | undefined, ids: Iterable<string>) {
+  if (!ownerEmail) return;
+  const newIds = [...ids];
+  if (newIds.length === 0) return;
+  try {
+    const key = ownerEmail.trim().toLowerCase();
+    const all = readTombstones();
+    const existing = new Set(all[key] || []);
+    for (const id of newIds) existing.add(id);
+    all[key] = [...existing];
+    localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(all));
+  } catch (error) {
+    logger.error('Failed to record deletion tombstones:', error);
+  }
+}
+
+export function getTombstonedIds(ownerEmail?: string): Set<string> {
+  if (!ownerEmail) return new Set();
+  return new Set(readTombstones()[ownerEmail.trim().toLowerCase()] || []);
+}
+
+export function clearTombstones(ownerEmail?: string) {
+  if (!ownerEmail) return;
+  try {
+    const key = ownerEmail.trim().toLowerCase();
+    const all = readTombstones();
+    if (!(key in all)) return;
+    delete all[key];
+    localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(all));
+  } catch (error) {
+    logger.error('Failed to clear deletion tombstones:', error);
+  }
+}
 
 // Synchronize state with offline-first client-side storage. The mirror is
 // tagged with the owning account so a shared device never paints one user's

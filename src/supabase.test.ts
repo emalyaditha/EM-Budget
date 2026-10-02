@@ -84,6 +84,7 @@ import {
   isEmailLoadedFromCloud,
   SYNC_RPC_RETRY,
 } from './supabase';
+import { markStateDirty, isStateDirty } from './utils';
 import type { AppState } from './types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -464,6 +465,70 @@ describe('supabase.ts — sync functions', () => {
       expect(rpcCalls.length).toBe(1);
       // No table writes at all on the failure path — the RPC is the only write path.
       expect(client.from.mock.calls.length).toBe(0);
+    });
+  });
+
+  // ─── Interrupted-push durability ─────────────────────────────────────────
+  describe('syncStateToSupabase — unsynced-state marker', () => {
+    // Back the marker with a real store so getItem reflects setItem; the
+    // default beforeEach mock answers every unknown key with null.
+    let store: Map<string, string>;
+
+    beforeEach(() => {
+      store = new Map();
+      (localStorage.getItem as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
+        if (key === 'cashflow_supabase_url_v1') return 'https://test.supabase.co';
+        if (key === 'cashflow_supabase_key_v1') return 'test-anon-key';
+        return store.has(key) ? store.get(key)! : null;
+      });
+      (localStorage.setItem as ReturnType<typeof vi.fn>).mockImplementation((key: string, value: string) => {
+        store.set(key, value);
+      });
+      (localStorage.removeItem as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
+        store.delete(key);
+      });
+    });
+
+    it('keeps the marker set when the push fails, so the next boot replays local', async () => {
+      markEmailAsLoadedFromCloud('test@example.com');
+      SYNC_RPC_RETRY.maxRetries = 0;
+      SYNC_RPC_RETRY.baseDelayMs = 1;
+
+      const client = getSupabaseClient() as unknown as MockSupabaseClient;
+      client.rpc.mockRejectedValue(new Error('push interrupted'));
+
+      const result = await syncStateToSupabase('test@example.com', makeTestState());
+
+      expect(result.success).toBe(false);
+      expect(isStateDirty('test@example.com')).toBe(true);
+    });
+
+    it('clears the marker once the server confirms the state', async () => {
+      markEmailAsLoadedFromCloud('test@example.com');
+
+      const state = makeTestState();
+      expect((await syncStateToSupabase('test@example.com', state)).success).toBe(true);
+      expect(isStateDirty('test@example.com')).toBe(false);
+    });
+
+    it('does not let a failed pull clear local unsynced edits', async () => {
+      markStateDirty('test@example.com');
+
+      const client = getSupabaseClient() as unknown as MockSupabaseClient;
+      client.from.mockImplementation(() => {
+        throw new Error('pull failed');
+      });
+
+      const result = await syncStateFromSupabase('test@example.com');
+
+      expect(result.success).toBe(false);
+      expect(isStateDirty('test@example.com')).toBe(true);
+    });
+
+    it('scopes the marker to its owner', () => {
+      markStateDirty('test@example.com');
+      expect(isStateDirty('test@example.com')).toBe(true);
+      expect(isStateDirty('other@example.com')).toBe(false);
     });
   });
 });
