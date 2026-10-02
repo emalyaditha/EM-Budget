@@ -2388,13 +2388,7 @@ export async function createApp(): Promise<express.Express> {
       try {
         const { email, seconds } = req.body;
         const emailErr = validateEmail(email);
-        if (
-          emailErr ||
-          typeof seconds !== 'number' ||
-          !Number.isInteger(seconds) ||
-          seconds < 5 ||
-          seconds > 86400
-        ) {
+        if (emailErr || typeof seconds !== 'number' || !Number.isInteger(seconds) || seconds < 5 || seconds > 86400) {
           res
             .status(400)
             .json({ success: false, error: emailErr || '`seconds` must be a whole number between 5 and 86400.' });
@@ -2403,7 +2397,11 @@ export async function createApp(): Promise<express.Express> {
         const normalizedEmail = normalizeEmailLower(email);
         if (!requireSession(req, res, normalizedEmail)) return;
         const supabase = getSupabase(req);
-        await upsertAppLock(normalizedEmail, { lock_idle_seconds: seconds, updated_at: new Date().toISOString() }, supabase);
+        await upsertAppLock(
+          normalizedEmail,
+          { lock_idle_seconds: seconds, updated_at: new Date().toISOString() },
+          supabase,
+        );
         console.log(`[AppLock] idle-lock timeout set to ${seconds}s for ${normalizedEmail}.`);
         res.json({ success: true, seconds });
       } catch (err) {
@@ -3195,26 +3193,22 @@ export async function createApp(): Promise<express.Express> {
   // device-trust cookies can only be expired here. The email is taken from the
   // verified token (never the body) so one account can never revoke another's
   // trusted devices. With no valid session this is a plain cookie clear.
-  app.post(
-    '/api/auth/logout',
-    rateLimitAuth(10, 60 * 1000),
-    async (req: express.Request, res: express.Response) => {
-      try {
-        const token = getTokenFromRequest(req);
-        const decoded = token ? verifySecureToken(token, sessionSecret) : null;
-        if (decoded) {
-          const supabase = getSupabase(req);
-          await deleteAllTrustedDevices(decoded.email, supabase);
-        }
-      } catch (err) {
-        // Device revocation must not block the cookie clear below.
-        console.error('[SECURITY LOG] Logout device revoke failed:', errorMessage(err));
+  app.post('/api/auth/logout', rateLimitAuth(10, 60 * 1000), async (req: express.Request, res: express.Response) => {
+    try {
+      const token = getTokenFromRequest(req);
+      const decoded = token ? verifySecureToken(token, sessionSecret) : null;
+      if (decoded) {
+        const supabase = getSupabase(req);
+        await deleteAllTrustedDevices(decoded.email, supabase);
       }
-      clearSessionCookie(res);
-      clearTrustCookie(res);
-      res.json({ success: true });
-    },
-  );
+    } catch (err) {
+      // Device revocation must not block the cookie clear below.
+      console.error('[SECURITY LOG] Logout device revoke failed:', errorMessage(err));
+    }
+    clearSessionCookie(res);
+    clearTrustCookie(res);
+    res.json({ success: true });
+  });
 
   // Config endpoint — intentionally public. The Supabase URL and anon key are
   // PUBLIC by design (baked into every frontend build), and all actual data is

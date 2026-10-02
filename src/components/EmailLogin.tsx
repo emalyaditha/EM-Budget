@@ -745,10 +745,22 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
               <div className="group relative h-10 w-full">
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2.5 rounded-lg border border-[#dadce0] bg-white text-[13px] font-medium text-[#1f1f1f] transition-colors group-hover:bg-[#f8f9fa]">
                   <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                    <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.7h11.8c-.5 2.5-2 4.6-4.3 6v5h6.9c4-3.7 6.3-9.1 6.3-15.2z" />
-                    <path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5c-1.9 1.3-4.3 2.1-7.6 2.1-5.8 0-10.8-3.9-12.6-9.2H4.3v5.2C7.9 41 15.4 46 24 46z" />
-                    <path fill="#FBBC05" d="M11.4 28.6c-.5-1.4-.7-2.9-.7-4.6s.3-3.2.7-4.6v-5.2H4.3C2.9 17.1 2 20.4 2 24s.9 6.9 2.3 9.8l7.1-5.2z" />
-                    <path fill="#EA4335" d="M24 10c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35 3.4 30 1 24 1 15.4 1 7.9 6 4.3 14.2l7.1 5.2C13.2 13.9 18.2 10 24 10z" />
+                    <path
+                      fill="#4285F4"
+                      d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.7h11.8c-.5 2.5-2 4.6-4.3 6v5h6.9c4-3.7 6.3-9.1 6.3-15.2z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5c-1.9 1.3-4.3 2.1-7.6 2.1-5.8 0-10.8-3.9-12.6-9.2H4.3v5.2C7.9 41 15.4 46 24 46z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M11.4 28.6c-.5-1.4-.7-2.9-.7-4.6s.3-3.2.7-4.6v-5.2H4.3C2.9 17.1 2 20.4 2 24s.9 6.9 2.3 9.8l7.1-5.2z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M24 10c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35 3.4 30 1 24 1 15.4 1 7.9 6 4.3 14.2l7.1 5.2C13.2 13.9 18.2 10 24 10z"
+                    />
                   </svg>
                   <span>Continue with Google</span>
                 </div>

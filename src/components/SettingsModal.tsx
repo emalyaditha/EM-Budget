@@ -807,7 +807,9 @@ class CloudSyncService {
                               const unit = e.target.value as 'minutes' | 'seconds';
                               setIdleUnit(unit);
                               // Keep the number meaningful when switching units.
-                              setIdleValue((v) => (unit === 'seconds' ? Math.max(5, Math.min(86400, v)) : Math.max(1, Math.min(240, v))));
+                              setIdleValue((v) =>
+                                unit === 'seconds' ? Math.max(5, Math.min(86400, v)) : Math.max(1, Math.min(240, v)),
+                              );
                             }}
                             aria-label="Auto-lock timeout unit"
                             className="input w-16 text-center text-[12px]"

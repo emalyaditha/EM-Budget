@@ -96143,7 +96143,11 @@ async function createApp() {
         const normalizedEmail = normalizeEmailLower(email);
         if (!requireSession(req, res, normalizedEmail)) return;
         const supabase = getSupabase(req);
-        await upsertAppLock(normalizedEmail, { lock_idle_seconds: seconds, updated_at: (/* @__PURE__ */ new Date()).toISOString() }, supabase);
+        await upsertAppLock(
+          normalizedEmail,
+          { lock_idle_seconds: seconds, updated_at: (/* @__PURE__ */ new Date()).toISOString() },
+          supabase
+        );
         console.log(`[AppLock] idle-lock timeout set to ${seconds}s for ${normalizedEmail}.`);
         res.json({ success: true, seconds });
       } catch (err) {
@@ -96834,25 +96838,21 @@ async function createApp() {
       }
     }
   );
-  app.post(
-    "/api/auth/logout",
-    rateLimitAuth(10, 60 * 1e3),
-    async (req, res) => {
-      try {
-        const token = getTokenFromRequest(req);
-        const decoded = token ? verifySecureToken(token, sessionSecret) : null;
-        if (decoded) {
-          const supabase = getSupabase(req);
-          await deleteAllTrustedDevices(decoded.email, supabase);
-        }
-      } catch (err) {
-        console.error("[SECURITY LOG] Logout device revoke failed:", errorMessage(err));
+  app.post("/api/auth/logout", rateLimitAuth(10, 60 * 1e3), async (req, res) => {
+    try {
+      const token = getTokenFromRequest(req);
+      const decoded = token ? verifySecureToken(token, sessionSecret) : null;
+      if (decoded) {
+        const supabase = getSupabase(req);
+        await deleteAllTrustedDevices(decoded.email, supabase);
       }
-      clearSessionCookie(res);
-      clearTrustCookie(res);
-      res.json({ success: true });
+    } catch (err) {
+      console.error("[SECURITY LOG] Logout device revoke failed:", errorMessage(err));
     }
-  );
+    clearSessionCookie(res);
+    clearTrustCookie(res);
+    res.json({ success: true });
+  });
   app.get("/api/config", rateLimitAuth(30, 60 * 1e3), (req, res) => {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";

@@ -36,13 +36,10 @@ test.describe('Login overlay focus containment', () => {
     let landedOnChrome: string | null = null;
     for (let i = 0; i < 30 && !landedOnChrome; i++) {
       await page.keyboard.press('Tab');
-      landedOnChrome = await page.evaluate(
-        (ids) => {
-          const id = document.activeElement?.id || '';
-          return ids.includes(id) ? id : null;
-        },
-        chromeIds,
-      );
+      landedOnChrome = await page.evaluate((ids) => {
+        const id = document.activeElement?.id || '';
+        return ids.includes(id) ? id : null;
+      }, chromeIds);
     }
     expect(landedOnChrome).toBeNull();
   });

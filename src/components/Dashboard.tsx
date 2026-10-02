@@ -234,7 +234,8 @@ export default function Dashboard({
       .sort((a, b) => {
         // Order by ledger day first, not by when the row was last touched —
         // back-dating yesterday's entries today must not float them into Today.
-        const dayOf = (item: ActivityLogItem) => (item.date || (item as { dateGiven?: string }).dateGiven || '').slice(0, 10);
+        const dayOf = (item: ActivityLogItem) =>
+          (item.date || (item as { dateGiven?: string }).dateGiven || '').slice(0, 10);
         const tsOf = (raw?: string): number => {
           if (!raw) return 0;
           const t = new Date(raw).getTime();

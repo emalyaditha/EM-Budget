@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { toMinorUnits, toMajorUnits, addMoney, subtractMoney, sumMoney, compareMoney, multiplyMoney, formatMoney } from './money';
+import {
+  toMinorUnits,
+  toMajorUnits,
+  addMoney,
+  subtractMoney,
+  sumMoney,
+  compareMoney,
+  multiplyMoney,
+  formatMoney,
+} from './money';
 
 describe('money helpers (B6)', () => {
   describe('toMinorUnits', () => {
@@ -78,7 +87,7 @@ describe('money helpers (B6)', () => {
       expect(formatMoney('Rs.', 1234.567)).toBe('Rs.1,234.57');
     });
 
-    it('never leaks a minus into the number; direction is color\'s job', () => {
+    it("never leaks a minus into the number; direction is color's job", () => {
       expect(formatMoney('Rs.', -500)).toBe('Rs.500');
       expect(formatMoney('Rs.', -500, { signed: true })).toBe('-Rs.500');
     });

@@ -97,7 +97,13 @@ import {
 import { useNotifications } from './context/NotificationContext';
 import { useTheme } from './context/ThemeContext';
 import type { AppLockStatus } from './lib/appLock';
-import { getAppLockStatus, checkTrustedDevice, issueTrustedDevice, resetPin, resolveIdleTimeoutSeconds } from './lib/appLock';
+import {
+  getAppLockStatus,
+  checkTrustedDevice,
+  issueTrustedDevice,
+  resetPin,
+  resolveIdleTimeoutSeconds,
+} from './lib/appLock';
 import { useIdleAutoLock } from './hooks/useIdleAutoLock';
 import LockScreen from './components/LockScreen';
 import { calculateNetWorth } from './utils';
