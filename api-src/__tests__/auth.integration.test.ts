@@ -332,6 +332,9 @@ describe('google sso', () => {
     }
   });
 
+  // The handler wraps Google's verifyIdToken in its own 10s withTimeout guard, so
+  // this request legitimately takes longer than vitest's 5s default whenever the
+  // network is slow. Budget above the handler's ceiling instead of racing it.
   it('rejects an unverifiable ID token with 401', async () => {
     process.env.GOOGLE_CLIENT_ID = 'test-google-client-id.apps.googleusercontent.com';
     try {
@@ -341,5 +344,5 @@ describe('google sso', () => {
     } finally {
       delete process.env.GOOGLE_CLIENT_ID;
     }
-  });
+  }, 30_000);
 });

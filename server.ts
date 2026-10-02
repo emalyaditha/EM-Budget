@@ -1416,6 +1416,14 @@ export async function createApp(): Promise<express.Express> {
 
   // Custom rate-limiter backed strictly by database (Stateless Cloud Run autoscaling compliant)
   // Returns { allowed, retryAfterSeconds } so callers get precise retry timing.
+  // The expired-row purge is throttled per instance. It used to run on every
+  // single auth request, so each request paid for three sequential Supabase
+  // round-trips and the DELETE only got slower as the table grew — that is what
+  // pushed login past the 30s e2e budget. Rows left behind briefly are harmless:
+  // the read below already treats a row past its reset_time as a fresh window.
+  let lastRateLimitPurgeAt = 0;
+  const RATE_LIMIT_PURGE_INTERVAL_MS = 60 * 1000;
+
   async function checkRateLimitInDb(
     key: string,
     limit: number,
@@ -1431,8 +1439,10 @@ export async function createApp(): Promise<express.Express> {
     }
 
     try {
-      // Purge expired rate limits periodically
-      await supabase.from('auth_rate_limits').delete().lt('reset_time', new Date(now).toISOString());
+      if (now - lastRateLimitPurgeAt > RATE_LIMIT_PURGE_INTERVAL_MS) {
+        lastRateLimitPurgeAt = now;
+        await supabase.from('auth_rate_limits').delete().lt('reset_time', new Date(now).toISOString());
+      }
 
       const { data, error } = await supabase.from('auth_rate_limits').select('*').eq('key', key).maybeSingle();
       if (error && error.code !== 'PGRST116') throw error;

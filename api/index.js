@@ -94769,7 +94769,8 @@ async function createApp() {
         failedAttempts: Number(data.failed_attempts || 0),
         lockedUntil: data.locked_until ? Number(data.locked_until) : null,
         lockOnOpen: !!data.lock_on_open,
-        lockIdleMinutes: data.lock_idle_minutes != null ? Number(data.lock_idle_minutes) : null
+        lockIdleMinutes: data.lock_idle_minutes != null ? Number(data.lock_idle_minutes) : null,
+        lockIdleSeconds: data.lock_idle_seconds != null ? Number(data.lock_idle_seconds) : null
       };
     } catch (err) {
       failClosedOnDbError(IS_PRODUCTION2, err);
@@ -94798,17 +94799,29 @@ async function createApp() {
         ...fields.lockOnOpen !== void 0 ? { lockOnOpen: fields.lockOnOpen } : {},
         ...fields.lock_on_open !== void 0 ? { lockOnOpen: fields.lock_on_open } : {},
         ...fields.lockIdleMinutes !== void 0 ? { lockIdleMinutes: fields.lockIdleMinutes } : {},
-        ...fields.lock_idle_minutes !== void 0 ? { lockIdleMinutes: fields.lock_idle_minutes } : {}
+        ...fields.lock_idle_minutes !== void 0 ? { lockIdleMinutes: fields.lock_idle_minutes } : {},
+        ...fields.lockIdleSeconds !== void 0 ? { lockIdleSeconds: fields.lockIdleSeconds } : {},
+        ...fields.lock_idle_seconds !== void 0 ? { lockIdleSeconds: fields.lock_idle_seconds } : {}
       });
       return;
     }
+    const payload = { user_email: e2, ...fields, updated_at: (/* @__PURE__ */ new Date()).toISOString() };
+    const runUpsert = () => supabase.from("app_lock_credentials").upsert(payload, { onConflict: "user_email" }).select("user_email").maybeSingle();
     try {
-      const { error } = await withTimeout(
-        supabase.from("app_lock_credentials").upsert({ user_email: e2, ...fields, updated_at: (/* @__PURE__ */ new Date()).toISOString() }, { onConflict: "user_email" }).select("user_email").maybeSingle(),
-        5e3,
-        "upsertAppLock"
-      );
-      if (error) throw error;
+      try {
+        const { error } = await withTimeout(runUpsert(), 5e3, "upsertAppLock");
+        if (error) throw error;
+        return;
+      } catch (err) {
+        const info = err;
+        const unknownColumn = /lock_idle_seconds/i.test(info.message || "") || info.code === "PGRST202" || info.code === "PGRST204" || info.code === "42703";
+        if (!unknownColumn || !("lock_idle_seconds" in payload)) throw err;
+        console.warn("[AppLock] lock_idle_seconds column missing (migration not applied); retrying without it.");
+        delete payload.lock_idle_seconds;
+        const { error } = await withTimeout(runUpsert(), 5e3, "upsertAppLock.retryWithoutSecondsColumn");
+        if (error) throw error;
+        return;
+      }
     } catch (err) {
       failClosedOnDbError(IS_PRODUCTION2, err);
       logDbFailure("[AppLock] upsertAppLock fallback", err);
@@ -94824,6 +94837,8 @@ async function createApp() {
       if (fields.lock_on_open !== void 0) rec.lockOnOpen = fields.lock_on_open;
       if (fields.lock_idle_minutes !== void 0)
         rec.lockIdleMinutes = fields.lock_idle_minutes != null ? Number(fields.lock_idle_minutes) : null;
+      if (fields.lock_idle_seconds !== void 0)
+        rec.lockIdleSeconds = fields.lock_idle_seconds != null ? Number(fields.lock_idle_seconds) : null;
     }
   }
   async function getLoginState(email, supabase) {
@@ -95275,6 +95290,10 @@ async function createApp() {
     const secure = IS_PRODUCTION2 ? "; Secure" : "";
     res.append("Set-Cookie", `app_lock_trust=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
   }
+  function clearSessionCookie(res) {
+    const secure = IS_PRODUCTION2 ? "; Secure" : "";
+    res.append("Set-Cookie", `session_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
+  }
   function getTokenFromRequest(req) {
     const auth = req.headers.authorization;
     if (auth && auth.startsWith("Bearer ")) return auth.split(" ")[1];
@@ -95325,6 +95344,8 @@ async function createApp() {
     }
     next();
   });
+  let lastRateLimitPurgeAt = 0;
+  const RATE_LIMIT_PURGE_INTERVAL_MS = 60 * 1e3;
   async function checkRateLimitInDb(key, limit, windowMs, supabase) {
     const now = Date.now();
     const resetTime = now + windowMs;
@@ -95333,7 +95354,10 @@ async function createApp() {
       return applyInMemoryRateLimit(mockDb.rateLimits, key, limit, windowMs, now);
     }
     try {
-      await supabase.from("auth_rate_limits").delete().lt("reset_time", new Date(now).toISOString());
+      if (now - lastRateLimitPurgeAt > RATE_LIMIT_PURGE_INTERVAL_MS) {
+        lastRateLimitPurgeAt = now;
+        await supabase.from("auth_rate_limits").delete().lt("reset_time", new Date(now).toISOString());
+      }
       const { data, error } = await supabase.from("auth_rate_limits").select("*").eq("key", key).maybeSingle();
       if (error && error.code !== "PGRST116") throw error;
       if (!data) {
@@ -95966,6 +95990,7 @@ async function createApp() {
           appLockEnabled: !!lock?.pinEnabled || creds.length > 0,
           lockOnOpen: !!lock?.lockOnOpen,
           lockIdleMinutes: lock?.lockIdleMinutes ?? null,
+          lockIdleSeconds: lock?.lockIdleSeconds ?? null,
           pinEnabled: !!lock?.pinEnabled,
           hasPin: !!lock?.pinHash,
           biometricCount: creds.length,
@@ -96089,7 +96114,7 @@ async function createApp() {
         const supabase = getSupabase(req);
         await upsertAppLock(
           normalizedEmail,
-          { lock_idle_minutes: Math.round(minutes), updated_at: (/* @__PURE__ */ new Date()).toISOString() },
+          { lock_idle_minutes: Math.round(minutes), lock_idle_seconds: null, updated_at: (/* @__PURE__ */ new Date()).toISOString() },
           supabase
         );
         console.log(`[AppLock] idle-lock timeout set to ${Math.round(minutes)} min for ${normalizedEmail}.`);
@@ -96100,6 +96125,33 @@ async function createApp() {
           return;
         }
         console.error("[SECURITY LOG] App-lock idle-minutes update failed:", errorMessage(err));
+        res.status(500).json({ success: false, error: "System app-lock service error." });
+      }
+    }
+  );
+  app.post(
+    "/api/app-lock/pin/idle-seconds",
+    rateLimitAuth(8, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const { email, seconds } = req.body;
+        const emailErr = validateEmail(email);
+        if (emailErr || typeof seconds !== "number" || !Number.isInteger(seconds) || seconds < 5 || seconds > 86400) {
+          res.status(400).json({ success: false, error: emailErr || "`seconds` must be a whole number between 5 and 86400." });
+          return;
+        }
+        const normalizedEmail = normalizeEmailLower(email);
+        if (!requireSession(req, res, normalizedEmail)) return;
+        const supabase = getSupabase(req);
+        await upsertAppLock(normalizedEmail, { lock_idle_seconds: seconds, updated_at: (/* @__PURE__ */ new Date()).toISOString() }, supabase);
+        console.log(`[AppLock] idle-lock timeout set to ${seconds}s for ${normalizedEmail}.`);
+        res.json({ success: true, seconds });
+      } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+          res.status(503).json({ success: false, error: err.message });
+          return;
+        }
+        console.error("[SECURITY LOG] App-lock idle-seconds update failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "System app-lock service error." });
       }
     }
@@ -96780,6 +96832,25 @@ async function createApp() {
         console.error("[SECURITY LOG] Verify Session Token failed:", errorMessage(err));
         res.status(500).json({ success: false, error: "Internal session validation error." });
       }
+    }
+  );
+  app.post(
+    "/api/auth/logout",
+    rateLimitAuth(10, 60 * 1e3),
+    async (req, res) => {
+      try {
+        const token = getTokenFromRequest(req);
+        const decoded = token ? verifySecureToken(token, sessionSecret) : null;
+        if (decoded) {
+          const supabase = getSupabase(req);
+          await deleteAllTrustedDevices(decoded.email, supabase);
+        }
+      } catch (err) {
+        console.error("[SECURITY LOG] Logout device revoke failed:", errorMessage(err));
+      }
+      clearSessionCookie(res);
+      clearTrustCookie(res);
+      res.json({ success: true });
     }
   );
   app.get("/api/config", rateLimitAuth(30, 60 * 1e3), (req, res) => {
