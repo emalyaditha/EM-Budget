@@ -1,4 +1,5 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { loadEnv } from 'vite';
 import { loginUser, registerUser, uniqueEmail, type TestUser } from './auth';
 
 /**
@@ -15,6 +16,16 @@ const TOAST = '[aria-live="polite"][aria-atomic="true"] [role="status"]';
 const SYNCED = 'bg-[var(--success)]';
 const PENDING = 'bg-amber-500';
 const UNAVAILABLE = 'bg-[var(--ink-3)]';
+
+/**
+ * Green means the server confirmed the write, so it needs a real Supabase
+ * project. Without VITE_SUPABASE_URL the client correctly reports the cloud as
+ * unreachable and the dot stays gray forever — CI authenticates against the
+ * server's in-memory fallback, which the browser cannot see. Resolved the same
+ * way Vite resolves it, so the test skips on "not configured" rather than on
+ * "cloud is down", which would hide a genuine regression.
+ */
+const hasCloud = Boolean(loadEnv('development', process.cwd(), 'VITE_').VITE_SUPABASE_URL?.trim());
 
 test.describe('Login overlay focus containment', () => {
   test('hidden chrome is out of the tab order while the overlay is up', async ({ page }) => {
@@ -84,12 +95,14 @@ test.describe.serial('Sync indicator', () => {
   });
 
   test('turns green once the ledger is confirmed in the cloud', async () => {
+    test.skip(!hasCloud, 'no Supabase project configured');
     await pollDotClass().toContain(SYNCED);
     expect(await dotClass()).not.toContain(UNAVAILABLE);
     await page.screenshot({ path: 'test-results/sync-dot-mobile-synced.png' });
   });
 
   test('goes orange for a real edit and back to green once confirmed', async () => {
+    test.skip(!hasCloud, 'no Supabase project configured');
     await pollDotClass().toContain(SYNCED);
 
     // The currency selector writes straight through updateState, which is the
@@ -104,6 +117,7 @@ test.describe.serial('Sync indicator', () => {
   });
 
   test('stays green while Settings opens and closes with nothing pending', async () => {
+    test.skip(!hasCloud, 'no Supabase project configured');
     // The auto-sync effect lists isSettingsOpen as a dependency, so opening a
     // modal re-runs it. It must not report "syncing" for a ledger that is
     // already confirmed in the cloud.
@@ -126,7 +140,10 @@ test.describe.serial('Sync indicator', () => {
   });
 
   test('recovers from gray once the link returns', async () => {
+    // Restored before the skip — the tests after this share the context, and
+    // leaving it offline would silently change what they assert.
     await context.setOffline(false);
+    test.skip(!hasCloud, 'no Supabase project configured');
     // Reachability is re-probed when the browser reports online again, so this
     // leaves gray without a reload.
     await expect
