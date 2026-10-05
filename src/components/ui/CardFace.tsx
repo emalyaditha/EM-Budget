@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
+import { formatMoney } from '../../lib/money';
 
 export type CardFaceTone = 'face-violet' | 'face-blue' | 'face-teal' | 'face-amber' | 'face-rose' | 'face-graphite';
 
@@ -32,6 +33,11 @@ interface CardFaceProps {
   cardNumber?: string;
   tone?: CardFaceTone;
   width?: number;
+  /** Fill the parent instead of the 250px floor, so faces survive a 320px hero. */
+  fluid?: boolean;
+  balanceLabel?: string;
+  /** A liability: the number is what is owed, so it reads "Owed" in danger ink. */
+  owed?: boolean;
   onClick?: () => void;
   badge?: React.ReactNode;
 }
@@ -44,11 +50,16 @@ export function CardFace({
   cardNumber,
   tone = 'face-violet',
   width,
+  fluid = false,
+  balanceLabel,
+  owed = false,
   onClick,
   badge,
 }: CardFaceProps) {
   const className = `card-face ${tone} w-full text-left p-3.5 flex flex-col justify-between gap-2 pressable ${onClick ? 'cursor-pointer' : ''}`;
-  const style = { width, aspectRatio: '1.586', minWidth: width ?? 250 };
+  const style = fluid
+    ? { width: '100%', minWidth: 0, aspectRatio: '1.586' }
+    : { width, aspectRatio: '1.586', minWidth: width ?? 250 };
   const inner = (
     <>
       <div className="flex items-start justify-between gap-2 relative z-10">
@@ -63,10 +74,9 @@ export function CardFace({
         )}
       </div>
       <div className="relative z-10">
-        <p className="eyebrow !text-white/55">Balance</p>
+        <p className="eyebrow !text-white/55">{balanceLabel ?? (owed ? 'Owed' : 'Balance')}</p>
         <p className="money text-[19px] font-extrabold text-white leading-tight mt-0.5">
-          {currency}
-          {balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          {formatMoney(currency, balance, { maxFractionDigits: 0 })}
         </p>
       </div>
       <div className="relative z-10 space-y-2">

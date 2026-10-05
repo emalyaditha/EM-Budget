@@ -118,7 +118,7 @@ export function QuickActionModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="relative w-full md:max-w-md bg-[var(--surface)] border-t md:border border-[var(--line)] rounded-t-[24px] md:rounded-[16px] p-6 text-left z-10 flex flex-col max-h-[90vh] overflow-y-auto card"
+            className="relative w-full md:max-w-md bg-[var(--surface)] border-t md:border border-[var(--line)] rounded-t-[24px] md:rounded-[16px] p-6 text-left z-10 flex flex-col max-h-[90vh] overflow-y-auto shadow-[var(--shadow-float)]"
           >
             <div className="flex justify-between items-center pb-4 border-b border-[var(--line)]">
               <div className="space-y-1">
@@ -270,7 +270,7 @@ export function QuickActionModal({
                 </div>
               </div>
 
-              <div className="pt-4 ledger-rule mt-4" />
+              <div className="ledger-rule my-4" />
               <div className="pt-4">
                 <motion.button
                   whileHover={{ y: -0.5 }}

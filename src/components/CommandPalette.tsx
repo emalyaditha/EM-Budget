@@ -16,6 +16,7 @@ import {
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpen: () => void;
   onSelectAction: (actionId: string) => void;
 }
 
@@ -25,10 +26,9 @@ interface CommandItem {
   subtitle: string;
   category: 'Actions' | 'Navigation' | 'Reports';
   icon: React.ReactNode;
-  shortcut?: string;
 }
 
-export function CommandPalette({ isOpen, onClose, onSelectAction }: CommandPaletteProps) {
+export function CommandPalette({ isOpen, onClose, onOpen, onSelectAction }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -39,7 +39,6 @@ export function CommandPalette({ isOpen, onClose, onSelectAction }: CommandPalet
       subtitle: 'Log a new outgoing payment',
       category: 'Actions',
       icon: <PlusCircle size={14} />,
-      shortcut: 'E',
     },
     {
       id: 'add-income',
@@ -47,7 +46,6 @@ export function CommandPalette({ isOpen, onClose, onSelectAction }: CommandPalet
       subtitle: 'Deposit salary or earnings',
       category: 'Actions',
       icon: <PlusCircle size={14} />,
-      shortcut: 'I',
     },
     {
       id: 'transfer-funds',
@@ -55,7 +53,6 @@ export function CommandPalette({ isOpen, onClose, onSelectAction }: CommandPalet
       subtitle: 'Move funds between wallets or cards',
       category: 'Actions',
       icon: <ArrowLeftRight size={14} />,
-      shortcut: 'T',
     },
     {
       id: 'add-card',
@@ -106,12 +103,15 @@ export function CommandPalette({ isOpen, onClose, onSelectAction }: CommandPalet
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         if (isOpen) onClose();
-        else setQuery('');
+        else {
+          setQuery('');
+          onOpen();
+        }
       } else if (e.key === 'Escape' && isOpen) onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, onOpen]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -158,7 +158,7 @@ export function CommandPalette({ isOpen, onClose, onSelectAction }: CommandPalet
               <input
                 type="text"
                 autoFocus
-                placeholder='Type a command… (try "Add Expense")'
+                placeholder='Type a command… (try "Record Expense")'
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full bg-transparent text-[13px] text-[var(--ink)] placeholder:text-[var(--ink-3)] focus:outline-none"
@@ -203,11 +203,6 @@ export function CommandPalette({ isOpen, onClose, onSelectAction }: CommandPalet
                           </div>
                         </div>
                         <span className="flex items-center gap-2 shrink-0">
-                          {item.shortcut && (
-                            <span className="mono text-[10px] px-1.5 py-0.5 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-3)]">
-                              {item.shortcut}
-                            </span>
-                          )}
                           <ChevronRight
                             size={12}
                             className={isSelected ? 'text-[var(--ink-2)]' : 'text-[var(--ink-3)]'}

@@ -33,6 +33,7 @@ import {
   isStateDirty,
   recordDeletions,
   getTombstonedIds,
+  isAlertDayRecent,
 } from './utils';
 import { addMoney, subtractMoney, compareMoney, formatMoney } from './lib/money';
 import {
@@ -1451,12 +1452,14 @@ export default function App() {
   ) => {
     const loanId = `loan_given_${Date.now()}`;
     const nowIso = new Date().toISOString();
+    const chargeExpenseId = bankCharge > 0 ? `exp-charge-${Date.now()}` : undefined;
     const newLoan: LoanGiven = {
       ...loanData,
       id: loanId,
       remainingAmount: loanData.totalAmount,
       status: 'Active',
       settlements: [],
+      chargeExpenseId,
       updated_at: nowIso,
       updatedAt: nowIso,
     };
@@ -1514,8 +1517,7 @@ export default function App() {
       const newExpenses = [newExp, ...prev.expenses];
       const newTransactions = [newTx];
 
-      if (bankCharge > 0) {
-        const chargeExpenseId = `exp-charge-${Date.now()}`;
+      if (chargeExpenseId) {
         const chargeTransactionId = `trans-charge-${Date.now()}`;
 
         const chargeExpense: Expense = {
@@ -1581,6 +1583,20 @@ export default function App() {
     const settlementId = `setl_${Date.now()}`;
     const settlementDate = todayLocal();
     const nowIso = new Date().toISOString();
+    const chargeExpenseId = bankCharge > 0 ? `exp-charge-${Date.now()}` : undefined;
+
+    if (!validateMoneyAmount(amount)) {
+      showToast('Settlement amount must be a positive number.', 'error');
+      return;
+    }
+    if (!validateOptionalCharge(bankCharge)) {
+      showToast('Card charge cannot be negative.', 'error');
+      return;
+    }
+    if (compareMoney(bankCharge, amount) > 0) {
+      showToast('Card charge cannot exceed the settlement amount.', 'error');
+      return;
+    }
 
     updateState((prev) => {
       // Find the loan item to capture borrower info
@@ -1612,6 +1628,8 @@ export default function App() {
         receivedInId,
         receivedInType,
         receivedInName,
+        bankCharge: bankCharge > 0 ? bankCharge : undefined,
+        chargeExpenseId,
         updated_at: nowIso,
         updatedAt: nowIso,
       };
@@ -1665,8 +1683,7 @@ export default function App() {
       const newExpenses = [...prev.expenses];
       const newTransactions = [newTx];
 
-      if (bankCharge > 0) {
-        const chargeExpenseId = `exp-charge-${Date.now()}`;
+      if (chargeExpenseId) {
         const chargeTransactionId = `trans-charge-${Date.now()}`;
 
         const chargeExpense: Expense = {
@@ -1732,9 +1749,33 @@ export default function App() {
       let updatedCash = [...prev.cashAccounts];
       let updatedCards = [...prev.cards];
 
+      // Each fee is mirrored as its own 'Bank Charges & Interest' expense row. Those rows
+      // are the only record of a fee for settlements created before LoanSettlement
+      // recorded bankCharge, so resolve the fee from the ledger before the stored field.
+      // A row is claimed by at most one reversal so two instalments settled into the
+      // same account on the same date each pick up their own fee.
+      const droppedFeeTxIds = new Set<string>();
+      const droppedFeeExpenseIds = new Set<string>();
+
+      const claimFeeRow = (matches: (t: Transaction) => boolean) => {
+        const row = prev.transactions.find((t) => t.type === 'expense' && !droppedFeeTxIds.has(t.id) && matches(t));
+        if (row) {
+          droppedFeeTxIds.add(row.id);
+          if (row.referenceId) droppedFeeExpenseIds.add(row.referenceId);
+        }
+        return row;
+      };
+
       // Find the original loan transaction to recover the bankCharge
       const loanTx = prev.transactions.find((t) => t.referenceId === loanId && t.category === 'Loan');
-      const bankCharge = loanTx?.charge || 0;
+      const loanFeeRow = claimFeeRow(
+        (t) =>
+          t.category === 'Bank Charges & Interest' &&
+          t.accountId === loanToDelete.sourceAccountId &&
+          t.date === loanToDelete.dateGiven &&
+          (t.title || '').startsWith(`Bank Charge: Loan to ${loanToDelete.borrowerName}`),
+      );
+      const bankCharge = loanTx?.charge || loanFeeRow?.amount || 0;
 
       const totalRefund = loanToDelete.totalAmount + bankCharge;
 
@@ -1749,20 +1790,31 @@ export default function App() {
       }
 
       // 2. Reverse all settlements - deduct from accounts that received settlement funds
-      if (loanToDelete.settlements && loanToDelete.settlements.length > 0) {
-        for (const settlement of loanToDelete.settlements) {
-          const netCredited = settlement.amount; // The settlement amount credited to the account
-          if (settlement.receivedInType === 'cash') {
-            updatedCash = updatedCash.map((c) =>
-              c.id === settlement.receivedInId ? { ...c, balance: subtractMoney(c.balance, netCredited) } : c,
+      for (const settlement of loanToDelete.settlements || []) {
+        const feeExpenseId = settlement.chargeExpenseId;
+        const feeRow = feeExpenseId
+          ? claimFeeRow((t) => t.referenceId === feeExpenseId)
+          : claimFeeRow(
+              (t) =>
+                t.category === 'Bank Charges & Interest' &&
+                t.accountId === settlement.receivedInId &&
+                t.date === settlement.date &&
+                (t.title || '').startsWith(`Bank Charge: Loan Settle ${loanToDelete.borrowerName}`),
             );
-          } else {
-            updatedCards = updatedCards.map((c) =>
-              c.id === settlement.receivedInId
-                ? { ...c, currentBalance: subtractMoney(c.currentBalance, netCredited) }
-                : c,
-            );
-          }
+        const fee = feeRow?.amount ?? settlement.bankCharge ?? 0;
+
+        // The receipt was credited net of its card charge, so the reversal must be net too.
+        const netCredited = settlement.amount - fee;
+        if (settlement.receivedInType === 'cash') {
+          updatedCash = updatedCash.map((c) =>
+            c.id === settlement.receivedInId ? { ...c, balance: subtractMoney(c.balance, netCredited) } : c,
+          );
+        } else {
+          updatedCards = updatedCards.map((c) =>
+            c.id === settlement.receivedInId
+              ? { ...c, currentBalance: subtractMoney(c.currentBalance, netCredited) }
+              : c,
+          );
         }
       }
 
@@ -1772,7 +1824,9 @@ export default function App() {
         id: `trans-refund-${Date.now()}`,
         type: 'deposit',
         title: `Loan Refund: ${loanToDelete.borrowerName}`,
-        amount: loanToDelete.totalAmount,
+        // Matches totalRefund: logging only the principal would leave the balance
+        // and the ledger disagreeing by the card charge.
+        amount: totalRefund,
         date: todayLocal(),
         category: 'Loan Refund',
         accountId: loanToDelete.sourceAccountId,
@@ -1782,17 +1836,23 @@ export default function App() {
         updatedAt: nowIso,
       };
 
-      // 4. Remove settlement-related transactions
-      const settlementIds = (loanToDelete.settlements || []).map((s) => s.id);
+      // 4. Remove settlement-related transactions, including their mirrored fee rows —
+      // leaving those behind drains the wallet on every recompute and shows up as an
+      // unexplained negative balance once the loan itself is gone.
+      const settlementIds = new Set((loanToDelete.settlements || []).map((s) => s.id));
       const updatedTransactions = prev.transactions.filter(
-        (tx) => tx.referenceId !== loanId && !settlementIds.includes(tx.referenceId || ''),
+        (tx) => tx.referenceId !== loanId && !settlementIds.has(tx.referenceId || '') && !droppedFeeTxIds.has(tx.id),
       );
+      const updatedExpenses = droppedFeeExpenseIds.size
+        ? prev.expenses.filter((e) => !droppedFeeExpenseIds.has(e.id))
+        : prev.expenses;
 
       return {
         ...prev,
         cashAccounts: updatedCash,
         cards: updatedCards,
         loansGiven: (prev.loansGiven || []).filter((l) => l.id !== loanId),
+        expenses: updatedExpenses,
         transactions: [refundTransaction, ...updatedTransactions],
       };
     });
@@ -3401,6 +3461,12 @@ export default function App() {
     setEditingTransactionId(null);
   };
 
+  // Only today's and yesterday's alerts are listed. The bell, the drawer and the
+  // "clear all" count all read this one list so a stale entry cannot survive as a
+  // badge after it stops appearing in the sheet it was cleared from.
+  const visibleNotifications = state.notifications.filter((n) => isAlertDayRecent(n.date));
+  const unreadNotificationCount = visibleNotifications.filter((n) => !n.read).length;
+
   const handleMarkNotificationRead = (id: string) => {
     updateState((prev) => ({
       ...prev,
@@ -3409,10 +3475,26 @@ export default function App() {
   };
 
   const handleClearNotification = (id: string) => {
+    // Without a tombstone the next cloud merge unions the cleared row back in,
+    // which is what made closing an alert look like it had not worked.
+    recordDeletions(userEmail, [id]);
     updateState((prev) => ({
       ...prev,
       notifications: prev.notifications.filter((n) => n.id !== id),
     }));
+  };
+
+  const handleClearAllNotifications = () => {
+    const count = visibleNotifications.length;
+    recordDeletions(
+      userEmail,
+      state.notifications.map((n) => n.id),
+    );
+    updateState((prev) => ({
+      ...prev,
+      notifications: [],
+    }));
+    showToast(`Cleared ${count} notification${count === 1 ? '' : 's'}`, 'success');
   };
 
   // JSON state upload restoration
@@ -3560,7 +3642,7 @@ export default function App() {
   // Minimal auth gate — center card with mono
   if (isCheckingAuth) {
     return (
-      <div id="auth-loading-screen" className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-6">
+      <div id="auth-loading-screen" className="min-h-screen flex items-center justify-center p-6">
         <div className="card p-8 text-center w-full max-w-[360px]">
           <div
             className="w-7 h-7 rounded-full border border-[var(--line)] border-t-[var(--ink)] animate-spin mx-auto motion-reduce:animate-none"
@@ -3596,12 +3678,12 @@ export default function App() {
   return (
     <div
       id="full-workspace-view"
-      className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-[var(--bg)] text-[var(--ink)] flex flex-col lg:flex-row font-sans selection:bg-[var(--ink)] selection:text-[var(--bg)] antialiased relative"
+      className="min-h-[100dvh] w-full max-w-full overflow-x-hidden text-[var(--ink)] flex flex-col lg:flex-row font-sans selection:bg-[var(--ink)] selection:text-[var(--bg)] antialiased relative"
     >
       {/* ======================= DOCKED LEFT SIDEBAR NAVIGATION (Desktop Only) ======================= */}
       {isUnlocked && (
         <aside
-          className={`hidden lg:flex flex-col h-screen fixed top-0 left-0 bg-[var(--surface)] border-r border-[var(--line)] backdrop-blur-xl transition-all duration-300 z-30 p-5 ${
+          className={`hidden lg:flex flex-col h-screen fixed top-0 left-0 shell-sidebar transition-all duration-300 z-30 p-5 ${
             isNavCollapsed ? 'w-20' : 'w-64'
           } justify-between overflow-y-auto select-none`}
           id="docked-desktop-sidebar"
@@ -3670,12 +3752,12 @@ export default function App() {
                 className={`p-1.5 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] transition-all duration-200 cursor-pointer flex items-center justify-center ${isNavCollapsed ? 'mx-auto' : 'ml-auto'}`}
                 title={isNavCollapsed ? 'Expand Sidebar Layout' : 'Collapse Sidebar Layout'}
               >
-                <Zap size={11} className="text-indigo-400" />
+                <Zap size={11} className="text-[var(--ink-2)]" />
               </button>
             </div>
 
             {/* Nav Menu */}
-            <nav className="flex flex-col gap-1.5">
+            <nav className="flex flex-col gap-1.5" aria-label="Primary">
               {[
                 { tab: 'dashboard', icon: <LayoutDashboard size={14} />, label: 'Overview Hub' },
                 { tab: 'accounts', icon: <Wallet size={14} />, label: 'Wallets Portfolio' },
@@ -3685,25 +3767,24 @@ export default function App() {
                 { tab: 'debts', icon: <CircleDot size={14} />, label: 'Track Liabilities' },
                 { tab: 'loans', icon: <ArrowUpRight size={14} />, label: 'Track Loans Given' },
                 { tab: 'reports', icon: <TrendingUp size={14} />, label: 'Reports Centre' },
-              ].map((item) => (
-                <button
-                  key={item.tab}
-                  onClick={() => setActiveTab(item.tab as AppTab)}
-                  className={`w-full py-3 px-3.5 rounded-xl font-sans font-bold text-xs flex items-center gap-3.5 transition-all duration-200 cursor-pointer border ${
-                    activeTab === item.tab
-                      ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-fg)] shadow-md font-extrabold'
-                      : 'text-[var(--ink-2)] bg-transparent border-transparent hover:text-[var(--ink)] hover:border-[var(--line)] hover:bg-[var(--surface-2)]'
-                  } ${isNavCollapsed ? 'justify-center px-1' : ''}`}
-                  title={isNavCollapsed ? item.label : undefined}
-                >
-                  <span
-                    className={`shrink-0 ${activeTab === item.tab ? 'text-[var(--accent-fg)] scale-105' : 'text-[var(--ink-2)]'}`}
+              ].map((item) => {
+                const isActive = activeTab === item.tab;
+                return (
+                  <button
+                    key={item.tab}
+                    onClick={() => setActiveTab(item.tab as AppTab)}
+                    className={`nav-link ${isNavCollapsed ? 'justify-center px-0' : ''}`}
+                    data-active={isActive}
+                    aria-current={isActive ? 'page' : undefined}
+                    aria-label={isNavCollapsed ? item.label : undefined}
+                    title={isNavCollapsed ? item.label : undefined}
                   >
-                    {item.icon}
-                  </span>
-                  {!isNavCollapsed && <span className="truncate text-left">{item.label}</span>}
-                </button>
-              ))}
+                    {!isNavCollapsed && <span className="nav-link-dot" aria-hidden />}
+                    <span className="shrink-0 opacity-90">{item.icon}</span>
+                    {!isNavCollapsed && <span className="truncate">{item.label}</span>}
+                  </button>
+                );
+              })}
             </nav>
           </div>
 
@@ -3732,7 +3813,7 @@ export default function App() {
                       </>
                     ) : (
                       <>
-                        <Moon size={13} className="text-indigo-400" />
+                        <Moon size={13} className="text-[var(--ink-2)]" />
                         <span>Switch to Dark</span>
                       </>
                     )}
@@ -3819,7 +3900,7 @@ export default function App() {
             the login overlay is up: it is fixed and covers this chrome, but an
             overlay alone leaves everything under it in the tab order. */}
         <header
-          className="sticky top-0 z-20 h-14 bg-[var(--surface)]/80 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface)]/80 border-b border-[var(--line)] flex items-center justify-between gap-3 px-4 md:px-6"
+          className="sticky top-0 z-20 h-14 shell-header flex items-center justify-between gap-3 px-4 md:px-6"
           id="header-brand-rail"
           inert={!isUnlocked}
         >
@@ -3879,66 +3960,64 @@ export default function App() {
             </span>
           </div>
 
-          {/* right: controls */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* theme toggle — pill with 180ms rotate */}
-            <button
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="w-9 h-9 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
-              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            >
-              <motion.span
-                key={theme}
-                initial={{ rotate: -90, opacity: 0 }}
-                animate={{ rotate: 0, opacity: 1 }}
-                exit={{ rotate: 90, opacity: 0 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
-                className="flex items-center justify-center"
+          {/* right: one glass pill of controls, with the avatar overlapping its
+              edge. Negative margin is the only overlap mechanism — a padding or
+              border change here would push the sync dot past the 390px header.
+              Below `sm` only the bell survives: search lives in the nav FAB and
+              the theme in Settings, so the phone pill stays a single icon.
+              `!`-prefixed because `.icon-btn` sets `display` unlayered, which
+              otherwise outranks a plain `hidden`. */}
+          <div className="flex items-center shrink-0">
+            <div className="glass-pill">
+              {/* command / search */}
+              <button
+                onClick={() => setIsCommandPaletteOpen(true)}
+                aria-label="Open command palette"
+                title="Search (⌘K)"
+                className="icon-btn !hidden sm:!inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
               >
-                {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-              </motion.span>
-            </button>
+                <Search size={14} />
+              </button>
 
-            {/* command / search */}
-            <button
-              onClick={() => setIsCommandPaletteOpen(true)}
-              aria-label="Open command palette"
-              className="hidden sm:inline-flex items-center gap-1.5 btn-ghost px-3 py-1.5 text-[12px] h-8"
-            >
-              <Search size={13} />
-              <span className="hidden lg:inline">Search</span>
-              <span className="mono text-[10px] px-1 py-0.5 rounded border border-[var(--line)] bg-[var(--surface-2)] hidden lg:inline">
-                ⌘K
-              </span>
-            </button>
-            {/* mobile search icon */}
-            <button
-              onClick={() => setIsCommandPaletteOpen(true)}
-              aria-label="Search"
-              className="sm:hidden w-9 h-9 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center"
-            >
-              <Search size={14} />
-            </button>
+              {/* theme toggle — pill with 180ms rotate */}
+              <button
+                onClick={toggleTheme}
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                className="icon-btn !hidden sm:!inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+              >
+                <motion.span
+                  key={theme}
+                  initial={{ rotate: -90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  exit={{ rotate: 90, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  className="flex items-center justify-center"
+                >
+                  {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                </motion.span>
+              </button>
 
-            {/* notifications */}
-            <button
-              onClick={() => setIsNotifOpen(true)}
-              aria-label={`Notifications${state.notifications.filter((n) => !n.read).length ? ` (${state.notifications.filter((n) => !n.read).length} unread)` : ''}`}
-              className="relative w-9 h-9 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
-              id="header-notification-trigger"
-            >
-              <Bell size={14} />
-              {state.notifications.filter((n) => !n.read).length > 0 && (
-                <span
-                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[var(--danger)] border-2 border-[var(--surface)] rounded-full motion-reduce:animate-none"
-                  aria-hidden
-                />
-              )}
-            </button>
+              {/* notifications */}
+              <button
+                onClick={() => setIsNotifOpen(true)}
+                aria-label={`Notifications${unreadNotificationCount ? ` (${unreadNotificationCount} unread)` : ''}`}
+                title="Notifications"
+                className="icon-btn relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+                id="header-notification-trigger"
+              >
+                <Bell size={14} />
+                {unreadNotificationCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[var(--danger)] border-2 border-[var(--surface)] rounded-full motion-reduce:animate-none"
+                    aria-hidden
+                  />
+                )}
+              </button>
+            </div>
 
             {/* profile avatar + sync dot */}
-            <div className="relative shrink-0" id="header-profile-cluster">
+            <div className="relative shrink-0 -ml-2.5" id="header-profile-cluster">
               <button
                 onClick={() => setIsProfileOpen(true)}
                 aria-label="Open profile"
@@ -4138,7 +4217,7 @@ export default function App() {
                   className="p-3 sm:p-3 bg-[var(--surface-2)] border border-[var(--line)] rounded-full text-[var(--ink-2)] hover:text-[var(--ink)] hover:border-[var(--line-strong)] relative cursor-pointer shadow-sm transition-all flex items-center justify-center shrink-0"
                 >
                   <Bell size={15} />
-                  {state.notifications.filter((n) => !n.read).length > 0 && (
+                  {unreadNotificationCount > 0 && (
                     <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-500 border-2 border-[var(--surface)] rounded-full animate-pulse" />
                   )}
                 </button>
@@ -4173,8 +4252,8 @@ export default function App() {
                       <strong>Supabase Secret Anon Key</strong> corresponds to your project credentials securely.
                     </li>
                     <li>
-                      Make sure the <code className="text-teal-400 font-mono">ledger_states</code> core table exists in
-                      your database table schemas.
+                      Make sure the <code className="text-[var(--glow)] font-mono">ledger_states</code> core table
+                      exists in your database table schemas.
                     </li>
                     <li>
                       Copy and run the 1-click database generation SQL script directly inside your{' '}
@@ -4441,49 +4520,49 @@ export default function App() {
                         {[
                           {
                             tab: 'dashboard',
-                            icon: <LayoutDashboard size={15} className="text-amber-500" />,
-                            title: 'Dashboard',
+                            icon: <LayoutDashboard size={15} className="text-[var(--ink-2)]" />,
+                            title: 'Overview Hub',
                             desc: 'Main indicators',
                           },
                           {
                             tab: 'accounts',
-                            icon: <Wallet size={15} className="text-blue-500" />,
-                            title: 'Wallets Port',
+                            icon: <Wallet size={15} className="text-[var(--ink-2)]" />,
+                            title: 'Wallets Portfolio',
                             desc: 'Manage assets',
                           },
                           {
                             tab: 'inflow_outflow',
-                            icon: <Plus size={15} className="text-emerald-500" />,
+                            icon: <Plus size={15} className="text-[var(--ink-2)]" />,
                             title: 'Ledger Registry',
                             desc: 'New entries',
                           },
                           {
                             tab: 'budgets',
-                            icon: <CheckSquare size={15} className="text-purple-500" />,
+                            icon: <CheckSquare size={15} className="text-[var(--ink-2)]" />,
                             title: 'Smart Budgets',
                             desc: 'Expenses envelope',
                           },
                           {
                             tab: 'goals',
-                            icon: <CheckSquare size={15} className="text-rose-500" />,
+                            icon: <CheckSquare size={15} className="text-[var(--ink-2)]" />,
                             title: 'Savings Jars',
                             desc: 'Track progress',
                           },
                           {
                             tab: 'debts',
-                            icon: <CircleDot size={15} className="text-orange-500" />,
+                            icon: <CircleDot size={15} className="text-[var(--ink-2)]" />,
                             title: 'Track Liabilities',
                             desc: 'Debts timeline',
                           },
                           {
                             tab: 'loans',
-                            icon: <ArrowUpRight size={15} className="text-teal-400" />,
-                            title: 'Track Loans',
+                            icon: <ArrowUpRight size={15} className="text-[var(--ink-2)]" />,
+                            title: 'Track Loans Given',
                             desc: 'Lent records',
                           },
                           {
                             tab: 'reports',
-                            icon: <TrendingUp size={15} className="text-indigo-400" />,
+                            icon: <TrendingUp size={15} className="text-[var(--ink-2)]" />,
                             title: 'Reports Centre',
                             desc: 'Trend analyses',
                           },
@@ -4535,7 +4614,7 @@ export default function App() {
                           }}
                           className="py-3 px-1.5 bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink)] rounded-[14px] flex flex-col items-center gap-1.5 hover:border-[var(--line-strong)] transition-all cursor-pointer text-center"
                         >
-                          <User size={14} className="text-indigo-400" />
+                          <User size={14} className="text-[var(--ink-2)]" />
                           <span className="text-[9px] font-bold block">My Profile</span>
                         </button>
 
@@ -4561,7 +4640,7 @@ export default function App() {
                         >
                           <Bell size={14} className="text-amber-400" />
                           <span className="text-[9px] font-bold block">Alerts</span>
-                          {state.notifications.filter((n) => !n.read).length > 0 && (
+                          {unreadNotificationCount > 0 && (
                             <span className="absolute top-2 right-4 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
                           )}
                         </button>
@@ -4579,9 +4658,10 @@ export default function App() {
 
             {/* Notification sheet slideover drawer */}
             <NotificationDrawer
-              notifications={state.notifications}
+              notifications={visibleNotifications}
               onMarkRead={handleMarkNotificationRead}
               onClear={handleClearNotification}
+              onClearAll={handleClearAllNotifications}
               isOpen={isNotifOpen}
               onClose={() => setIsNotifOpen(false)}
             />
@@ -4628,6 +4708,7 @@ export default function App() {
         <CommandPalette
           isOpen={isCommandPaletteOpen}
           onClose={() => setIsCommandPaletteOpen(false)}
+          onOpen={() => setIsCommandPaletteOpen(true)}
           onSelectAction={(actionId) => {
             if (actionId === 'add-expense' || actionId === 'add-income') {
               setActiveTab('inflow_outflow');

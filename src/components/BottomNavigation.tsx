@@ -56,11 +56,12 @@ export function BottomNavigation({
   };
 
   return (
-    <nav aria-label="Bottom Navigation" className="floating-nav md:hidden" inert={inert}>
+    <nav aria-label="Bottom Navigation" className="floating-nav lg:hidden" inert={inert}>
       {TABS.map(renderItem)}
       <button
         onClick={onQuickActionClick}
-        aria-label="Add transaction"
+        aria-label="Open quick actions"
+        title="Quick actions"
         className="nav-fab pressable"
         style={{ color: 'var(--accent-fg)' }}
       >

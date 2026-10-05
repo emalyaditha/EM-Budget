@@ -14,8 +14,10 @@ export interface FinanceAlert {
 export const BUDGET_WARN_AT = 0.8; // 80% spent -> warning
 const BUDGET_CRITICAL_AT = 1.0; // 100%+ spent -> critical
 
-// How many days ahead a due date should raise a "coming due" alert.
-const DUE_SOON_DAYS = 3;
+// How many days ahead a due date should raise a "coming due" alert. One day:
+// a bill is worth flagging the day before it lands and on the day itself, and a
+// wider window only lengthened the list the user had to keep dismissing.
+const DUE_SOON_DAYS = 1;
 
 function parseDay(iso: string): number {
   // Parse a calendar date ("YYYY-MM-DD") at LOCAL midnight so it aligns with

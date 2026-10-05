@@ -143,17 +143,13 @@ export default function GoalsSection({
         {/* New goal — pastel gradient card with dark + button (pin top card) */}
         <div className="mw-nueva p-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[14px] font-bold leading-none" style={{ color: '#0A0A0C' }}>
-              Add New goal
-            </p>
-            <p className="text-[12px] mt-1 leading-none" style={{ color: 'rgba(10,10,12,0.55)' }}>
-              Create a new savings goal
-            </p>
+            <p className="text-[14px] font-bold leading-none">Add New goal</p>
+            <p className="text-[12px] mt-1 leading-none opacity-60">Create a new savings goal</p>
           </div>
           <button
             aria-label="Add New goal"
             onClick={() => setIsAddModalOpen((v) => !v)}
-            className="w-10 h-10 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] grid place-items-center shrink-0 hover:scale-[1.04] active:scale-[0.98] transition-transform shadow-sm"
+            className="w-10 h-10 rounded-full bg-[var(--accent-fg)] text-[var(--accent)] grid place-items-center shrink-0 hover:scale-[1.04] active:scale-[0.98] transition-transform shadow-sm"
           >
             <Plus size={18} strokeWidth={2.5} />
           </button>

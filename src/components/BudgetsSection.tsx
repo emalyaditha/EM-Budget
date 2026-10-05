@@ -78,7 +78,7 @@ export default function BudgetsSection({
             <p className="mono text-[11px] mt-2" style={{ color: 'var(--ink-2)' }}>
               {budgets.length > 0
                 ? `${percentSpent}% spent · ${currency}${totalSpent.toLocaleString()} / ${currency}${totalBudgeted.toLocaleString()} · ${daysRemaining} days remaining`
-                : 'Define monthly envelopes by category — pastel style replicates the Financial report of the pin.'}
+                : 'Set a monthly spending limit for each category.'}
             </p>
           </div>
           {budgets.length > 0 && onClearAllBudgets && (
@@ -111,18 +111,21 @@ export default function BudgetsSection({
         {budgets.length > 0 && (
           <div className="bg-[var(--surface-2)] border border-[var(--line)] rounded-[16px] p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <span className="eyebrow !text-[9px]">Resumen del mes</span>
+              <span className="eyebrow !text-[9px]">Month overview</span>
               <span className="mono text-[11px] font-bold">{percentSpent}%</span>
             </div>
             <div className="h-3 rounded-full bg-[var(--surface-3)] overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${Math.min(100, percentSpent)}%`, background: 'var(--ink)' }}
+                style={{
+                  width: `${Math.min(100, percentSpent)}%`,
+                  background: percentSpent > 100 ? 'var(--danger)' : 'var(--ink)',
+                }}
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="eyebrow">Presupuestado</p>
+                <p className="eyebrow">Budgeted</p>
                 <p className="mono text-[11px] font-bold mt-1">
                   {currency}
                   {totalBudgeted.toLocaleString()}
@@ -142,17 +145,13 @@ export default function BudgetsSection({
         {/* Nueva envelope — same mw-nueva gradient + dark + button as Goals */}
         <div className="mw-nueva p-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[14px] font-bold leading-none" style={{ color: '#0A0A0C' }}>
-              Add New Envelope
-            </p>
-            <p className="text-[12px] mt-1 leading-none" style={{ color: 'rgba(10,10,12,0.55)' }}>
-              Create an envelope per category
-            </p>
+            <p className="text-[14px] font-bold leading-none">Add New Envelope</p>
+            <p className="text-[12px] mt-1 leading-none opacity-60">Create an envelope per category</p>
           </div>
           <button
             aria-label="Add New Envelope"
             onClick={() => setIsAddInlineOpen((v) => !v)}
-            className="w-10 h-10 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] grid place-items-center shrink-0 hover:scale-[1.04] active:scale-[0.98] transition-transform shadow-sm"
+            className="w-10 h-10 rounded-full bg-[var(--accent-fg)] text-[var(--accent)] grid place-items-center shrink-0 hover:scale-[1.04] active:scale-[0.98] transition-transform shadow-sm"
           >
             <Plus size={18} strokeWidth={2.5} />
           </button>
@@ -168,7 +167,7 @@ export default function BudgetsSection({
             >
               <div className="bg-[var(--surface-2)] border border-[var(--line)] rounded-[16px] p-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <p className="eyebrow !text-[9px]">Nuevo sobre</p>
+                  <p className="eyebrow !text-[9px]">New envelope</p>
                   <button
                     onClick={() => setIsAddInlineOpen(false)}
                     className="w-7 h-7 rounded-full grid place-items-center"
@@ -230,7 +229,7 @@ export default function BudgetsSection({
                     Cancel
                   </button>
                   <button onClick={handleCreateBudget} className="btn-primary !py-2 !px-5 text-[12px]">
-                    Create sobre
+                    Create envelope
                   </button>
                 </div>
                 <button
@@ -249,7 +248,7 @@ export default function BudgetsSection({
         <div className="flex items-center justify-between pt-1">
           <p className="eyebrow">Envelope list</p>
           <span className="mono text-[11px]" style={{ color: 'var(--ink-3)' }}>
-            {budgets.length} sobres
+            {budgets.length} envelopes
           </span>
         </div>
 
@@ -448,7 +447,7 @@ export default function BudgetsSection({
                                       <div className="min-w-0">
                                         <p className="text-[12px] font-medium truncate">{item.name}</p>
                                         <p className="mono text-[10px]" style={{ color: 'var(--ink-3)' }}>
-                                          {Math.round((item.spent / (selectedBudget.limit || 1)) * 100)}% del sobre
+                                          {Math.round((item.spent / (selectedBudget.limit || 1)) * 100)}% of envelope
                                         </p>
                                       </div>
                                       <span className="mono text-[11px] font-bold shrink-0">
@@ -551,8 +550,8 @@ export default function BudgetsSection({
               >
                 <X size={13} />
               </button>
-              <p className="eyebrow">Nuevo sobre</p>
-              <h3 className="text-[15px] font-bold mt-1">Create sobre</h3>
+              <p className="eyebrow">New envelope</p>
+              <h3 className="text-[15px] font-bold mt-1">Create envelope</h3>
               <div className="mt-5 space-y-4">
                 <div>
                   <label className="eyebrow block mb-2">Category</label>

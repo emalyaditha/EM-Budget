@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, AlertCircle, Bell, X, ChevronDown, ChevronUp } from 'lucide-react';
 import type { FinanceAlert } from '../lib/alerts';
 import { computeAlerts } from '../lib/alerts';
+import { getDismissedAlertIds, recordDismissedAlerts } from '../utils';
 import type { AppState } from '../types';
 
 interface AlertsPanelProps {
@@ -16,7 +17,11 @@ const SEVERITY_ICON: Record<FinanceAlert['severity'], React.ReactNode> = {
 
 export function AlertsPanel({ state }: AlertsPanelProps) {
   const [open, setOpen] = useState(false);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const ownerEmail = state.userProfile?.email;
+  // Closures live in storage rather than only in this component: the panel
+  // unmounts whenever another tab is opened, so an in-memory set made every
+  // alert the user had just dismissed reappear the moment they came back.
+  const [dismissed, setDismissed] = useState<Set<string>>(() => getDismissedAlertIds(ownerEmail));
 
   const alerts = useMemo(
     () => computeAlerts(state, Date.now()),
@@ -29,11 +34,9 @@ export function AlertsPanel({ state }: AlertsPanelProps) {
   if (visible.length === 0) return null;
 
   const dismissAll = () => {
-    setDismissed((prev) => {
-      const next = new Set(prev);
-      visible.forEach((a) => next.add(a.id));
-      return next;
-    });
+    const ids = visible.map((a) => a.id);
+    recordDismissedAlerts(ownerEmail, ids);
+    setDismissed((prev) => new Set([...prev, ...ids]));
   };
 
   return (

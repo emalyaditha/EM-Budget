@@ -212,7 +212,7 @@ export function CategorySpreadAnalysis({
           Category spread <span className="pill !py-0.5 !px-2 mono !text-[10px]">{dominantPct}% top</span>
         </h3>
         <p className="mono text-[11px] mt-0.5" style={{ color: 'var(--ink-2)' }}>
-          Breakdown of expenses — Raul 78% arc homage
+          Breakdown of expenses by category
         </p>
       </div>
       <div className="flex flex-col items-center">

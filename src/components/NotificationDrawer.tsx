@@ -1,11 +1,13 @@
-﻿import React from 'react';
+﻿import React, { useState } from 'react';
 import type { AppNotification } from '../types';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { Bell, Check, Trash2, X, AlertTriangle, Info, Calendar } from 'lucide-react';
 
 interface NotificationDrawerProps {
   notifications: AppNotification[];
   onMarkRead: (id: string) => void;
   onClear: (id: string) => void;
+  onClearAll: () => void;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -14,15 +16,21 @@ export default function NotificationDrawer({
   notifications,
   onMarkRead,
   onClear,
+  onClearAll,
   isOpen,
   onClose,
 }: NotificationDrawerProps) {
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const sheetRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
   if (!isOpen) return null;
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <div
+      ref={sheetRef}
       id="notification-sheet"
+      role="dialog"
+      aria-label="Notifications"
       className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-end p-0 sm:p-6"
     >
       <button
@@ -40,24 +48,50 @@ export default function NotificationDrawer({
               <Bell size={13} />
             </span>
             <div className="min-w-0">
-              <h3 className="text-[12px] font-bold tracking-tight text-[var(--ink)] leading-none flex items-center gap-2">
-                Notifications
+              <h3 className="text-[12px] font-bold tracking-tight text-[var(--ink)] leading-none flex items-center gap-2 min-w-0">
+                <span className="truncate">Notifications</span>
                 {unreadCount > 0 && (
-                  <span className="mono text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--ink)] text-[var(--bg)]">
+                  <span className="mono text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--ink)] text-[var(--bg)] shrink-0">
                     {unreadCount} new
                   </span>
                 )}
               </h3>
-              <p className="mono text-[10px] text-[var(--ink-3)] leading-none mt-1">Dues, alerts, and ledger notes</p>
+              <p className="mono text-[10px] text-[var(--ink-3)] leading-none mt-1 truncate">
+                Dues, alerts, and ledger notes
+              </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center"
-          >
-            <X size={13} />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {notifications.length > 0 && (
+              <button
+                onClick={() => {
+                  if (showClearConfirm) {
+                    onClearAll();
+                    setShowClearConfirm(false);
+                  } else {
+                    setShowClearConfirm(true);
+                    setTimeout(() => setShowClearConfirm(false), 3500);
+                  }
+                }}
+                className="mono text-[10px] px-2.5 py-1 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)] hover:text-[var(--ink)] inline-flex items-center gap-1"
+                style={
+                  showClearConfirm
+                    ? { borderColor: 'var(--danger)', color: 'var(--danger)', background: 'var(--danger-bg)' }
+                    : undefined
+                }
+              >
+                <Trash2 size={10} />
+                {showClearConfirm ? 'Confirm' : 'Clear all'}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center"
+            >
+              <X size={13} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2.5">

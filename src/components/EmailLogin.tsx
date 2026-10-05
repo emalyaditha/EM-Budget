@@ -403,7 +403,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
   return (
     <div
       id="email-2fa-container"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 overflow-y-auto bg-[var(--bg)] text-[var(--ink)]"
+      className="ambient fixed inset-0 z-50 flex flex-col items-center justify-center p-6 overflow-y-auto text-[var(--ink)]"
     >
       {/* dot-grid is on body; no gradients */}
       <div className="w-full max-w-[420px]">
@@ -477,7 +477,7 @@ export default function EmailLogin({ onUnlocked }: EmailLoginProps) {
                   )}
                 </button>
                 <p className="text-[11px] leading-4 text-[var(--ink-3)] text-center">
-                  We\u2019ll email you only for verification. No marketing.
+                  We’ll email you only for verification. No marketing.
                 </p>
               </motion.form>
             )}

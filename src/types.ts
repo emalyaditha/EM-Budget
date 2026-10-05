@@ -165,6 +165,9 @@ export interface LoanSettlement {
   receivedInId: string;
   receivedInType: 'cash' | 'card';
   receivedInName: string;
+  // The fee was netted out of the credit, so reversing a settlement needs it.
+  bankCharge?: number;
+  chargeExpenseId?: string;
   updated_at?: string;
   updatedAt?: string;
   created_at?: string;
@@ -183,6 +186,7 @@ export interface LoanGiven {
   status: 'Active' | 'Partially Settled' | 'Settled';
   notes: string;
   settlements: LoanSettlement[];
+  chargeExpenseId?: string;
   updated_at?: string;
   updatedAt?: string;
   created_at?: string;

@@ -13,9 +13,9 @@ import {
   Cell,
 } from 'recharts';
 import { DashboardHero } from './dashboard/DashboardHero';
+import { buildHeroWallets } from './dashboard/WalletDeck';
 import { QuickActionModal } from './dashboard/QuickActionModal';
 import { AlertsPanel } from './AlertsPanel';
-import { CardFace, faceToneForSeed } from './ui/CardFace';
 import { TransactionRow } from './ui/TransactionRow';
 import { CategoryChip } from './ui/CategoryChip';
 import { SegmentedControl } from './ui/SegmentedControl';
@@ -95,6 +95,29 @@ function dayLabel(dateStr: string): string {
   return parsed.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+// Ledger dates arrive either as a bare `YYYY-MM-DD` (every locally-created entry)
+// or as a full timestamp from the cloud. Only the latter can honestly claim a
+// time, and a bare day must be parsed as local — `new Date('2026-03-04')` is UTC
+// midnight, which would print the day before it west of Greenwich.
+function activityMeta(raw: string): string {
+  if (!raw) return 'Ledger';
+  const dayOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw) || /^\d{4}-\d{2}-\d{2}T00:00:00(?:\.000)?Z?$/.test(raw);
+  let date: Date;
+  if (dayOnly) {
+    const [y, m, d] = raw.slice(0, 10).split('-').map(Number);
+    date = new Date(y, m - 1, d);
+  } else {
+    date = new Date(raw);
+  }
+  if (isNaN(date.getTime())) return raw;
+  // The year only earns its width when it is not the current one — at 320px the
+  // extra four digits were what pushed the row title into an ellipsis.
+  const stamp: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  if (date.getFullYear() !== new Date().getFullYear()) stamp.year = 'numeric';
+  const day = date.toLocaleDateString(undefined, stamp);
+  return dayOnly ? day : `${day} · ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+}
+
 export default function Dashboard({
   state,
   aggregateActiveWealth,
@@ -109,6 +132,7 @@ export default function Dashboard({
   onAddExpense,
 }: DashboardProps) {
   const [timeRange, setTimeRange] = useState<'1W' | '1M' | '3M' | 'YTD' | '1Y' | 'All'>('1M');
+  const [activityView, setActivityView] = useState<'all' | 'recent'>('recent');
   const [isQuickTxOpen, setIsQuickTxOpen] = useState(false);
   const [txType, setTxType] = useState<'expense' | 'income'>('expense');
 
@@ -198,7 +222,7 @@ export default function Dashboard({
       .reduce((sum, t) => sum + t.amount, 0);
   }, [state.transactions]);
 
-  const recentActivity = useMemo(() => {
+  const activityLog = useMemo(() => {
     const combined: ActivityLogItem[] = [
       ...state.transactions.map((t, idx) => ({ ...t, logType: 'transaction' as const, originalIdx: idx })),
       ...state.loansGiven.map((l, idx) => ({
@@ -230,50 +254,60 @@ export default function Dashboard({
         })),
       ),
     ];
-    return combined
-      .sort((a, b) => {
-        // Order by ledger day first, not by when the row was last touched —
-        // back-dating yesterday's entries today must not float them into Today.
-        const dayOf = (item: ActivityLogItem) =>
-          (item.date || (item as { dateGiven?: string }).dateGiven || '').slice(0, 10);
-        const tsOf = (raw?: string): number => {
-          if (!raw) return 0;
-          const t = new Date(raw).getTime();
-          return isNaN(t) ? 0 : t;
-        };
-        const dayCompare = dayOf(b).localeCompare(dayOf(a));
-        if (dayCompare !== 0) return dayCompare;
-        const timeA = tsOf(a.date) || tsOf((a as { dateGiven?: string }).dateGiven);
-        const timeB = tsOf(b.date) || tsOf((b as { dateGiven?: string }).dateGiven);
-        if (timeA !== timeB) return timeB - timeA;
-        const updA = Math.max(tsOf(a.updated_at), tsOf(a.updatedAt), tsOf(a.created_at), tsOf(a.createdAt));
-        const updB = Math.max(tsOf(b.updated_at), tsOf(b.updatedAt), tsOf(b.created_at), tsOf(b.createdAt));
-        if (updA !== updB) return updB - updA;
-        const dateA = a.date || (a as { dateGiven?: string }).dateGiven || '';
-        const dateB = b.date || (b as { dateGiven?: string }).dateGiven || '';
-        const dateCompare = dateB.localeCompare(dateA);
-        if (dateCompare !== 0) return dateCompare;
-        const aNum = parseInt((a.id || '').replace(/\D/g, ''), 10);
-        const bNum = parseInt((b.id || '').replace(/\D/g, ''), 10);
-        if (!isNaN(aNum) && !isNaN(bNum) && aNum !== bNum) return bNum - aNum;
-        if (a.originalIdx !== undefined && b.originalIdx !== undefined && a.originalIdx !== b.originalIdx) {
-          return b.originalIdx - a.originalIdx;
-        }
-        return (b.id || '').localeCompare(a.id || '');
-      })
-      .slice(0, 12);
+    return combined.sort((a, b) => {
+      // Order by ledger day first, not by when the row was last touched —
+      // back-dating yesterday's entries today must not float them into Today.
+      const dayOf = (item: ActivityLogItem) =>
+        (item.date || (item as { dateGiven?: string }).dateGiven || '').slice(0, 10);
+      const tsOf = (raw?: string): number => {
+        if (!raw) return 0;
+        const t = new Date(raw).getTime();
+        return isNaN(t) ? 0 : t;
+      };
+      const dayCompare = dayOf(b).localeCompare(dayOf(a));
+      if (dayCompare !== 0) return dayCompare;
+      const timeA = tsOf(a.date) || tsOf((a as { dateGiven?: string }).dateGiven);
+      const timeB = tsOf(b.date) || tsOf((b as { dateGiven?: string }).dateGiven);
+      if (timeA !== timeB) return timeB - timeA;
+      const updA = Math.max(tsOf(a.updated_at), tsOf(a.updatedAt), tsOf(a.created_at), tsOf(a.createdAt));
+      const updB = Math.max(tsOf(b.updated_at), tsOf(b.updatedAt), tsOf(b.created_at), tsOf(b.createdAt));
+      if (updA !== updB) return updB - updA;
+      const dateA = a.date || (a as { dateGiven?: string }).dateGiven || '';
+      const dateB = b.date || (b as { dateGiven?: string }).dateGiven || '';
+      const dateCompare = dateB.localeCompare(dateA);
+      if (dateCompare !== 0) return dateCompare;
+      const aNum = parseInt((a.id || '').replace(/\D/g, ''), 10);
+      const bNum = parseInt((b.id || '').replace(/\D/g, ''), 10);
+      if (!isNaN(aNum) && !isNaN(bNum) && aNum !== bNum) return bNum - aNum;
+      if (a.originalIdx !== undefined && b.originalIdx !== undefined && a.originalIdx !== b.originalIdx) {
+        return b.originalIdx - a.originalIdx;
+      }
+      return (b.id || '').localeCompare(a.id || '');
+    });
   }, [state.transactions, state.loansGiven]);
 
+  // Recent is today's ledger; View All is the whole ledger, newest first. Both
+  // are capped so a long history cannot turn the panel into an endless column.
+  const visibleActivity = useMemo(() => {
+    const today = todayLocal();
+    const source =
+      activityView === 'recent'
+        ? activityLog.filter((item) => (item.date || item.dateGiven || '').slice(0, 10) === today)
+        : activityLog;
+    return source.slice(0, 12);
+  }, [activityLog, activityView]);
+
   const groupedActivity: { day: string; items: ActivityLogItem[] }[] = [];
-  for (const item of recentActivity) {
+  for (const item of visibleActivity) {
     const label = dayLabel(item.date || item.dateGiven || '');
     const last = groupedActivity[groupedActivity.length - 1];
     if (last && last.day === label) last.items.push(item);
     else groupedActivity.push({ day: label, items: [item] });
   }
 
-  const cashAccounts = state.cashAccounts || [];
-  const debitCards = (state.cards || []).filter((c) => c.cardType === 'Debit' && !c.isCanceled);
+  // Drives the hero deck; see `buildHeroWallets` for why its totals are the same
+  // ones `calculateNetWorth` reports.
+  const heroWallets = buildHeroWallets(state);
 
   const formatXAxis = (tickItem: string) => {
     try {
@@ -346,7 +380,8 @@ export default function Dashboard({
         transactions={state.transactions}
         onAddExpense={() => openQuick('expense')}
         onAddIncome={() => openQuick('income')}
-        onViewTransactions={() => setActiveTab('reports')}
+        wallets={heroWallets}
+        onManageWallets={() => setActiveTab('accounts')}
         onSend={() => {
           setActiveTab('accounts');
           setTimeout(() => {
@@ -354,62 +389,6 @@ export default function Dashboard({
           }, 60);
         }}
       />
-
-      {/* Accounts carousel — wallet tiles + realistic debit card faces */}
-      {(cashAccounts.length > 0 || debitCards.length > 0) && (
-        <section aria-label="Accounts" className="flex flex-col gap-2.5">
-          <div className="flex items-center justify-between px-1">
-            <p className="eyebrow">Accounts</p>
-            <button
-              onClick={() => setActiveTab('accounts')}
-              className="text-[11px] font-bold text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center gap-1 cursor-pointer whitespace-nowrap"
-            >
-              Manage <ArrowRight size={12} />
-            </button>
-          </div>
-          <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory pb-1 -mx-1 px-1">
-            {cashAccounts.map((acc) => (
-              <div key={acc.id} className="snap-start shrink-0 w-[250px]">
-                <CardFace
-                  bankName={acc.name}
-                  cardName="Cash wallet"
-                  balance={acc.balance}
-                  currency={state.currency}
-                  tone={faceToneForSeed(acc.id)}
-                  width={250}
-                  onClick={() => setActiveTab('accounts')}
-                  badge={
-                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-white/70 border border-white/25 rounded-full px-2 py-0.5">
-                      Cash
-                    </span>
-                  }
-                />
-              </div>
-            ))}
-            {debitCards.map((card) => (
-              <div key={card.id} className="snap-start shrink-0 w-[250px]">
-                <CardFace
-                  bankName={card.bankName}
-                  cardName={card.cardName}
-                  balance={card.currentBalance}
-                  currency={state.currency}
-                  cardNumber={card.cardNumber}
-                  tone={faceToneForSeed(card.id)}
-                  width={250}
-                  onClick={() => setActiveTab('accounts')}
-                  badge={
-                    card.isFrozen ? (
-                      <span className="text-[9px] font-extrabold uppercase tracking-widest text-white/70 border border-white/25 rounded-full px-2 py-0.5">
-                        Frozen
-                      </span>
-                    ) : undefined
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Spend mix donut + budget rings */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
@@ -485,7 +464,7 @@ export default function Dashboard({
           ) : (
             <ul className="space-y-3.5">
               {liveBudgetTray.slice(0, 4).map((b) => (
-                <li key={b.category} className="flex items-center gap-3">
+                <li key={b.id} className="flex items-center gap-3">
                   <CategoryChip category={b.category} size="sm" />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2 mb-1.5">
@@ -567,27 +546,35 @@ export default function Dashboard({
         </div>
       </section>
 
-      {/* Recent activity, grouped by day */}
-      <section aria-label="Recent activity" className="card p-5 sm:p-6 flex flex-col gap-3 text-left">
-        <div className="flex justify-between items-center">
-          <p className="eyebrow">Recent activity</p>
-          <button
-            onClick={() => setActiveTab('reports')}
-            className="text-[11px] font-bold text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center gap-1 cursor-pointer whitespace-nowrap"
-          >
-            See all <ArrowRight size={12} />
-          </button>
+      {/* Transactions — frosted sheet. Recent is today's entries, View All is the
+          whole ledger; each row carries its own date, so the day headers only earn
+          their space when several days are on screen at once. */}
+      <section aria-label="Transactions" className="glass-panel p-4 sm:p-5 flex flex-col gap-3 text-left">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="eyebrow">Transactions</p>
+          <SegmentedControl
+            ariaLabel="Transactions range"
+            layoutId="activity-view"
+            value={activityView}
+            onChange={setActivityView}
+            options={[
+              { id: 'all', label: 'View All' },
+              { id: 'recent', label: 'Recent' },
+            ]}
+          />
         </div>
-        {recentActivity.length === 0 ? (
+        {visibleActivity.length === 0 ? (
           <div className="py-10 text-center rounded-[var(--r-sm)] border border-dashed border-[var(--line)] bg-[var(--surface-2)]">
-            <p className="eyebrow">No activity</p>
-            <p className="text-xs text-[var(--ink-2)] mt-1">No ledger entries yet.</p>
+            <p className="eyebrow">{activityView === 'recent' ? 'Nothing today' : 'No activity'}</p>
+            <p className="text-xs text-[var(--ink-2)] mt-1">
+              {activityLog.length === 0 ? 'No ledger entries yet.' : 'Switch to View All for earlier entries.'}
+            </p>
           </div>
         ) : (
           <div>
             {groupedActivity.map((group) => (
               <div key={group.day}>
-                <p className="day-head eyebrow !text-[10px]">{group.day}</p>
+                {activityView === 'all' && <p className="day-head eyebrow !text-[10px]">{group.day}</p>}
                 <div className="divide-y divide-[var(--line)]">
                   {group.items.map((t) => {
                     const isInc =
@@ -599,7 +586,7 @@ export default function Dashboard({
                       <div key={`${t.logType}-${t.id}`} className="[&:last-child]:border-b-0">
                         <TransactionRow
                           title={t.title}
-                          subtitle={t.accountType === 'cash' ? 'Cash' : 'Card'}
+                          meta={activityMeta(t.date || t.dateGiven || '')}
                           category={t.category}
                           isIncome={isInc}
                           amountText={formatMoney(state.currency, t.amount)}

@@ -5,6 +5,8 @@ import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 interface TransactionRowProps {
   title: string;
   subtitle?: string;
+  /** Replaces the whole second line verbatim, for rows that compose it themselves. */
+  meta?: string;
   category: string;
   amountText: string;
   isIncome: boolean;
@@ -15,6 +17,7 @@ interface TransactionRowProps {
 export function TransactionRow({
   title,
   subtitle,
+  meta,
   category,
   amountText,
   isIncome,
@@ -27,9 +30,7 @@ export function TransactionRow({
       <span className="min-w-0 flex-1">
         <span className="block text-[13px] font-semibold tracking-tight text-[var(--ink)] truncate">{title}</span>
         <span className="block text-[11px] text-[var(--ink-3)] mt-0.5 truncate">
-          {subtitle ?? ''}
-          {subtitle ? ' · ' : ''}
-          {category}
+          {meta ?? [subtitle, category].filter(Boolean).join(' · ')}
         </span>
       </span>
       <span className="text-right shrink-0">

@@ -98,6 +98,17 @@ export default function LoansTracker({
   // availableAccounts is memoized so the default-source effects below stay stable
   // across renders and only re-run when the account list actually changes.
 
+  // A receipt posted into a credit card grows the amount owed rather than crediting
+  // funds, and vanishes from every liquid total. Settling a card balance is the card
+  // payment flow's job, so credit cards are not offered as a receipt destination.
+  const receiptAccounts = useMemo(
+    () =>
+      availableAccounts.filter(
+        (acc) => acc.type === 'cash' || !cards.find((c) => c.id === acc.id && c.cardType === 'Credit' && !c.isCanceled),
+      ),
+    [availableAccounts, cards],
+  );
+
   React.useEffect(() => {
     if (availableAccounts.length > 0 && !sourceAccountId) {
       setSourceAccountId(availableAccounts[0].id);
@@ -113,11 +124,11 @@ export default function LoansTracker({
   }, [availableAccounts, increaseSourceId]);
 
   React.useEffect(() => {
-    if (availableAccounts.length > 0 && !receivedInId) {
-      setReceivedInId(availableAccounts[0].id);
-      setReceivedInType(availableAccounts[0].type);
+    if (receiptAccounts.length > 0 && !receivedInId) {
+      setReceivedInId(receiptAccounts[0].id);
+      setReceivedInType(receiptAccounts[0].type);
     }
-  }, [availableAccounts, receivedInId]);
+  }, [receiptAccounts, receivedInId]);
 
   const activeLoans = loans.filter((l) => l.status !== 'Settled');
   const totalLentAmount = loans.reduce((acc, l) => acc + l.totalAmount, 0);
@@ -183,6 +194,16 @@ export default function LoansTracker({
     const destAcc = availableAccounts.find((a) => a.id === receivedInId && a.type === receivedInType);
     const destName = destAcc ? destAcc.name : 'Unknown Account';
     const chargeVal = receivedInType === 'card' ? parseFloat(settleLoanBankCharge) || 0 : 0;
+    if (chargeVal < 0) {
+      setSettlementError('Card charge cannot be negative.');
+      return;
+    }
+    if (chargeVal > amt) {
+      setSettlementError(
+        `Charge ${currency} ${chargeVal.toLocaleString()} exceeds the settlement, which would debit the account.`,
+      );
+      return;
+    }
     onAddSettlement(settlingLoanId, amt, receivedInId, receivedInType, destName, chargeVal);
     setSettlementAmount('');
     setSettleLoanBankCharge('');
@@ -535,7 +556,7 @@ export default function LoansTracker({
                             }}
                             className="input"
                           >
-                            {availableAccounts.map((acc) => (
+                            {receiptAccounts.map((acc) => (
                               <option key={`dest:${acc.id}:${acc.type}`} value={`${acc.id}:${acc.type}`}>
                                 {acc.name} ({currency} {acc.balance.toLocaleString()})
                               </option>

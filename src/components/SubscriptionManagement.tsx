@@ -1,7 +1,8 @@
 ﻿import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import type { CashAccount, BankCard, Subscription, CategoryExpense } from '../types';
-import { Plus, Trash2, Calendar, CreditCard, Play, Pause, CheckCircle2, Clock, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Calendar, Play, Pause, CheckCircle2, Clock, DollarSign } from 'lucide-react';
+import { ServiceIcon } from './ui/ServiceIcon';
 import { useNotifications } from '../context/NotificationContext';
 import { todayLocal } from '../utils';
 
@@ -346,9 +347,14 @@ export default function SubscriptionManagement({
             </button>
           </div>
           <div className="card-flat p-4 flex justify-between items-center gap-3">
-            <div className="min-w-0">
-              <p className="eyebrow !text-[9px]">Service</p>
-              <p className="text-[13px] font-bold truncate">{selectedSubscription.name}</p>
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="icon-chip">
+                <ServiceIcon name={selectedSubscription.name} />
+              </span>
+              <div className="min-w-0">
+                <p className="eyebrow !text-[9px]">Service</p>
+                <p className="text-[13px] font-bold truncate">{selectedSubscription.name}</p>
+              </div>
             </div>
             <div className="text-right">
               <p className="eyebrow !text-[9px]">Due</p>
@@ -442,8 +448,8 @@ export default function SubscriptionManagement({
                 <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-30" />
                 <div className="flex justify-between items-start gap-3">
                   <div className="flex gap-3 items-center">
-                    <span className="w-11 h-11 rounded-full bg-[var(--ink)] text-[var(--accent-fg)] grid place-items-center">
-                      <CreditCard size={16} />
+                    <span className="icon-chip">
+                      <ServiceIcon name={sub.name} />
                     </span>
                     <div>
                       <h4 className="text-[14px] font-bold">{sub.name}</h4>

@@ -53,13 +53,13 @@ export function DashboardMetricsGrid({
       <button
         type="button"
         onClick={onNewGoal ?? handleNavigate}
-        className="mw-nueva w-full rounded-[20px] p-4 flex items-center justify-between gap-4 text-left hover:opacity-95 transition-opacity border border-black/5"
+        className="mw-nueva w-full rounded-[20px] p-4 flex items-center justify-between gap-4 text-left hover:opacity-95 transition-opacity"
       >
         <div className="min-w-0">
-          <p className="text-[15px] font-bold tracking-tight leading-none text-[#0A0A0C]">New goal</p>
-          <p className="mono text-[11px] font-medium text-[#0A0A0C]/60 mt-1">Create a new goal</p>
+          <p className="text-[15px] font-bold tracking-tight leading-none">New goal</p>
+          <p className="mono text-[11px] font-medium opacity-60 mt-1">Create a new goal</p>
         </div>
-        <span className="w-9 h-9 rounded-full bg-[#0A0A0C] text-white flex items-center justify-center shrink-0">
+        <span className="w-9 h-9 rounded-full bg-[var(--accent-fg)] text-[var(--accent)] flex items-center justify-center shrink-0">
           <Plus size={16} strokeWidth={2.2} />
         </span>
       </button>
@@ -71,7 +71,7 @@ export function DashboardMetricsGrid({
             <div className="py-10 text-center border border-dashed border-[var(--line)] rounded-xl bg-[var(--surface-2)]/40 px-4">
               <p className="eyebrow">No goals yet</p>
               <p className="mono text-[11px] text-[var(--ink-2)] mt-1">
-                Tap New goal to start — esta tarjeta queda como pin Janvis (empty state elegante).
+                Tap New goal to start saving towards something.
               </p>
             </div>
           ) : (

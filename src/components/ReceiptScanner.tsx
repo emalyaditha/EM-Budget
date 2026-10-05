@@ -12,11 +12,76 @@ import {
   FileText,
   Edit2,
 } from 'lucide-react';
-import { createWorker } from 'tesseract.js';
+import { createWorker, PSM } from 'tesseract.js';
 import type { Worker, LoggerMessage } from 'tesseract.js';
 import { useNotifications } from '../context/NotificationContext';
 import type { ScannedTransaction } from '../utils/freeOcrParser';
 import { parseReceiptText } from '../utils/freeOcrParser';
+
+/**
+ * Phone cameras produce images far larger than OCR needs, while a cropped
+ * screenshot produces ones far smaller than it can read. Rescaling to this band
+ * is the single biggest accuracy lever available before any parsing happens.
+ */
+const OCR_MAX_EDGE = 2400;
+const OCR_MIN_EDGE = 1000;
+const OCR_MAX_UPSCALE = 2;
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('image decode failed'));
+    img.src = src;
+  });
+}
+
+/**
+ * Repaints the photo through a canvas: rescaled, flattened onto white, greyscaled
+ * and contrast-lifted. Two side effects matter as much as the filtering itself —
+ * JPEG output keeps the upload inside the server's 2MB body limit, and the
+ * re-encode turns a HEIC from an iPhone into something tesseract can decode.
+ */
+async function prepareForOcr(dataUrl: string): Promise<{ image: string; mimeType: string }> {
+  try {
+    const img = await loadImage(dataUrl);
+    const longest = Math.max(img.naturalWidth, img.naturalHeight);
+    if (!longest) throw new Error('empty image');
+
+    let scale = 1;
+    if (longest > OCR_MAX_EDGE) scale = OCR_MAX_EDGE / longest;
+    else if (longest < OCR_MIN_EDGE) scale = Math.min(OCR_MAX_UPSCALE, OCR_MIN_EDGE / longest);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('no canvas context');
+
+    // JPEG has no alpha, so an unfilled canvas would composite a black ground
+    // under any transparent PNG and destroy the text.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Unsupported browsers ignore the assignment rather than throwing.
+    ctx.filter = 'grayscale(1) contrast(1.35) brightness(1.04)';
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    return { image: canvas.toDataURL('image/jpeg', 0.92), mimeType: 'image/jpeg' };
+  } catch (e) {
+    logger.warn('OCR image preparation unavailable, using the original file', e);
+    return { image: dataUrl, mimeType: '' };
+  }
+}
+
+/**
+ * Fewer than two digits means the scan cannot possibly yield an amount, so this
+ * counts as failure and the server gets a turn. Without this the first pass of
+ * garbage silently wins, because it is not empty.
+ */
+function isUsableOcrText(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.length >= 20 && (trimmed.match(/\d/g) || []).length >= 2;
+}
 
 interface ReceiptScannerProps {
   onScanSuccess: (data: {
@@ -100,7 +165,8 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
     if (!imagePreview) return;
     setIsAnalyzing(true);
     setError(null);
-    setStatusMessage('Scanning document...');
+    setStatusMessage('Preparing image...');
+    const { image, mimeType } = await prepareForOcr(imagePreview);
     let extractedText = '';
     let worker: Worker | null = null;
     try {
@@ -113,8 +179,17 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
         },
       }).catch(() => null);
       if (worker) {
+        // A receipt is one column of right-aligned figures. Left at the automatic
+        // mode, tesseract tries to infer layout and merges the label and amount
+        // columns into single lines, which is where amounts go missing.
+        await worker
+          .setParameters({
+            tessedit_pageseg_mode: PSM.SINGLE_COLUMN,
+            preserve_interword_spaces: '1',
+          })
+          .catch(() => null);
         setStatusMessage('Extracting text from image pixels...');
-        const ret = await worker.recognize(imagePreview).catch(() => null);
+        const ret = await worker.recognize(image).catch(() => null);
         extractedText = ret?.data?.text || '';
       }
     } catch (e) {
@@ -128,46 +203,41 @@ export default function ReceiptScanner({ onScanSuccess, currency }: ReceiptScann
         }
       }
     }
-    if (!extractedText.trim()) {
+
+    let serverError: string | null = null;
+    if (!isUsableOcrText(extractedText)) {
       try {
         setStatusMessage('Processing scan on OCR server...');
         const token = localStorage.getItem('auth_session_token') || '';
         const response = await fetch(apiUrl('/api/ocr/free-scan'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ image: imagePreview }),
+          body: JSON.stringify({ image, ...(mimeType ? { mimeType } : {}) }),
         });
-        const resData = await safeJson(response);
         if (response.status === 401) {
-          setIsAnalyzing(false);
-          setStatusMessage('');
-          const msg = 'Sign in required to use server-based OCR. Log in, then try again.';
-          setError(msg);
-          showToast('error', msg);
-          return;
-        }
-        if (response.ok && resData?.success && resData?.text) {
-          extractedText = resData.text;
-        } else if (resData?.error) {
-          throw new Error(resData.error);
+          serverError = 'Sign in required to use server-based OCR. Log in, then try again.';
+        } else if (response.status === 413) {
+          serverError = 'That photo is too large for the OCR service. Move closer to the bill and try again.';
+        } else {
+          const resData = await safeJson(response);
+          if (response.ok && resData?.success && resData?.text) extractedText = resData.text;
+          else serverError = (resData && resData.error) || null;
         }
       } catch {
-        setIsAnalyzing(false);
-        setStatusMessage('');
-        const msg = 'Server OCR is unavailable. Please use a clearer photo or enter the details manually.';
-        setError(msg);
-        showToast('error', msg);
-        return;
+        serverError = 'Server OCR is unavailable.';
       }
     }
+
     setIsAnalyzing(false);
     setStatusMessage('');
-    if (extractedText.trim()) {
-      const parsed = parseReceiptText(extractedText);
+    if (isUsableOcrText(extractedText)) {
+      const parsed = parseReceiptText(extractedText, { currency });
       setScannedResult(parsed);
       showToast('success', 'OCR Scan complete! Verify or tweak details below.');
     } else {
-      const msg = 'No legible text found in image. Please try a clearer photo or enter transaction details manually.';
+      const msg =
+        serverError ||
+        'No legible text found in image. Please try a clearer photo or enter transaction details manually.';
       setError(msg);
       showToast('error', msg);
     }

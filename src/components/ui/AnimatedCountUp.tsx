@@ -5,11 +5,13 @@ export function AnimatedCountUp({
   duration = 1200,
   prefix = '',
   suffix = '',
+  className = 'tabular-nums font-semibold',
 }: {
   value: number;
   duration?: number;
   prefix?: string;
   suffix?: string;
+  className?: string;
 }) {
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -19,6 +21,15 @@ export function AnimatedCountUp({
     const endValue = value;
     let rafId = 0;
     let cancelled = false;
+
+    // The global reduced-motion clamp only touches CSS animation/transition
+    // durations, which does not reach requestAnimationFrame at all.
+    const reduceMotion =
+      typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      setDisplayValue(endValue);
+      return;
+    }
 
     const step = (timestamp: number) => {
       if (cancelled) return;
@@ -46,7 +57,7 @@ export function AnimatedCountUp({
   }, [value, duration]);
 
   return (
-    <span className="tabular-nums font-semibold">
+    <span className={className}>
       {prefix}
       {Math.round(displayValue).toLocaleString()}
       {suffix}

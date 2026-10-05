@@ -1,26 +1,51 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import 'tailwindcss';
 
 /* =========================================================
-   EM BUDGET — design system v3 (OKLCH)
-   Pinterest mobile-banking pass: hue-anchored palette,
-   12/20/28 radius scale, layered shadows, 5-step type
-   scale. Shared class contract unchanged (.card .pill
-   .btn-* .input .gradient-card .hero-* .eyebrow .mono
-   .rainbow-bar) plus new tokens consumed by /ui primitives
-   (BalanceCard, CashCard, TransactionRow, ProgressRing,
-   BottomSheet, BottomNav, SegmentedControl).
+   EM BUDGET — design system v4 "Ambient Vault" (OKLCH)
+   -----------------------------------------------------------------
+   Direction extracted from the reference mobile-banking concept:
+   deep near-black surfaces lit by a single blue ambient source,
+   generous radii, light-weight oversized numerals, pill controls,
+   white "action keys" as the highest-contrast element, and a
+   scalloped pocket card that reveals the glow behind it.
+
+   Class contract is a strict superset of v3. Every selector that
+   existed before still exists (.card .card-lg .card-dark
+   .gradient-card .hero-* .pill .pill-active .rainbow-bar .input
+   .btn-* .nav-pill .money* .delta-* .icon-chip* .tx-row .day-head
+   .floating-nav .nav-item* .nav-fab .card-face* .face-* .bar-*
+   .mw-* .skeleton .pressable .mono .eyebrow .ledger-rule
+   .scrollbar-none) — retokened, never removed, so no consumer
+   breaks. Adds: .card-flat (used 30x, previously undefined),
+   .pocket, .action-key, .stack, .chip-select, .segment, .glow.
    ========================================================= */
 
+/* ---------- scale: shared across both themes ---------- */
 :root {
-  --r-sm: 12px;
-  --r-md: 20px;
-  --r-lg: 28px;
+  /* radii — reference is generous; 4-step scale */
+  --r-xs: 10px;
+  --r-sm: 14px;
+  --r-md: 24px;
+  --r-lg: 32px;
+  --r-xl: 40px;
+
+  /* type scale */
   --text-2xs: 11px;
   --text-xs: 13px;
   --text-sm: 15px;
   --text-lg: 20px;
-  --text-display: clamp(34px, 9vw, 44px);
+  --text-num: clamp(38px, 8vw, 62px);
+  --text-display: clamp(30px, 6vw, 46px);
+
+  /* motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 130ms;
+  --dur: 220ms;
+  --dur-slow: 420ms;
+
+  /* hue anchors — retained for hero-* / face-* mixing */
   --hue-violet: oklch(62% 0.15 300);
   --hue-blue: oklch(62% 0.15 255);
   --hue-cyan: oklch(72% 0.11 215);
@@ -36,188 +61,225 @@
   --chip-gold-deep: oklch(62% 0.13 70);
 }
 
+/* =========================================================
+   DARK — flagship. Deep blue-black, one ambient source.
+   ========================================================= */
+.dark {
+  color-scheme: dark;
+
+  --bg: oklch(13% 0.022 255);
+  --bg-2: oklch(16.5% 0.024 257);
+  --surface: oklch(19.5% 0.022 258);
+  --surface-2: oklch(24% 0.024 259);
+  --surface-3: oklch(29% 0.026 260);
+
+  --ink: oklch(98% 0.004 260);
+  --ink-2: oklch(74% 0.022 258);
+  --ink-3: oklch(55% 0.03 258);
+
+  --line: oklch(27.5% 0.022 258);
+  --line-strong: oklch(36% 0.026 260);
+
+  /* action keys read white-on-ink, the reference's loudest element */
+  --accent: oklch(97% 0.005 260);
+  --accent-fg: oklch(15% 0.02 256);
+
+  --danger: oklch(70% 0.15 15);
+  --danger-bg: oklch(70% 0.15 15 / 0.14);
+  --success: oklch(80% 0.145 165);
+  --success-bg: oklch(80% 0.145 165 / 0.14);
+  --warning: oklch(78% 0.125 78);
+  --warning-bg: oklch(78% 0.125 78 / 0.15);
+
+  /* the single blue light source */
+  --glow: oklch(54% 0.15 252);
+  --glow-2: oklch(48% 0.13 268);
+  --rim: oklch(100% 0 0 / 0.07);
+
+  --shadow: 0 1px 0 var(--rim), 0 2px 6px oklch(0% 0 0 / 0.35), 0 10px 30px oklch(0% 0 0 / 0.32);
+  --shadow-hover: 0 1px 0 var(--rim), 0 4px 10px oklch(0% 0 0 / 0.4), 0 18px 44px oklch(0% 0 0 / 0.42);
+  --shadow-float: 0 1px 0 var(--rim), 0 8px 20px oklch(0% 0 0 / 0.45), 0 28px 70px oklch(0% 0 0 / 0.55);
+
+  --pastel-pink: oklch(78% 0.11 10);
+  --pastel-mint: oklch(84% 0.09 155);
+  --pastel-yellow: oklch(86% 0.11 95);
+  --pastel-lavender: oklch(78% 0.09 285);
+  --pastel-blue: oklch(78% 0.09 240);
+
+  --gradient-nueva: linear-gradient(180deg, oklch(97% 0.005 260) 0%, oklch(91% 0.02 258) 100%);
+  --gradient-card-orange: linear-gradient(135deg, oklch(64% 0.17 45) 0%, oklch(60% 0.19 15) 100%);
+  --gradient-card-blue: linear-gradient(135deg, oklch(56% 0.16 255) 0%, oklch(48% 0.18 280) 100%);
+  --gradient-card-dark: linear-gradient(170deg, var(--surface-2) 0%, var(--surface) 100%);
+  --gradient-card-light: linear-gradient(170deg, var(--surface-2) 0%, var(--surface) 100%);
+  --face-anchor: oklch(20% 0.03 258);
+  --rainbow: linear-gradient(90deg, var(--pastel-lavender) 0%, var(--pastel-blue) 45%, transparent 100%);
+
+  --hero-deep: oklch(14% 0.025 258);
+  --hero-violet: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-violet) 30%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-violet) 11%, var(--bg)) 100%
+  );
+  --hero-blue: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-blue) 32%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-blue) 12%, var(--bg)) 100%
+  );
+  --hero-cyan: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-cyan) 28%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-cyan) 10%, var(--bg)) 100%
+  );
+  --hero-teal: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-teal) 28%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-teal) 10%, var(--bg)) 100%
+  );
+  --hero-mint: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-mint) 26%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-mint) 9%, var(--bg)) 100%
+  );
+  --hero-emerald: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-emerald) 28%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-emerald) 10%, var(--bg)) 100%
+  );
+  --hero-amber: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-amber) 24%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-amber) 8%, var(--bg)) 100%
+  );
+  --hero-orange: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-orange) 24%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-orange) 8%, var(--bg)) 100%
+  );
+  --hero-rose: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-rose) 24%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-rose) 8%, var(--bg)) 100%
+  );
+  --hero-indigo: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-indigo) 30%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-indigo) 11%, var(--bg)) 100%
+  );
+  --hero-slate: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--hue-slate) 30%, var(--bg)) 0%,
+    color-mix(in oklab, var(--hue-slate) 12%, var(--bg)) 100%
+  );
+}
+
+/* =========================================================
+   LIGHT — "paper vault". Same structure, inverted anchor,
+   cooler and deeper than v3 so it is a real peer theme
+   rather than a fallback.
+   ========================================================= */
 .light {
   color-scheme: light;
-  --bg: oklch(97% 0.005 275);
-  --bg-2: oklch(93.5% 0.01 280);
-  --surface: oklch(99% 0.003 280);
-  --surface-2: oklch(95% 0.008 278);
-  --surface-3: oklch(92.5% 0.012 272);
-  --ink: oklch(21% 0.02 270);
-  --ink-2: oklch(48% 0.03 268);
-  --ink-3: oklch(68% 0.026 265);
-  --line: oklch(91% 0.01 272);
-  --line-strong: oklch(84.5% 0.015 270);
-  --accent: oklch(23% 0.028 268);
-  --accent-fg: oklch(99% 0.004 280);
-  --danger: oklch(59% 0.19 22);
-  --danger-bg: oklch(59% 0.19 22 / 0.08);
-  --success: oklch(62% 0.14 155);
-  --success-bg: oklch(62% 0.14 155 / 0.1);
-  --warning: oklch(62% 0.13 70);
-  --warning-bg: oklch(62% 0.13 70 / 0.12);
-  --shadow: 0 1px 2px oklch(21% 0.02 270 / 0.04), 0 6px 24px oklch(21% 0.02 270 / 0.05);
-  --shadow-hover: 0 1px 2px oklch(21% 0.02 270 / 0.05), 0 10px 32px oklch(21% 0.02 270 / 0.08);
-  --shadow-float: 0 2px 6px oklch(21% 0.02 270 / 0.06), 0 18px 44px oklch(21% 0.02 270 / 0.14);
+
+  --bg: oklch(96.5% 0.008 250);
+  --bg-2: oklch(93% 0.012 252);
+  --surface: oklch(99.5% 0.004 255);
+  --surface-2: oklch(95.5% 0.01 252);
+  --surface-3: oklch(91.5% 0.014 250);
+
+  --ink: oklch(20% 0.03 258);
+  --ink-2: oklch(45% 0.035 258);
+  --ink-3: oklch(62% 0.03 258);
+
+  --line: oklch(90% 0.012 252);
+  --line-strong: oklch(82% 0.018 252);
+
+  --accent: oklch(21% 0.032 258);
+  --accent-fg: oklch(99% 0.004 255);
+
+  --danger: oklch(56% 0.19 20);
+  --danger-bg: oklch(56% 0.19 20 / 0.09);
+  --success: oklch(56% 0.14 158);
+  --success-bg: oklch(56% 0.14 158 / 0.11);
+  --warning: oklch(60% 0.13 75);
+  --warning-bg: oklch(60% 0.13 75 / 0.13);
+
+  --glow: oklch(70% 0.13 250);
+  --glow-2: oklch(76% 0.09 268);
+  --rim: oklch(100% 0 0 / 0.6);
+
+  --shadow: 0 1px 2px oklch(20% 0.03 258 / 0.05), 0 8px 26px oklch(20% 0.03 258 / 0.06);
+  --shadow-hover: 0 1px 2px oklch(20% 0.03 258 / 0.06), 0 14px 38px oklch(20% 0.03 258 / 0.1);
+  --shadow-float: 0 2px 6px oklch(20% 0.03 258 / 0.07), 0 22px 52px oklch(20% 0.03 258 / 0.16);
+
   --pastel-pink: oklch(81% 0.08 10);
   --pastel-mint: oklch(89% 0.06 155);
   --pastel-yellow: oklch(91% 0.08 95);
   --pastel-lavender: oklch(83% 0.06 285);
   --pastel-blue: oklch(84% 0.06 240);
-  --gradient-nueva: linear-gradient(135deg, oklch(95% 0.07 95) 0%, oklch(93% 0.04 215) 100%);
+
+  --gradient-nueva: linear-gradient(180deg, oklch(26% 0.032 258) 0%, oklch(18% 0.032 258) 100%);
   --gradient-card-orange: linear-gradient(135deg, oklch(87% 0.06 45) 0%, oklch(86% 0.07 15) 100%);
   --gradient-card-blue: linear-gradient(135deg, oklch(89% 0.05 240) 0%, oklch(87% 0.06 275) 100%);
-  --gradient-card-dark: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
-  --gradient-card-light: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
-  --face-anchor: oklch(35% 0.04 270);
+  --gradient-card-dark: linear-gradient(170deg, var(--surface) 0%, var(--surface-2) 100%);
+  --gradient-card-light: linear-gradient(170deg, var(--surface) 0%, var(--surface-2) 100%);
+  --face-anchor: oklch(35% 0.04 260);
   --rainbow: linear-gradient(90deg, var(--pastel-lavender) 0%, var(--pastel-blue) 45%, transparent 100%);
+
+  --hero-deep: oklch(26% 0.028 260);
   --hero-violet: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-violet) 74%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-violet) 56%, var(--hero-deep)) 100%
   );
   --hero-blue: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-blue) 74%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-blue) 56%, var(--hero-deep)) 100%
   );
   --hero-cyan: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-cyan) 68%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-cyan) 50%, var(--hero-deep)) 100%
   );
   --hero-teal: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-teal) 68%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-teal) 50%, var(--hero-deep)) 100%
   );
   --hero-mint: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-mint) 62%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-mint) 45%, var(--hero-deep)) 100%
   );
   --hero-emerald: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-emerald) 70%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-emerald) 52%, var(--hero-deep)) 100%
   );
   --hero-amber: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-amber) 66%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-amber) 48%, var(--hero-deep)) 100%
   );
   --hero-orange: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-orange) 72%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-orange) 54%, var(--hero-deep)) 100%
   );
   --hero-rose: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-rose) 72%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-rose) 54%, var(--hero-deep)) 100%
   );
   --hero-indigo: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-indigo) 76%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-indigo) 58%, var(--hero-deep)) 100%
   );
   --hero-slate: linear-gradient(
-    160deg,
+    165deg,
     color-mix(in oklab, var(--hue-slate) 70%, var(--hero-deep)) 0%,
     color-mix(in oklab, var(--hue-slate) 52%, var(--hero-deep)) 100%
-  );
-  --hero-deep: oklch(26% 0.02 270);
-}
-
-.dark {
-  color-scheme: dark;
-  --bg: oklch(17% 0.02 268);
-  --bg-2: oklch(21% 0.024 270);
-  --surface: oklch(25% 0.027 270);
-  --surface-2: oklch(30% 0.03 270);
-  --surface-3: oklch(35% 0.035 272);
-  --ink: oklch(96% 0.007 270);
-  --ink-2: oklch(74% 0.03 270);
-  --ink-3: oklch(58% 0.04 272);
-  --line: oklch(32% 0.03 270);
-  --line-strong: oklch(40% 0.038 272);
-  --accent: oklch(96% 0.007 270);
-  --accent-fg: oklch(20% 0.026 268);
-  --danger: oklch(70% 0.14 15);
-  --danger-bg: oklch(70% 0.14 15 / 0.12);
-  --success: oklch(74% 0.13 160);
-  --success-bg: oklch(74% 0.13 160 / 0.12);
-  --warning: oklch(75% 0.12 75);
-  --warning-bg: oklch(75% 0.12 75 / 0.14);
-  --shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 8px 28px oklch(0% 0 0 / 0.35);
-  --shadow-hover: 0 1px 2px oklch(0% 0 0 / 0.45), 0 12px 36px oklch(0% 0 0 / 0.45);
-  --shadow-float: 0 2px 8px oklch(0% 0 0 / 0.45), 0 18px 44px oklch(0% 0 0 / 0.5);
-  --pastel-pink: oklch(81% 0.08 10);
-  --pastel-mint: oklch(89% 0.06 155);
-  --pastel-yellow: oklch(91% 0.08 95);
-  --pastel-lavender: oklch(83% 0.06 285);
-  --pastel-blue: oklch(84% 0.06 240);
-  --gradient-nueva: linear-gradient(135deg, oklch(95% 0.07 95) 0%, oklch(93% 0.04 215) 100%);
-  --gradient-card-orange: linear-gradient(135deg, oklch(68% 0.17 45) 0%, oklch(66% 0.19 15) 100%);
-  --gradient-card-blue: linear-gradient(135deg, oklch(62% 0.16 255) 0%, oklch(55% 0.18 280) 100%);
-  --gradient-card-dark: linear-gradient(180deg, var(--surface-2) 0%, var(--bg-2) 100%);
-  --gradient-card-light: linear-gradient(180deg, var(--surface-2) 0%, var(--bg-2) 100%);
-  --face-anchor: oklch(24% 0.03 270);
-  --rainbow: linear-gradient(90deg, var(--pastel-lavender) 0%, var(--pastel-blue) 45%, transparent 100%);
-  --hero-violet: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-violet) 26%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-violet) 10%, var(--bg)) 100%
-  );
-  --hero-blue: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-blue) 26%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-blue) 10%, var(--bg)) 100%
-  );
-  --hero-cyan: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-cyan) 26%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-cyan) 10%, var(--bg)) 100%
-  );
-  --hero-teal: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-teal) 26%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-teal) 10%, var(--bg)) 100%
-  );
-  --hero-mint: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-mint) 26%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-mint) 10%, var(--bg)) 100%
-  );
-  --hero-emerald: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-emerald) 26%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-emerald) 10%, var(--bg)) 100%
-  );
-  --hero-amber: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-amber) 24%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-amber) 9%, var(--bg)) 100%
-  );
-  --hero-orange: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-orange) 24%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-orange) 9%, var(--bg)) 100%
-  );
-  --hero-rose: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-rose) 24%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-rose) 9%, var(--bg)) 100%
-  );
-  --hero-indigo: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-indigo) 26%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-indigo) 10%, var(--bg)) 100%
-  );
-  --hero-slate: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--hue-slate) 30%, var(--bg)) 0%,
-    color-mix(in oklab, var(--hue-slate) 12%, var(--bg)) 100%
   );
 }
 
@@ -227,22 +289,59 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+/* =========================================================
+   BASE
+   ========================================================= */
 html {
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+html,
+body {
+  overflow-x: clip;
 }
 body {
   font-family: var(--font-sans);
   background: var(--bg);
   color: var(--ink);
   min-height: 100dvh;
+  transition: background-color var(--dur) var(--ease-out);
 }
+
+/* The ambient source: one broad blue light falling from the top,
+   a cooler secondary low on the right. Fixed so it reads as room
+   lighting rather than a scroll decal. */
 .dark body {
-  background: radial-gradient(90% 55% at 50% 0%, #181c28 0%, var(--bg) 62%);
+  background:
+    radial-gradient(115% 65% at 50% -12%, color-mix(in oklab, var(--glow) 42%, transparent) 0%, transparent 58%),
+    radial-gradient(80% 55% at 88% 108%, color-mix(in oklab, var(--glow-2) 22%, transparent) 0%, transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+.light body {
+  background:
+    radial-gradient(110% 60% at 50% -10%, color-mix(in oklab, var(--glow) 20%, transparent) 0%, transparent 55%),
+    var(--bg);
   background-attachment: fixed;
 }
 #root {
   min-height: 100dvh;
+}
+/* Full-screen overlays paint above the body, so they have to repaint the
+   ambient themselves — a transparent overlay lets app chrome bleed through. */
+.ambient {
+  background:
+    radial-gradient(115% 65% at 50% -12%, color-mix(in oklab, var(--glow) 42%, transparent) 0%, transparent 58%),
+    radial-gradient(80% 55% at 88% 108%, color-mix(in oklab, var(--glow-2) 22%, transparent) 0%, transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+.light .ambient {
+  background:
+    radial-gradient(110% 60% at 50% -10%, color-mix(in oklab, var(--glow) 20%, transparent) 0%, transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
 }
 h1,
 h2,
@@ -250,12 +349,16 @@ h3,
 h4 {
   font-family: var(--font-display);
   font-style: normal;
-  letter-spacing: -0.011em;
+  letter-spacing: -0.018em;
 }
 ::selection {
   background: color-mix(in srgb, var(--pastel-lavender) 65%, transparent);
   color: var(--ink);
 }
+
+/* =========================================================
+   TYPE UTILITIES
+   ========================================================= */
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -263,7 +366,7 @@ h4 {
 .eyebrow {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
@@ -271,12 +374,58 @@ h4 {
   height: 1px;
   background: var(--line);
 }
+
+/* Money. The reference's defining move: large, LIGHT, tight. */
+.money-display {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.numeral {
+  font-family: var(--font-display);
+  font-size: var(--text-num);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.numeral-md {
+  font-size: clamp(26px, 4.5vw, 34px);
+  font-weight: 400;
+}
+.numeral-sup {
+  font-family: var(--font-sans);
+  font-size: 0.28em;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  vertical-align: 0.62em;
+  margin-left: 0.28em;
+  color: var(--ink-3);
+}
+.money {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* =========================================================
+   SURFACES
+   ========================================================= */
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow);
-  transition: border-color 0.15s var(--ease-out, ease-out);
+  transition:
+    border-color var(--dur) var(--ease-out),
+    background-color var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
 }
 .card:hover {
   border-color: var(--line-strong);
@@ -284,10 +433,24 @@ h4 {
 .card-lg {
   border-radius: var(--r-lg);
 }
+/* Flat panel: no border, no shadow, inset fill. Used 30x across
+   the app but never actually defined until v4. */
+.card-flat {
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+}
 .card-dark {
   background: var(--gradient-card-dark);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
+  color: #ffffff;
+}
+.card-dark .eyebrow {
+  color: rgba(255, 255, 255, 0.55);
+}
+.card-dark .ledger-rule {
+  background: rgba(255, 255, 255, 0.12);
 }
 .gradient-card {
   border-radius: var(--r-md);
@@ -339,6 +502,393 @@ h4 {
 .hero-slate {
   background: var(--hero-slate);
 }
+
+/* =========================================================
+   v4 STRUCTURAL VOCABULARY — new, additive
+   ========================================================= */
+
+/* Pocket card. A scalloped notch is cut out of the top edge so the
+   ambient glow shows through, exactly as in the reference balance
+   card. Background lives on a masked pseudo-element so the real
+   element can keep a shape-accurate drop-shadow via filter. */
+.pocket {
+  --notch-w: 46px;
+  --notch-h: 22px;
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--r-lg);
+  filter: drop-shadow(0 18px 44px oklch(0% 0 0 / 0.42));
+}
+.light .pocket {
+  filter: drop-shadow(0 14px 34px oklch(20% 0.03 258 / 0.12));
+}
+.pocket::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in oklab, var(--glow) 16%, var(--surface)) 0%, var(--surface) 62%),
+    var(--surface);
+  border: 1px solid var(--line);
+  -webkit-mask: radial-gradient(ellipse var(--notch-w) var(--notch-h) at 50% 0%, transparent 99%, #000 calc(99% + 1px));
+  mask: radial-gradient(ellipse var(--notch-w) var(--notch-h) at 50% 0%, transparent 99%, #000 calc(99% + 1px));
+}
+.pocket > * {
+  position: relative;
+}
+
+/* Action key — the reference's white Send/Receive/Add trio.
+   A saddle dip is masked into the top edge. Highest contrast
+   element on the screen; reserve for primary money actions. */
+.action-key {
+  --key-notch: 18px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 27px 10px 16px;
+  border-radius: 18px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  border: none;
+  -webkit-mask: radial-gradient(circle var(--key-notch) at 50% 0%, transparent 98.5%, #000 calc(98.5% + 1px));
+  mask: radial-gradient(circle var(--key-notch) at 50% 0%, transparent 98.5%, #000 calc(98.5% + 1px));
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    filter var(--dur-fast) var(--ease-out);
+}
+.action-key:hover {
+  filter: brightness(0.94);
+}
+.action-key:active {
+  transform: scale(0.965);
+}
+.action-key:disabled,
+.action-key[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+.action-key-icon {
+  display: block;
+  line-height: 0;
+}
+
+/* Card stack — peers sit behind and above the active face,
+   scaled down and dimmed, as in the reference card carousel. */
+.stack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stack-item {
+  transition:
+    transform var(--dur) var(--ease-out),
+    opacity var(--dur) var(--ease-out);
+}
+.stack-item[data-depth='1'],
+.stack-item[data-depth='2'] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  opacity: 0.45;
+  pointer-events: none;
+}
+.stack-item[data-depth='1'] {
+  transform: translateY(-11px) scale(0.955);
+  opacity: 0.7;
+}
+.stack-item[data-depth='2'] {
+  transform: translateY(-20px) scale(0.91);
+  opacity: 0.4;
+}
+
+/* Chip selector + segmented control */
+.chip-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.chip-select:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.segment-item {
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.segment-item:hover {
+  color: var(--ink);
+}
+.segment-item[aria-selected='true'],
+.segment-item[data-active='true'] {
+  background: var(--surface-3);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+/* Hairline icon button — header chrome (bell, theme, avatar) */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.icon-btn:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+/* Header chrome — one glass pill holding the icon buttons, with the avatar
+   overlapping its right edge. `.segment` is deliberately not reused: its
+   unlayered padding and `.segment-item` typography would beat any utility
+   trying to size an icon button inside it. */
+.glass-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+.glass-pill .icon-btn {
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border-color: transparent;
+}
+.glass-pill .icon-btn:hover {
+  background: color-mix(in srgb, var(--surface-3) 70%, transparent);
+  border-color: var(--line);
+}
+/* Wallet chip inside the hero. The <select> carries the semantics and the OS
+   picker; the wrapper span carries the `.chip-select` paint, because
+   `.chip-select`'s own padding/border/background are unlayered and would
+   silently outrank utilities placed on the select itself. */
+.wallet-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  max-width: 168px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The option list is painted by the platform, so it needs explicit ink. */
+.wallet-select option {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+/* Frosted sheet for the transactions list. `.card` is deliberately opaque, so
+   the translucent panel needs its own surface rule; the blur samples the page
+   glow behind it instead of a flat fill. */
+.glass-panel {
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+}
+
+/* Wallet deck — the balance card is the FRONT of the stack. The two peer faces
+   are absolutely positioned and share the hero's top edge as their baseline:
+   each sits one lip higher and is scaled from its own top edge, so scaling
+   narrows a face instead of sliding its lips apart at wider widths. The nearest
+   face is clipped to its lip because `.pocket` is translucent — left whole, its
+   masked card number reads through the panel as a ghost. Clipping both, rather
+   than letting the near face cover the far one, is what keeps the stack to
+   exactly two lips. Both sit above the hero so the lips stay tappable and their
+   focus rings stay whole.
+   `margin-bottom` cancels the flex gap so the hero sits exactly on the baseline. */
+.deck {
+  --deck-lip: 30px;
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 340px;
+  height: calc(var(--deck-lip) * 2);
+  margin: 0 auto -16px;
+}
+.deck-face {
+  position: absolute;
+  left: 0;
+  right: 0;
+  transform-origin: top center;
+  clip-path: inset(0 0 calc(100% - var(--deck-lip)) 0);
+  transition:
+    transform var(--dur) var(--ease-out),
+    opacity var(--dur) var(--ease-out);
+}
+.deck-face[data-depth='2'] {
+  top: 0;
+  transform: scale(0.88);
+  opacity: 0.42;
+}
+.deck-face[data-depth='1'] {
+  top: var(--deck-lip);
+  transform: scale(0.94);
+  opacity: 0.78;
+}
+.deck-front {
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 420px) {
+  .deck {
+    max-width: 100%;
+  }
+}
+
+/* Sidebar rail — translucent so the ambient source reads through it
+   instead of being masked by an opaque panel. Sits a step denser than
+   the header because it is the wider surface. */
+.shell-sidebar {
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  border-right: 1px solid var(--line);
+}
+.shell-header {
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border-bottom: 1px solid var(--line);
+}
+/* Panels that must stay readable over the glow (menus, popovers). */
+.shell-raised {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-float);
+  border-radius: var(--r-md);
+}
+
+/* Sidebar nav link. Active state is an elevated rim-lit pill, not a
+   solid block — white stays reserved for money actions. */
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.nav-link:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  border-color: var(--line);
+}
+.nav-link[data-active='true'] {
+  color: var(--ink);
+  background: var(--surface-3);
+  border-color: var(--line-strong);
+  box-shadow:
+    inset 0 1px 0 var(--rim),
+    0 2px 10px oklch(0% 0 0 / 0.18);
+  font-weight: 700;
+}
+.nav-link[data-active='true'] .nav-link-dot {
+  opacity: 1;
+  transform: scaleY(1);
+}
+.nav-link-dot {
+  width: 3px;
+  height: 15px;
+  border-radius: 999px;
+  background: var(--glow);
+  opacity: 0;
+  transform: scaleY(0.3);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   CONTROLS (v3 contract)
+   ========================================================= */
 .pill {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -352,9 +902,9 @@ h4 {
   gap: 6px;
   cursor: pointer;
   transition:
-    border-color 0.15s ease-out,
-    background-color 0.15s ease-out,
-    color 0.15s ease-out;
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
   user-select: none;
 }
 .pill:hover {
@@ -386,13 +936,12 @@ h4 {
 .mw-nueva {
   background: var(--gradient-nueva);
   border-radius: 24px;
-  color: #0a0a0c;
+  color: var(--accent-fg);
 }
 .mw-progress {
   background: var(--gradient-nueva);
   border-radius: 999px;
 }
-/* pastel bars — Money Wise 5 heights */
 .bar-pink {
   background: var(--pastel-pink);
 }
@@ -408,15 +957,6 @@ h4 {
 .bar-blue {
   background: var(--pastel-blue);
 }
-.card-dark {
-  color: #ffffff;
-}
-.card-dark .eyebrow {
-  color: rgba(255, 255, 255, 0.55);
-}
-.card-dark .ledger-rule {
-  background: rgba(255, 255, 255, 0.12);
-}
 .btn-primary {
   background: var(--accent);
   color: var(--accent-fg);
@@ -429,9 +969,9 @@ h4 {
   white-space: nowrap;
   cursor: pointer;
   transition:
-    background-color 0.15s ease-out,
-    border-color 0.15s ease-out,
-    transform 0.1s ease-out;
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 .btn-primary:hover {
   background: color-mix(in srgb, var(--accent) 88%, var(--surface));
@@ -457,9 +997,9 @@ h4 {
   white-space: nowrap;
   cursor: pointer;
   transition:
-    background-color 0.15s ease-out,
-    border-color 0.15s ease-out,
-    transform 0.1s ease-out;
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 .btn-ghost:hover {
   background: var(--surface-2);
@@ -478,22 +1018,22 @@ h4 {
 .input {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-sm);
   padding: 11px 14px;
   font-size: 13.5px;
   color: var(--ink);
   width: 100%;
   transition:
-    border-color 0.15s ease-out,
-    box-shadow 0.15s ease-out;
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 .input::placeholder {
   color: var(--ink-3);
 }
 .input:focus {
   outline: none;
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 18%, transparent);
+  border-color: var(--line-strong);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--glow) 30%, transparent);
 }
 .nav-pill {
   background: var(--surface);
@@ -504,92 +1044,10 @@ h4 {
   gap: 4px;
   box-shadow: var(--shadow);
 }
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
-}
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--line-strong);
-  border-radius: 999px;
-}
-.scrollbar-none {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
-}
-*:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
-}
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-.light .bg-black,
-.light .bg-\[\#050508\],
-.light .bg-\[\#08080c\],
-.light .bg-zinc-900,
-.light .bg-zinc-950 {
-  background: var(--surface) !important;
-}
 
 /* =========================================================
-   LIGHT MODE — generic dark gradient headers fall back to
-   a light surface and re-theme their white text/overlay
-   utilities. Hue-pinned hero panels (.hero-*) define their
-   own light-mode gradients and are excluded here.
+   DATA DISPLAY
    ========================================================= */
-.light .gradient-card:not([class*='hero-']),
-.light .card-dark {
-  background: var(--gradient-card-light) !important;
-  border: 1px solid var(--line) !important;
-  color: var(--ink) !important;
-}
-.light .gradient-card:not([class*='hero-']) [class*='text-white'],
-.light .card-dark [class*='text-white'] {
-  color: var(--ink) !important;
-}
-.light .gradient-card:not([class*='hero-']) [class*='border-white'],
-.light .card-dark [class*='border-white'] {
-  border-color: var(--line) !important;
-}
-.light .gradient-card:not([class*='hero-']) [class*='bg-white'],
-.light .card-dark [class*='bg-white'] {
-  background: color-mix(in srgb, var(--ink) 8%, transparent) !important;
-}
-
-/* =========================================================
-   v3 PRIMITIVES — Pinterest layout vocabulary
-   Consumed by BalanceCard / CashCard / TransactionRow /
-   BottomNav / SegmentedControl / ProgressRing / skeletons.
-   Everything here is token-driven; no hex in components.
-   ========================================================= */
-.money-display {
-  font-family: var(--font-display);
-  font-size: var(--text-display);
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-  min-width: 0;
-}
-.money {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
 .delta-chip {
   display: inline-flex;
   align-items: center;
@@ -628,28 +1086,32 @@ h4 {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 4px;
+  padding: 12px 10px;
   border-radius: var(--r-sm);
   cursor: pointer;
   transition:
-    background-color 0.15s ease-out,
-    transform 0.12s ease-out;
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 .tx-row:hover {
   background: var(--surface-2);
 }
 .tx-row:active {
-  transform: scale(0.99);
+  transform: scale(0.995);
 }
 .day-head {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   padding: 6px 4px;
 }
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
 .floating-nav {
   position: fixed;
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
@@ -663,13 +1125,15 @@ h4 {
   gap: 4px;
   padding: 8px 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-float);
 }
-@media (min-width: 768px) {
+/* Must match the sidebar's `lg` breakpoint exactly — 768 here left
+   768–1023px with no navigation surface at all. */
+@media (min-width: 1024px) {
   .floating-nav {
     display: none;
   }
@@ -690,7 +1154,7 @@ h4 {
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: color 0.15s ease-out;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 .nav-item:hover {
   color: var(--ink-2);
@@ -712,15 +1176,21 @@ h4 {
   background: var(--accent);
   color: var(--accent-fg);
   border: 3px solid var(--bg);
-  box-shadow: var(--shadow-float);
+  box-shadow:
+    var(--shadow-float),
+    0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
   cursor: pointer;
   flex-shrink: 0;
   margin-top: -14px;
-  transition: transform 0.15s ease-out;
+  transition: transform var(--dur-fast) var(--ease-spring);
 }
 .nav-fab:active {
-  transform: scale(0.94);
+  transform: scale(0.92);
 }
+
+/* =========================================================
+   CARD FACES (physical card artwork)
+   ========================================================= */
 .card-face {
   position: relative;
   overflow: hidden;
@@ -793,6 +1263,10 @@ h4 {
     var(--face-anchor) 100%
   );
 }
+
+/* =========================================================
+   STATE + MOTION
+   ========================================================= */
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -817,11 +1291,95 @@ h4 {
     transform: translateX(100%);
   }
 }
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
 .pressable {
-  transition: transform 0.15s ease-out;
+  transition: transform var(--dur-fast) var(--ease-out);
 }
 .pressable:active {
   transform: scale(0.97);
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+}
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+*:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .rise {
+    animation: none;
+  }
+}
+
+/* =========================================================
+   LIGHT MODE — generic dark gradient headers fall back to
+   a light surface and re-theme their white text/overlay
+   utilities. Hue-pinned hero panels (.hero-*) define their
+   own light-mode gradients and are excluded here.
+   ========================================================= */
+.light .bg-black,
+.light .bg-\[\#050508\],
+.light .bg-\[\#08080c\],
+.light .bg-zinc-900,
+.light .bg-zinc-950 {
+  background: var(--surface) !important;
+}
+.light .gradient-card:not([class*='hero-']),
+.light .card-dark {
+  background: var(--gradient-card-light) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--ink) !important;
+}
+.light .gradient-card:not([class*='hero-']) [class*='text-white'],
+.light .card-dark [class*='text-white'] {
+  color: var(--ink) !important;
+}
+.light .gradient-card:not([class*='hero-']) [class*='border-white'],
+.light .card-dark [class*='border-white'] {
+  border-color: var(--line) !important;
+}
+.light .gradient-card:not([class*='hero-']) [class*='bg-white'],
+.light .card-dark [class*='bg-white'] {
+  background: color-mix(in srgb, var(--ink) 8%, transparent) !important;
 }
 
 /* =========================================================
@@ -839,6 +1397,12 @@ h4 {
     background: #ffffff !important;
     color: #000000 !important;
   }
+  /* The deck's peeking faces would otherwise print as three overlapping
+     cards behind the balance figure. */
+  .deck-face[data-depth='1'],
+  .deck-face[data-depth='2'] {
+    display: none;
+  }
   #header-brand-rail,
   #docked-desktop-sidebar,
   #tab-header-block,
@@ -854,7 +1418,6 @@ h4 {
     background: #ffffff !important;
     break-inside: avoid;
   }
-  /* hide interactive controls */
   #reports-centre-view .card.p-1\.5,
   #reports-centre-view .card.p-3,
   #reports-centre-view .card-sm,

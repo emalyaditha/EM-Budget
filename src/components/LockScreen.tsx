@@ -139,7 +139,7 @@ export default function LockScreen({
   return (
     <div
       id="app-lock-container"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 overflow-y-auto bg-[var(--bg)] text-[var(--ink)]"
+      className="ambient fixed inset-0 z-50 flex flex-col items-center justify-center p-6 overflow-y-auto text-[var(--ink)]"
     >
       <div className="w-full max-w-[420px]">
         <div className="card p-8 md:p-9">

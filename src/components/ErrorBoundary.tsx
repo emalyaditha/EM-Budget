@@ -47,7 +47,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-6 text-[var(--ink)] selection:bg-[var(--ink)] selection:text-[var(--bg)]">
+        <div className="min-h-screen flex items-center justify-center p-6 text-[var(--ink)] selection:bg-[var(--ink)] selection:text-[var(--bg)]">
           <div className="max-w-md w-full card p-6 relative overflow-hidden text-left border-[var(--danger)]/20">
             <div className="absolute -top-12 -right-12 w-24 h-24 bg-[var(--danger)]/10 rounded-full blur-2xl pointer-events-none" />
 

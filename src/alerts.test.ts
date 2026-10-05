@@ -59,7 +59,26 @@ describe('computeAlerts', () => {
     expect(alerts.some((a) => a.type === 'bill' && a.severity === 'critical' && a.title.includes('today'))).toBe(true);
   });
 
-  it('flags an active subscription due within the soon-window as a warning', () => {
+  it('flags an active subscription due tomorrow as a warning', () => {
+    const state = baseState();
+    state.subscriptions = [
+      {
+        id: 's1',
+        name: 'Fitness Gym',
+        amount: 40,
+        billingCycle: 'Monthly',
+        dueDate: isoWithOffset(1),
+        category: 'Other',
+        status: 'Active',
+      },
+    ];
+    const alerts = computeAlerts(state, TODAY_MS);
+    expect(alerts.some((a) => a.type === 'bill' && a.severity === 'warning' && a.title.includes('1 day'))).toBe(true);
+  });
+
+  // The window is the day before and the day itself — anything further out is
+  // still next week's problem and only lengthens the list to dismiss.
+  it('stays quiet for a bill that is not due within the next day', () => {
     const state = baseState();
     state.subscriptions = [
       {
@@ -72,8 +91,7 @@ describe('computeAlerts', () => {
         status: 'Active',
       },
     ];
-    const alerts = computeAlerts(state, TODAY_MS);
-    expect(alerts.some((a) => a.type === 'bill' && a.severity === 'warning' && a.title.includes('2 days'))).toBe(true);
+    expect(computeAlerts(state, TODAY_MS)).toEqual([]);
   });
 
   it('ignores paused or cancelled subscriptions', () => {

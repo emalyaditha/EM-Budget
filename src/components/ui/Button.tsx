@@ -44,11 +44,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       danger:
         'bg-[var(--danger)] text-white border border-[var(--danger)] hover:brightness-95 font-semibold rounded-full',
     };
+    // `.btn-primary`/`.btn-ghost` are unlayered rules, so they outrank Tailwind
+    // utilities. Size has to win with `!` or every variant renders identical.
     const sizes: Record<string, string> = {
-      sm: 'px-3 py-1.5 text-xs gap-1.5 h-8',
-      md: 'px-4 py-2 text-xs gap-2 h-9',
-      lg: 'px-6 py-2.5 text-sm gap-2 h-10',
-      icon: 'p-2 w-8 h-8',
+      sm: '!px-3.5 !py-1.5 !text-xs gap-1.5',
+      md: '!px-5 !py-2.5 !text-[13px] gap-2',
+      lg: '!px-6 !py-3 !text-sm gap-2',
+      icon: '!p-0 !w-9 !h-9',
     };
     return (
       <motion.button

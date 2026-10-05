@@ -18,6 +18,9 @@ api/index.js.map
 # SDD plan execution workspace (superpowers)
 .superpowers/
 
+# tesseract.js language cache, downloaded into cwd on first server-side OCR run
+*.traineddata
+
 results.sarif
 
 test-results/

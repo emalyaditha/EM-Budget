@@ -22,6 +22,29 @@ export function todayLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// An alert is worth surfacing for its own day and the one before it, and for
+// nothing older. Everything the app files as a notification carries a ledger
+// day, so without this window a cleared entry that the cloud still had, or a
+// note from last month, kept returning to the top of the list forever.
+const ALERT_LOOKBACK_DAYS = 1;
+
+/** True when a ledger day (`YYYY-MM-DD`, or a timestamp) is today or yesterday. */
+export function isAlertDayRecent(iso: string | undefined, nowMs: number = Date.now()): boolean {
+  if (!iso) return false;
+  const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
+  let day: number;
+  if (parts) {
+    day = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])).getTime();
+  } else {
+    const instant = Date.parse(iso);
+    if (isNaN(instant)) return false;
+    day = new Date(instant).setHours(0, 0, 0, 0);
+  }
+  if (isNaN(day)) return false;
+  const today = new Date(nowMs).setHours(0, 0, 0, 0);
+  return day <= today && today - day <= ALERT_LOOKBACK_DAYS * 86400000;
+}
+
 const STORAGE_KEY = 'cashflow_manager_state_v1';
 const STORAGE_OWNER_KEY = 'cashflow_manager_state_owner_v1';
 const STORAGE_DIRTY_OWNER_KEY = 'cashflow_manager_state_dirty_owner_v1';
@@ -118,6 +141,67 @@ export function clearTombstones(ownerEmail?: string) {
   } catch (error) {
     logger.error('Failed to clear deletion tombstones:', error);
   }
+}
+
+// Closed alerts. Unlike ledger rows these are not worth a tombstone that
+// survives a push — the point of closing one is that it stops nagging for the
+// day it was raised and the day before, so a dismissal is stamped with its day
+// and simply stops being honoured once it falls outside that window.
+const DISMISSED_ALERTS_KEY = 'cashflow_manager_dismissed_alerts_v1';
+
+/** owner email -> alert id -> the local day it was closed. */
+function readDismissedAlerts(): Record<string, Record<string, string>> {
+  try {
+    const raw = localStorage.getItem(DISMISSED_ALERTS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Record<string, Record<string, string>> = {};
+    for (const [email, byId] of Object.entries(parsed as Record<string, unknown>)) {
+      if (!byId || typeof byId !== 'object' || Array.isArray(byId)) continue;
+      const clean: Record<string, string> = {};
+      for (const [id, day] of Object.entries(byId as Record<string, unknown>)) {
+        if (typeof day === 'string') clean[id] = day;
+      }
+      out[email.trim().toLowerCase()] = clean;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function recordDismissedAlerts(ownerEmail: string | undefined, ids: Iterable<string>) {
+  if (!ownerEmail) return;
+  const newIds = [...ids];
+  if (newIds.length === 0) return;
+  try {
+    const key = ownerEmail.trim().toLowerCase();
+    const all = readDismissedAlerts();
+    const day = todayLocal();
+    // Re-reading the window here also prunes, so the record cannot grow without
+    // bound on a long-lived device.
+    const mine: Record<string, string> = {};
+    for (const [id, closedDay] of Object.entries(all[key] || {})) {
+      if (isAlertDayRecent(closedDay)) mine[id] = closedDay;
+    }
+    for (const id of newIds) mine[id] = day;
+    all[key] = mine;
+    localStorage.setItem(DISMISSED_ALERTS_KEY, JSON.stringify(all));
+  } catch (error) {
+    logger.error('Failed to record dismissed alerts:', error);
+  }
+}
+
+/** Ids this account has closed that are still inside the today-or-yesterday window. */
+export function getDismissedAlertIds(ownerEmail?: string, nowMs: number = Date.now()): Set<string> {
+  if (!ownerEmail) return new Set();
+  const mine = readDismissedAlerts()[ownerEmail.trim().toLowerCase()] || {};
+  return new Set(
+    Object.entries(mine)
+      .filter(([, closedDay]) => isAlertDayRecent(closedDay, nowMs))
+      .map(([id]) => id),
+  );
 }
 
 // Synchronize state with offline-first client-side storage. The mirror is
