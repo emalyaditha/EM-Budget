@@ -400,6 +400,17 @@ h4 {
   font-size: clamp(26px, 4.5vw, 34px);
   font-weight: 400;
 }
+/* The hero figure is the one number that has to fit its own card rather than
+   the viewport: from `lg` the dashboard splits into two columns, so a
+   phone-width card sits inside a laptop viewport and a vw clamp wraps the
+   digits onto a second line. 15cqi only falls below --text-num once the card
+   is narrower than ~413px, so every phone keeps its current size exactly. */
+.hero-face {
+  container-type: inline-size;
+}
+.numeral-hero {
+  font-size: min(var(--text-num), 15cqi);
+}
 .numeral-sup {
   font-family: var(--font-sans);
   font-size: 0.28em;
@@ -512,8 +523,8 @@ h4 {
    card. Background lives on a masked pseudo-element so the real
    element can keep a shape-accurate drop-shadow via filter. */
 .pocket {
-  --notch-w: 46px;
-  --notch-h: 22px;
+  --notch-w: 78px;
+  --notch-h: 24px;
   position: relative;
   isolation: isolate;
   border-radius: var(--r-lg);
@@ -543,7 +554,8 @@ h4 {
    A saddle dip is masked into the top edge. Highest contrast
    element on the screen; reserve for primary money actions. */
 .action-key {
-  --key-notch: 18px;
+  --key-notch-w: 26px;
+  --key-notch-h: 15px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -560,8 +572,16 @@ h4 {
   letter-spacing: -0.01em;
   cursor: pointer;
   border: none;
-  -webkit-mask: radial-gradient(circle var(--key-notch) at 50% 0%, transparent 98.5%, #000 calc(98.5% + 1px));
-  mask: radial-gradient(circle var(--key-notch) at 50% 0%, transparent 98.5%, #000 calc(98.5% + 1px));
+  -webkit-mask: radial-gradient(
+    ellipse var(--key-notch-w) var(--key-notch-h) at 50% 0%,
+    transparent 98.5%,
+    #000 calc(98.5% + 1px)
+  );
+  mask: radial-gradient(
+    ellipse var(--key-notch-w) var(--key-notch-h) at 50% 0%,
+    transparent 98.5%,
+    #000 calc(98.5% + 1px)
+  );
   transition:
     transform var(--dur-fast) var(--ease-out),
     filter var(--dur-fast) var(--ease-out);
@@ -769,13 +789,15 @@ h4 {
    than letting the near face cover the far one, is what keeps the stack to
    exactly two lips. Both sit above the hero so the lips stay tappable and their
    focus rings stay whole.
-   `margin-bottom` cancels the flex gap so the hero sits exactly on the baseline. */
+   The deck is deliberately the hero's own width rather than a fixed card width:
+   a capped deck floats as an island above a wide panel, which is what broke the
+   composition at laptop widths. `margin-bottom` cancels the flex gap so the hero
+   sits exactly on the baseline. */
 .deck {
   --deck-lip: 30px;
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 340px;
   height: calc(var(--deck-lip) * 2);
   margin: 0 auto -16px;
 }
@@ -802,11 +824,6 @@ h4 {
 .deck-front {
   position: relative;
   z-index: 1;
-}
-@media (max-width: 420px) {
-  .deck {
-    max-width: 100%;
-  }
 }
 
 /* Sidebar rail — translucent so the ambient source reads through it
@@ -978,6 +995,21 @@ h4 {
 }
 .btn-primary:active {
   transform: translateY(1px);
+}
+
+/* Sidebar call to action — the reference's glowing primary pill. The ambient
+   breathing is decorative and stops under prefers-reduced-motion. */
+.cta-glow {
+  animation: cta-breathe 4.5s var(--ease-out, ease-in-out) infinite;
+}
+@keyframes cta-breathe {
+  0%,
+  100% {
+    box-shadow: 0 14px 34px -14px color-mix(in srgb, var(--glow) 85%, transparent);
+  }
+  50% {
+    box-shadow: 0 18px 46px -12px color-mix(in srgb, var(--glow) 95%, transparent);
+  }
 }
 .btn-primary:disabled,
 .btn-primary[disabled] {
@@ -1346,6 +1378,9 @@ h4 {
     scroll-behavior: auto !important;
   }
   .rise {
+    animation: none;
+  }
+  .cta-glow {
     animation: none;
   }
 }

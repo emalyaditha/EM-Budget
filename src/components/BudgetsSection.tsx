@@ -260,7 +260,7 @@ export default function BudgetsSection({
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
             {budgets.map((budget) => {
               const ratio = budget.spent / budget.limit;
               const isOver = ratio > 1;

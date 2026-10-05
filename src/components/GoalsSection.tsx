@@ -230,9 +230,9 @@ export default function GoalsSection({
         </div>
 
         {/* Goal cards — pin spec: bg surface-2 border line rounded 16 p-4 */}
-        <div className="flex flex-col gap-3">
+        <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
           {displayGoals.length === 0 ? (
-            <div className="empty py-10">
+            <div className="empty py-10 xl:col-span-2">
               <p className="mono text-[11px] text-[var(--ink-3)]">No goals yet — create your first savings goal.</p>
               <p className="mono text-[10px] text-[var(--ink-3)] mt-1">Tap Add New goal above.</p>
             </div>

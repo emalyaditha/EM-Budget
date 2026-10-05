@@ -358,9 +358,9 @@ export default function DebtTracker({
         </form>
       )}
 
-      <div className="space-y-3">
+      <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
         {activeDebts.length === 0 ? (
-          <div className="empty mono text-[13px]">No active liabilities — debt-free.</div>
+          <div className="empty mono text-[13px] xl:col-span-2">No active liabilities — debt-free.</div>
         ) : (
           [...activeDebts]
             .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())

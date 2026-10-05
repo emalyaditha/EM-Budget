@@ -570,9 +570,9 @@ export default function CashCardManagement({
           </div>
         </div>
 
-        <div className="mt-5 space-y-3">
+        <div className="mt-5 grid gap-3 xl:grid-cols-2 xl:items-start">
           {cashAccounts.length === 0 ? (
-            <div className="empty">
+            <div className="empty xl:col-span-2">
               <p className="text-sm font-medium">No cash accounts yet</p>
               <p className="text-xs mt-1 text-[var(--ink-3)]">Add a wallet to start tracking.</p>
             </div>

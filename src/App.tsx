@@ -3786,6 +3786,19 @@ export default function App() {
                 );
               })}
             </nav>
+
+            {/* Call to action — the same quick-action surface the mobile nav FAB
+                and ⌘K reach, promoted to the rail on desktop. */}
+            {!isNavCollapsed && (
+              <button
+                onClick={() => setIsCommandPaletteOpen(true)}
+                aria-label="Open quick actions"
+                className="cta-glow mt-5 w-full inline-flex items-center justify-center gap-2 h-11 rounded-full text-[13px] font-bold bg-[var(--glow)] text-white hover:brightness-110 active:translate-y-px transition-[filter,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)]"
+              >
+                <Zap size={15} aria-hidden />
+                Quick actions
+              </button>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -3946,6 +3959,20 @@ export default function App() {
             </div>
           </div>
 
+          {/* Search field — the desktop reference carries it in the open header
+              rather than as an icon. Same command palette the ⌘K chord and the
+              icon button reach; only the trigger's shape changes. */}
+          <button
+            onClick={() => setIsCommandPaletteOpen(true)}
+            aria-label="Search transactions"
+            title="Search (⌘K)"
+            className="hidden xl:flex items-center gap-2.5 w-[300px] shrink-0 h-9 px-3.5 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-3)] hover:border-[var(--line-strong)] hover:text-[var(--ink-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+          >
+            <Search size={14} aria-hidden />
+            <span className="text-[12px] flex-1 text-left">Search transactions</span>
+            <span className="mono text-[10px] px-1.5 py-0.5 rounded border border-[var(--line)]">⌘K</span>
+          </button>
+
           {/* center: sync pill */}
           <div id="header-sync-pill" className="hidden md:flex items-center justify-center flex-1 px-4">
             <span
@@ -3969,12 +3996,14 @@ export default function App() {
               otherwise outranks a plain `hidden`. */}
           <div className="flex items-center shrink-0">
             <div className="glass-pill">
-              {/* command / search */}
+              {/* command / search — the wide header field owns this action from
+                  `xl` up, so the icon trigger stands down there rather than
+                  offering the same button twice in one row. */}
               <button
                 onClick={() => setIsCommandPaletteOpen(true)}
                 aria-label="Open command palette"
                 title="Search (⌘K)"
-                className="icon-btn !hidden sm:!inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+                className="icon-btn !hidden sm:!inline-flex xl:!hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
               >
                 <Search size={14} />
               </button>

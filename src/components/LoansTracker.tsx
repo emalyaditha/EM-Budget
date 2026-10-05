@@ -422,7 +422,7 @@ export default function LoansTracker({
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
             {activeLoans.map((loan) => {
               const activeProgress =
                 loan.totalAmount > 0
@@ -436,10 +436,10 @@ export default function LoansTracker({
                 >
                   <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-40" />
                   <div
-                    className="flex flex-col sm:flex-row justify-between gap-3"
+                    className="flex flex-col sm:flex-row sm:flex-wrap justify-between gap-3"
                     style={{ borderBottom: '1px solid var(--line)', paddingBottom: 12 }}
                   >
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="text-[14px] font-bold flex items-center gap-2 min-w-0">
                         <span className="truncate">{loan.borrowerName}</span>
                         <span
@@ -459,7 +459,7 @@ export default function LoansTracker({
                         </span>
                       </p>
                     </div>
-                    <div className="flex items-center gap-1.5 self-start sm:self-center">
+                    <div className="flex items-center gap-1.5 self-start sm:self-center sm:ml-auto shrink-0">
                       <button
                         onClick={() => {
                           setIncreasingLoanId(increasingLoanId === loan.id ? null : loan.id);

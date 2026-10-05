@@ -368,27 +368,93 @@ export default function Dashboard({
     >
       <AlertsPanel state={state} />
 
-      <DashboardHero
-        currency={state.currency}
-        aggregateActiveWealth={aggregateActiveWealth}
-        totalCashAmount={totalCashAmount}
-        totalDebitCardsAmount={totalDebitCardsAmount}
-        userName={state.userProfile?.name && state.userProfile.name !== 'User' ? state.userProfile.name : ''}
-        currentMonthInflow={currentMonthInflow}
-        currentMonthOutflow={currentMonthOutflow}
-        todayOutflow={todayOutflow}
-        transactions={state.transactions}
-        onAddExpense={() => openQuick('expense')}
-        onAddIncome={() => openQuick('income')}
-        wallets={heroWallets}
-        onManageWallets={() => setActiveTab('accounts')}
-        onSend={() => {
-          setActiveTab('accounts');
-          setTimeout(() => {
-            document.getElementById('transfer-capital')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }, 60);
-        }}
-      />
+      {/* Desktop composition — the reference sets the balance card and the live
+          ledger side by side, each taking half the content column. The balance
+          card is a phone-width object, so it stops stretching as soon as the
+          sidebar lands (1024px) rather than waiting for 1280. On a phone they
+          stack in that same order. */}
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
+        <DashboardHero
+          currency={state.currency}
+          aggregateActiveWealth={aggregateActiveWealth}
+          totalCashAmount={totalCashAmount}
+          totalDebitCardsAmount={totalDebitCardsAmount}
+          userName={state.userProfile?.name && state.userProfile.name !== 'User' ? state.userProfile.name : ''}
+          currentMonthInflow={currentMonthInflow}
+          currentMonthOutflow={currentMonthOutflow}
+          todayOutflow={todayOutflow}
+          transactions={state.transactions}
+          onAddExpense={() => openQuick('expense')}
+          onAddIncome={() => openQuick('income')}
+          wallets={heroWallets}
+          onManageWallets={() => setActiveTab('accounts')}
+          onSend={() => {
+            setActiveTab('accounts');
+            setTimeout(() => {
+              document.getElementById('transfer-capital')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 60);
+          }}
+        />
+        {/* Transactions — frosted sheet. Recent is today's entries, View All is the
+            whole ledger; each row carries its own date, so the day headers only earn
+            their space when several days are on screen at once. */}
+        <section aria-label="Transactions" className="glass-panel p-4 sm:p-5 flex flex-col gap-3 text-left">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="eyebrow">Transactions</p>
+            <SegmentedControl
+              ariaLabel="Transactions range"
+              layoutId="activity-view"
+              value={activityView}
+              onChange={setActivityView}
+              options={[
+                { id: 'all', label: 'View All' },
+                { id: 'recent', label: 'Recent' },
+              ]}
+            />
+          </div>
+          {visibleActivity.length === 0 ? (
+            <div className="py-10 text-center rounded-[var(--r-sm)] border border-dashed border-[var(--line)] bg-[var(--surface-2)]">
+              <p className="eyebrow">{activityView === 'recent' ? 'Nothing today' : 'No activity'}</p>
+              <p className="text-xs text-[var(--ink-2)] mt-1">
+                {activityLog.length === 0 ? 'No ledger entries yet.' : 'Switch to View All for earlier entries.'}
+              </p>
+            </div>
+          ) : (
+            /* On a laptop the whole ledger is far taller than the balance card it
+               sits beside, which left a void under the summary tiles. The list
+               keeps every row in the DOM and scrolls in place instead, so the two
+               columns finish together. */
+            <div className="min-h-0 lg:max-h-[34rem] lg:overflow-y-auto lg:pr-1">
+              {groupedActivity.map((group) => (
+                <div key={group.day}>
+                  {activityView === 'all' && <p className="day-head eyebrow !text-[10px]">{group.day}</p>}
+                  <div className="divide-y divide-[var(--line)]">
+                    {group.items.map((t) => {
+                      const isInc =
+                        t.type === 'income' ||
+                        t.type === 'deposit' ||
+                        t.type === 'financing' ||
+                        (t.type === 'transfer' && t.amount > 0);
+                      return (
+                        <div key={`${t.logType}-${t.id}`} className="[&:last-child]:border-b-0">
+                          <TransactionRow
+                            title={t.title}
+                            meta={activityMeta(t.date || t.dateGiven || '')}
+                            category={t.category}
+                            isIncome={isInc}
+                            amountText={formatMoney(state.currency, t.amount)}
+                            onClick={t.logType === 'transaction' ? () => setEditingTransactionId(t.id) : undefined}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
 
       {/* Spend mix donut + budget rings */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
@@ -544,62 +610,6 @@ export default function Dashboard({
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      </section>
-
-      {/* Transactions — frosted sheet. Recent is today's entries, View All is the
-          whole ledger; each row carries its own date, so the day headers only earn
-          their space when several days are on screen at once. */}
-      <section aria-label="Transactions" className="glass-panel p-4 sm:p-5 flex flex-col gap-3 text-left">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="eyebrow">Transactions</p>
-          <SegmentedControl
-            ariaLabel="Transactions range"
-            layoutId="activity-view"
-            value={activityView}
-            onChange={setActivityView}
-            options={[
-              { id: 'all', label: 'View All' },
-              { id: 'recent', label: 'Recent' },
-            ]}
-          />
-        </div>
-        {visibleActivity.length === 0 ? (
-          <div className="py-10 text-center rounded-[var(--r-sm)] border border-dashed border-[var(--line)] bg-[var(--surface-2)]">
-            <p className="eyebrow">{activityView === 'recent' ? 'Nothing today' : 'No activity'}</p>
-            <p className="text-xs text-[var(--ink-2)] mt-1">
-              {activityLog.length === 0 ? 'No ledger entries yet.' : 'Switch to View All for earlier entries.'}
-            </p>
-          </div>
-        ) : (
-          <div>
-            {groupedActivity.map((group) => (
-              <div key={group.day}>
-                {activityView === 'all' && <p className="day-head eyebrow !text-[10px]">{group.day}</p>}
-                <div className="divide-y divide-[var(--line)]">
-                  {group.items.map((t) => {
-                    const isInc =
-                      t.type === 'income' ||
-                      t.type === 'deposit' ||
-                      t.type === 'financing' ||
-                      (t.type === 'transfer' && t.amount > 0);
-                    return (
-                      <div key={`${t.logType}-${t.id}`} className="[&:last-child]:border-b-0">
-                        <TransactionRow
-                          title={t.title}
-                          meta={activityMeta(t.date || t.dateGiven || '')}
-                          category={t.category}
-                          isIncome={isInc}
-                          amountText={formatMoney(state.currency, t.amount)}
-                          onClick={t.logType === 'transaction' ? () => setEditingTransactionId(t.id) : undefined}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </section>
 
       <QuickActionModal
