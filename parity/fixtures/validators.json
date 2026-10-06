@@ -1,0 +1,673 @@
+{
+  "_provenance": {
+    "generatedFrom": "pre-flutter",
+    "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+    "unitFile": "src/validators/index.ts",
+    "gitBlob": "06b2326a5023c8d88ef9e6b312ec783321f85a2f",
+    "sha256": "8a7c428fbb69b595584d69b7df12e78bcef358bdd0d8e912e073727d49fb7061",
+    "tz": "Asia/Colombo",
+    "locale": "en-US",
+    "node": "v24.19.0",
+    "pinnedNow": "2026-10-04T04:30:00.000Z",
+    "generatedAt": "2026-10-06T09:18:10.520Z",
+    "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
+  },
+  "cases": [
+    {
+      "name": "validateData(BankCard valid (bullet mask the app writes))",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "isLimitLocked": true,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false,
+          "cardTheme": "obsidian",
+          "isFrozen": false
+        }
+      }
+    },
+    {
+      "name": "validateData(BankCard raw 16-digit PAN (client accepts; DB rejects))",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "4520123456783776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "isLimitLocked": true,
+          "cardNumber": "4520123456783776",
+          "isCanceled": false,
+          "cardTheme": "obsidian",
+          "isFrozen": false
+        }
+      }
+    },
+    {
+      "name": "validateData(BankCard short mask \"**** 3776\" (first regex alternative, accepted))",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "**** 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "isLimitLocked": true,
+          "cardNumber": "**** 3776",
+          "isCanceled": false,
+          "cardTheme": "obsidian",
+          "isFrozen": false
+        }
+      }
+    },
+    {
+      "name": "validateData(BankCard qa-harness mask \"4520 **** **** 3776\" (rejected))",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "4520 **** **** 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "cardNumber: Card number must be 16 digits or masked standard (**** 1234)"
+      }
+    },
+    {
+      "name": "validateData(BankCard asterisk mask \"**** **** **** 3776\")",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "**** **** **** 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "isLimitLocked": true,
+          "cardNumber": "**** **** **** 3776",
+          "isCanceled": false,
+          "cardTheme": "obsidian",
+          "isFrozen": false
+        }
+      }
+    },
+    {
+      "name": "validateData(BankCard 15-digit PAN)",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "452012345678377",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "cardNumber: Card number must be 16 digits or masked standard (**** 1234)"
+      }
+    },
+    {
+      "name": "validateData(BankCard null cardNumber)",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": null,
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "cardNumber: Invalid input: expected string, received null"
+      }
+    },
+    {
+      "name": "validateData(BankCard missing id)",
+      "input": [
+        {
+          "id": {
+            "__sentinel__": "undefined"
+          },
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "id: Invalid input: expected string, received undefined"
+      }
+    },
+    {
+      "name": "validateData(BankCard id empty string)",
+      "input": [
+        {
+          "id": "",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "id: ID is required"
+      }
+    },
+    {
+      "name": "validateData(BankCard unknown cardType)",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Prepaid",
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "cardType: Invalid option: expected one of \"Debit\"|\"Credit\""
+      }
+    },
+    {
+      "name": "validateData(BankCard negative debit balance (allowed by schema))",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": -5,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": -5,
+          "isLimitLocked": true,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false,
+          "cardTheme": "obsidian",
+          "isFrozen": false
+        }
+      }
+    },
+    {
+      "name": "validateData(BankCard NaN currentBalance (finite() rejects))",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": {
+            "__sentinel__": "NaN"
+          },
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "currentBalance: Invalid input: expected number, received NaN"
+      }
+    },
+    {
+      "name": "validateData(BankCard negative limit)",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false,
+          "limit": -1
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "limit: Limit must be greater than or equal to 0"
+      }
+    },
+    {
+      "name": "validateData(BankCard negative apr)",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false,
+          "apr": -1
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "apr: APR cannot be negative"
+      }
+    },
+    {
+      "name": "validateData(BankCard bad dueDate format)",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false,
+          "dueDate": "04-10-2026"
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "dueDate: Invalid due date (must be YYYY-MM-DD)"
+      }
+    },
+    {
+      "name": "validateData(BankCard dueDate as full timestamp (unanchored regex))",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false,
+          "dueDate": "2026-10-07T00:00:00Z"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "isLimitLocked": true,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false,
+          "cardTheme": "obsidian",
+          "isFrozen": false,
+          "dueDate": "2026-10-07T00:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "validateData(BankCard illegal HTML chars in name)",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "<script>",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "cardName: Card name contains illegal HTML characters"
+      }
+    },
+    {
+      "name": "validateData(BankCard defaults injected (isLimitLocked/isCanceled/cardTheme/isFrozen))",
+      "input": [
+        {
+          "id": "cd-2",
+          "cardName": "No Flags",
+          "bankName": "NB",
+          "cardType": "Debit",
+          "currentBalance": 0
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "cd-2",
+          "cardName": "No Flags",
+          "bankName": "NB",
+          "cardType": "Debit",
+          "currentBalance": 0,
+          "isLimitLocked": true,
+          "isCanceled": false,
+          "cardTheme": "obsidian",
+          "isFrozen": false
+        }
+      }
+    },
+    {
+      "name": "validateData(Transaction valid)",
+      "input": [
+        {
+          "id": "t1",
+          "title": "Groceries",
+          "category": "Shopping",
+          "type": "expense",
+          "amount": 1200,
+          "date": "2026-10-02",
+          "accountId": "ca-1"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "t1",
+          "type": "expense",
+          "title": "Groceries",
+          "amount": 1200,
+          "date": "2026-10-02",
+          "category": "Shopping",
+          "accountId": "ca-1"
+        }
+      }
+    },
+    {
+      "name": "validateData(Transaction amount 0)",
+      "input": [
+        {
+          "id": "t1",
+          "title": "Groceries",
+          "category": "Shopping",
+          "type": "expense",
+          "amount": 0,
+          "date": "2026-10-02",
+          "accountId": "ca-1"
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "amount: Transaction amount must be a positive number"
+      }
+    },
+    {
+      "name": "validateData(Transaction amount negative)",
+      "input": [
+        {
+          "id": "t1",
+          "title": "Groceries",
+          "category": "Shopping",
+          "type": "expense",
+          "amount": -100,
+          "date": "2026-10-02",
+          "accountId": "ca-1"
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "amount: Transaction amount must be a positive number"
+      }
+    },
+    {
+      "name": "validateData(Transaction numeric string amount)",
+      "input": [
+        {
+          "id": "t1",
+          "title": "Groceries",
+          "category": "Shopping",
+          "type": "expense",
+          "amount": "1200",
+          "date": "2026-10-02",
+          "accountId": "ca-1"
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "amount: Invalid input: expected number, received string"
+      }
+    },
+    {
+      "name": "validateData(Transaction unknown category)",
+      "input": [
+        {
+          "id": "t1",
+          "title": "Groceries",
+          "category": "Kryptokurrency",
+          "type": "expense",
+          "amount": 1200,
+          "date": "2026-10-02",
+          "accountId": "ca-1"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "t1",
+          "type": "expense",
+          "title": "Groceries",
+          "amount": 1200,
+          "date": "2026-10-02",
+          "category": "Kryptokurrency",
+          "accountId": "ca-1"
+        }
+      }
+    },
+    {
+      "name": "validateData(Transaction unknown key present)",
+      "input": [
+        {
+          "id": "t1",
+          "title": "Groceries",
+          "category": "Shopping",
+          "type": "expense",
+          "amount": 1200,
+          "date": "2026-10-02",
+          "accountId": "ca-1",
+          "bogus": 1
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "t1",
+          "type": "expense",
+          "title": "Groceries",
+          "amount": 1200,
+          "date": "2026-10-02",
+          "category": "Shopping",
+          "accountId": "ca-1"
+        }
+      }
+    },
+    {
+      "name": "validateData(CashAccount valid)",
+      "input": [
+        {
+          "id": "a",
+          "name": "Wallet",
+          "balance": 100
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "a",
+          "name": "Wallet",
+          "balance": 100
+        }
+      }
+    },
+    {
+      "name": "validateData(CashAccount empty name)",
+      "input": [
+        {
+          "id": "a",
+          "name": "",
+          "balance": 100
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "name: Account name must be at least 3 characters"
+      }
+    },
+    {
+      "name": "validateData(Debt valid)",
+      "input": [
+        {
+          "id": "d",
+          "debtSource": "Bank",
+          "totalAmount": 1000,
+          "remainingAmount": 500,
+          "interestRate": 8,
+          "dueDate": "2026-10-07",
+          "status": "Active",
+          "startDate": "2026-01-01"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "d",
+          "debtSource": "Bank",
+          "totalAmount": 1000,
+          "remainingAmount": 500,
+          "dueDate": "2026-10-07",
+          "notes": "",
+          "payments": [],
+          "status": "Active"
+        }
+      }
+    },
+    {
+      "name": "validateData(Subscription valid)",
+      "input": [
+        {
+          "id": "s",
+          "name": "Netflix",
+          "amount": 1500,
+          "billingCycle": "Monthly",
+          "category": "Entertainment",
+          "status": "Active",
+          "dueDate": "2026-10-04"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "s",
+          "name": "Netflix",
+          "amount": 1500,
+          "billingCycle": "Monthly",
+          "dueDate": "2026-10-04",
+          "category": "Entertainment",
+          "status": "Active"
+        }
+      }
+    },
+    {
+      "name": "validateData(LedgerRestorePayload union: v1 export branch)",
+      "input": [
+        {
+          "version": "v1",
+          "exportedAt": "2026-10-04T00:00:00Z",
+          "state": {
+            "cashAccounts": [],
+            "cards": [],
+            "transactions": []
+          }
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "Root: Invalid input"
+      }
+    },
+    {
+      "name": "validateData(LedgerRestorePayload union: matches neither branch)",
+      "input": [
+        {
+          "nope": true
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "Root: Invalid input"
+      }
+    }
+  ]
+}

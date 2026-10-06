@@ -1,0 +1,353 @@
+{
+  "_provenance": {
+    "generatedFrom": "pre-flutter",
+    "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+    "unitFile": "src/lib/alerts.ts",
+    "gitBlob": "f25b43423f431a6537aa47f623177bd9f2aaf9e5",
+    "sha256": "26e4860790fb74bc72b82b93acf43286db2bfb499165bca7dc5d8da9016b401c",
+    "tz": "Asia/Colombo",
+    "locale": "en-US",
+    "node": "v24.19.0",
+    "pinnedNow": "2026-10-04T04:30:00.000Z",
+    "generatedAt": "2026-10-06T09:18:10.511Z",
+    "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
+  },
+  "cases": [
+    {
+      "name": "BUDGET_WARN_AT",
+      "input": [],
+      "expected": 0.8
+    },
+    {
+      "name": "daysRemaining(2026-10-04)",
+      "input": ["2026-10-04"],
+      "expected": {
+        "__sentinel__": "-0"
+      }
+    },
+    {
+      "name": "daysRemaining(2026-10-05)",
+      "input": ["2026-10-05"],
+      "expected": 1
+    },
+    {
+      "name": "daysRemaining(2026-10-06)",
+      "input": ["2026-10-06"],
+      "expected": 2
+    },
+    {
+      "name": "daysRemaining(2026-10-11)",
+      "input": ["2026-10-11"],
+      "expected": 7
+    },
+    {
+      "name": "daysRemaining(2026-10-12)",
+      "input": ["2026-10-12"],
+      "expected": 8
+    },
+    {
+      "name": "daysRemaining(2026-10-03)",
+      "input": ["2026-10-03"],
+      "expected": -1
+    },
+    {
+      "name": "daysRemaining(2026-09-04)",
+      "input": ["2026-09-04"],
+      "expected": -30
+    },
+    {
+      "name": "daysRemaining()",
+      "input": [""],
+      "expected": {
+        "__sentinel__": "Infinity"
+      }
+    },
+    {
+      "name": "daysRemaining(2026-13-99)",
+      "input": ["2026-13-99"],
+      "expected": 187
+    },
+    {
+      "name": "daysRemaining(garbage)",
+      "input": ["garbage"],
+      "expected": {
+        "__sentinel__": "Infinity"
+      }
+    },
+    {
+      "name": "daysRemaining(timestamp 2026-10-04T18:30:00Z)",
+      "input": ["2026-10-04T18:30:00Z"],
+      "expected": 1
+    },
+    {
+      "name": "daysRemaining(timestamp 2026-10-04T00:00:00)",
+      "input": ["2026-10-04T00:00:00"],
+      "expected": {
+        "__sentinel__": "-0"
+      }
+    },
+    {
+      "name": "computeAlerts(budget just under warn)",
+      "input": ["just under warn"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(budget exactly 0.8)",
+      "input": ["exactly 0.8"],
+      "expected": [
+        {
+          "id": "budget-close-b1",
+          "severity": "warning",
+          "title": "Shopping budget almost reached",
+          "detail": "Spent Rs. 800 of Rs. 1,000 (80%).",
+          "type": "budget"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(budget just under critical)",
+      "input": ["just under critical"],
+      "expected": [
+        {
+          "id": "budget-close-b1",
+          "severity": "warning",
+          "title": "Shopping budget almost reached",
+          "detail": "Spent Rs. 999 of Rs. 1,000 (100%).",
+          "type": "budget"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(budget exactly 1.0)",
+      "input": ["exactly 1.0"],
+      "expected": [
+        {
+          "id": "budget-over-b1",
+          "severity": "critical",
+          "title": "Shopping budget exceeded",
+          "detail": "Spent Rs. 1,000 of Rs. 1,000 (100%).",
+          "type": "budget"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(budget 150%)",
+      "input": ["150%"],
+      "expected": [
+        {
+          "id": "budget-over-b1",
+          "severity": "critical",
+          "title": "Shopping budget exceeded",
+          "detail": "Spent Rs. 1,500 of Rs. 1,000 (150%).",
+          "type": "budget"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(budget 1000%)",
+      "input": ["1000%"],
+      "expected": [
+        {
+          "id": "budget-over-b1",
+          "severity": "critical",
+          "title": "Shopping budget exceeded",
+          "detail": "Spent Rs. 10,000 of Rs. 1,000 (1000%).",
+          "type": "budget"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(budget limit 0 -> skipped)",
+      "input": [],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(budget negative limit)",
+      "input": [],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(bill due today)",
+      "input": ["due today"],
+      "expected": [
+        {
+          "id": "bill-due-s1",
+          "severity": "critical",
+          "title": "Netflix due today",
+          "detail": "Rs. 1,500 (Monthly).",
+          "type": "bill"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(bill due in 1 day)",
+      "input": ["due in 1 day"],
+      "expected": [
+        {
+          "id": "bill-due-s1",
+          "severity": "warning",
+          "title": "Netflix due in 1 day",
+          "detail": "Rs. 1,500 (Monthly).",
+          "type": "bill"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(bill due in 2 days -> none)",
+      "input": ["due in 2 days -> none"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(bill overdue -> none)",
+      "input": ["overdue -> none"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(bill paused -> none)",
+      "input": ["paused -> none"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(bill no dueDate -> none)",
+      "input": ["no dueDate -> none"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(debt due today)",
+      "input": ["debt due today"],
+      "expected": [
+        {
+          "id": "debt-due-d1",
+          "severity": "critical",
+          "title": "Debt from Bank due today",
+          "detail": "Rs. 5,000 remaining.",
+          "type": "debt"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(debt due tomorrow)",
+      "input": ["debt due tomorrow"],
+      "expected": [
+        {
+          "id": "debt-due-d1",
+          "severity": "warning",
+          "title": "Debt from Bank due in 1 day",
+          "detail": "Rs. 5,000 remaining.",
+          "type": "debt"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(fully repaid -> none)",
+      "input": ["fully repaid -> none"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(remaining 0 -> none)",
+      "input": ["remaining 0 -> none"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(goal 7 days left (boundary included))",
+      "input": ["7 days left (boundary included)"],
+      "expected": [
+        {
+          "id": "goal-soon-g1",
+          "severity": "info",
+          "title": "Goal \"Japan Trip\" closes soon",
+          "detail": "Rs. 100 saved of Rs. 1,000 with 7 days left.",
+          "type": "goal"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(goal 8 days left -> none)",
+      "input": ["8 days left -> none"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(goal past target -> none)",
+      "input": ["past target -> none"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(goal today)",
+      "input": ["today"],
+      "expected": [
+        {
+          "id": "goal-soon-g1",
+          "severity": "info",
+          "title": "Goal \"Japan Trip\" closes soon",
+          "detail": "Rs. 100 saved of Rs. 1,000 with 0 days left.",
+          "type": "goal"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(goal goal met -> none)",
+      "input": ["goal met -> none"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(goal target 0 -> none)",
+      "input": ["target 0 -> none"],
+      "expected": []
+    },
+    {
+      "name": "computeAlerts(all four types present -> emission order)",
+      "input": [],
+      "expected": [
+        {
+          "id": "budget-over-b1",
+          "severity": "critical",
+          "title": "Shopping budget exceeded",
+          "detail": "Spent Rs. 1,000 of Rs. 1,000 (100%).",
+          "type": "budget"
+        },
+        {
+          "id": "bill-due-s1",
+          "severity": "critical",
+          "title": "Netflix due today",
+          "detail": "Rs. 1,500 (Monthly).",
+          "type": "bill"
+        },
+        {
+          "id": "debt-due-d1",
+          "severity": "warning",
+          "title": "Debt from Bank due in 1 day",
+          "detail": "Rs. 5,000 remaining.",
+          "type": "debt"
+        },
+        {
+          "id": "goal-soon-g1",
+          "severity": "info",
+          "title": "Goal \"Japan Trip\" closes soon",
+          "detail": "Rs. 100 saved of Rs. 1,000 with 2 days left.",
+          "type": "goal"
+        }
+      ]
+    },
+    {
+      "name": "computeAlerts(currency spacing differs from lib/money formatMoney)",
+      "input": [],
+      "expected": {
+        "alertsDetail": "Rs. 1,200 (Monthly).",
+        "sharedFormatMoney": "Rs.1,200"
+      }
+    },
+    {
+      "name": "computeAlerts(custom currency)",
+      "input": [],
+      "expected": [
+        {
+          "id": "bill-due-s1",
+          "severity": "critical",
+          "title": "Netflix due today",
+          "detail": "$ 1,200 (Monthly).",
+          "type": "bill"
+        }
+      ]
+    }
+  ]
+}

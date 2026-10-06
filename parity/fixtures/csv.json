@@ -1,0 +1,114 @@
+{
+  "_provenance": {
+    "generatedFrom": "pre-flutter",
+    "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+    "unitFile": "src/lib/download.ts",
+    "gitBlob": "0db9a34ac47ba77d682485be4948c2bd36b7376a",
+    "sha256": "3a26acb1d8b2b9a7433706a9335e79927f74e5d0f5b7e8ce648350aacd95521f",
+    "tz": "Asia/Colombo",
+    "locale": "en-US",
+    "node": "v24.19.0",
+    "pinnedNow": "2026-10-04T04:30:00.000Z",
+    "generatedAt": "2026-10-06T09:18:10.514Z",
+    "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
+  },
+  "cases": [
+    {
+      "name": "escapeCsvRow(plain)",
+      "input": [["a", "b"]],
+      "expected": "\"a\",\"b\""
+    },
+    {
+      "name": "escapeCsvRow(leading =)",
+      "input": [["=SUM(A1)", "b"]],
+      "expected": "\"'=SUM(A1)\",\"b\""
+    },
+    {
+      "name": "escapeCsvRow(leading +)",
+      "input": [["+x"]],
+      "expected": "\"'+x\""
+    },
+    {
+      "name": "escapeCsvRow(leading - (a negative number is treated as a formula))",
+      "input": [["-500"]],
+      "expected": "\"'-500\""
+    },
+    {
+      "name": "escapeCsvRow(leading @)",
+      "input": [["@x"]],
+      "expected": "\"'@x\""
+    },
+    {
+      "name": "escapeCsvRow(leading tab)",
+      "input": [["\tx"]],
+      "expected": "\"'\tx\""
+    },
+    {
+      "name": "escapeCsvRow(leading CR)",
+      "input": [["\rx"]],
+      "expected": "\"'\rx\""
+    },
+    {
+      "name": "escapeCsvRow(operator in the middle is left alone)",
+      "input": [["1+1"]],
+      "expected": "\"1+1\""
+    },
+    {
+      "name": "escapeCsvRow(inner quote outside the formula branch)",
+      "input": [["say \"hi\""]],
+      "expected": "\"say \"\"hi\"\"\""
+    },
+    {
+      "name": "escapeCsvRow(inner quote INSIDE the formula branch (early return, not escaped))",
+      "input": [["=a\"b"]],
+      "expected": "\"'=a\"b\""
+    },
+    {
+      "name": "escapeCsvRow(empty string cell)",
+      "input": [["a", "", "c"]],
+      "expected": "\"a\",\"\",\"c\""
+    },
+    {
+      "name": "escapeCsvRow(null and undefined)",
+      "input": [
+        [
+          null,
+          {
+            "__sentinel__": "undefined"
+          }
+        ]
+      ],
+      "expected": "\"null\",\"undefined\""
+    },
+    {
+      "name": "escapeCsvRow(numbers keep JS formatting)",
+      "input": [
+        [
+          {
+            "__sentinel__": "NaN"
+          },
+          1e21,
+          {
+            "__sentinel__": "-0"
+          },
+          0.30000000000000004
+        ]
+      ],
+      "expected": "\"NaN\",\"1e+21\",\"0\",\"0.30000000000000004\""
+    },
+    {
+      "name": "escapeCsvRow(no cells at all)",
+      "input": [[]],
+      "expected": ""
+    },
+    {
+      "name": "escapeCsvRow(long value)",
+      "input": [
+        [
+          "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ]
+      ],
+      "expected": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    }
+  ]
+}

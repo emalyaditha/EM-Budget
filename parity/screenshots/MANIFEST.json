@@ -1,0 +1,383 @@
+{
+  "note": "Web pixel baselines for the Flutter parity tests. Produced by `node parity/run_baselines.cjs`, which only drives the untouched `qa-shot.cjs` against the running app. Each run registers a fresh throwaway tenant (D6); the harness password was generated per child and passed only through its environment (D9), so no secret is stored here. `reported` is the harness's own output for that run, kept verbatim.",
+  "generatedAt": "2026-10-06T09:08:22.819Z",
+  "sourceTag": "pre-flutter",
+  "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+  "widths": [360, 390, 430],
+  "runs": [
+    {
+      "theme": "light",
+      "email": "qa-light-muwgeubm@example.com",
+      "tag": "p1base-light",
+      "reported": {
+        "tabs": "8/8",
+        "consoleErrors": {
+          "count": 0,
+          "body": "(none)"
+        },
+        "overflow": {
+          "count": 0,
+          "body": "(none)"
+        },
+        "raw": "=== p1base-light @ 360/390/430px, light ===\ntabs captured: 8/8\n\n-- console errors (0) --\n(none)\n\n-- horizontal overflow (0) --\n(none)\n\nshots in D:/tmp/qa"
+      },
+      "screenshots": [
+        {
+          "tab": "ledgerregistry",
+          "file": "web/light/360/ledgerregistry.png",
+          "bytes": 74892,
+          "sha256": "81e296b50e6ad6761515e9aed31248d46bb7c3ddb473510c5945c94f99fa45c8",
+          "width": 360
+        },
+        {
+          "tab": "overviewhub",
+          "file": "web/light/360/overviewhub.png",
+          "bytes": 98565,
+          "sha256": "97e53b32e2ed2593d29f0976ea53ed1beaaf885cfd3ebf57f052db2f1b77187c",
+          "width": 360
+        },
+        {
+          "tab": "reportscentre",
+          "file": "web/light/360/reportscentre.png",
+          "bytes": 116020,
+          "sha256": "42fd28db5a3268ffb2052cc34ccb88315728b1af6d0199e7f214c5b02b580a48",
+          "width": 360
+        },
+        {
+          "tab": "savingsjars",
+          "file": "web/light/360/savingsjars.png",
+          "bytes": 75968,
+          "sha256": "bb18d3d818ce2d066850d8a6b8950180a65e831923f9db18482ef47e88157620",
+          "width": 360
+        },
+        {
+          "tab": "smartbudgets",
+          "file": "web/light/360/smartbudgets.png",
+          "bytes": 77443,
+          "sha256": "ed19c6d53472694626417321c43b58a128d9794c5e42dd0c6e970145f4f84843",
+          "width": 360
+        },
+        {
+          "tab": "trackliabilities",
+          "file": "web/light/360/trackliabilities.png",
+          "bytes": 109890,
+          "sha256": "cf3edf232ff3a7a2f44911f67debd1e4d4adeecf08f0b3cfca9c157f3c1c2970",
+          "width": 360
+        },
+        {
+          "tab": "trackloansgiven",
+          "file": "web/light/360/trackloansgiven.png",
+          "bytes": 128007,
+          "sha256": "fa6ff889e064a30a522d2db67838f32da6a17b210ec368df340f37b81d805202",
+          "width": 360
+        },
+        {
+          "tab": "walletsportfolio",
+          "file": "web/light/360/walletsportfolio.png",
+          "bytes": 102269,
+          "sha256": "57f0ec232e2568addbe29858c8008b41181f928d0b45025d95a95fd27e3f9557",
+          "width": 360
+        },
+        {
+          "tab": "ledgerregistry",
+          "file": "web/light/390/ledgerregistry.png",
+          "bytes": 74790,
+          "sha256": "57c7a766f8c543ee4497c52b454d611faac446adcc8619acd98e68082487ee15",
+          "width": 390
+        },
+        {
+          "tab": "overviewhub",
+          "file": "web/light/390/overviewhub.png",
+          "bytes": 99927,
+          "sha256": "ffafb92ce5f4ef13fcf96547d6859215865ba27d42eaf7df576fdd1e28106fa3",
+          "width": 390
+        },
+        {
+          "tab": "reportscentre",
+          "file": "web/light/390/reportscentre.png",
+          "bytes": 129145,
+          "sha256": "ee23539040407a8b52c65df1c6af88babcd4ced4ee85f4d41d7d23d3635784b0",
+          "width": 390
+        },
+        {
+          "tab": "savingsjars",
+          "file": "web/light/390/savingsjars.png",
+          "bytes": 77042,
+          "sha256": "046e043d52d7f301fbe554af8668b9a50d2d8c8e716a4cb90c7f95606bfd4828",
+          "width": 390
+        },
+        {
+          "tab": "smartbudgets",
+          "file": "web/light/390/smartbudgets.png",
+          "bytes": 78093,
+          "sha256": "d0d79ccfc7197505f302b8dafa2aa19d6df0929186759d67bf69f6c18a068068",
+          "width": 390
+        },
+        {
+          "tab": "trackliabilities",
+          "file": "web/light/390/trackliabilities.png",
+          "bytes": 114218,
+          "sha256": "3e179539ca4fa36109d1a58e6486e2be7f36fc0aad9594843994e0c90b4ad2cc",
+          "width": 390
+        },
+        {
+          "tab": "trackloansgiven",
+          "file": "web/light/390/trackloansgiven.png",
+          "bytes": 133683,
+          "sha256": "a67816574d4ecf38458f7414f7d9f7ec00bb35c36762b5c3ae8f692e83f7074e",
+          "width": 390
+        },
+        {
+          "tab": "walletsportfolio",
+          "file": "web/light/390/walletsportfolio.png",
+          "bytes": 106141,
+          "sha256": "60b33a519aa36b8058fd613a561148ca316f53b398a5f444d7e56c36a70c2698",
+          "width": 390
+        },
+        {
+          "tab": "ledgerregistry",
+          "file": "web/light/430/ledgerregistry.png",
+          "bytes": 76722,
+          "sha256": "b97387a28e881f9d1b4298092d8933c9643b74530c403b45145ac9017d5e1e47",
+          "width": 430
+        },
+        {
+          "tab": "overviewhub",
+          "file": "web/light/430/overviewhub.png",
+          "bytes": 105086,
+          "sha256": "c0ad593f389c460cefba53f448202cc9b0e2cdf261ce57248cbbe72019407aad",
+          "width": 430
+        },
+        {
+          "tab": "reportscentre",
+          "file": "web/light/430/reportscentre.png",
+          "bytes": 126815,
+          "sha256": "1acd597e0f26fbb5c4dd3b16fd0ec0a17b3b549973909d33f71ab9fced8cb045",
+          "width": 430
+        },
+        {
+          "tab": "savingsjars",
+          "file": "web/light/430/savingsjars.png",
+          "bytes": 78114,
+          "sha256": "e9f304dbfaabb0fbe905c894015c27c782470c2b5b1d7a6e96174b2f3907dfa6",
+          "width": 430
+        },
+        {
+          "tab": "smartbudgets",
+          "file": "web/light/430/smartbudgets.png",
+          "bytes": 79679,
+          "sha256": "06823309a8101ff3c723c646ec6de860d844a54907dfa5cb742cf936f16f1543",
+          "width": 430
+        },
+        {
+          "tab": "trackliabilities",
+          "file": "web/light/430/trackliabilities.png",
+          "bytes": 118366,
+          "sha256": "7c633d045c152172be748a0d74954a23c89956665cacf17f5273316d98522761",
+          "width": 430
+        },
+        {
+          "tab": "trackloansgiven",
+          "file": "web/light/430/trackloansgiven.png",
+          "bytes": 142261,
+          "sha256": "4a3ed7d37ec17fb60f660cc128e0cc00635a8b6ea0dd438fe74506f81c61a34b",
+          "width": 430
+        },
+        {
+          "tab": "walletsportfolio",
+          "file": "web/light/430/walletsportfolio.png",
+          "bytes": 114904,
+          "sha256": "e47fbec204b6b932e4ac14027af99b96945f0c2b23bc7deb9499318128326f07",
+          "width": 430
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "email": "qa-dark-muwggbvy@example.com",
+      "tag": "p1base-dark",
+      "reported": {
+        "tabs": "8/8",
+        "consoleErrors": {
+          "count": 0,
+          "body": "(none)"
+        },
+        "overflow": {
+          "count": 0,
+          "body": "(none)"
+        },
+        "raw": "=== p1base-dark @ 360/390/430px, dark ===\ntabs captured: 8/8\n\n-- console errors (0) --\n(none)\n\n-- horizontal overflow (0) --\n(none)\n\nshots in D:/tmp/qa"
+      },
+      "screenshots": [
+        {
+          "tab": "ledgerregistry",
+          "file": "web/dark/360/ledgerregistry.png",
+          "bytes": 79072,
+          "sha256": "d8ceefb32bd1241897a460a9fad711e81558a55b8bccb1917229b350b4ac0e45",
+          "width": 360
+        },
+        {
+          "tab": "overviewhub",
+          "file": "web/dark/360/overviewhub.png",
+          "bytes": 102478,
+          "sha256": "f9b75bac17e61804130d32808722cbfae34486e6e2b9e027b39b702cd73c85dc",
+          "width": 360
+        },
+        {
+          "tab": "reportscentre",
+          "file": "web/dark/360/reportscentre.png",
+          "bytes": 123432,
+          "sha256": "8a2bfdfb2806cd7abb54d9a72607bfa9f499bb934cb9958c561f737e220657ea",
+          "width": 360
+        },
+        {
+          "tab": "savingsjars",
+          "file": "web/dark/360/savingsjars.png",
+          "bytes": 82582,
+          "sha256": "8624938362abf59df08910cd8340e97909d114535482d435e41c9699a9dd01f5",
+          "width": 360
+        },
+        {
+          "tab": "smartbudgets",
+          "file": "web/dark/360/smartbudgets.png",
+          "bytes": 84203,
+          "sha256": "4b3282c418aad44cbd407296bb1bccefbad470a669adcd21546406d785e56ef8",
+          "width": 360
+        },
+        {
+          "tab": "trackliabilities",
+          "file": "web/dark/360/trackliabilities.png",
+          "bytes": 113608,
+          "sha256": "422df9a4bc5f4e015b2ec7a612d7fc98731c9c34a990ccacfdac75243fc840f5",
+          "width": 360
+        },
+        {
+          "tab": "trackloansgiven",
+          "file": "web/dark/360/trackloansgiven.png",
+          "bytes": 133384,
+          "sha256": "f7ec9a5f3bd8d1d49db0fb29e29339bdcea5223eb9b4cbd5d97111fdf6658ff4",
+          "width": 360
+        },
+        {
+          "tab": "walletsportfolio",
+          "file": "web/dark/360/walletsportfolio.png",
+          "bytes": 107240,
+          "sha256": "c923512f7663cfb2ca6dac5bf335f6982a0057127422e84c292b2b33a135a538",
+          "width": 360
+        },
+        {
+          "tab": "ledgerregistry",
+          "file": "web/dark/390/ledgerregistry.png",
+          "bytes": 79028,
+          "sha256": "5af3151b72532d2d2bf7c7c1a9f376b5027b625535db438991c3d33ebad8842e",
+          "width": 390
+        },
+        {
+          "tab": "overviewhub",
+          "file": "web/dark/390/overviewhub.png",
+          "bytes": 104642,
+          "sha256": "0429ccdc3f7ac0675e54a7a0b63ed9c9fd9d229a5804bc8f3277ce614886bc86",
+          "width": 390
+        },
+        {
+          "tab": "reportscentre",
+          "file": "web/dark/390/reportscentre.png",
+          "bytes": 138300,
+          "sha256": "cfc54c06052f44aca136a8ee4ca727df981cfff387a82286a05368351ef94277",
+          "width": 390
+        },
+        {
+          "tab": "savingsjars",
+          "file": "web/dark/390/savingsjars.png",
+          "bytes": 83734,
+          "sha256": "b454e2b53c3261a3d0d45adc5e9bcc36c041ec8d57afbbfa1f47aa748cfd2103",
+          "width": 390
+        },
+        {
+          "tab": "smartbudgets",
+          "file": "web/dark/390/smartbudgets.png",
+          "bytes": 85455,
+          "sha256": "42f478f6aade4b075f276c0e17663bf26aea64acc99665d04a420b23d530fd3e",
+          "width": 390
+        },
+        {
+          "tab": "trackliabilities",
+          "file": "web/dark/390/trackliabilities.png",
+          "bytes": 118111,
+          "sha256": "38f86dc49ce437855a8661d8afad534ac8bf6550f4b217a66be3d4546fe9f848",
+          "width": 390
+        },
+        {
+          "tab": "trackloansgiven",
+          "file": "web/dark/390/trackloansgiven.png",
+          "bytes": 139683,
+          "sha256": "355184c756192f2b8c299633e903119f210a02bb7fabe5e26a707dfacff2bbef",
+          "width": 390
+        },
+        {
+          "tab": "walletsportfolio",
+          "file": "web/dark/390/walletsportfolio.png",
+          "bytes": 111100,
+          "sha256": "5b2685251defe4dd39b7205ad2e9eb48349dbbd3d94fafe5c30889eea4348610",
+          "width": 390
+        },
+        {
+          "tab": "ledgerregistry",
+          "file": "web/dark/430/ledgerregistry.png",
+          "bytes": 82284,
+          "sha256": "07e57954a120e600ef55af90d81e8f40baf981fb096bbe21319f09bedb21481c",
+          "width": 430
+        },
+        {
+          "tab": "overviewhub",
+          "file": "web/dark/430/overviewhub.png",
+          "bytes": 109397,
+          "sha256": "e4b44f6c18b3df5d3712ce89e62b201d1285266c399212d4c55067c7a22b52b7",
+          "width": 430
+        },
+        {
+          "tab": "reportscentre",
+          "file": "web/dark/430/reportscentre.png",
+          "bytes": 133088,
+          "sha256": "0ebcc2c5be3ead7ee01e518b3dfa472c157a605682367b22a7209a6d2b0f41d5",
+          "width": 430
+        },
+        {
+          "tab": "savingsjars",
+          "file": "web/dark/430/savingsjars.png",
+          "bytes": 85525,
+          "sha256": "79e7cc26609a1748c8b196908a6cba7ed46862df700b8afd4630254aa4c42ff0",
+          "width": 430
+        },
+        {
+          "tab": "smartbudgets",
+          "file": "web/dark/430/smartbudgets.png",
+          "bytes": 87206,
+          "sha256": "b56c7252caea24615c493a9783ca4a31e5a29fe61422701183f0d5633c029d52",
+          "width": 430
+        },
+        {
+          "tab": "trackliabilities",
+          "file": "web/dark/430/trackliabilities.png",
+          "bytes": 121738,
+          "sha256": "e4db58cc4cc41b4773618c2d9eb107f0feaa802a8105e839c2e4b7f903d8f88e",
+          "width": 430
+        },
+        {
+          "tab": "trackloansgiven",
+          "file": "web/dark/430/trackloansgiven.png",
+          "bytes": 146516,
+          "sha256": "13fc8896a2cbc44b91bb8dd076898364f0e3ad00a263320e3ab9bea76f50d557",
+          "width": 430
+        },
+        {
+          "tab": "walletsportfolio",
+          "file": "web/dark/430/walletsportfolio.png",
+          "bytes": 119842,
+          "sha256": "9abe76ab08a32c6c1cffaf3b33a28635f18d1efa1cd26bef061ce4c1cd3484f5",
+          "width": 430
+        }
+      ]
+    }
+  ]
+}

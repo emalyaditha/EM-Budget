@@ -1,0 +1,900 @@
+{
+  "_provenance": {
+    "generatedFrom": "pre-flutter",
+    "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+    "unitFile": "src/lib/installments.ts",
+    "gitBlob": "c656e037fb0842cace4a95c84f6167d09898d4bf",
+    "sha256": "eb499ea65f59deb59aa37ad8f492e823af996c810f22a1df9acbd410fb060ab1",
+    "tz": "Asia/Colombo",
+    "locale": "en-US",
+    "node": "v24.19.0",
+    "pinnedNow": "2026-10-04T04:30:00.000Z",
+    "generatedAt": "2026-10-06T09:18:10.505Z",
+    "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
+  },
+  "cases": [
+    {
+      "name": "calculateInstallmentFee(50000,6)",
+      "input": [50000, 6],
+      "expected": 0
+    },
+    {
+      "name": "calculateMonthlyPayment(50000,6)",
+      "input": [50000, 6],
+      "expected": 8333.33
+    },
+    {
+      "name": "formatFeeBreakdown(50000,6)",
+      "input": [50000, 6],
+      "expected": {
+        "processingFee": 0,
+        "monthlyPayment": 8333.33,
+        "totalCost": 50000,
+        "feePercent": 0
+      }
+    },
+    {
+      "name": "calculateInstallmentFee(50000,12)",
+      "input": [50000, 12],
+      "expected": 3750
+    },
+    {
+      "name": "calculateMonthlyPayment(50000,12)",
+      "input": [50000, 12],
+      "expected": 4166.67
+    },
+    {
+      "name": "formatFeeBreakdown(50000,12)",
+      "input": [50000, 12],
+      "expected": {
+        "processingFee": 3750,
+        "monthlyPayment": 4166.67,
+        "totalCost": 53750,
+        "feePercent": 7.5
+      }
+    },
+    {
+      "name": "calculateInstallmentFee(50000,24)",
+      "input": [50000, 24],
+      "expected": 7500
+    },
+    {
+      "name": "calculateMonthlyPayment(50000,24)",
+      "input": [50000, 24],
+      "expected": 2083.33
+    },
+    {
+      "name": "formatFeeBreakdown(50000,24)",
+      "input": [50000, 24],
+      "expected": {
+        "processingFee": 7500,
+        "monthlyPayment": 2083.33,
+        "totalCost": 57500,
+        "feePercent": 15
+      }
+    },
+    {
+      "name": "calculateInstallmentFee(50000,48)",
+      "input": [50000, 48],
+      "expected": 15000
+    },
+    {
+      "name": "calculateMonthlyPayment(50000,48)",
+      "input": [50000, 48],
+      "expected": 1041.67
+    },
+    {
+      "name": "formatFeeBreakdown(50000,48)",
+      "input": [50000, 48],
+      "expected": {
+        "processingFee": 15000,
+        "monthlyPayment": 1041.67,
+        "totalCost": 65000,
+        "feePercent": 30
+      }
+    },
+    {
+      "name": "calculateInstallmentFee(50000,18)",
+      "input": [50000, 18],
+      "expected": 0
+    },
+    {
+      "name": "calculateMonthlyPayment(50000,18)",
+      "input": [50000, 18],
+      "expected": 2777.78
+    },
+    {
+      "name": "formatFeeBreakdown(50000,18)",
+      "input": [50000, 18],
+      "expected": {
+        "processingFee": 0,
+        "monthlyPayment": 2777.78,
+        "totalCost": 50000,
+        "feePercent": 0
+      }
+    },
+    {
+      "name": "calculateInstallmentFee(50000,0)",
+      "input": [50000, 0],
+      "expected": 0
+    },
+    {
+      "name": "calculateMonthlyPayment(50000,0)",
+      "input": [50000, 0],
+      "expected": {
+        "__sentinel__": "Infinity"
+      }
+    },
+    {
+      "name": "formatFeeBreakdown(50000,0)",
+      "input": [50000, 0],
+      "expected": {
+        "processingFee": 0,
+        "monthlyPayment": {
+          "__sentinel__": "Infinity"
+        },
+        "totalCost": 50000,
+        "feePercent": 0
+      }
+    },
+    {
+      "name": "calculateInstallmentFee(10000,3)",
+      "input": [10000, 3],
+      "expected": 0
+    },
+    {
+      "name": "calculateMonthlyPayment(10000,3)",
+      "input": [10000, 3],
+      "expected": 3333.33
+    },
+    {
+      "name": "formatFeeBreakdown(10000,3)",
+      "input": [10000, 3],
+      "expected": {
+        "processingFee": 0,
+        "monthlyPayment": 3333.33,
+        "totalCost": 10000,
+        "feePercent": 0
+      }
+    },
+    {
+      "name": "calculateInstallmentFee(33.333333333333336,1)",
+      "input": [33.333333333333336, 1],
+      "expected": 0
+    },
+    {
+      "name": "calculateMonthlyPayment(33.333333333333336,1)",
+      "input": [33.333333333333336, 1],
+      "expected": 33.33
+    },
+    {
+      "name": "formatFeeBreakdown(33.333333333333336,1)",
+      "input": [33.333333333333336, 1],
+      "expected": {
+        "processingFee": 0,
+        "monthlyPayment": 33.33,
+        "totalCost": 33.333333333333336,
+        "feePercent": 0
+      }
+    },
+    {
+      "name": "calculateInstallmentFee(0,12)",
+      "input": [0, 12],
+      "expected": 0
+    },
+    {
+      "name": "calculateMonthlyPayment(0,12)",
+      "input": [0, 12],
+      "expected": 0
+    },
+    {
+      "name": "formatFeeBreakdown(0,12)",
+      "input": [0, 12],
+      "expected": {
+        "processingFee": 0,
+        "monthlyPayment": 0,
+        "totalCost": 0,
+        "feePercent": 7.5
+      }
+    },
+    {
+      "name": "calculateInstallmentFee(-50000,12)",
+      "input": [-50000, 12],
+      "expected": -3750
+    },
+    {
+      "name": "calculateMonthlyPayment(-50000,12)",
+      "input": [-50000, 12],
+      "expected": -4166.67
+    },
+    {
+      "name": "formatFeeBreakdown(-50000,12)",
+      "input": [-50000, 12],
+      "expected": {
+        "processingFee": -3750,
+        "monthlyPayment": -4166.67,
+        "totalCost": -53750,
+        "feePercent": 7.5
+      }
+    },
+    {
+      "name": "calculateInstallmentFee(1e+21,12)",
+      "input": [1e21, 12],
+      "expected": 75000000000000000000
+    },
+    {
+      "name": "calculateMonthlyPayment(1e+21,12)",
+      "input": [1e21, 12],
+      "expected": 83333333333333330000
+    },
+    {
+      "name": "formatFeeBreakdown(1e+21,12)",
+      "input": [1e21, 12],
+      "expected": {
+        "processingFee": 75000000000000000000,
+        "monthlyPayment": 83333333333333330000,
+        "totalCost": 1.075e21,
+        "feePercent": 7.5
+      }
+    },
+    {
+      "name": "generateInstallmentSchedule(833.33,12,2026-01-31,10000)",
+      "input": [833.33, 12, "2026-01-31", 10000],
+      "expected": [
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 1,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-02-28",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 2,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-03-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 3,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-04-30",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 4,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-05-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 5,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-06-30",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 6,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-07-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 7,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-08-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 8,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-09-30",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 9,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-10-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 10,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-11-30",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 11,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-12-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 12,
+          "amountDue": 833.37,
+          "amountPaid": 0,
+          "dueDate": "2027-01-31",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "name": "generateInstallmentSchedule(833.33,12,2026-01-31,undefined)",
+      "input": [
+        833.33,
+        12,
+        "2026-01-31",
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": [
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 1,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-02-28",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 2,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-03-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 3,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-04-30",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 4,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-05-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 5,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-06-30",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 6,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-07-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 7,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-08-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 8,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-09-30",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 9,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-10-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 10,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-11-30",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 11,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2026-12-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 12,
+          "amountDue": 833.33,
+          "amountPaid": 0,
+          "dueDate": "2027-01-31",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "name": "generateInstallmentSchedule(33.33,3,2026-01-31,100)",
+      "input": [33.33, 3, "2026-01-31", 100],
+      "expected": [
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 1,
+          "amountDue": 33.33,
+          "amountPaid": 0,
+          "dueDate": "2026-02-28",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 2,
+          "amountDue": 33.33,
+          "amountPaid": 0,
+          "dueDate": "2026-03-31",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 3,
+          "amountDue": 33.34,
+          "amountPaid": 0,
+          "dueDate": "2026-04-30",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "name": "generateInstallmentSchedule(1000,2,2028-01-31,undefined)",
+      "input": [
+        1000,
+        2,
+        "2028-01-31",
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": [
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 1,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2028-02-29",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 2,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2028-03-31",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "name": "generateInstallmentSchedule(1000,0,2026-01-31,undefined)",
+      "input": [
+        1000,
+        0,
+        "2026-01-31",
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "generateInstallmentSchedule(1000,1,2026-01-31,undefined)",
+      "input": [
+        1000,
+        1,
+        "2026-01-31",
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": [
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 1,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2026-02-28",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "name": "generateInstallmentSchedule(5000,6,2026-02-29,undefined)",
+      "input": [
+        5000,
+        6,
+        "2026-02-29",
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": [
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 1,
+          "amountDue": 5000,
+          "amountPaid": 0,
+          "dueDate": "2026-04-01",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 2,
+          "amountDue": 5000,
+          "amountPaid": 0,
+          "dueDate": "2026-05-01",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 3,
+          "amountDue": 5000,
+          "amountPaid": 0,
+          "dueDate": "2026-06-01",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 4,
+          "amountDue": 5000,
+          "amountPaid": 0,
+          "dueDate": "2026-07-01",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 5,
+          "amountDue": 5000,
+          "amountPaid": 0,
+          "dueDate": "2026-08-01",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 6,
+          "amountDue": 5000,
+          "amountPaid": 0,
+          "dueDate": "2026-09-01",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "name": "generateInstallmentSchedule(1000,3,2026-11-30,undefined)",
+      "input": [
+        1000,
+        3,
+        "2026-11-30",
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": [
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 1,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2026-12-30",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 2,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2027-01-30",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 3,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2027-02-28",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "name": "generateInstallmentSchedule(1000,3,not-a-date,undefined)",
+      "input": [
+        1000,
+        3,
+        "not-a-date",
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": [
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 1,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "not-a-date",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 2,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "not-a-date",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 3,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "not-a-date",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "name": "generateInstallmentSchedule(1000,4,2026-01-15,2500)",
+      "input": [1000, 4, "2026-01-15", 2500],
+      "expected": [
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 1,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2026-02-15",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 2,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2026-03-15",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 3,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2026-04-15",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 4,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2026-05-15",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "name": "generateInstallmentSchedule(1000,4,2026-01-15,5000)",
+      "input": [1000, 4, "2026-01-15", 5000],
+      "expected": [
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 1,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2026-02-15",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 2,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2026-03-15",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 3,
+          "amountDue": 1000,
+          "amountPaid": 0,
+          "dueDate": "2026-04-15",
+          "status": "pending"
+        },
+        {
+          "installmentId": "inst-1",
+          "paymentNumber": 4,
+          "amountDue": 2000,
+          "amountPaid": 0,
+          "dueDate": "2026-05-15",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "name": "isCardEligibleForInstallment(debit)",
+      "input": [50000],
+      "expected": {
+        "eligible": false,
+        "reason": "Only credit cards support installment plans"
+      }
+    },
+    {
+      "name": "isCardEligibleForInstallment(cancelled)",
+      "input": [50000],
+      "expected": {
+        "eligible": false,
+        "reason": "Card is cancelled"
+      }
+    },
+    {
+      "name": "isCardEligibleForInstallment(frozen)",
+      "input": [50000],
+      "expected": {
+        "eligible": false,
+        "reason": "Card is frozen"
+      }
+    },
+    {
+      "name": "isCardEligibleForInstallment(below minimum)",
+      "input": [4999],
+      "expected": {
+        "eligible": false,
+        "reason": "Minimum installment amount is Rs. 5,000"
+      }
+    },
+    {
+      "name": "isCardEligibleForInstallment(at minimum)",
+      "input": [5000],
+      "expected": {
+        "eligible": true
+      }
+    },
+    {
+      "name": "isCardEligibleForInstallment(above minimum)",
+      "input": [5001],
+      "expected": {
+        "eligible": true
+      }
+    },
+    {
+      "name": "isCardEligibleForInstallment(over limit)",
+      "input": [6000],
+      "expected": {
+        "eligible": false,
+        "reason": "Card is over limit by Rs. 50000.00. Pay down balance before creating installment plans."
+      }
+    },
+    {
+      "name": "isCardEligibleForInstallment(exactly at limit)",
+      "input": [6000],
+      "expected": {
+        "eligible": false,
+        "reason": "Purchase exceeds available credit of Rs. 0.00"
+      }
+    },
+    {
+      "name": "isCardEligibleForInstallment(exceeds available)",
+      "input": [20000],
+      "expected": {
+        "eligible": false,
+        "reason": "Purchase exceeds available credit of Rs. 15000.00"
+      }
+    },
+    {
+      "name": "isCardEligibleForInstallment(no limit set)",
+      "input": [6000],
+      "expected": {
+        "eligible": false,
+        "reason": "Card is over limit by Rs. 38420.00. Pay down balance before creating installment plans."
+      }
+    },
+    {
+      "name": "isCardEligibleForInstallment(full available)",
+      "input": [250000],
+      "expected": {
+        "eligible": true
+      }
+    },
+    {
+      "name": "getInstallmentProgress(none paid)",
+      "input": ["none paid"],
+      "expected": {
+        "paid": 0,
+        "total": 3,
+        "percentage": 0,
+        "nextDue": "2026-02-15"
+      }
+    },
+    {
+      "name": "getInstallmentProgress(first paid)",
+      "input": ["first paid"],
+      "expected": {
+        "paid": 1,
+        "total": 3,
+        "percentage": 33,
+        "nextDue": "2026-03-15"
+      }
+    },
+    {
+      "name": "getInstallmentProgress(all paid)",
+      "input": ["all paid"],
+      "expected": {
+        "paid": 3,
+        "total": 3,
+        "percentage": 100,
+        "nextDue": null
+      }
+    },
+    {
+      "name": "getInstallmentProgress(no rows)",
+      "input": ["no rows"],
+      "expected": {
+        "paid": 0,
+        "total": 0,
+        "percentage": 0,
+        "nextDue": null
+      }
+    },
+    {
+      "name": "getInstallmentProgress(foreign installment row included)",
+      "input": ["foreign installment row included"],
+      "expected": {
+        "paid": 0,
+        "total": 3,
+        "percentage": 0,
+        "nextDue": "2026-02-15"
+      }
+    },
+    {
+      "name": "getInstallmentProgress(partially paid mid-list)",
+      "input": [],
+      "expected": {
+        "paid": 1,
+        "total": 3,
+        "percentage": 33,
+        "nextDue": "2026-02-15"
+      }
+    }
+  ]
+}

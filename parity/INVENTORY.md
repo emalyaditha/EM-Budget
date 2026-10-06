@@ -451,6 +451,21 @@ available in this session, so the mandated `impact`/`detect_changes` steps canno
 7. Do native WebAuthn assertions pass the server's origin/RP checks?
 8. Are `SMTP_*` / `SESSION_TTL_HOURS` / `IDENTITY_ENV` dead, or consumed somewhere outside this repo?
 
+Items 1-5 were ruled at the Phase 0 gate and are recorded in §13. Phase 1 adds two more, both from the
+theme measurements in `UI_SPEC.md` §6.5:
+
+9. **D-U13 / B-15 / B-16 — which "dark" does the phone mean?** `dark:` utilities follow the operating
+   system while the app's own variables follow a toggle that stops following the OS at first run. The
+   phone can reproduce the split (bind those tokens to `platformBrightness` and freeze the variable theme
+   at first run, exactly as the web does) or collapse it (one theme, driven by the toggle). The second is
+   what the markup looks like it wants and is a visible change from the web for OS-dark users. Nothing
+   can be golden-tested in dark mode until this is ruled, because the two readings disagree on the same
+   screen.
+10. **Baselines for the divergent state.** The 48 screenshots are all the fresh-install state, where
+    both mechanisms agree, because `qa-shot.cjs` sets the theme through Playwright's `colorScheme` and
+    cannot pre-set `em-budget-theme`. Capturing "app light, OS dark" needs a new harness flag or a
+    storage seed — a change to a file outside `parity/`, so it is your call and not mine.
+
 ---
 
 ## 13. Phase 0 decisions (gate rulings)
@@ -475,17 +490,188 @@ not in the code.
 
 ### Deferred (still open, not blocking Phase 1)
 
-Auth-session representation (B-06/B-07 — three sources of "who is authenticated"), the unrounded-duplicate
-interest display (B-03), `getMonthlyTotals` float bypass (B-04, now a pure Dart-port problem since D1 keeps
-it browser-side), duplicate migration filenames (B-10), WebAuthn/CSRF native origin checks (§7, §12 items
-6-8). Re-surface each at the gate where it first bites (Phase 3 for auth, Phase 6 for the interest display).
+Auth-session representation (B-06/B-07 — three sources of "who is authenticated"), duplicate migration
+filenames (B-10), and WebAuthn/CSRF native origin checks (§7, §12 items 6-8). Re-surface each at the gate
+where it first bites (Phase 3 for auth, before any fresh DB is built for B-10).
+
+## 13b. Phase 1 gate rulings (D5-D8)
+
+Ruled when Phase 0 was approved. Binding on Phase 1 output.
+
+| #               | Ruling                                                                                                                                                                                                                        | Consequence for this phase                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D5**          | QA harness: `qa-shot.cjs` reads `process.env.QA_HARNESS_PASSWORD` with **no hard-coded fallback**; the variable is named in `.env.example`.                                                                                   | Done — commit `a35bf61`, after `pre-flutter`. Not a logic file, so goldens are unaffected.                                                          |
+| **D6**          | **Every baseline run uses a fresh `--email`** so seed data never accumulates.                                                                                                                                                 | The default is now `qa-<runid>@example.com`. Screenshot baselines are each from a virgin tenant.                                                    |
+| **D7**          | **Fixtures are generated from the `pre-flutter` tag only.**                                                                                                                                                                   | The generator asserts the logic sources are byte-identical to `pre-flutter` and stamps provenance into every fixture; it refuses to emit otherwise. |
+| **D8**          | Fixture files are **validated**: non-empty, case count ≥ the number `LOGIC_SPEC.md` declares for that unit, and each object checked against a schema — because `tsconfig` excludes tests, so nothing type-checks them (B-08). | `npx tsx parity/fixtures/validate.ts` is a hard gate; CI-equivalent. A fixture that is empty or short fails the run.                                |
+| **B-03 / B-04** | **Replicate the current behaviour in Dart. Do not fix during the port.** Keep both entries in `BUGS_FOUND.md`.                                                                                                                | The unrounded display interest and the float `getMonthlyTotals` both get goldens that encode the _defect_. Dart must match it exactly.              |
+
+### Fixture provenance invariant (D7)
+
+`parity/fixtures/*.json` is only trustworthy if it is known to come from frozen code. The generator
+therefore:
+
+1. resolves `pre-flutter` to a commit and records it,
+2. runs `git diff --quiet pre-flutter -- <the logic source files>` — any drift in a unit being sampled
+   aborts the run rather than silently goldening newer code,
+3. writes `{ "_provenance": { "sourceCommit": "...", "generatedFrom": "pre-flutter", "unitFile": "...",
+"sha256": "..." } }` into each fixture, so a later reader can tell which tree produced a golden.
 
 ---
 
-## 14. Phase 0 boundary
+## 13c. Phase 1 delivered — specs, fixtures, baselines
 
-No app code was written. No file outside `parity/` was created or modified. The web app, its tests,
-`server.ts`, `api-src/`, `server/` and all SQL migrations are untouched.
+Phase 1 wrote no application code. It produced the three things every later phase is measured against:
+a logic spec with goldens, a UI spec with numbers, and pixel baselines.
 
-Phase 1 (specs + fixtures + baselines) is unblocked: money engine and rollover are decided, and the
-`pre-flutter` tag gives fixture generation a fixed source commit.
+### Logic side
+
+| artefact                            | produced by                           | what it is                                                                                                                                               |
+| ----------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parity/LOGIC_SPEC.md`              | hand-written against the tagged code  | 12 units, **278 named cases** the Dart port must satisfy, each with the exact input and the reason the case exists.                                      |
+| `parity/fixtures/*.json` (12 files) | `npx tsx parity/fixtures/generate.ts` | **661 measured goldens** — the `expected` value is what the real TypeScript produced, never what it was expected to produce. Each carries `_provenance`. |
+| `parity/fixtures/validate.ts`       | `npx tsx parity/fixtures/validate.ts` | The D8 gate: non-empty, ≥ the spec's case count, every object schema-checked, provenance re-verified. Currently **PASS, 661 / 278**.                     |
+| `parity/fixtures/tz-proof.ts`       | `npx tsx parity/fixtures/tz-proof.ts` | Re-runs all 661 goldens in `Asia/Colombo`, `UTC` and `America/New_York`. **5 cases differ**, all in the two units §5 warned about.                       |
+
+### UI side
+
+| artefact                                    | produced by                 | what it is                                                                                                                                                                                               |
+| ------------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parity/ui-tokens.cjs` → `ui-tokens.json`   | Chromium via Playwright     | Measures, does not convert: **210** custom properties × 4 passes, **100** class probes, **160** colour utilities harvested from `src/` of which **81** paint, **17** `dark:` tokens × 4 app×OS contexts. |
+| `parity/render_ui_spec.cjs` → `UI_SPEC.md`  | the JSON above              | **917 lines.** Refuses to render if `src/index.css` is not the tagged blob, refuses to record an unresolved colour, and formats its own output.                                                          |
+| `parity/run_baselines.cjs` → `screenshots/` | the untouched `qa-shot.cjs` | **48 PNGs** (2 themes × 3 widths × 8 tabs, 5.0 MB) plus `MANIFEST.json` with a sha256 per file and the harness's own report kept verbatim.                                                               |
+| `parity/BUGS_FOUND.md`                      | all of it                   | B-01 … **B-16**. Two entries are new to Phase 1 and both are theme findings; see below.                                                                                                                  |
+
+### What the measurements settled
+
+- **OKLCH is not reimplemented anywhere.** Each colour is Chrome's own conversion, read out of the
+  engine as `color(srgb …)` at float precision. §1 of `UI_SPEC.md` explains why a canvas pixel read is
+  invalid for translucent colours and is kept only as deviation evidence.
+- **The light theme contains a second theme.** The `!important` block at `src/index.css:1394-1418`
+  repaints `.bg-black`, `.bg-zinc-900/950`, `.card-dark` and `.gradient-card` in light mode, including
+  one `color-mix()` Flutter cannot express. Five of its override targets are written by no component at
+  all, which §6.3 now proves rather than assumes.
+- **Utility colours were invisible to this audit until it measured them.** They exist only in the
+  generated stylesheet, never in `index.css`. 81 are now specified, with the `currentColor` consequence
+  that makes a text utility move a border too.
+- **`dark:` does not follow the app toggle.** B-15 (utilities track `prefers-color-scheme`; 0 of 17
+  paint from `html.dark`) and B-16 (the provider's OS listener can never fire, because `applyTheme`
+  writes the guard key on mount). Together they mean the web has a frozen app theme and a live OS
+  theme on the same page. This is **D-U13** and it needs your ruling before any screen is golden-tested
+  in dark mode.
+
+### Boundary after Phase 1
+
+Still no `mobile/`, no `server/`, no `service/`. No web-app logic, UI or UX file has been created or
+modified; `qa-shot.cjs` and `.env.example` remain the only two outside `parity/`, both changed under D5
+alone. The 48 baselines and 661 goldens are new files under `parity/`, and nothing has been committed
+since `a35bf61`.
+
+---
+
+## 13d. Phase 2 delivered — the `mobile/` scaffold
+
+Describes the state at the Phase 2 gate and supersedes the last line of §13c ("Still no `mobile/`").
+
+### Toolchain
+
+Flutter **3.47.6** stable / Dart **3.13.5**, installed to `D:\flutter` under your explicit
+authorization; analytics disabled (`flutter config --no-analytics`), `PATH` extended for this session
+only, no system or registry change. `flutter doctor` reports everything green except
+**Android toolchain — unable to locate Android SDK**, and iOS is unavailable on a Windows host. So the
+scaffold is verified by `analyze` + `test` here; the first real `flutter build` happens in CI.
+
+### Files
+
+| Path                                     | What it is                                                                                                |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `mobile/` (94 files)                     | `flutter create --empty --org com.em --project-name em_budget --platforms android,ios` output.            |
+| `mobile/pubspec.yaml` + `pubspec.lock`   | The dependency set below, resolved once so CI cannot drift.                                               |
+| `mobile/analysis_options.yaml`           | `flutter_lints` + generated-file excludes + `strict-casts`/`strict-raw-types`.                            |
+| `mobile/lib/{domain,data,presentation}/` | Clean-architecture layers, `.gitkeep` only — **no Dart was written in Phase 2.**                          |
+| `mobile/lib/main.dart`                   | The `--empty` template's placeholder shell, replaced in Phase 5.                                          |
+| `mobile/test/scaffold_test.dart`         | One smoke test that the shell renders, so `flutter test` has a target.                                    |
+| `mobile/.env.example`                    | Four `--dart-define` names, no values.                                                                    |
+| `.github/workflows/mobile-verify.yml`    | Format-check → analyze `--fatal-infos --fatal-warnings` → test. New job; `verify-build.yml` is untouched. |
+
+### Dependencies, as `pub get` resolved them
+
+`flutter_riverpod 3.4.3` · `go_router 18.0.2` · `supabase_flutter 2.18.0` · `drift 2.35.1` +
+`drift_flutter 0.3.1` · `flutter_secure_storage 11.2.0` · `local_auth 3.0.2` · codegen dev-only:
+`freezed 4.0.2`, `json_serializable 6.14.1`, `drift_dev 2.35.1`, `build_runner 2.16.1`.
+All coexist — that was the point of declaring them at scaffold time. Riverpod is **v3**, whose API
+differs from the v2 examples most write-ups assume. **No `dio`**: D1 removed `server/`, so the client
+speaks to the routes the web app already uses.
+
+### Two tracked web-side files changed — both need your approval
+
+| File              | Change     | Why it was forced                                                                                                                                                                                                                                             |
+| ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.prettierignore` | +`mobile/` | `verify-build.yml:32` runs `npx prettier --check .` at the repo root, which reacted to **7** Flutter-generated YAML/JSON/MD files. Dart is formatted by `dart format`, enforced in the new job.                                                               |
+| `.dockerignore`   | +`mobile/` | `Dockerfile:13` is `COPY . .`. Without this, `mobile/` enters the web image and its builder layer, every Dart edit busts the npm-install cache, and `mobile/.env` is baked into the image (the existing `.env` line matches the root only, not nested paths). |
+
+Neither is a logic, UI or build-configuration change to the web app; both are ignore-lists, and the
+web gates were re-run after them (below).
+
+### Gate evidence
+
+`dart format` 0 changed · `flutter analyze --fatal-infos --fatal-warnings` **No issues found** ·
+`flutter test` **1/1** · `npm run lint` clean · `npx prettier --check .` clean ·
+`npx vitest run` **457/457** · `parity/fixtures/validate.ts` **PASS, 661 cases** · `npm run build` ok ·
+`git diff --stat pre-flutter -- src/ server.ts server/ api-src/ migrations/` **empty**.
+
+### Choices a later phase may not silently revisit
+
+- `*.g.dart` / `*.freezed.dart` are **committed, not ignored**. Reviewable diffs and no `build_runner`
+  in CI; the analyzer excludes them instead.
+- `environment: sdk: ^3.13.5` — the SDK is pinned by `pubspec.lock`, so CI must install 3.47.6 exactly.
+- `gradle-wrapper.jar` is a committed binary that gitleaks has never seen. If the first push trips its
+  high-entropy rules the fix is a gitleaks allowlist entry, not removing the wrapper.
+
+---
+
+## 13e. Phase 2 gate rulings (D10-D17)
+
+Given when Phase 2 was approved. Binding from here.
+
+| #       | Ruling                                                                                                                                                                                                                                                                     | Consequence                                                                                                                                                                                                           |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D10** | Phase 2 deviations 1-5 **approved** as presented: `.prettierignore`/`.dockerignore` gains, SHA-pinned third-party action, placeholder `main.dart`, generated Dart committed.                                                                                               | The scaffold is the contract for Phase 3. `mobile/` is outside Prettier's reach for ever; `dart format` is its formatter.                                                                                             |
+| **D11** | **Two commits, by explicit path, on a new branch `flutter-migration`.** The `pre-flutter` tag is not moved.                                                                                                                                                                | Phase 1 artefacts and the Phase 2 scaffold are separately named. Every fixture still traces to `41489c6`.                                                                                                             |
+| **D12** | `.dockerignore` gains `**/.env`, `**/.env.*`, `!**/.env.example` (replacing the two root-only patterns).                                                                                                                                                                   | No nested env file can reach a web image layer, at any depth.                                                                                                                                                         |
+| **D13** | Mobile CI gains **`flutter build apk --debug`**, and the action is pinned to `subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2` (= `v2` = `v2.23.0`) with `permissions: { contents: read }` at both levels. `actions/setup-java@v4` (temurin 17) joins it. | The job is the only place the app is proven to **compile**, because this host has no Android SDK. Java 17 is pinned to match `sourceCompatibility = JavaVersion.VERSION_17` in `mobile/android/app/build.gradle.kts`. |
+| **D14** | **Android SDK is installed before Phase 5, not now.**                                                                                                                                                                                                                      | Phase 3 and Phase 4 stay pure-Dart and test on the host; the first widget golden needs a real build, so the SDK arrives with Phase 5. iOS remains impossible on a Windows host.                                       |
+| **D15** | **Riverpod v3 patterns only.**                                                                                                                                                                                                                                             | `flutter_riverpod 3.4.3` is what resolved. v2 idioms (`Ref<T>` generics, `autoDispose` modifiers in the provider name, `StateProvider` for anything non-trivial) are not to be copied from reference material.        |
+| **D16** | **D-U13 is ruled: reproduce the split, bug-compatible.** The semantic/CSS-variable layer is seeded once and then frozen; the `dark:` utility layer follows the OS live.                                                                                                    | See below — this is the theme decision that B-15 and B-16 were both waiting on.                                                                                                                                       |
+| **D17** | QA tenants are inventoried **read-only** (emails, created dates, per-table row counts, and whether the database is production) and nothing is deleted without a separate OK.                                                                                               | Phase 1 baselines stay reproducible; the deletion is its own decision.                                                                                                                                                |
+
+### D16 in detail — two dark sources, not one
+
+The web app has a **frozen** theme and a **live** theme on the same page (§13c, B-15, B-16). Dart has
+one app theme and must therefore carry two sources:
+
+- `appThemeMode` — the semantic layer (the 210 custom properties, `root.style.colorScheme`). Resolved
+  once: from the stored preference if present, otherwise from `platformBrightness` at first launch,
+  then persisted and **never** re-derived. This is B-16's unreachable guard, reproduced as behaviour.
+- `utilityDark` — the 17 `dark:` utilities, of which 15 paint under an OS-dark device and 0 under an
+  OS-light one, regardless of the app theme. Resolved **live** from `platformBrightness` on every
+  rebuild. The two that never paint are the `dark:hover:` pair and stay under D-U1.
+
+Consequences a later phase cannot skip:
+
+1. **Four golden combinations, not two.** Every dark-mode golden is keyed on
+   `(stored app theme × platformBrightness)`. The existing 48 baselines only cover the two diagonal
+   cells, so **a fourth web baseline set — app light + OS dark — must be captured before Phase 5**, and
+   the app-dark + OS-light cell is already known to look identical to app-light + OS-light.
+2. A widget that consumes a `dark:` colour must read it from `utilityDark`, not from
+   `Theme.of(context)`. Any Dart code that collapses the two sources silently changes the web's
+   behaviour on OS-dark devices, which rule 2 forbids.
+3. The `!important` light-theme repaint block (`src/index.css:1394-1418`, §6.3) is a **third** source
+   and is not affected by this ruling; it stays where `UI_SPEC.md` §6.3 puts it.
+
+### Phase 3 precondition, from the same gate
+
+Before any auth code is written, the mobile authentication path against the **unchanged** server —
+cookie, CSRF/`APP_ORIGIN`, and WebAuthn — must be presented and approved. No server file may be changed
+without approval. B-06 and B-07 (the three representations of "who is authenticated") are the open
+DECISION items this overlaps, and they surface here, not at Phase 7.

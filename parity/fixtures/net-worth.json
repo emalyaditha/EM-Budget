@@ -1,0 +1,615 @@
+{
+  "_provenance": {
+    "generatedFrom": "pre-flutter",
+    "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+    "unitFile": "src/utils.ts",
+    "gitBlob": "999d2a921bd7176cbd36dd634b24b6af010791ae",
+    "sha256": "d7921139645e1c71d9f2dc8f8d43e501f95213c4a1aea0ee8d5e115ecce2b790",
+    "tz": "Asia/Colombo",
+    "locale": "en-US",
+    "node": "v24.19.0",
+    "pinnedNow": "2026-10-04T04:30:00.000Z",
+    "generatedAt": "2026-10-06T09:18:10.508Z",
+    "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
+  },
+  "cases": [
+    {
+      "name": "calculateNetWorth(empty state)",
+      "input": [{}],
+      "expected": {
+        "cash": 0,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0
+      }
+    },
+    {
+      "name": "calculateNetWorth(all collections absent)",
+      "input": [{}],
+      "expected": {
+        "cash": 0,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0
+      }
+    },
+    {
+      "name": "calculateNetWorth(happy path)",
+      "input": [],
+      "expected": {
+        "cash": 210500,
+        "debitCards": 69250,
+        "creditCardAssets": 12000,
+        "creditCardLiabilities": 38420,
+        "savings": 312000,
+        "debts": 100000,
+        "loansGiven": 55000,
+        "netWorth": 520330
+      }
+    },
+    {
+      "name": "calculateNetWorth(lockedAmount as numeric string)",
+      "input": ["lockedAmount as numeric string"],
+      "expected": {
+        "cash": 0,
+        "debitCards": 69250,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 69250
+      }
+    },
+    {
+      "name": "calculateNetWorth(lockedAmount null)",
+      "input": ["lockedAmount null"],
+      "expected": {
+        "cash": 0,
+        "debitCards": 74250,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 74250
+      }
+    },
+    {
+      "name": "calculateNetWorth(lockedAmount NaN string)",
+      "input": ["lockedAmount NaN string"],
+      "expected": {
+        "cash": 0,
+        "debitCards": 74250,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 74250
+      }
+    },
+    {
+      "name": "calculateNetWorth(credit card at exactly zero)",
+      "input": ["credit card at exactly zero"],
+      "expected": {
+        "cash": 0,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0
+      }
+    },
+    {
+      "name": "calculateNetWorth(cancelled credit card with debt)",
+      "input": ["cancelled credit card with debt"],
+      "expected": {
+        "cash": 0,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0
+      }
+    },
+    {
+      "name": "calculateNetWorth(cancelled debit card)",
+      "input": ["cancelled debit card"],
+      "expected": {
+        "cash": 0,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0
+      }
+    },
+    {
+      "name": "calculateNetWorth(jar at 0 vs jar undefined)",
+      "input": ["jar at 0 vs jar undefined"],
+      "expected": {
+        "cash": 0,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0
+      }
+    },
+    {
+      "name": "calculateNetWorth(loan remainingAmount null (no fallback))",
+      "input": ["loan remainingAmount null (no fallback)"],
+      "expected": {
+        "cash": 0,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0
+      }
+    },
+    {
+      "name": "calculateNetWorth(loan remainingAmount 0)",
+      "input": ["loan remainingAmount 0"],
+      "expected": {
+        "cash": 0,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0
+      }
+    },
+    {
+      "name": "calculateNetWorth(debt NaN)",
+      "input": ["debt NaN"],
+      "expected": {
+        "cash": 0,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0
+      }
+    },
+    {
+      "name": "calculateNetWorth(float residue absorbed by sumMoney)",
+      "input": ["float residue absorbed by sumMoney"],
+      "expected": {
+        "cash": 0.3,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0.3
+      }
+    },
+    {
+      "name": "ledgerBalanceEffect(income,undefined,500)",
+      "input": [
+        "income",
+        {
+          "__sentinel__": "undefined"
+        },
+        500
+      ],
+      "expected": 500
+    },
+    {
+      "name": "ledgerBalanceEffect(deposit,undefined,500)",
+      "input": [
+        "deposit",
+        {
+          "__sentinel__": "undefined"
+        },
+        500
+      ],
+      "expected": 500
+    },
+    {
+      "name": "ledgerBalanceEffect(financing,undefined,500)",
+      "input": [
+        "financing",
+        {
+          "__sentinel__": "undefined"
+        },
+        500
+      ],
+      "expected": 500
+    },
+    {
+      "name": "ledgerBalanceEffect(expense,undefined,500)",
+      "input": [
+        "expense",
+        {
+          "__sentinel__": "undefined"
+        },
+        500
+      ],
+      "expected": -500
+    },
+    {
+      "name": "ledgerBalanceEffect(debt_payment,undefined,500)",
+      "input": [
+        "debt_payment",
+        {
+          "__sentinel__": "undefined"
+        },
+        500
+      ],
+      "expected": -500
+    },
+    {
+      "name": "ledgerBalanceEffect(withdrawal,undefined,500)",
+      "input": [
+        "withdrawal",
+        {
+          "__sentinel__": "undefined"
+        },
+        500
+      ],
+      "expected": -500
+    },
+    {
+      "name": "ledgerBalanceEffect(credit_card_charge,undefined,500)",
+      "input": [
+        "credit_card_charge",
+        {
+          "__sentinel__": "undefined"
+        },
+        500
+      ],
+      "expected": -500
+    },
+    {
+      "name": "ledgerBalanceEffect(transfer,\"Transfer In\",500)",
+      "input": ["transfer", "Transfer In", 500],
+      "expected": 500
+    },
+    {
+      "name": "ledgerBalanceEffect(transfer,\"Transfer Out\",500)",
+      "input": ["transfer", "Transfer Out", 500],
+      "expected": -500
+    },
+    {
+      "name": "ledgerBalanceEffect(transfer,\"transfer in\",500)",
+      "input": ["transfer", "transfer in", 500],
+      "expected": -500
+    },
+    {
+      "name": "ledgerBalanceEffect(transfer,undefined,500)",
+      "input": [
+        "transfer",
+        {
+          "__sentinel__": "undefined"
+        },
+        500
+      ],
+      "expected": -500
+    },
+    {
+      "name": "ledgerBalanceEffect(expense,undefined,-500)",
+      "input": [
+        "expense",
+        {
+          "__sentinel__": "undefined"
+        },
+        -500
+      ],
+      "expected": -500
+    },
+    {
+      "name": "ledgerBalanceEffect(expense,undefined,\"abc\")",
+      "input": [
+        "expense",
+        {
+          "__sentinel__": "undefined"
+        },
+        "abc"
+      ],
+      "expected": {
+        "__sentinel__": "-0"
+      }
+    },
+    {
+      "name": "ledgerBalanceEffect(expense,undefined,NaN)",
+      "input": [
+        "expense",
+        {
+          "__sentinel__": "undefined"
+        },
+        {
+          "__sentinel__": "NaN"
+        }
+      ],
+      "expected": {
+        "__sentinel__": "-0"
+      }
+    },
+    {
+      "name": "ledgerBalanceEffect(unknown-type,undefined,500)",
+      "input": [
+        "unknown-type",
+        {
+          "__sentinel__": "undefined"
+        },
+        500
+      ],
+      "expected": 0
+    },
+    {
+      "name": "ledgerBalanceEffect(income,undefined,-0)",
+      "input": [
+        "income",
+        {
+          "__sentinel__": "undefined"
+        },
+        {
+          "__sentinel__": "-0"
+        }
+      ],
+      "expected": 0
+    },
+    {
+      "name": "applyGoalAllocation(top up)",
+      "input": [1000, 5000, 400],
+      "expected": {
+        "committed": 400,
+        "goal": 1400,
+        "wallet": 4600
+      }
+    },
+    {
+      "name": "applyGoalAllocation(withdraw within jar)",
+      "input": [1000, 5000, -400],
+      "expected": {
+        "committed": -400,
+        "goal": 600,
+        "wallet": 5400
+      }
+    },
+    {
+      "name": "applyGoalAllocation(withdraw beyond jar (clamped))",
+      "input": [1000, 5000, -4000],
+      "expected": {
+        "committed": -1000,
+        "goal": 0,
+        "wallet": 6000
+      }
+    },
+    {
+      "name": "applyGoalAllocation(zero -> null)",
+      "input": [1000, 5000, 0],
+      "expected": null
+    },
+    {
+      "name": "applyGoalAllocation(empty jar withdraw)",
+      "input": [0, 5000, -100],
+      "expected": null
+    },
+    {
+      "name": "applyGoalAllocation(NaN amount)",
+      "input": [
+        1000,
+        5000,
+        {
+          "__sentinel__": "NaN"
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "applyGoalAllocation(exact jar drain -> null?)",
+      "input": [1000, 5000, -1000],
+      "expected": {
+        "committed": -1000,
+        "goal": 0,
+        "wallet": 6000
+      }
+    },
+    {
+      "name": "applyRepayment(partial)",
+      "input": [10000, 4000],
+      "expected": {
+        "applied": 4000,
+        "remaining": 6000
+      }
+    },
+    {
+      "name": "applyRepayment(exact)",
+      "input": [10000, 10000],
+      "expected": {
+        "applied": 10000,
+        "remaining": 0
+      }
+    },
+    {
+      "name": "applyRepayment(over-pay (surplus vanishes))",
+      "input": [10000, 15000],
+      "expected": {
+        "applied": 10000,
+        "remaining": 0
+      }
+    },
+    {
+      "name": "applyRepayment(nothing owed)",
+      "input": [0, 500],
+      "expected": {
+        "applied": 0,
+        "remaining": 0
+      }
+    },
+    {
+      "name": "applyRepayment(negative owed clamps to 0)",
+      "input": [-1000, 500],
+      "expected": {
+        "applied": 0,
+        "remaining": 0
+      }
+    },
+    {
+      "name": "applyRepayment(negative asked clamps to 0)",
+      "input": [1000, -500],
+      "expected": {
+        "applied": 0,
+        "remaining": 1000
+      }
+    },
+    {
+      "name": "applyRepayment(NaN asked)",
+      "input": [
+        1000,
+        {
+          "__sentinel__": "NaN"
+        }
+      ],
+      "expected": {
+        "applied": 0,
+        "remaining": 1000
+      }
+    },
+    {
+      "name": "applyRepayment(string asked)",
+      "input": [1000, "500"],
+      "expected": {
+        "applied": 500,
+        "remaining": 500
+      }
+    },
+    {
+      "name": "isSpendingRow(positive expense)",
+      "input": [
+        {
+          "id": "tx-1",
+          "title": "Groceries",
+          "category": "Shopping",
+          "type": "expense",
+          "amount": 10,
+          "date": "2026-10-02",
+          "accountId": "ca-1"
+        }
+      ],
+      "expected": true
+    },
+    {
+      "name": "isSpendingRow(zero expense)",
+      "input": [
+        {
+          "id": "tx-1",
+          "title": "Groceries",
+          "category": "Shopping",
+          "type": "expense",
+          "amount": 0,
+          "date": "2026-10-02",
+          "accountId": "ca-1"
+        }
+      ],
+      "expected": false
+    },
+    {
+      "name": "isSpendingRow(negative expense)",
+      "input": [
+        {
+          "id": "tx-1",
+          "title": "Groceries",
+          "category": "Shopping",
+          "type": "expense",
+          "amount": -10,
+          "date": "2026-10-02",
+          "accountId": "ca-1"
+        }
+      ],
+      "expected": false
+    },
+    {
+      "name": "isSpendingRow(withdrawal is not spending)",
+      "input": [
+        {
+          "id": "tx-1",
+          "title": "Groceries",
+          "category": "Shopping",
+          "type": "withdrawal",
+          "amount": 10,
+          "date": "2026-10-02",
+          "accountId": "ca-1"
+        }
+      ],
+      "expected": false
+    },
+    {
+      "name": "budgetSpendingForMonth(active subs count in full regardless of date)",
+      "input": [],
+      "expected": {
+        "spent": 13500,
+        "items": [
+          {
+            "name": "Netflix (Subscription)",
+            "spent": 1500
+          },
+          {
+            "name": "Annual (Subscription)",
+            "spent": 12000
+          }
+        ]
+      }
+    },
+    {
+      "name": "budgetSpendingForMonth(mixed-case category, this month)",
+      "input": [],
+      "expected": {
+        "spent": 14300,
+        "items": [
+          {
+            "name": "Groceries",
+            "spent": 500
+          },
+          {
+            "name": "Groceries",
+            "spent": 300
+          },
+          {
+            "name": "Netflix (Subscription)",
+            "spent": 1500
+          },
+          {
+            "name": "Annual (Subscription)",
+            "spent": 12000
+          }
+        ]
+      }
+    },
+    {
+      "name": "budgetSpendingForMonth(no match)",
+      "input": [],
+      "expected": {
+        "spent": 0,
+        "items": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,505 @@
+{
+  "_provenance": {
+    "generatedFrom": "pre-flutter",
+    "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+    "unitFile": "src/lib/creditCards.ts",
+    "gitBlob": "7b5cbee58e5c9478294e4d99287d987e0f52c92d",
+    "sha256": "31719541f54b4aafa6870d9a602a229e09b30a0c9299f4b50865d3c23ce4efcf",
+    "tz": "Asia/Colombo",
+    "locale": "en-US",
+    "node": "v24.19.0",
+    "pinnedNow": "2026-10-04T04:30:00.000Z",
+    "generatedAt": "2026-10-06T09:18:10.501Z",
+    "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
+  },
+  "cases": [
+    {
+      "name": "paymentsInCycle([2026-09-06])",
+      "input": [
+        [
+          {
+            "id": "p-2026-09-06",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-06",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle([2026-09-07])",
+      "input": [
+        [
+          {
+            "id": "p-2026-09-07",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-07",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 5000
+    },
+    {
+      "name": "paymentsInCycle([2026-09-20])",
+      "input": [
+        [
+          {
+            "id": "p-2026-09-20",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 5000
+    },
+    {
+      "name": "paymentsInCycle([2026-10-06])",
+      "input": [
+        [
+          {
+            "id": "p-2026-10-06",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-06",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 5000
+    },
+    {
+      "name": "paymentsInCycle([2026-10-07])",
+      "input": [
+        [
+          {
+            "id": "p-2026-10-07",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-07",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 5000
+    },
+    {
+      "name": "paymentsInCycle([2026-10-08])",
+      "input": [
+        [
+          {
+            "id": "p-2026-10-08",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-08",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle([2026-10-14])",
+      "input": [
+        [
+          {
+            "id": "p-2026-10-14",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-14",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle([2026-10-15])",
+      "input": [
+        [
+          {
+            "id": "p-2026-10-15",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-15",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle([2026-9-20])",
+      "input": [
+        [
+          {
+            "id": "p-2026-9-20",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-9-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle([2026-11-01])",
+      "input": [
+        [
+          {
+            "id": "p-2026-11-01",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-11-01",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle(empty)",
+      "input": [[], "cc-1", "2026-10-07"],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle(no dueDate)",
+      "input": [
+        [
+          {
+            "id": "p-2026-09-20",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        ""
+      ],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle(wrong targetAccountType)",
+      "input": [
+        [
+          {
+            "id": "p-2026-09-20",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "cash"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle(wrong cardId)",
+      "input": [
+        [
+          {
+            "id": "p-2026-09-20",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "zz",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle(type=transfer)",
+      "input": [
+        [
+          {
+            "id": "p-2026-09-20",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "transfer",
+            "amount": 5000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 0
+    },
+    {
+      "name": "paymentsInCycle(mixed, anchored on close)",
+      "input": [
+        [
+          {
+            "id": "p-2026-09-20",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          },
+          {
+            "id": "p2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-08",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07",
+        "2026-09-28"
+      ],
+      "expected": 5000
+    },
+    {
+      "name": "paymentsInCycle(string amount)",
+      "input": [
+        [
+          {
+            "id": "p-2026-09-20",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": "1500.5",
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 1500.5
+    },
+    {
+      "name": "paymentsInCycle(NaN amount)",
+      "input": [
+        [
+          {
+            "id": "p-2026-09-20",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": {
+              "__sentinel__": "NaN"
+            },
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "cc-1",
+        "2026-10-07"
+      ],
+      "expected": 0
+    },
+    {
+      "name": "isMinimumSatisfied(deduction)",
+      "input": [1921, "2026-10-15"],
+      "expected": true
+    },
+    {
+      "name": "isMinimumSatisfied(day-before-deduction)",
+      "input": [1921, "2026-10-14"],
+      "expected": false
+    },
+    {
+      "name": "isMinimumSatisfied(window-end)",
+      "input": [1921, "2026-10-07"],
+      "expected": true
+    },
+    {
+      "name": "isMinimumSatisfied(window-middle)",
+      "input": [1921, "2026-09-20"],
+      "expected": true
+    },
+    {
+      "name": "isMinimumSatisfied(min-zero)",
+      "input": [0, "2026-09-20"],
+      "expected": false
+    },
+    {
+      "name": "isMinimumSatisfied(min-unset)",
+      "input": [
+        {
+          "__sentinel__": "undefined"
+        },
+        "2026-09-20"
+      ],
+      "expected": false
+    },
+    {
+      "name": "isMinimumSatisfied(deduction amount 0)",
+      "input": [],
+      "expected": false
+    },
+    {
+      "name": "isMinimumSatisfied(no dueDate)",
+      "input": [],
+      "expected": false
+    },
+    {
+      "name": "isMinimumSatisfied(overpaid in window)",
+      "input": [],
+      "expected": true
+    },
+    {
+      "name": "maybeRollCard(-38420+5000,due=true)",
+      "input": [-38420, 5000, true],
+      "expected": {}
+    },
+    {
+      "name": "maybeRollCard(-38420+38420,due=true)",
+      "input": [-38420, 38420, true],
+      "expected": {
+        "dueDate": {
+          "__sentinel__": "undefined"
+        },
+        "minPayment": {
+          "__sentinel__": "undefined"
+        }
+      }
+    },
+    {
+      "name": "maybeRollCard(-38420+38421,due=true)",
+      "input": [-38420, 38421, true],
+      "expected": {
+        "dueDate": {
+          "__sentinel__": "undefined"
+        },
+        "minPayment": {
+          "__sentinel__": "undefined"
+        }
+      }
+    },
+    {
+      "name": "maybeRollCard(0+0,due=true)",
+      "input": [0, 0, true],
+      "expected": {
+        "dueDate": {
+          "__sentinel__": "undefined"
+        },
+        "minPayment": {
+          "__sentinel__": "undefined"
+        }
+      }
+    },
+    {
+      "name": "maybeRollCard(-100+100,due=false)",
+      "input": [-100, 100, false],
+      "expected": {}
+    },
+    {
+      "name": "maybeRollCard(-38420+NaN,due=true)",
+      "input": [
+        -38420,
+        {
+          "__sentinel__": "NaN"
+        },
+        true
+      ],
+      "expected": {}
+    },
+    {
+      "name": "maybeRollCard(-38420+\"5000\",due=true)",
+      "input": [-38420, "5000", true],
+      "expected": {}
+    }
+  ]
+}
