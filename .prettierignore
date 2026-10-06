@@ -14,3 +14,8 @@ package-lock.json
 supabase/.temp
 # gitleaks CI artifact
 results.sarif
+# Flutter client. Dart is not a Prettier language, but `npx prettier --check .` would
+# still reformat Flutter's own YAML/JSON/MD output (pubspec.yaml, the Xcode asset
+# catalogs, .dart_tool caches). mobile/ is formatted by `dart format`, which
+# .github/workflows/mobile-verify.yml enforces instead.
+mobile/

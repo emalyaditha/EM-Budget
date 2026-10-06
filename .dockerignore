@@ -2,9 +2,15 @@ node_modules
 dist
 .git
 .github
-.env
-.env.local
+**/.env
+**/.env.*
+!**/.env.example
 *.log
 server.err
 start-dev.ps1
 bun.lock
+# The Flutter client is never part of the web image. `COPY . .` (Dockerfile:13) would
+# otherwise put mobile/ into the build context and the builder layer, and every Dart
+# change would invalidate the npm-install cache. The `**/.env*` patterns above are what
+# actually keep mobile/.env out; this line keeps the 75 MB of SDK output out.
+mobile/
