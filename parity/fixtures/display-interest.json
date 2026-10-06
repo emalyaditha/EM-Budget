@@ -1,0 +1,254 @@
+{
+  "_provenance": {
+    "generatedFrom": "pre-flutter",
+    "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+    "unitFile": "src/components/CreditCardManagement.tsx",
+    "gitBlob": "ae0d3d032ce22c7f26afe038d269266941c6a5e5",
+    "sha256": "c44077e422fee0854d2bcecd70d6377b2a771ae3f1136caa2d150f6f0c679383",
+    "tz": "Asia/Colombo",
+    "locale": "en-US",
+    "node": "v24.19.0",
+    "pinnedNow": "2026-10-04T04:30:00.000Z",
+    "generatedAt": "2026-10-06T09:18:10.635Z",
+    "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"],
+    "extraction": {
+      "from": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799:src/components/CreditCardManagement.tsx",
+      "charRange": [1835, 2043],
+      "sha256OfExtractedSource": "4b8174d06a84bd42fefe13541fab972d57c08215550dff80c2572293e66ad24a",
+      "extractedSource": "function calculateInterest(balance: number, apr: number, days: number): number {\n  if (balance >= 0 || apr <= 0) return 0;\n  const dailyRate = apr / 100 / 365;\n  return Math.abs(balance) * dailyRate * days;\n}",
+      "note": "module-private in a .tsx; evaluated verbatim after TS type erasure only"
+    }
+  },
+  "cases": [
+    {
+      "name": "calculateInterest(-38420,24.9,30) [display]",
+      "input": [-38420, 24.9, 30],
+      "expected": 786.2942465753425
+    },
+    {
+      "name": "pair: engine vs display (-38420,24.9,30)",
+      "input": [-38420, 24.9, 30],
+      "expected": {
+        "displayUnrounded": 786.2942465753425,
+        "engineRounded": 786.29,
+        "differs": true
+      }
+    },
+    {
+      "name": "calculateInterest(-38420,24.9,0) [display]",
+      "input": [-38420, 24.9, 0],
+      "expected": 0
+    },
+    {
+      "name": "pair: engine vs display (-38420,24.9,0)",
+      "input": [-38420, 24.9, 0],
+      "expected": {
+        "displayUnrounded": 0,
+        "engineRounded": 0,
+        "differs": false
+      }
+    },
+    {
+      "name": "calculateInterest(-38420,24.9,-1) [display]",
+      "input": [-38420, 24.9, -1],
+      "expected": -26.209808219178083
+    },
+    {
+      "name": "pair: engine vs display (-38420,24.9,-1)",
+      "input": [-38420, 24.9, -1],
+      "expected": {
+        "displayUnrounded": -26.209808219178083,
+        "engineRounded": 0,
+        "differs": true
+      }
+    },
+    {
+      "name": "calculateInterest(-38420,24.9,-30) [display]",
+      "input": [-38420, 24.9, -30],
+      "expected": -786.2942465753425
+    },
+    {
+      "name": "pair: engine vs display (-38420,24.9,-30)",
+      "input": [-38420, 24.9, -30],
+      "expected": {
+        "displayUnrounded": -786.2942465753425,
+        "engineRounded": 0,
+        "differs": true
+      }
+    },
+    {
+      "name": "calculateInterest(38420,24.9,30) [display]",
+      "input": [38420, 24.9, 30],
+      "expected": 0
+    },
+    {
+      "name": "pair: engine vs display (38420,24.9,30)",
+      "input": [38420, 24.9, 30],
+      "expected": {
+        "displayUnrounded": 0,
+        "engineRounded": 0,
+        "differs": false
+      }
+    },
+    {
+      "name": "calculateInterest(0,24.9,30) [display]",
+      "input": [0, 24.9, 30],
+      "expected": 0
+    },
+    {
+      "name": "pair: engine vs display (0,24.9,30)",
+      "input": [0, 24.9, 30],
+      "expected": {
+        "displayUnrounded": 0,
+        "engineRounded": 0,
+        "differs": false
+      }
+    },
+    {
+      "name": "calculateInterest(-0,24.9,30) [display]",
+      "input": [
+        {
+          "__sentinel__": "-0"
+        },
+        24.9,
+        30
+      ],
+      "expected": 0
+    },
+    {
+      "name": "pair: engine vs display (-0,24.9,30)",
+      "input": [
+        {
+          "__sentinel__": "-0"
+        },
+        24.9,
+        30
+      ],
+      "expected": {
+        "displayUnrounded": 0,
+        "engineRounded": 0,
+        "differs": false
+      }
+    },
+    {
+      "name": "calculateInterest(-1000,0,30) [display]",
+      "input": [-1000, 0, 30],
+      "expected": 0
+    },
+    {
+      "name": "pair: engine vs display (-1000,0,30)",
+      "input": [-1000, 0, 30],
+      "expected": {
+        "displayUnrounded": 0,
+        "engineRounded": 0,
+        "differs": false
+      }
+    },
+    {
+      "name": "calculateInterest(-1000,NaN,30) [display]",
+      "input": [
+        -1000,
+        {
+          "__sentinel__": "NaN"
+        },
+        30
+      ],
+      "expected": {
+        "__sentinel__": "NaN"
+      }
+    },
+    {
+      "name": "pair: engine vs display (-1000,NaN,30)",
+      "input": [
+        -1000,
+        {
+          "__sentinel__": "NaN"
+        },
+        30
+      ],
+      "expected": {
+        "displayUnrounded": {
+          "__sentinel__": "NaN"
+        },
+        "engineRounded": 0,
+        "differs": true
+      }
+    },
+    {
+      "name": "calculateInterest(-1000,undefined,30) [display]",
+      "input": [
+        -1000,
+        {
+          "__sentinel__": "undefined"
+        },
+        30
+      ],
+      "expected": {
+        "__sentinel__": "NaN"
+      }
+    },
+    {
+      "name": "pair: engine vs display (-1000,undefined,30)",
+      "input": [
+        -1000,
+        {
+          "__sentinel__": "undefined"
+        },
+        30
+      ],
+      "expected": {
+        "displayUnrounded": {
+          "__sentinel__": "NaN"
+        },
+        "engineRounded": 0,
+        "differs": true
+      }
+    },
+    {
+      "name": "calculateInterest(NaN,24.9,30) [display]",
+      "input": [
+        {
+          "__sentinel__": "NaN"
+        },
+        24.9,
+        30
+      ],
+      "expected": {
+        "__sentinel__": "NaN"
+      }
+    },
+    {
+      "name": "pair: engine vs display (NaN,24.9,30)",
+      "input": [
+        {
+          "__sentinel__": "NaN"
+        },
+        24.9,
+        30
+      ],
+      "expected": {
+        "displayUnrounded": {
+          "__sentinel__": "NaN"
+        },
+        "engineRounded": {
+          "__sentinel__": "NaN"
+        },
+        "differs": true
+      }
+    },
+    {
+      "name": "calculateInterest(-36500,36.5,365) [display]",
+      "input": [-36500, 36.5, 365],
+      "expected": 13322.5
+    },
+    {
+      "name": "pair: engine vs display (-36500,36.5,365)",
+      "input": [-36500, 36.5, 365],
+      "expected": {
+        "displayUnrounded": 13322.5,
+        "engineRounded": 13322.5,
+        "differs": false
+      }
+    }
+  ]
+}

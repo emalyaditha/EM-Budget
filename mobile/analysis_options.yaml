@@ -1,0 +1,16 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    # Codegen output is verified by its generator and its fixture tests, not by the linter.
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'
+  language:
+    # The web sources compile under TypeScript `strict`; these close the equivalent
+    # implicit-conversion holes in Dart, where an implicit `dynamic` cast can differ
+    # from the value the golden fixture recorded.
+    strict-casts: true
+    strict-raw-types: true

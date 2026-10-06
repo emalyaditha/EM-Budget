@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { localDayKey, todayLocal } from '../utils';
 
 interface DatePickerProps {
   value: string; // Expected in YYYY-MM-DD format
@@ -410,7 +411,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   <button
                     type="button"
                     onClick={(e) => {
-                      const todayStr = new Date().toISOString().split('T')[0];
+                      const todayStr = todayLocal();
                       handleSelectDay(todayStr, e);
                     }}
                     className="py-2 px-3 text-xs mono bg-[var(--surface-2)] hover:bg-[var(--surface)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-xl transition-colors cursor-pointer text-center font-medium border border-[var(--line)]"
@@ -422,7 +423,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     onClick={(e) => {
                       const yesterday = new Date();
                       yesterday.setDate(yesterday.getDate() - 1);
-                      const yesterdayStr = yesterday.toISOString().split('T')[0];
+                      const yesterdayStr = localDayKey(yesterday);
                       handleSelectDay(yesterdayStr, e);
                     }}
                     className="py-2 px-3 text-xs mono bg-[var(--surface-2)] hover:bg-[var(--surface)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-xl transition-colors cursor-pointer text-center font-medium border border-[var(--line)]"
@@ -537,7 +538,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 <button
                   type="button"
                   onClick={(e) => {
-                    const todayStr = new Date().toISOString().split('T')[0];
+                    const todayStr = todayLocal();
                     handleSelectDay(todayStr, e);
                   }}
                   className="py-1 px-2 text-[10px] mono bg-[var(--surface-2)] hover:bg-[var(--surface)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-lg transition-colors cursor-pointer"
@@ -549,7 +550,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   onClick={(e) => {
                     const yesterday = new Date();
                     yesterday.setDate(yesterday.getDate() - 1);
-                    const yesterdayStr = yesterday.toISOString().split('T')[0];
+                    const yesterdayStr = localDayKey(yesterday);
                     handleSelectDay(yesterdayStr, e);
                   }}
                   className="py-1 px-2 text-[10px] mono bg-[var(--surface-2)] hover:bg-[var(--surface)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] rounded-lg transition-colors cursor-pointer"

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { todayLocal } from '../utils';
-import { formatMoney } from '../lib/money';
+import { formatMoney, sumMoney, addMoney, subtractMoney } from '../lib/money';
 
 interface CashCardManagementProps {
   cashAccounts: CashAccount[];
@@ -46,6 +46,7 @@ interface InteractiveBankCardProps {
   onApplyCardCharge?: (cardId: string, charge: Charge) => void;
   onDeleteCardCharge?: (cardId: string, chargeId: string) => void;
   setEditCardLockedAmount?: (val: string) => void;
+  setEditCardBalance?: (val: string) => void;
   setEditCardDueDate?: (val: string) => void;
   setEditCardApr?: (val: string) => void;
   setEditCardMinPayment?: (val: string) => void;
@@ -70,6 +71,20 @@ function themeAccent(theme: string): string {
   return map[theme] || 'var(--line)';
 }
 
+/** A blank or unparseable balance field is not a request to zero the card. */
+function parseBalanceOrKeep(raw: string, keep: number): number {
+  const trimmed = (raw || '').trim();
+  if (trimmed === '') return keep;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : keep;
+}
+
+const QUICK_ACTION_LABEL = {
+  deposit: 'Quick deposit',
+  withdraw: 'Quick withdrawal',
+  set: 'Set balance',
+} as const;
+
 function InteractiveBankCard({
   card,
   idx,
@@ -83,6 +98,7 @@ function InteractiveBankCard({
   setEditCardErrors,
   setEditCardSubmitted,
   setEditCardLockedAmount,
+  setEditCardBalance,
   setEditCardDueDate,
   setEditCardApr,
   setEditCardMinPayment,
@@ -175,6 +191,7 @@ function InteractiveBankCard({
                 setEditCardErrors({});
                 setEditCardSubmitted(false);
                 setEditCardLockedAmount?.(card.lockedAmount?.toString() || '0');
+                setEditCardBalance?.(String(card.currentBalance ?? 0));
                 setEditCardDueDate?.(card.dueDate || '');
                 setEditCardApr?.(card.apr !== undefined ? String(card.apr) : '');
                 setEditCardMinPayment?.(card.minPayment !== undefined ? String(card.minPayment) : '');
@@ -291,6 +308,7 @@ export default function CashCardManagement({
   const [editCardName, setEditCardName] = useState('');
   const [editCardNumber, setEditCardNumber] = useState('');
   const [editCardLockedAmount, setEditCardLockedAmount] = useState('0');
+  const [editCardBalance, setEditCardBalance] = useState('0');
   const [editCardTheme, setEditCardTheme] = useState('obsidian');
   const [editCardDueDate, setEditCardDueDate] = useState('');
   const [editCardStatementCloseDate, setEditCardStatementCloseDate] = useState('');
@@ -317,7 +335,7 @@ export default function CashCardManagement({
   };
   const [selectedCashId, setSelectedCashId] = useState<string | null>(null);
   const [qtyAction, setQtyAction] = useState('');
-  const [actionType, setActionType] = useState<'deposit' | 'withdraw' | null>(null);
+  const [actionType, setActionType] = useState<'deposit' | 'withdraw' | 'set' | null>(null);
   const [quickErrors, setQuickErrors] = useState<Record<string, string>>({});
   const [quickSubmitted, setQuickSubmitted] = useState(false);
   const cashNameInputRef = React.useRef<HTMLInputElement>(null);
@@ -329,7 +347,7 @@ export default function CashCardManagement({
   const qtyActionInputRef = React.useRef<HTMLInputElement>(null);
   const [cardToDelete] = useState<string | null>(null);
 
-  const vaultTotal = cashAccounts.reduce((s, a) => s + (a.balance || 0), 0);
+  const vaultTotal = sumMoney(cashAccounts.map((a) => a.balance || 0));
 
   const validateCash = (name: string, balance: string, submitted: boolean) => {
     const errs: Record<string, string> = {};
@@ -388,7 +406,10 @@ export default function CashCardManagement({
       else {
         const n = parseFloat(qty);
         if (isNaN(n)) errs.qty = 'Must be a number';
-        else if (n <= 0) errs.qty = 'Must be positive';
+        // Stating a balance is not an amount of money to move: an empty wallet really
+        // is 0, so only the two relative actions insist on a positive figure.
+        else if (actionType === 'set' ? n < 0 : n <= 0)
+          errs.qty = actionType === 'set' ? 'A wallet cannot hold negative cash' : 'Must be positive';
         else if (actionType === 'withdraw' && selectedCashId) {
           const acc = cashAccounts.find((c) => c.id === selectedCashId);
           if (acc && acc.balance < n) errs.qty = `Insufficient — avail ${currency} ${acc.balance.toLocaleString()}`;
@@ -485,6 +506,9 @@ export default function CashCardManagement({
       cardName: editCardName.trim(),
       cardNumber: clean,
       cardTheme: editCardTheme,
+      // A blank or unparseable field is not a request to zero the card — only a
+      // real number replaces the stored balance.
+      currentBalance: parseBalanceOrKeep(editCardBalance, editingCard.currentBalance),
       lockedAmount: editingCard.cardType === 'Debit' ? parseFloat(editCardLockedAmount) || 0 : undefined,
       dueDate: editingCard.cardType === 'Credit' && editCardDueDate ? editCardDueDate : editingCard.dueDate,
       statementCloseDate:
@@ -512,7 +536,12 @@ export default function CashCardManagement({
       return;
     }
     const amt = parseFloat(qtyAction) || 0;
-    const next = actionType === 'deposit' ? acc.balance + amt : acc.balance - amt;
+    const next =
+      actionType === 'set'
+        ? amt
+        : actionType === 'deposit'
+          ? addMoney(acc.balance, amt)
+          : subtractMoney(acc.balance, amt);
     onEditCashAccount(selectedCashId, next);
     setQtyAction('');
     setSelectedCashId(null);
@@ -544,7 +573,9 @@ export default function CashCardManagement({
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 relative z-10">
           <div>
             <span className="eyebrow !text-white/60">Vault — Cash in hand</span>
-            <div className="mono text-[32px] md:text-[40px] font-bold tracking-tight text-white mt-1 tabular-nums">
+            {/* A seven-figure holding is 15 characters of mono; a fixed 32px clipped the
+                last digits off the card at 320px. */}
+            <div className="mono text-[clamp(20px,6.5vw,40px)] font-bold tracking-tight text-white mt-1 tabular-nums">
               {currency}
               {vaultTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
@@ -599,12 +630,17 @@ export default function CashCardManagement({
                     <span className="pill !py-0.5 !px-2 !text-[10px] mono mt-1">Asset drawer</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0">
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedCashId(account.id);
                       setActionType('deposit');
+                      // Clear the box: a leftover "Set balance" figure would otherwise
+                      // open as a deposit of that amount and double the wallet.
+                      setQtyAction('');
+                      setQuickErrors({});
+                      setQuickSubmitted(false);
                     }}
                     className="pill !px-3 !py-1.5 !text-[11px] mono"
                   >
@@ -615,10 +651,31 @@ export default function CashCardManagement({
                     onClick={() => {
                       setSelectedCashId(account.id);
                       setActionType('withdraw');
+                      setQtyAction('');
+                      setQuickErrors({});
+                      setQuickSubmitted(false);
                     }}
                     className="pill !px-3 !py-1.5 !text-[11px] mono"
                   >
                     − Withdraw
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCashId(account.id);
+                      setActionType('set');
+                      // Prefill with what the ledger currently says, so correcting it
+                      // means editing the real figure rather than retyping it blind.
+                      setQtyAction(String(account.balance));
+                      setQuickErrors({});
+                      setQuickSubmitted(false);
+                    }}
+                    className="pill !px-3 !py-1.5 !text-[11px] mono inline-flex items-center gap-1"
+                    aria-label={`Set balance for ${account.name}`}
+                    title={`The recorded figure is wrong? State the true balance for ${account.name}`}
+                  >
+                    <Edit size={11} />
+                    Set
                   </button>
                   <button
                     type="button"
@@ -646,7 +703,7 @@ export default function CashCardManagement({
             <div className="flex justify-between items-center">
               <span className="mono text-xs font-semibold flex items-center gap-1.5">
                 <CornerDownRight size={12} className="text-[var(--ink-3)]" />
-                Quick {actionType}: {cashAccounts.find((c) => c.id === selectedCashId)?.name}
+                {QUICK_ACTION_LABEL[actionType]}: {cashAccounts.find((c) => c.id === selectedCashId)?.name}
               </span>
               <button
                 type="button"
@@ -660,14 +717,21 @@ export default function CashCardManagement({
               </button>
             </div>
             <div className="flex gap-2">
+              {/* The box is a currency field with a painted prefix, so it never had a
+                  visible caption; screen readers only had the placeholder. */}
+              <label htmlFor="quick-cash-amount" className="sr-only">
+                {actionType === 'set' ? 'New balance' : 'Amount'}
+              </label>
               <div className="relative flex-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 mono text-xs text-[var(--ink-3)]">
                   {currency}
                 </span>
                 <input
+                  id="quick-cash-amount"
                   ref={qtyActionInputRef}
                   type="number"
-                  placeholder="Amount"
+                  step="0.01"
+                  placeholder={actionType === 'set' ? 'New balance' : 'Amount'}
                   value={qtyAction}
                   onChange={(e) => {
                     setQtyAction(e.target.value);
@@ -682,6 +746,13 @@ export default function CashCardManagement({
               </button>
             </div>
             {quickErrors.qty && <span className="text-[11px] text-[var(--danger)] mono">{quickErrors.qty}</span>}
+            {actionType === 'set' && (
+              <span className="text-[11px] text-[var(--ink-2)] mono">
+                This wallet records{' '}
+                {formatMoney(currency, cashAccounts.find((c) => c.id === selectedCashId)?.balance ?? 0)} right now.
+                Saving a different figure writes an Adjustment entry to the ledger, so the change is traceable.
+              </span>
+            )}
           </form>
         )}
 
@@ -978,6 +1049,7 @@ export default function CashCardManagement({
                           setEditCardErrors={setEditCardErrors}
                           setEditCardSubmitted={setEditCardSubmitted}
                           setEditCardLockedAmount={setEditCardLockedAmount}
+                          setEditCardBalance={setEditCardBalance}
                           setEditCardDueDate={setEditCardDueDate}
                           setEditCardApr={setEditCardApr}
                           setEditCardMinPayment={setEditCardMinPayment}
@@ -1145,6 +1217,7 @@ export default function CashCardManagement({
                               setEditCardErrors={setEditCardErrors}
                               setEditCardSubmitted={setEditCardSubmitted}
                               setEditCardLockedAmount={setEditCardLockedAmount}
+                              setEditCardBalance={setEditCardBalance}
                               setEditCardDueDate={setEditCardDueDate}
                               setEditCardApr={setEditCardApr}
                               setEditCardMinPayment={setEditCardMinPayment}
@@ -1234,6 +1307,25 @@ export default function CashCardManagement({
                         {editCardErrors.number && (
                           <span className="text-[11px] text-[var(--danger)] mono">{editCardErrors.number}</span>
                         )}
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="eyebrow normal-case" htmlFor="edit-card-balance">
+                          Current balance ({currency})
+                        </label>
+                        <input
+                          id="edit-card-balance"
+                          type="number"
+                          step="0.01"
+                          value={editCardBalance}
+                          onChange={(e) => setEditCardBalance(e.target.value)}
+                          className="input mono"
+                        />
+                        <span className="text-[11px] text-[var(--ink-2)] mono">
+                          {isCredit
+                            ? 'A credit card holds what you owe, so this figure is negative while the card is in use. '
+                            : 'What is on this card right now. '}
+                          Saving a change writes an Adjustment entry to the ledger.
+                        </span>
                       </div>
                       {!isCredit && (
                         <div className="flex flex-col gap-1.5">

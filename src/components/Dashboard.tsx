@@ -20,8 +20,8 @@ import { TransactionRow } from './ui/TransactionRow';
 import { CategoryChip } from './ui/CategoryChip';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { ProgressBarThick, toneForPercent } from './ui/ProgressRing';
-import { todayLocal } from '../utils';
-import { formatMoney } from '../lib/money';
+import { todayLocal, budgetSpendingForMonth, isInCurrentMonth, isSpendingRow, localDayKey } from '../utils';
+import { formatMoney, subtractMoney, sumMoney, toMinorUnits } from '../lib/money';
 
 interface DashboardProps {
   state: AppState;
@@ -84,12 +84,13 @@ const DONUT_COLORS = [
 ];
 
 function dayLabel(dateStr: string): string {
-  const today = new Date();
   const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
+  yesterday.setDate(yesterday.getDate() - 1);
   const d = dateStr.split('T')[0];
-  if (d === today.toISOString().split('T')[0]) return 'Today';
-  if (d === yesterday.toISOString().split('T')[0]) return 'Yesterday';
+  // The chart keys are local days now, so the comparison has to be local too —
+  // against a UTC key these two labels simply never matched for a UTC+5:30 reader.
+  if (d === todayLocal()) return 'Today';
+  if (d === localDayKey(yesterday)) return 'Yesterday';
   const parsed = new Date(d);
   if (isNaN(parsed.getTime())) return dateStr;
   return parsed.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -139,27 +140,20 @@ export default function Dashboard({
   const categoriesBudgets = state.budgets && state.budgets.length > 0 ? state.budgets : [];
 
   const liveBudgetTray = categoriesBudgets.map((b) => {
-    const bCategoryLower = b.category.toLowerCase().trim();
-    const matchingTx = state.transactions.filter((t) => {
-      if (!t.category) return false;
-      return t.category.toLowerCase().trim() === bCategoryLower && (t.type === 'expense' || t.amount < 0);
-    });
-    const txSpentSum = matchingTx.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const matchingSubs = (state.subscriptions || []).filter((s) => {
-      if (!s.category || s.status !== 'Active') return false;
-      return s.category.toLowerCase().trim() === bCategoryLower;
-    });
-    const subsSpentSum = matchingSubs.reduce((sum, s) => sum + s.amount, 0);
-    const totalSpent = txSpentSum + subsSpentSum;
-    const actualSpent = matchingTx.length > 0 || matchingSubs.length > 0 ? totalSpent : b.spent || 0;
-    const remaining = Math.max(0, b.limit - actualSpent);
-    const pct = Math.min(100, Math.round((actualSpent / b.limit) * 100));
-    return { ...b, spent: actualSpent, remaining, percent: pct };
+    const { spent } = budgetSpendingForMonth(b.category, state.transactions, state.subscriptions || []);
+    const remaining = Math.max(0, subtractMoney(b.limit, spent));
+    const percent = b.limit > 0 ? Math.min(100, Math.round((spent / b.limit) * 100)) : 0;
+    return { ...b, spent, remaining, percent };
   });
 
   const getTransactionImpact = (t: AppState['transactions'][number]) => {
-    if (t.type === 'income') return Math.abs(t.amount);
-    if (t.type === 'expense') return -Math.abs(t.amount);
+    // The trend line is drawn by walking *backwards* from today's wealth, so each row
+    // has to be undone with the sign it had when it landed. A balance adjustment is a
+    // deposit or a withdrawal, and ignoring it pinned the correction to today and left
+    // every earlier day on the wrong side of it. Transfers and credit-card purchases
+    // move nothing in or out of the household, so they stay at zero.
+    if (t.type === 'income' || t.type === 'deposit') return Math.abs(t.amount);
+    if (t.type === 'expense' || t.type === 'withdrawal') return -Math.abs(t.amount);
     return 0;
   };
 
@@ -187,7 +181,7 @@ export default function Dashboard({
     for (let i = 0; i < daysCount; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = localDayKey(d);
       balanceMap[dateStr] = runningBalance;
       const dayTxs = state.transactions.filter((t) => t.date && t.date.split('T')[0] === dateStr);
       const dayImpact = dayTxs.reduce((sum, t) => sum + getTransactionImpact(t), 0);
@@ -198,28 +192,26 @@ export default function Dashboard({
       .map((dateStr) => ({ date: dateStr, value: balanceMap[dateStr] }));
   }, [timeRange, aggregateActiveWealth, state.transactions]);
 
-  const monthPrefix = new Date().toISOString().slice(0, 7);
   const donutData = useMemo(() => {
     const byCat = new Map<string, number>();
     for (const t of state.transactions) {
-      const isExpense = t.type === 'expense' || (typeof t.amount === 'number' && t.amount < 0);
-      if (!isExpense) continue;
-      if (!t.date || !t.date.startsWith(monthPrefix)) continue;
+      if (!isSpendingRow(t)) continue;
+      if (!isInCurrentMonth(t.date)) continue;
       const cat = (t.category || 'Other').trim() || 'Other';
-      byCat.set(cat, (byCat.get(cat) || 0) + Math.abs(t.amount));
+      byCat.set(cat, (byCat.get(cat) || 0) + toMinorUnits(t.amount));
     }
     return Array.from(byCat.entries())
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, cents]) => ({ name, value: cents / 100 }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
-  }, [state.transactions, monthPrefix]);
-  const donutTotal = donutData.reduce((s, d) => s + d.value, 0);
+  }, [state.transactions]);
+  const donutTotal = donutData.reduce((s, d) => s + toMinorUnits(d.value), 0) / 100;
 
   const todayOutflow = useMemo(() => {
     const today = todayLocal();
-    return state.transactions
-      .filter((t) => t.type === 'expense' && t.date && t.date.startsWith(today))
-      .reduce((sum, t) => sum + t.amount, 0);
+    return sumMoney(
+      state.transactions.filter((t) => isSpendingRow(t) && t.date && t.date.startsWith(today)).map((t) => t.amount),
+    );
   }, [state.transactions]);
 
   const activityLog = useMemo(() => {

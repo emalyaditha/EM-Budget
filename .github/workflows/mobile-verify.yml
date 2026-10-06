@@ -1,0 +1,53 @@
+name: Mobile Parity CI
+
+# Mirrors the gates in verify-build.yml for the Flutter client only. The two jobs are
+# independent: a mobile change must not block a web deploy, and vice versa. gitleaks
+# already runs over the whole tree in the web job, so mobile/ is secret-scanned there.
+
+on:
+  push:
+    branches: [main, master, development]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      # Third-party action, pinned to the full commit SHA rather than the floating `v2`
+      # tag. That commit is v2.23.0 as of 2026-10-06; bump it deliberately, never by
+      # tag drift.
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.6'
+          channel: 'stable'
+          cache: true
+      # mobile/android/build.gradle.kts compiles to Java 17; pinning the JDK keeps the
+      # build from tracking whatever the runner image happens to ship.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Lint (zero warnings)
+        run: flutter analyze --fatal-infos --fatal-warnings
+      - name: Tests
+        run: flutter test
+      # The only place this repository ever proves the app compiles: this host has no
+      # Android SDK, and iOS builds need macOS, so `analyze` + `test` alone would let a
+      # plugin that requires native configuration pass silently.
+      - name: Android debug build
+        run: flutter build apk --debug

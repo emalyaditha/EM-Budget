@@ -1,0 +1,418 @@
+{
+  "_provenance": {
+    "generatedFrom": "pre-flutter",
+    "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+    "unitFile": "src/utils.ts",
+    "gitBlob": "999d2a921bd7176cbd36dd634b24b6af010791ae",
+    "sha256": "d7921139645e1c71d9f2dc8f8d43e501f95213c4a1aea0ee8d5e115ecce2b790",
+    "tz": "Asia/Colombo",
+    "locale": "en-US",
+    "node": "v24.19.0",
+    "pinnedNow": "2026-10-04T04:30:00.000Z",
+    "generatedAt": "2026-10-06T09:18:10.506Z",
+    "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
+  },
+  "cases": [
+    {
+      "name": "localDayKey(2026-10-04T00:00:00)",
+      "input": ["2026-10-04T00:00:00"],
+      "expected": "2026-10-04"
+    },
+    {
+      "name": "localDayKey(2026-10-04T23:59:59.999)",
+      "input": ["2026-10-04T23:59:59.999"],
+      "expected": "2026-10-04"
+    },
+    {
+      "name": "localDayKey(2026-10-04T18:30:00Z)",
+      "input": ["2026-10-04T18:30:00Z"],
+      "expected": "2026-10-05"
+    },
+    {
+      "name": "localDayKey(2026-01-01T00:00:00Z)",
+      "input": ["2026-01-01T00:00:00Z"],
+      "expected": "2026-01-01"
+    },
+    {
+      "name": "localDayKey(2026-12-31T23:59:59Z)",
+      "input": ["2026-12-31T23:59:59Z"],
+      "expected": "2027-01-01"
+    },
+    {
+      "name": "localDayKey(2026-02-29T12:00:00)",
+      "input": ["2026-02-29T12:00:00"],
+      "expected": "2026-03-01"
+    },
+    {
+      "name": "localDayKey(Invalid Date)",
+      "input": ["invalid"],
+      "expected": "NaN-NaN-NaN"
+    },
+    {
+      "name": "todayLocal() [pinned now]",
+      "input": [],
+      "expected": "2026-10-04"
+    },
+    {
+      "name": "isInCurrentMonth(\"2026-10-01\")",
+      "input": ["2026-10-01"],
+      "expected": true
+    },
+    {
+      "name": "isInCurrentMonth(\"2026-10-04\")",
+      "input": ["2026-10-04"],
+      "expected": true
+    },
+    {
+      "name": "isInCurrentMonth(\"2026-10-31\")",
+      "input": ["2026-10-31"],
+      "expected": true
+    },
+    {
+      "name": "isInCurrentMonth(\"2026-09-30\")",
+      "input": ["2026-09-30"],
+      "expected": false
+    },
+    {
+      "name": "isInCurrentMonth(\"2026-11-01\")",
+      "input": ["2026-11-01"],
+      "expected": false
+    },
+    {
+      "name": "isInCurrentMonth(\"2025-10-04\")",
+      "input": ["2025-10-04"],
+      "expected": false
+    },
+    {
+      "name": "isInCurrentMonth(\"2027-10-04\")",
+      "input": ["2027-10-04"],
+      "expected": false
+    },
+    {
+      "name": "isInCurrentMonth(\"2026-10-04T18:30:00Z\")",
+      "input": ["2026-10-04T18:30:00Z"],
+      "expected": true
+    },
+    {
+      "name": "isInCurrentMonth(\"2026-13-45\")",
+      "input": ["2026-13-45"],
+      "expected": false
+    },
+    {
+      "name": "isInCurrentMonth(\"\")",
+      "input": [""],
+      "expected": false
+    },
+    {
+      "name": "isInCurrentMonth(\"garbage\")",
+      "input": ["garbage"],
+      "expected": false
+    },
+    {
+      "name": "isInCurrentMonth(undefined)",
+      "input": [
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": false
+    },
+    {
+      "name": "isInCurrentMonth(10 years ago, same month number)",
+      "input": ["2016-10-04"],
+      "expected": false
+    },
+    {
+      "name": "isAlertDayRecent(\"2026-10-04\")",
+      "input": ["2026-10-04"],
+      "expected": true
+    },
+    {
+      "name": "isAlertDayRecent(\"2026-10-03\")",
+      "input": ["2026-10-03"],
+      "expected": true
+    },
+    {
+      "name": "isAlertDayRecent(\"2026-10-02\")",
+      "input": ["2026-10-02"],
+      "expected": false
+    },
+    {
+      "name": "isAlertDayRecent(\"2026-10-05\")",
+      "input": ["2026-10-05"],
+      "expected": false
+    },
+    {
+      "name": "isAlertDayRecent(\"2026-09-04\")",
+      "input": ["2026-09-04"],
+      "expected": false
+    },
+    {
+      "name": "isAlertDayRecent(\"\")",
+      "input": [""],
+      "expected": false
+    },
+    {
+      "name": "isAlertDayRecent(\"garbage\")",
+      "input": ["garbage"],
+      "expected": false
+    },
+    {
+      "name": "isAlertDayRecent(undefined)",
+      "input": [
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": false
+    },
+    {
+      "name": "addMonthsClamped(2026-01-31,-13)",
+      "input": ["2026-01-31", -13],
+      "expected": "2024-12-31"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-31,-1)",
+      "input": ["2026-01-31", -1],
+      "expected": "2025-12-31"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-31,0)",
+      "input": ["2026-01-31", 0],
+      "expected": "2026-01-31"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-31,1)",
+      "input": ["2026-01-31", 1],
+      "expected": "2026-02-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-31,12)",
+      "input": ["2026-01-31", 12],
+      "expected": "2027-01-31"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-31,25)",
+      "input": ["2026-01-31", 25],
+      "expected": "2028-02-29"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-30,-13)",
+      "input": ["2026-01-30", -13],
+      "expected": "2024-12-30"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-30,-1)",
+      "input": ["2026-01-30", -1],
+      "expected": "2025-12-30"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-30,0)",
+      "input": ["2026-01-30", 0],
+      "expected": "2026-01-30"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-30,1)",
+      "input": ["2026-01-30", 1],
+      "expected": "2026-02-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-30,12)",
+      "input": ["2026-01-30", 12],
+      "expected": "2027-01-30"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-30,25)",
+      "input": ["2026-01-30", 25],
+      "expected": "2028-02-29"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-29,-13)",
+      "input": ["2026-01-29", -13],
+      "expected": "2024-12-29"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-29,-1)",
+      "input": ["2026-01-29", -1],
+      "expected": "2025-12-29"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-29,0)",
+      "input": ["2026-01-29", 0],
+      "expected": "2026-01-29"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-29,1)",
+      "input": ["2026-01-29", 1],
+      "expected": "2026-02-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-29,12)",
+      "input": ["2026-01-29", 12],
+      "expected": "2027-01-29"
+    },
+    {
+      "name": "addMonthsClamped(2026-01-29,25)",
+      "input": ["2026-01-29", 25],
+      "expected": "2028-02-29"
+    },
+    {
+      "name": "addMonthsClamped(2026-03-31,-13)",
+      "input": ["2026-03-31", -13],
+      "expected": "2025-02-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-03-31,-1)",
+      "input": ["2026-03-31", -1],
+      "expected": "2026-02-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-03-31,0)",
+      "input": ["2026-03-31", 0],
+      "expected": "2026-03-31"
+    },
+    {
+      "name": "addMonthsClamped(2026-03-31,1)",
+      "input": ["2026-03-31", 1],
+      "expected": "2026-04-30"
+    },
+    {
+      "name": "addMonthsClamped(2026-03-31,12)",
+      "input": ["2026-03-31", 12],
+      "expected": "2027-03-31"
+    },
+    {
+      "name": "addMonthsClamped(2026-03-31,25)",
+      "input": ["2026-03-31", 25],
+      "expected": "2028-04-30"
+    },
+    {
+      "name": "addMonthsClamped(2028-02-29,-13)",
+      "input": ["2028-02-29", -13],
+      "expected": "2027-01-29"
+    },
+    {
+      "name": "addMonthsClamped(2028-02-29,-1)",
+      "input": ["2028-02-29", -1],
+      "expected": "2028-01-29"
+    },
+    {
+      "name": "addMonthsClamped(2028-02-29,0)",
+      "input": ["2028-02-29", 0],
+      "expected": "2028-02-29"
+    },
+    {
+      "name": "addMonthsClamped(2028-02-29,1)",
+      "input": ["2028-02-29", 1],
+      "expected": "2028-03-29"
+    },
+    {
+      "name": "addMonthsClamped(2028-02-29,12)",
+      "input": ["2028-02-29", 12],
+      "expected": "2029-02-28"
+    },
+    {
+      "name": "addMonthsClamped(2028-02-29,25)",
+      "input": ["2028-02-29", 25],
+      "expected": "2030-03-29"
+    },
+    {
+      "name": "addMonthsClamped(2026-02-28,-13)",
+      "input": ["2026-02-28", -13],
+      "expected": "2025-01-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-02-28,-1)",
+      "input": ["2026-02-28", -1],
+      "expected": "2026-01-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-02-28,0)",
+      "input": ["2026-02-28", 0],
+      "expected": "2026-02-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-02-28,1)",
+      "input": ["2026-02-28", 1],
+      "expected": "2026-03-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-02-28,12)",
+      "input": ["2026-02-28", 12],
+      "expected": "2027-02-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-02-28,25)",
+      "input": ["2026-02-28", 25],
+      "expected": "2028-03-28"
+    },
+    {
+      "name": "addMonthsClamped(2026-10-15,-13)",
+      "input": ["2026-10-15", -13],
+      "expected": "2025-09-15"
+    },
+    {
+      "name": "addMonthsClamped(2026-10-15,-1)",
+      "input": ["2026-10-15", -1],
+      "expected": "2026-09-15"
+    },
+    {
+      "name": "addMonthsClamped(2026-10-15,0)",
+      "input": ["2026-10-15", 0],
+      "expected": "2026-10-15"
+    },
+    {
+      "name": "addMonthsClamped(2026-10-15,1)",
+      "input": ["2026-10-15", 1],
+      "expected": "2026-11-15"
+    },
+    {
+      "name": "addMonthsClamped(2026-10-15,12)",
+      "input": ["2026-10-15", 12],
+      "expected": "2027-10-15"
+    },
+    {
+      "name": "addMonthsClamped(2026-10-15,25)",
+      "input": ["2026-10-15", 25],
+      "expected": "2028-11-15"
+    },
+    {
+      "name": "addMonthsClamped(,1)",
+      "input": ["", 1],
+      "expected": ""
+    },
+    {
+      "name": "addMonthsClamped(2026-9-5,1)",
+      "input": ["2026-9-5", 1],
+      "expected": "2026-10-05"
+    },
+    {
+      "name": "addMonthsClamped(not-a-date,1)",
+      "input": ["not-a-date", 1],
+      "expected": "not-a-date"
+    },
+    {
+      "name": "addMonthsClamped(timestamp 2026-10-04T18:30:00Z,1)",
+      "input": ["2026-10-04T18:30:00Z", 1],
+      "expected": "2026-11-04"
+    },
+    {
+      "name": "addMonthsClamped(timestamp 2026-10-04T23:30:00Z,1)",
+      "input": ["2026-10-04T23:30:00Z", 1],
+      "expected": "2026-11-04"
+    },
+    {
+      "name": "addMonthsClamped(timestamp 2026-10-04T00:30:00Z,1)",
+      "input": ["2026-10-04T00:30:00Z", 1],
+      "expected": "2026-11-04"
+    },
+    {
+      "name": "dates-local: addMonthsClamped vs advanceDueDate input tolerance",
+      "input": ["2026-01-31T10:00:00Z"],
+      "expected": {
+        "addMonthsClamped": "2026-02-28",
+        "advanceDueDate": "2026-01-31T10:00:00Z"
+      }
+    }
+  ]
+}

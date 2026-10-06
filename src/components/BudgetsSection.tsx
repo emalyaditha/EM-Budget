@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import type { Budget, CategoryExpense } from '../types';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import { ProgressRing, ProgressBarThick, toneForPercent } from './ui/ProgressRing';
+import { sumMoney } from '../lib/money';
 
 interface BudgetsSectionProps {
   budgets: Budget[];
@@ -34,8 +35,8 @@ export default function BudgetsSection({
   const [newLimit, setNewLimit] = useState<string>('');
   const [newIcon, setNewIcon] = useState<string>('🍔');
 
-  const totalBudgeted = budgets.reduce((acc, b) => acc + b.limit, 0);
-  const totalSpent = budgets.reduce((acc, b) => acc + b.spent, 0);
+  const totalBudgeted = sumMoney(budgets.map((b) => b.limit));
+  const totalSpent = sumMoney(budgets.map((b) => b.spent));
   const percentSpent = totalBudgeted > 0 ? Math.round((totalSpent / totalBudgeted) * 100) : 0;
   const today = new Date();
   const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);

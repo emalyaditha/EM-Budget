@@ -2,6 +2,7 @@
 import type { CashAccount, BankCard } from '../types';
 import { ArrowRightLeft } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { todayLocal } from '../utils';
 
 interface TransferFundsProps {
   cashAccounts: CashAccount[];
@@ -26,7 +27,7 @@ export default function TransferFunds({ cashAccounts, cards, currency, onTransfe
   const [amount, setAmount] = useState('');
   const [charge, setCharge] = useState('');
   const [note, setNote] = useState('');
-  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [transferDate, setTransferDate] = useState(() => todayLocal());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const fromSelectRef = React.useRef<HTMLSelectElement>(null);

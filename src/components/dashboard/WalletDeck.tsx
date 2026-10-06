@@ -15,7 +15,7 @@ export interface HeroWallet {
   locked?: boolean;
 }
 
-const KIND_LABEL: Record<HeroWallet['kind'], string> = {
+export const KIND_LABEL: Record<HeroWallet['kind'], string> = {
   cash: 'Cash',
   debit: 'Debit',
   credit: 'Credit',

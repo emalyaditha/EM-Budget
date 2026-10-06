@@ -1,0 +1,793 @@
+{
+  "_provenance": {
+    "generatedFrom": "pre-flutter",
+    "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+    "unitFile": "src/lib/creditCards.ts",
+    "gitBlob": "7b5cbee58e5c9478294e4d99287d987e0f52c92d",
+    "sha256": "31719541f54b4aafa6870d9a602a229e09b30a0c9299f4b50865d3c23ce4efcf",
+    "tz": "Asia/Colombo",
+    "locale": "en-US",
+    "node": "v24.19.0",
+    "pinnedNow": "2026-10-04T04:30:00.000Z",
+    "generatedAt": "2026-10-06T09:18:10.499Z",
+    "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
+  },
+  "cases": [
+    {
+      "name": "DEDUCTION_DAY",
+      "input": [],
+      "expected": 15
+    },
+    {
+      "name": "deductionDate(2026-01-29)",
+      "input": ["2026-01-29"],
+      "expected": "2026-01-15"
+    },
+    {
+      "name": "deductionDate(2026-01-30)",
+      "input": ["2026-01-30"],
+      "expected": "2026-01-15"
+    },
+    {
+      "name": "deductionDate(2026-01-31)",
+      "input": ["2026-01-31"],
+      "expected": "2026-01-15"
+    },
+    {
+      "name": "deductionDate(2026-02-01)",
+      "input": ["2026-02-01"],
+      "expected": "2026-02-15"
+    },
+    {
+      "name": "deductionDate(2026-02-28)",
+      "input": ["2026-02-28"],
+      "expected": "2026-02-15"
+    },
+    {
+      "name": "deductionDate(2026-04-30)",
+      "input": ["2026-04-30"],
+      "expected": "2026-04-15"
+    },
+    {
+      "name": "deductionDate(2026-06-30)",
+      "input": ["2026-06-30"],
+      "expected": "2026-06-15"
+    },
+    {
+      "name": "deductionDate(2026-09-30)",
+      "input": ["2026-09-30"],
+      "expected": "2026-09-15"
+    },
+    {
+      "name": "deductionDate(2026-11-30)",
+      "input": ["2026-11-30"],
+      "expected": "2026-11-15"
+    },
+    {
+      "name": "deductionDate(2026-12-31)",
+      "input": ["2026-12-31"],
+      "expected": "2026-12-15"
+    },
+    {
+      "name": "deductionDate(2028-02-29)",
+      "input": ["2028-02-29"],
+      "expected": "2028-02-15"
+    },
+    {
+      "name": "deductionDate(2100-02-28)",
+      "input": ["2100-02-28"],
+      "expected": "2100-02-15"
+    },
+    {
+      "name": "deductionDate(2000-02-29)",
+      "input": ["2000-02-29"],
+      "expected": "2000-02-15"
+    },
+    {
+      "name": "deductionDate()",
+      "input": [""],
+      "expected": ""
+    },
+    {
+      "name": "deductionDate(2026-9-5)",
+      "input": ["2026-9-5"],
+      "expected": "2026-9-5"
+    },
+    {
+      "name": "deductionDate(2026-13-01)",
+      "input": ["2026-13-01"],
+      "expected": "2026-13-01"
+    },
+    {
+      "name": "deductionDate(2026-00-10)",
+      "input": ["2026-00-10"],
+      "expected": "2026-00-10"
+    },
+    {
+      "name": "deductionDate(2026-02-31)",
+      "input": ["2026-02-31"],
+      "expected": "2026-02-15"
+    },
+    {
+      "name": "deductionDate(2026-02-30)",
+      "input": ["2026-02-30"],
+      "expected": "2026-02-15"
+    },
+    {
+      "name": "deductionDate(not-a-date)",
+      "input": ["not-a-date"],
+      "expected": "not-a-date"
+    },
+    {
+      "name": "deductionDate(2026-10-04T18:30:00Z)",
+      "input": ["2026-10-04T18:30:00Z"],
+      "expected": "2026-10-04T18:30:00Z"
+    },
+    {
+      "name": "deductionDate(04-10-2026)",
+      "input": ["04-10-2026"],
+      "expected": "04-10-2026"
+    },
+    {
+      "name": "deductionDate(2026/10/04)",
+      "input": ["2026/10/04"],
+      "expected": "2026/10/04"
+    },
+    {
+      "name": "deductionDate(2026-10-07)",
+      "input": ["2026-10-07"],
+      "expected": "2026-10-15"
+    },
+    {
+      "name": "deductionDate(2026-10-15)",
+      "input": ["2026-10-15"],
+      "expected": "2026-10-15"
+    },
+    {
+      "name": "deductionDate(2026-10-01)",
+      "input": ["2026-10-01"],
+      "expected": "2026-10-15"
+    },
+    {
+      "name": "deductionDate(2026-10-31)",
+      "input": ["2026-10-31"],
+      "expected": "2026-10-15"
+    },
+    {
+      "name": "advanceDueDate(2026-01-31)",
+      "input": ["2026-01-31"],
+      "expected": "2026-02-28"
+    },
+    {
+      "name": "advanceDueDate(2026-03-31)",
+      "input": ["2026-03-31"],
+      "expected": "2026-04-30"
+    },
+    {
+      "name": "advanceDueDate(2026-05-31)",
+      "input": ["2026-05-31"],
+      "expected": "2026-06-30"
+    },
+    {
+      "name": "advanceDueDate(2026-07-31)",
+      "input": ["2026-07-31"],
+      "expected": "2026-08-31"
+    },
+    {
+      "name": "advanceDueDate(2026-08-31)",
+      "input": ["2026-08-31"],
+      "expected": "2026-09-30"
+    },
+    {
+      "name": "advanceDueDate(2026-10-31)",
+      "input": ["2026-10-31"],
+      "expected": "2026-11-30"
+    },
+    {
+      "name": "advanceDueDate(2026-12-31)",
+      "input": ["2026-12-31"],
+      "expected": "2027-01-31"
+    },
+    {
+      "name": "advanceDueDate(2026-01-29)",
+      "input": ["2026-01-29"],
+      "expected": "2026-02-28"
+    },
+    {
+      "name": "advanceDueDate(2026-01-30)",
+      "input": ["2026-01-30"],
+      "expected": "2026-02-28"
+    },
+    {
+      "name": "advanceDueDate(2026-02-01)",
+      "input": ["2026-02-01"],
+      "expected": "2026-03-01"
+    },
+    {
+      "name": "advanceDueDate(2026-02-28)",
+      "input": ["2026-02-28"],
+      "expected": "2026-03-28"
+    },
+    {
+      "name": "advanceDueDate(2026-04-30)",
+      "input": ["2026-04-30"],
+      "expected": "2026-05-30"
+    },
+    {
+      "name": "advanceDueDate(2026-06-30)",
+      "input": ["2026-06-30"],
+      "expected": "2026-07-30"
+    },
+    {
+      "name": "advanceDueDate(2026-09-30)",
+      "input": ["2026-09-30"],
+      "expected": "2026-10-30"
+    },
+    {
+      "name": "advanceDueDate(2026-11-30)",
+      "input": ["2026-11-30"],
+      "expected": "2026-12-30"
+    },
+    {
+      "name": "advanceDueDate(2028-02-29)",
+      "input": ["2028-02-29"],
+      "expected": "2028-03-29"
+    },
+    {
+      "name": "advanceDueDate(2100-02-28)",
+      "input": ["2100-02-28"],
+      "expected": "2100-03-28"
+    },
+    {
+      "name": "advanceDueDate(2000-02-29)",
+      "input": ["2000-02-29"],
+      "expected": "2000-03-29"
+    },
+    {
+      "name": "advanceDueDate()",
+      "input": [""],
+      "expected": ""
+    },
+    {
+      "name": "advanceDueDate(2026-9-5)",
+      "input": ["2026-9-5"],
+      "expected": "2026-9-5"
+    },
+    {
+      "name": "advanceDueDate(2026-13-01)",
+      "input": ["2026-13-01"],
+      "expected": "2026-13-01"
+    },
+    {
+      "name": "advanceDueDate(2026-00-10)",
+      "input": ["2026-00-10"],
+      "expected": "2026-00-10"
+    },
+    {
+      "name": "advanceDueDate(2026-02-31)",
+      "input": ["2026-02-31"],
+      "expected": "2026-03-31"
+    },
+    {
+      "name": "advanceDueDate(2026-02-30)",
+      "input": ["2026-02-30"],
+      "expected": "2026-03-30"
+    },
+    {
+      "name": "advanceDueDate(not-a-date)",
+      "input": ["not-a-date"],
+      "expected": "not-a-date"
+    },
+    {
+      "name": "advanceDueDate(2026-10-04T18:30:00Z)",
+      "input": ["2026-10-04T18:30:00Z"],
+      "expected": "2026-10-04T18:30:00Z"
+    },
+    {
+      "name": "advanceDueDate(04-10-2026)",
+      "input": ["04-10-2026"],
+      "expected": "04-10-2026"
+    },
+    {
+      "name": "advanceDueDate(2026/10/04)",
+      "input": ["2026/10/04"],
+      "expected": "2026/10/04"
+    },
+    {
+      "name": "advanceDueDate^1(2026-01-31)",
+      "input": ["2026-01-31", 1],
+      "expected": "2026-02-28"
+    },
+    {
+      "name": "advanceDueDate^2(2026-01-31)",
+      "input": ["2026-01-31", 2],
+      "expected": "2026-03-28"
+    },
+    {
+      "name": "advanceDueDate^3(2026-01-31)",
+      "input": ["2026-01-31", 3],
+      "expected": "2026-04-28"
+    },
+    {
+      "name": "advanceDueDate^4(2026-01-31)",
+      "input": ["2026-01-31", 4],
+      "expected": "2026-05-28"
+    },
+    {
+      "name": "advanceDueDate^5(2026-01-31)",
+      "input": ["2026-01-31", 5],
+      "expected": "2026-06-28"
+    },
+    {
+      "name": "advanceDueDate^6(2026-01-31)",
+      "input": ["2026-01-31", 6],
+      "expected": "2026-07-28"
+    },
+    {
+      "name": "advanceDueDate^7(2026-01-31)",
+      "input": ["2026-01-31", 7],
+      "expected": "2026-08-28"
+    },
+    {
+      "name": "advanceDueDate^8(2026-01-31)",
+      "input": ["2026-01-31", 8],
+      "expected": "2026-09-28"
+    },
+    {
+      "name": "advanceDueDate^9(2026-01-31)",
+      "input": ["2026-01-31", 9],
+      "expected": "2026-10-28"
+    },
+    {
+      "name": "advanceDueDate^10(2026-01-31)",
+      "input": ["2026-01-31", 10],
+      "expected": "2026-11-28"
+    },
+    {
+      "name": "advanceDueDate^11(2026-01-31)",
+      "input": ["2026-01-31", 11],
+      "expected": "2026-12-28"
+    },
+    {
+      "name": "advanceDueDate^12(2026-01-31)",
+      "input": ["2026-01-31", 12],
+      "expected": "2027-01-28"
+    },
+    {
+      "name": "cycleWindowStart(2026-01-29)",
+      "input": ["2026-01-29"],
+      "expected": "2025-12-29"
+    },
+    {
+      "name": "cycleWindowStart(2026-01-30)",
+      "input": ["2026-01-30"],
+      "expected": "2025-12-30"
+    },
+    {
+      "name": "cycleWindowStart(2026-01-31)",
+      "input": ["2026-01-31"],
+      "expected": "2025-12-31"
+    },
+    {
+      "name": "cycleWindowStart(2026-02-01)",
+      "input": ["2026-02-01"],
+      "expected": "2026-01-01"
+    },
+    {
+      "name": "cycleWindowStart(2026-02-28)",
+      "input": ["2026-02-28"],
+      "expected": "2026-01-28"
+    },
+    {
+      "name": "cycleWindowStart(2026-04-30)",
+      "input": ["2026-04-30"],
+      "expected": "2026-03-30"
+    },
+    {
+      "name": "cycleWindowStart(2026-06-30)",
+      "input": ["2026-06-30"],
+      "expected": "2026-05-30"
+    },
+    {
+      "name": "cycleWindowStart(2026-09-30)",
+      "input": ["2026-09-30"],
+      "expected": "2026-08-30"
+    },
+    {
+      "name": "cycleWindowStart(2026-11-30)",
+      "input": ["2026-11-30"],
+      "expected": "2026-10-30"
+    },
+    {
+      "name": "cycleWindowStart(2026-12-31)",
+      "input": ["2026-12-31"],
+      "expected": "2026-11-30"
+    },
+    {
+      "name": "cycleWindowStart(2028-02-29)",
+      "input": ["2028-02-29"],
+      "expected": "2028-01-29"
+    },
+    {
+      "name": "cycleWindowStart(2100-02-28)",
+      "input": ["2100-02-28"],
+      "expected": "2100-01-28"
+    },
+    {
+      "name": "cycleWindowStart(2000-02-29)",
+      "input": ["2000-02-29"],
+      "expected": "2000-01-29"
+    },
+    {
+      "name": "cycleWindowStart()",
+      "input": [""],
+      "expected": ""
+    },
+    {
+      "name": "cycleWindowStart(2026-9-5)",
+      "input": ["2026-9-5"],
+      "expected": "2026-9-5"
+    },
+    {
+      "name": "cycleWindowStart(2026-13-01)",
+      "input": ["2026-13-01"],
+      "expected": "2026-13-01"
+    },
+    {
+      "name": "cycleWindowStart(2026-00-10)",
+      "input": ["2026-00-10"],
+      "expected": "2026-00-10"
+    },
+    {
+      "name": "cycleWindowStart(2026-02-31)",
+      "input": ["2026-02-31"],
+      "expected": "2026-01-31"
+    },
+    {
+      "name": "cycleWindowStart(2026-02-30)",
+      "input": ["2026-02-30"],
+      "expected": "2026-01-30"
+    },
+    {
+      "name": "cycleWindowStart(not-a-date)",
+      "input": ["not-a-date"],
+      "expected": "not-a-date"
+    },
+    {
+      "name": "cycleWindowStart(2026-10-04T18:30:00Z)",
+      "input": ["2026-10-04T18:30:00Z"],
+      "expected": "2026-10-04T18:30:00Z"
+    },
+    {
+      "name": "cycleWindowStart(04-10-2026)",
+      "input": ["04-10-2026"],
+      "expected": "04-10-2026"
+    },
+    {
+      "name": "cycleWindowStart(2026/10/04)",
+      "input": ["2026/10/04"],
+      "expected": "2026/10/04"
+    },
+    {
+      "name": "computeMinimumPayment(1000,100000)",
+      "input": [1000, 100000],
+      "expected": 0
+    },
+    {
+      "name": "computeMinimumPayment(0,100000)",
+      "input": [0, 100000],
+      "expected": 0
+    },
+    {
+      "name": "computeMinimumPayment(-1000,100000)",
+      "input": [-1000, 100000],
+      "expected": 250
+    },
+    {
+      "name": "computeMinimumPayment(-5000,100000)",
+      "input": [-5000, 100000],
+      "expected": 250
+    },
+    {
+      "name": "computeMinimumPayment(-38420,250000)",
+      "input": [-38420, 250000],
+      "expected": 1921
+    },
+    {
+      "name": "computeMinimumPayment(-260000,250000)",
+      "input": [-260000, 250000],
+      "expected": 22500
+    },
+    {
+      "name": "computeMinimumPayment(-250000,250000)",
+      "input": [-250000, 250000],
+      "expected": 12500
+    },
+    {
+      "name": "computeMinimumPayment(-100000,0)",
+      "input": [-100000, 0],
+      "expected": 5000
+    },
+    {
+      "name": "computeMinimumPayment(-100000,undefined)",
+      "input": [
+        -100000,
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": 5000
+    },
+    {
+      "name": "computeMinimumPayment(-100000,NaN)",
+      "input": [
+        -100000,
+        {
+          "__sentinel__": "NaN"
+        }
+      ],
+      "expected": 5000
+    },
+    {
+      "name": "computeMinimumPayment(NaN,100000)",
+      "input": [
+        {
+          "__sentinel__": "NaN"
+        },
+        100000
+      ],
+      "expected": {
+        "__sentinel__": "NaN"
+      }
+    },
+    {
+      "name": "computeMinimumPayment(-Infinity,100000)",
+      "input": [
+        {
+          "__sentinel__": "-Infinity"
+        },
+        100000
+      ],
+      "expected": {
+        "__sentinel__": "Infinity"
+      }
+    },
+    {
+      "name": "computeMinimumPayment(-0.005,10)",
+      "input": [-0.005, 10],
+      "expected": 250
+    },
+    {
+      "name": "computeMinimumPayment(-0.01,10)",
+      "input": [-0.01, 10],
+      "expected": 250
+    },
+    {
+      "name": "interestForCycle(-38420,24.9,30)",
+      "input": [-38420, 24.9, 30],
+      "expected": 786.29
+    },
+    {
+      "name": "interestForCycle(-38420,24.9,0)",
+      "input": [-38420, 24.9, 0],
+      "expected": 0
+    },
+    {
+      "name": "interestForCycle(-38420,24.9,-1)",
+      "input": [-38420, 24.9, -1],
+      "expected": 0
+    },
+    {
+      "name": "interestForCycle(38420,24.9,30)",
+      "input": [38420, 24.9, 30],
+      "expected": 0
+    },
+    {
+      "name": "interestForCycle(0,24.9,30)",
+      "input": [0, 24.9, 30],
+      "expected": 0
+    },
+    {
+      "name": "interestForCycle(-1000,0,30)",
+      "input": [-1000, 0, 30],
+      "expected": 0
+    },
+    {
+      "name": "interestForCycle(-1000,NaN,30)",
+      "input": [
+        -1000,
+        {
+          "__sentinel__": "NaN"
+        },
+        30
+      ],
+      "expected": 0
+    },
+    {
+      "name": "interestForCycle(-1000,undefined,30)",
+      "input": [
+        -1000,
+        {
+          "__sentinel__": "undefined"
+        },
+        30
+      ],
+      "expected": 0
+    },
+    {
+      "name": "interestForCycle(NaN,24.9,30)",
+      "input": [
+        {
+          "__sentinel__": "NaN"
+        },
+        24.9,
+        30
+      ],
+      "expected": {
+        "__sentinel__": "NaN"
+      }
+    },
+    {
+      "name": "interestForCycle(-0,24.9,30)",
+      "input": [
+        {
+          "__sentinel__": "-0"
+        },
+        24.9,
+        30
+      ],
+      "expected": 0
+    },
+    {
+      "name": "interestForCycle(-36500,36.5,365)",
+      "input": [-36500, 36.5, 365],
+      "expected": 13322.5
+    },
+    {
+      "name": "interestForCycle(-1,1,1)",
+      "input": [-1, 1, 1],
+      "expected": 0
+    },
+    {
+      "name": "latePaymentFee(0)",
+      "input": [0],
+      "expected": 0
+    },
+    {
+      "name": "latePaymentFee(undefined)",
+      "input": [
+        {
+          "__sentinel__": "undefined"
+        }
+      ],
+      "expected": 0
+    },
+    {
+      "name": "latePaymentFee(-5)",
+      "input": [-5],
+      "expected": 0
+    },
+    {
+      "name": "latePaymentFee(1)",
+      "input": [1],
+      "expected": 1200
+    },
+    {
+      "name": "latePaymentFee(24000)",
+      "input": [24000],
+      "expected": 1200
+    },
+    {
+      "name": "latePaymentFee(23999)",
+      "input": [23999],
+      "expected": 1200
+    },
+    {
+      "name": "latePaymentFee(24001)",
+      "input": [24001],
+      "expected": 1200.05
+    },
+    {
+      "name": "latePaymentFee(NaN)",
+      "input": [
+        {
+          "__sentinel__": "NaN"
+        }
+      ],
+      "expected": 0
+    },
+    {
+      "name": "latePaymentFee(Infinity)",
+      "input": [
+        {
+          "__sentinel__": "Infinity"
+        }
+      ],
+      "expected": {
+        "__sentinel__": "Infinity"
+      }
+    },
+    {
+      "name": "daysBetween(2026-09-15,2026-10-07)",
+      "input": ["2026-09-15", "2026-10-07"],
+      "expected": 22
+    },
+    {
+      "name": "daysBetween(2026-10-07,2026-10-07)",
+      "input": ["2026-10-07", "2026-10-07"],
+      "expected": 0
+    },
+    {
+      "name": "daysBetween(2026-10-07,2026-10-08)",
+      "input": ["2026-10-07", "2026-10-08"],
+      "expected": 1
+    },
+    {
+      "name": "daysBetween(2026-02-01,2026-03-01)",
+      "input": ["2026-02-01", "2026-03-01"],
+      "expected": 28
+    },
+    {
+      "name": "daysBetween(2028-02-01,2028-03-01)",
+      "input": ["2028-02-01", "2028-03-01"],
+      "expected": 29
+    },
+    {
+      "name": "daysBetween(2026-12-31,2027-01-01)",
+      "input": ["2026-12-31", "2027-01-01"],
+      "expected": 1
+    },
+    {
+      "name": "daysBetween(2026-9-5,2026-10-05)",
+      "input": ["2026-9-5", "2026-10-05"],
+      "expected": 0
+    },
+    {
+      "name": "daysBetween(,2026-10-05)",
+      "input": ["", "2026-10-05"],
+      "expected": 0
+    },
+    {
+      "name": "cycleAnchor({\"dueDate\":\"2026-10-07\"})",
+      "input": [
+        {
+          "dueDate": "2026-10-07"
+        }
+      ],
+      "expected": "2026-10-07"
+    },
+    {
+      "name": "cycleAnchor({\"statementCloseDate\":\"2026-09-28\",\"dueDate\":\"2026-10-07\"})",
+      "input": [
+        {
+          "statementCloseDate": "2026-09-28",
+          "dueDate": "2026-10-07"
+        }
+      ],
+      "expected": "2026-09-28"
+    },
+    {
+      "name": "cycleAnchor({\"statementCloseDate\":\"\"})",
+      "input": [
+        {
+          "statementCloseDate": ""
+        }
+      ],
+      "expected": ""
+    },
+    {
+      "name": "cycleAnchor({})",
+      "input": [{}],
+      "expected": ""
+    },
+    {
+      "name": "cycleAnchor({\"statementCloseDate\":\"2026-09-28\"})",
+      "input": [
+        {
+          "statementCloseDate": "2026-09-28"
+        }
+      ],
+      "expected": "2026-09-28"
+    }
+  ]
+}

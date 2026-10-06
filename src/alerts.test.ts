@@ -15,6 +15,38 @@ function isoWithOffset(days: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** A real expense row. Budget usage is derived from the ledger, not from
+ *  `budget.spent` — nothing in the app ever wrote that field, so an envelope
+ *  created with a non-zero `spent` was still reporting itself as untouched. */
+function expense(
+  id: string,
+  category: string,
+  amount: number,
+  date = isoWithOffset(0),
+): AppState['transactions'][number] {
+  return {
+    id,
+    type: 'expense',
+    title: `${category} spend`,
+    amount,
+    date,
+    category,
+    accountId: 'cash-1',
+    accountType: 'cash',
+  };
+}
+
+function budget(id: string, category: string, limit: number): AppState['budgets'][number] {
+  return {
+    id,
+    category: category as AppState['budgets'][number]['category'],
+    limit,
+    spent: 0,
+    icon: '',
+    subBreakdown: [],
+  };
+}
+
 describe('computeAlerts', () => {
   it('returns no alerts for an empty, healthy ledger', () => {
     expect(computeAlerts(baseState(), TODAY_MS)).toEqual([]);
@@ -22,23 +54,42 @@ describe('computeAlerts', () => {
 
   it('raises a critical alert when a budget limit is fully spent', () => {
     const state = baseState();
-    state.budgets = [{ id: 'b1', category: 'Food', limit: 100, spent: 120, icon: '', subBreakdown: [] }];
+    state.budgets = [budget('b1', 'Food', 100)];
+    state.transactions = [expense('t1', 'Food', 120)];
     const alerts = computeAlerts(state, TODAY_MS);
     expect(alerts.some((a) => a.type === 'budget' && a.severity === 'critical' && a.title.includes('Food'))).toBe(true);
   });
 
   it('raises a warning when a budget crosses the warn threshold', () => {
     const state = baseState();
-    state.budgets = [
-      { id: 'b1', category: 'Shopping', limit: 200, spent: 200 * BUDGET_WARN_AT, icon: '', subBreakdown: [] },
-    ];
+    state.budgets = [budget('b1', 'Shopping', 200)];
+    state.transactions = [expense('t1', 'Shopping', 200 * BUDGET_WARN_AT)];
     const alerts = computeAlerts(state, TODAY_MS);
     expect(alerts.some((a) => a.type === 'budget' && a.severity === 'warning')).toBe(true);
   });
 
   it('does not alert for budgets comfortably under the threshold', () => {
     const state = baseState();
-    state.budgets = [{ id: 'b1', category: 'Transport', limit: 300, spent: 30, icon: '', subBreakdown: [] }];
+    state.budgets = [budget('b1', 'Transport', 300)];
+    state.transactions = [expense('t1', 'Transport', 30)];
+    expect(computeAlerts(state, TODAY_MS)).toEqual([]);
+  });
+
+  it('counts only this month against an envelope, not the whole ledger', () => {
+    const state = baseState();
+    state.budgets = [budget('b1', 'Food', 100)];
+    // 900 of Food from an earlier month, 20 this month: the envelope is at 20%,
+    // not at 920%. Summing all history is what made every budget read as blown.
+    state.transactions = [expense('t-old', 'Food', 900, '2026-01-15'), expense('t1', 'Food', 20)];
+    expect(computeAlerts(state, TODAY_MS)).toEqual([]);
+  });
+
+  it('ignores a negative row when working out what an envelope has been charged', () => {
+    const state = baseState();
+    state.budgets = [budget('b1', 'Transfer Fee', 100)];
+    // A transfer's outgoing leg is stored negative and is not spending; taking its
+    // absolute value charged the envelope for money that stayed in the household.
+    state.transactions = [expense('t-out', 'Transfer Fee', -500)];
     expect(computeAlerts(state, TODAY_MS)).toEqual([]);
   });
 

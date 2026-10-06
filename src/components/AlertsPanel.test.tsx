@@ -18,10 +18,28 @@ function installFakeStorage() {
   ls.clear = vi.fn(() => store.clear());
 }
 
+/** A ledger day in the reader's own calendar — the UTC string can name yesterday
+ *  for a positive offset, which would put the spend in the wrong month. */
+function localDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const STATE = {
   currency: 'Rs.',
   userProfile: { email: 'owner@example.com' },
-  budgets: [{ id: 'b1', category: 'Food', limit: 100, spent: 140 }],
+  budgets: [{ id: 'b1', category: 'Food', limit: 100, spent: 0 }],
+  // An envelope's usage is derived from the ledger, so the alert this panel lists
+  // has to be caused by a row — `budget.spent` is never written.
+  transactions: [
+    {
+      id: 't1',
+      type: 'expense',
+      title: 'Groceries',
+      amount: 140,
+      date: localDay(new Date()),
+      category: 'Food',
+    },
+  ],
   subscriptions: [],
   debts: [],
   savingsGoals: [],

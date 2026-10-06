@@ -1,6 +1,6 @@
 import { LayoutDashboard, Wallet, ArrowLeftRight, Menu, Plus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 
 interface BottomNavigationProps {
   activeTab: string;
@@ -28,6 +28,9 @@ export function BottomNavigation({
   inert = false,
 }: BottomNavigationProps) {
   const isActive = (id: string) => (id === 'more' ? isMoreOpen : activeTab === id && !isMoreOpen);
+  // The shared pill is a layout animation, which the global CSS reduced-motion
+  // clamp cannot reach — it has to be stilled here or the bar keeps sliding.
+  const reduceMotion = useReducedMotion();
 
   const renderItem = (tab: { id: string; label: string; icon: LucideIcon }) => {
     const active = isActive(tab.id);
@@ -43,7 +46,7 @@ export function BottomNavigation({
         {active && (
           <motion.span
             layoutId="navActivePill"
-            transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+            transition={reduceMotion ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 380 }}
             className="absolute inset-0 rounded-full bg-[var(--accent)]"
           />
         )}

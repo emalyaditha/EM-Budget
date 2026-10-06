@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import type { SavingsGoal, CashAccount } from '../types';
 import { Plus, X, Trash2, MinusCircle, PlusCircle } from 'lucide-react';
 import { todayLocal } from '../utils';
+import { sumMoney } from '../lib/money';
 
 interface GoalsSectionProps {
   goals: SavingsGoal[];
@@ -84,7 +85,9 @@ export default function GoalsSection({
     if (isNaN(val) || val <= 0) return;
     const factor = action === 'add' ? 1 : -1;
     const currentGoal = goals.find((g) => g.id === goalId);
-    onModifyGoalFunds(goalId, val * factor, cashAccounts[0]?.id || null);
+    // The wallet the picker names, not whichever one happens to be first — an
+    // inline allocate used to drain cashAccounts[0] however the user had chosen.
+    onModifyGoalFunds(goalId, val * factor, fundSourceAccountId || cashAccounts[0]?.id || null);
     if (currentGoal && action === 'add' && currentGoal.current + val >= currentGoal.target) {
       setJustCommittedGoal(currentGoal.id);
       setTimeout(() => setJustCommittedGoal(null), 4000);
@@ -96,7 +99,7 @@ export default function GoalsSection({
 
   const activeGoalsCount = goals.length;
   const completedGoalsCount = goals.filter((g) => g.current >= g.target).length;
-  const totalSavedValue = goals.reduce((acc, g) => acc + g.current, 0);
+  const totalSavedValue = sumMoney(goals.map((g) => g.current));
 
   const displayGoals = goals;
   const isMockMode = false;
