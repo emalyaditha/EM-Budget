@@ -702,21 +702,57 @@ void main() {
       expect(state.pinCode, '1234');
     });
 
-    test('the pull returns no creditCards at all', () async {
-      gateway.snapshot = LedgerSnapshot(
-        exists: true,
-        state: <String, Object?>{
-          'creditCards': <Map<String, Object?>>[
-            <String, Object?>{'id': 'cc-1', 'name': 'From snapshot'},
-          ],
-        },
-      );
-      // B-23: the snapshot holds them, no table or RPC parameter exists for them, and
-      // `reconstructedState` never sets the key — so a pull always returns the seed.
-      final AppState state = await pullState();
-      expect(state.creditCards, isEmpty);
-      expect(state.creditCardPurchases, isEmpty);
-    });
+    test(
+      'the pull reads creditCardPurchases off the snapshot, never creditCards',
+      () async {
+        gateway.snapshot = LedgerSnapshot(
+          exists: true,
+          state: <String, Object?>{
+            'creditCards': <Map<String, Object?>>[
+              <String, Object?>{'id': 'cc-1', 'name': 'From snapshot'},
+            ],
+            'creditCardPurchases': <Map<String, Object?>>[
+              <String, Object?>{
+                'id': 'cp-1',
+                'cardId': 'card-1',
+                'installmentId': 'inst-1',
+                'amount': 4999,
+                'description': 'Laptop',
+                'merchant': 'Bambalapitiya',
+                'date': '2026-09-30',
+              },
+            ],
+          },
+        );
+        // B-23, ruled a web-side fix then ported. `credit_card_purchases` has no relational
+        // table and is not a `sync_complete_ledger` parameter, so the snapshot is its only
+        // cloud copy: returning the seed here is what let a re-hydration push `[]` over it.
+        // `creditCards` still has no reader at all — the screens filter `state.cards` — so
+        // it stays the seed, exactly as on the web.
+        final AppState state = await pullState();
+        expect(state.creditCards, isEmpty);
+        expect(state.creditCardPurchases, hasLength(1));
+        expect(state.creditCardPurchases.single.id, 'cp-1');
+        expect(state.creditCardPurchases.single.amount, 4999);
+        expect(state.creditCardPurchases.single.date, '2026-09-30');
+      },
+    );
+
+    test(
+      'a creditCardPurchases value that is not an array keeps the seed',
+      () async {
+        gateway.snapshot = LedgerSnapshot(
+          exists: true,
+          state: <String, Object?>{'creditCardPurchases': 'oops'},
+        );
+        // `Array.isArray(jsonState.creditCardPurchases) ? … : DEFAULT_APP_STATE.…` — the
+        // guard is the array test, not a try/catch, so a hand-edited snapshot cannot throw
+        // the pull. An empty array takes the other branch and reads back empty; the seed is
+        // empty too, so that case is not observable and is not asserted.
+        final AppState state = await pullState();
+        expect(state.creditCardPurchases, isEmpty);
+      },
+    );
   });
 
   group('the pull: two-source collections', () {

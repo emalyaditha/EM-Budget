@@ -349,16 +349,19 @@ class LedgerRepository {
         cards: mergedCards,
         // **`creditCards` and `creditCardPurchases` are in no fetch and in no RPC
         // parameter.** `reconstructedState` starts from `...DEFAULT_APP_STATE` and never
-        // sets either key, so a pull returns the empty seed no matter what the snapshot
-        // holds — and the boot path replaces local with this object whenever the local
-        // ledger is empty or nothing is pending (`App.tsx:621-623`). `creditCards` is
-        // harmless: the screens filter `state.cards` instead (`App.tsx:4495`) and nothing
-        // writes the field. `creditCardPurchases` is not: the installment flows write it
+        // sets either key. `creditCards` is harmless: the screens filter `state.cards`
+        // instead (`App.tsx:4495`) and nothing writes the field, so the phone keeps the
+        // seed. `creditCardPurchases` was not: the installment flows write it
         // (`App.tsx:2374`, `:3306`), `CreditCardManagement.tsx:814` renders it, every push
-        // copies it into the snapshot, and no pull ever reads it back — so a re-hydration
-        // empties it and the next push destroys the only cloud copy. B-23.
+        // copies it into the snapshot, and the pull used to ignore the snapshot's copy — so
+        // a re-hydration emptied it and the next push destroyed the only cloud copy. B-23.
+        // Ruled a **web-side fix**, then ported: this line is now the Dart twin of
+        // `src/supabase.ts:1155-1158`, and the snapshot's array wins whenever it is one,
+        // including when it is empty.
         creditCards: AppState.defaultValue().creditCards,
-        creditCardPurchases: AppState.defaultValue().creditCardPurchases,
+        creditCardPurchases: _snapshotPurchases(
+          snapshot?['creditCardPurchases'],
+        ),
         creditCardInstallments: _getListField<CreditCardInstallment>(
           installments,
           snapshot?['creditCardInstallments'],
@@ -584,6 +587,28 @@ class LedgerRepository {
       if (entry is Map<String, Object?>) out.add(parse(entry));
     }
     return out;
+  }
+
+  /// B-23 — the Dart twin of `Array.isArray(jsonState.creditCardPurchases) ? … :
+  /// DEFAULT_APP_STATE.creditCardPurchases` (`src/supabase.ts:1155-1158`, added by the
+  /// web-side fix on `bugfix/b23-credit-card-purchases`). `credit_card_purchases` has no
+  /// relational table and is not a `sync_complete_ledger` parameter, so the snapshot is
+  /// this collection's only cloud copy and this is its only read: returning the seed here
+  /// is what let a re-hydration push `[]` over it.
+  ///
+  /// An **empty** snapshot array is honoured, not treated as absent — that is what a user
+  /// who deleted every purchase pushed. Today the two branches agree (`defaultValue()` is
+  /// `const []`, `app_state.dart:70`), so this is structural parity with the web rather
+  /// than a behaviour difference; it is written as the web is written so the two cannot
+  /// drift if the seed ever stops being empty.
+  List<CreditCardPurchase> _snapshotPurchases(Object? jsonField) {
+    if (jsonField is! List) {
+      return AppState.defaultValue().creditCardPurchases;
+    }
+    return _parseJsonEntries<CreditCardPurchase>(
+      jsonField,
+      CreditCardPurchase.fromJson,
+    );
   }
 
   /// `mergeSubscriptions` (`:1091-1107`) — **and the finding it carries.** The comment
