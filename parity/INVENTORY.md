@@ -2,7 +2,9 @@
 
 **Project:** EM-Budget (`D:\Emcode\EM-Budget`) · branch `main` · HEAD `8ccddf3`
 **Playbook:** `D:\Emcode\MIGRATION_PLAYBOOK.md` — Flutter + Node.js, zero logic / zero UI change
-**Phase:** 0 (read-only). No app code written. No existing file modified.
+**Phase:** 0 (read-only) when written; maintained through Phase 3. Phase 0 itself wrote no app code and
+modified no existing file. The only web-side edit since is **B-23**, which you ruled a web fix at the
+Phase 3 gate — 9 lines in `src/supabase.ts` on `bugfix/b23-credit-card-purchases`, ported to Dart after it.
 **Date:** 2026-10-06
 
 **Verified first-hand:** git state, orphan components, `auth_session_token` in localStorage, absence of a
@@ -546,19 +548,19 @@ a logic spec with goldens, a UI spec with numbers, and pixel baselines.
 | -------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `parity/DATA_SPEC.md`      | written against the ports themselves            | The **representation** contract: absent-vs-null, `num` vs `double`, `jsonEncode` vs `JSON.stringify`, the two date regimes, the column allow-list, the sync contracts, and an 11-item divergence register (D-01 … D-11).                                |
 | `mobile/lib/models/*.dart` | field-for-field from `src/types.ts`             | Typed state models, hand-written (codegen cannot express §1–§2 of the spec). `test/models/` — 33 tests, incl. a source-textual type-drift guard.                                                                                                        |
-| `mobile/lib/data/*.dart`   | the `supabase.ts` / `utils.ts` / `api.ts` ports | Casing, JS semantics, local-date regime, column mapping, record builders, durability (interface + file store), the ledger repository (push + pull), the boot merge, `transactionService`. `test/data/` — 342 tests, incl. the restart durability proof. |
+| `mobile/lib/data/*.dart`   | the `supabase.ts` / `utils.ts` / `api.ts` ports | Casing, JS semantics, local-date regime, column mapping, record builders, durability (interface + file store), the ledger repository (push + pull), the boot merge, `transactionService`. `test/data/` — 343 tests, incl. the restart durability proof. |
 | `mobile/lib/auth/*.dart`   | the auth contract, after the two spikes (§13f)  | `ApiClient`, `AuthRepository`, one identity holder, the encrypted cookie jar. `test/auth/` — 66 tests, incl. the three D21 cookie proofs.                                                                                                               |
 
-Total at the Phase 3 gate: **442 Dart tests, 0 failures**, `flutter analyze` clean, `dart format` clean.
+Total at the Phase 3 gate: **443 Dart tests, 0 failures**, `flutter analyze` clean, `dart format` clean.
 
 ### UI side
 
-| artefact                                    | produced by                 | what it is                                                                                                                                                                                                 |
-| ------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parity/ui-tokens.cjs` → `ui-tokens.json`   | Chromium via Playwright     | Measures, does not convert: **210** custom properties × 4 passes, **100** class probes, **160** colour utilities harvested from `src/` of which **81** paint, **17** `dark:` tokens × 4 app×OS contexts.   |
-| `parity/render_ui_spec.cjs` → `UI_SPEC.md`  | the JSON above              | **917 lines.** Refuses to render if `src/index.css` is not the tagged blob, refuses to record an unresolved colour, and formats its own output.                                                            |
-| `parity/run_baselines.cjs` → `screenshots/` | the untouched `qa-shot.cjs` | **48 PNGs** (2 themes × 3 widths × 8 tabs, 5.0 MB) plus `MANIFEST.json` with a sha256 per file and the harness's own report kept verbatim.                                                                 |
-| `parity/BUGS_FOUND.md`                      | all of it                   | B-01 … **B-25**. B-17 … B-20 were found porting the auth contract and B-21 … B-25 the sync engine, both in Phase 3; the web code they describe was read, never edited — except B-23, ruled a web-side fix. |
+| artefact                                    | produced by                 | what it is                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parity/ui-tokens.cjs` → `ui-tokens.json`   | Chromium via Playwright     | Measures, does not convert: **210** custom properties × 4 passes, **100** class probes, **160** colour utilities harvested from `src/` of which **81** paint, **17** `dark:` tokens × 4 app×OS contexts.                                                                                              |
+| `parity/render_ui_spec.cjs` → `UI_SPEC.md`  | the JSON above              | **917 lines.** Refuses to render if `src/index.css` is not the tagged blob, refuses to record an unresolved colour, and formats its own output.                                                                                                                                                       |
+| `parity/run_baselines.cjs` → `screenshots/` | the untouched `qa-shot.cjs` | **48 PNGs** (2 themes × 3 widths × 8 tabs, 5.0 MB) plus `MANIFEST.json` with a sha256 per file and the harness's own report kept verbatim.                                                                                                                                                            |
+| `parity/BUGS_FOUND.md`                      | all of it                   | B-01 … **B-25**. B-17 … B-20 were found porting the auth contract and B-21 … B-25 the sync engine, both in Phase 3; the web code they describe was read, never edited — except **B-23**, ruled a web-side fix: 9 lines on `bugfix/b23-credit-card-purchases` (`1d1efe8`), unmerged, then ported here. |
 
 ### What the measurements settled
 

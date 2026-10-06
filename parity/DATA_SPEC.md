@@ -18,7 +18,7 @@ Three sibling documents, no overlap:
 Found bugs are **not** documented here as divergences — they are in `BUGS_FOUND.md` and are replicated
 bug-compatible. Where a rule below exists only because the web is broken, the B-number is named.
 
-Test counts are for `flutter test` at Phase 3 close (442 tests: 66 `auth`, 342 `data`, 33 `models`, 1
+Test counts are for `flutter test` at Phase 3 close (443 tests: 66 `auth`, 343 `data`, 33 `models`, 1
 scaffold). §13 maps every rule to the file that proves it.
 
 ---
@@ -151,7 +151,7 @@ The Dart rules that make them portable:
 - `nowIso()` is the single wall-clock call. A golden pins it: `mapObjectToColumns` takes `now:` because
   `src/supabase.ts:393` evaluates `new Date().toISOString()` **per column**, and the push evaluates it
   again for the snapshot mirror (`:828`) — never once per push. Injecting one pinned clock makes the three
-  sites agree, which is what `test/data/ledger_repository_test.dart:954` asserts row by row.
+  sites agree, which is what `test/data/ledger_repository_test.dart:990` asserts row by row.
 - `addMonthsClamped` (`dates_local.dart:117`) keeps the web's defect: 2026-01-31 → 02-28, and a 31st due
   date never returns to the 31st. B-02 in `BUGS_FOUND.md`; replicated, not fixed.
 
@@ -240,8 +240,13 @@ it moves to `AppLifecycleState.paused` in Phase 5, which is a listed adaptation,
   equal, and the skip path then clears the tombstones for a state the server has never seen.
 - `created_at` is declared by six interfaces and exists in **no** ledger table.
 - `CreditCard` and `CreditCardPurchase` are declared in the types but are in neither `SCHEMA_COLUMNS` nor
-  the sync fan-out. They are JSON-only state, and the pull returns them empty from the relational path
-  whatever the snapshot holds (B-23).
+  the sync fan-out. They are JSON-only state: nothing reaches them through the relational path whatever the
+  snapshot holds. `creditCards` therefore returns the seed on both clients, forever — no web code reads the
+  field. `creditCardPurchases` **no longer does**: B-23 was ruled a web-side fix, and the pull now honours
+  `jsonState.creditCardPurchases` on both clients (`src/supabase.ts:1155-1158` as fixed on
+  `bugfix/b23-credit-card-purchases` = `1d1efe8`, which is **not merged yet**;
+  `ledger_repository.dart:_snapshotPurchases`, which is), because the snapshot is that
+  collection's only cloud copy and returning the seed meant pushing `[]` over it.
 
 `readTimestamp` reads `updated_at || updatedAt || created_at || createdAt`
 (`src/supabase.ts:365`, repeated verbatim at `:902`) — the order is the rule, and a non-string stamp is
@@ -333,7 +338,7 @@ them:
 
 The reachable divergence is a Dart `Error`/`Exception`: `StateError('socket hang up').toString()` is
 `'Bad state: socket hang up'` while JS's `.message` is `'socket hang up'`. Recorded at §11 D-01 and
-asserted in `test/data/ledger_repository_test.dart:1035`; the ported code does not strip the prefix,
+asserted in `test/data/ledger_repository_test.dart:1071`; the ported code does not strip the prefix,
 because stripping it would invent a message the web never produces either.
 
 The outer fixed fallback is unreachable through the storage layer (every writer is guarded) or through the
@@ -413,7 +418,7 @@ fixed web rather than the old behaviour.
 | §8 allow-list                                                                    | `lib/data/schema_columns.dart`                                         | `test/data/schema_columns_test.dart` — 8 (source-textual)                                           |
 | §8 write contract, per-row clock                                                 | `lib/data/map_object_to_columns.dart`, `lib/data/record_builders.dart` | 23 + 17                                                                                             |
 | §6 casing pass                                                                   | `lib/data/casing.dart`                                                 | `test/data/casing_test.dart` — 5                                                                    |
-| §9 push/pull/retry/chain                                                         | `lib/data/ledger_repository.dart`                                      | `test/data/ledger_repository_test.dart` — 54                                                        |
+| §9 push/pull/retry/chain                                                         | `lib/data/ledger_repository.dart`                                      | `test/data/ledger_repository_test.dart` — 55                                                        |
 | §9 boot merge                                                                    | `lib/data/cloud_merge.dart`                                            | `test/data/cloud_merge_test.dart` — 16 (behaviour **and** `src/App.tsx` drift guards)               |
 | §9 transport budgets                                                             | `lib/data/api_policy.dart`                                             | `test/data/api_policy_test.dart` — 19                                                               |
 | §10 message shapes                                                               | `lib/data/ledger_repository.dart`                                      | `test/data/ledger_repository_test.dart` group "the error message shape"                             |
