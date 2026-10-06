@@ -2,13 +2,16 @@
 
 Rule 5 of the Master Prompt: a found bug is **replicated bug-compatible** in the port unless I say
 otherwise. This file is the decision queue. Nothing here has been changed as part of the migration;
-the web app and the database are read-only for that purpose.
+the web app and the database are read-only for that purpose — with **one exception you have ruled**:
+B-23, fixed on the web first and then ported (see its provenance table).
 
 `status` legend:
 
 - **OPEN — replicate** — port it as-is; do not "fix" it in Dart.
 - **DECISION** — needs your ruling before Phase 1, because the answer changes what a golden fixture
   is allowed to assert.
+- **RULED — fix on the web** — you ruled this one out of replication: the defect is corrected in
+  `src/` first, on its own branch, and the corrected behaviour is what the phone ports. B-23 only.
 - **PRE-BASELINE** — already changed before this audit, so fixtures will be generated against the
   fixed behaviour. Listed for the record only.
 
@@ -176,6 +179,51 @@ answer; **HIGH** = user-visible numbers or data can differ; **MED** = accessibil
 | Status    | **OPEN — replicate** (rule 5)                                                                                                                                                                                                                                                                                                                                                                    |
 | Port note | Port the seed-once semantics: read `platformBrightness` for the initial theme only, persist the choice on first build, and do not react to later changes — which is what the web does. If D-U13 is ruled the bug-compatible way, `dark:` utilities must still be read live from the platform brightness, so the phone reproduces **both** halves: variables frozen at first run, utilities live. |
 
+## B-23 — A re-hydration silently erases every recorded credit-card purchase
+
+Numbered to match the register on `flutter-migration`, where this defect was found during the Phase 3
+sync port. The B-17…B-22 entries that sit between the two numbers live on that branch only, so this
+entry is written self-contained rather than as a back-reference.
+
+|           |                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Evidence  | `src/supabase.ts` builds the pulled `AppState` field by field from the `ledger_states` snapshot. Before this fix it read `savingsGoals`, `budgets` and the installment arrays, and **never read `creditCardPurchases`**, so that key fell through to `DEFAULT_APP_STATE.creditCardPurchases` — `[]` (`src/initialData.ts:35`).                                                                                                            |
+| Mechanism | `credit_card_purchases` has **no relational table** and is **not a `sync_complete_ledger` parameter**, so the JSON snapshot in `ledger_states.state` is its only cloud copy (`supabase/migrations/20260929120000_tier2_rpc_constant_time.sql:106` inserts the whole `p_state` there). Reading it back as `[]` therefore does not merely lose the display list: the debounced auto-push then writes that emptiness **over the only copy**. |
+| Behaviour | Sign in on a second device, or reload after the hydration gate re-pulls, and every purchase recorded on the card-management screen disappears — permanently, for every device. localStorage still holds them (`src/utils.ts:288` reads the key back), which is why the loss is invisible until the next cloud pull wins.                                                                                                                  |
+| Severity  | **HIGH** — silent, self-persisting data loss. The only entry in this register that destroys user data rather than mis-displaying it.                                                                                                                                                                                                                                                                                                      |
+| Status    | **RULED — fix on the web, then port the fix.** You ruled this at the Phase 3 gate as the single exception to "the existing web app and database files are read-only", on its own branch off `main` (`bugfix/b23-credit-card-purchases`), separate from `flutter-migration`.                                                                                                                                                               |
+| Port note | The Dart pull (`mobile/lib/data/ledger_repository.dart`) had the same omission, inherited from the web; the same fallback now exists there too, with a parity test.                                                                                                                                                                                                                                                                       |
+
+### Provenance of the fix
+
+|                                            |                                                                                                                                                                                                                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Branch                                     | `bugfix/b23-credit-card-purchases`, based on `origin/main` = `85c10c9`                                                                                                                                                                                 |
+| Fix commit                                 | `1d1efe8` — `src/supabase.ts` and `src/supabase.test.ts` only. **Not merged and not pushed**; the diff is shown for your approval first.                                                                                                               |
+| Baseline tag                               | `pre-flutter` = `41489c659af29fdd3ea3ac12cf78f6ffc2c39799` — **not moved**, so all 661 goldens still resolve to it                                                                                                                                     |
+| Red test (before the fix)                  | `src/supabase.test.ts:284` `syncStateFromSupabase — creditCardPurchases round-trips > restores creditCardPurchases from the ledger_states snapshot` failed with `- [ { id: 'cp-1', amount: 4999, … } ] / + []`                                         |
+| Green test (after the fix)                 | same file, plus `:307` `leaves the default when the snapshot holds no purchases` — 25 tests pass                                                                                                                                                       |
+| `src/supabase.ts` blob before → after      | `ffc4c734a65aee34e277932368096fa03e6f2bee` → `a0f2031e067b42256aa10aaf6797dd2087f78969`                                                                                                                                                                |
+| `src/supabase.test.ts` blob before → after | `ad3df626fce966a5e9f644dad49c0eb2b4a4251d` → `e88206a32f12da91c4f084d70538a8910650831a`                                                                                                                                                                |
+| The change                                 | 9 added lines at `src/supabase.ts:1150-1158`, the `Array.isArray` snapshot fallback in the idiom the file already uses for `savingsGoals`. No line was removed, no other file in `src/` touched.                                                       |
+| Checks                                     | lint (eslint `--max-warnings 0` + `tsc --noEmit`) clean · `npx vitest run` **459 passed / 33 files** (457 before + the 2 new) · Playwright e2e **24 passed** · `npx prettier --check src/` clean · Phase 1 fixture gate **PASS, 12 units / 661 cases** |
+
+**There was no pull fixture to regenerate.** `parity/fixtures/generate.ts` imports eight units — `money`,
+`creditCards`, `installments`, `utils`, `alerts`, `transactionService`, `download`, `validators` — and
+**`src/supabase.ts` is not among them**; no file in `parity/fixtures/` mentions `supabase` or
+`creditCardPurchases`. All 12 goldens are pure-logic units, so the sync path has never had a golden and
+this fix cannot change one. The instruction to regenerate the affected fixture therefore has no target:
+the executable proof is the pair of vitest cases above, and the fixture gap is recorded here rather than
+papered over with a hand-written golden — which Phase 4's rule forbids. Re-running the gate after the fix
+is what demonstrates no fixture drifted.
+
+**One flake, not caused by this change.** `api-src/__tests__/auth.integration.test.ts > app-lock PIN >
+sets a PIN, verifies it and locks out after 5 bad attempts` exceeded vitest's 5000 ms budget on the first
+full run (it measured 5005 ms; a clean base checkout of the same file measured 4758 ms). The test does six
+bcrypt-12 rounds against the live server, so it sits within 5 % of its timeout on this machine. Raising
+only the timeout (`--testTimeout=60000`) passes 18/18, and it passes inside the default budget on the
+final full run above. `src/supabase.ts` is client code and is not imported by that suite.
+
 ---
 
 ## Found and fixed before this audit (PRE-BASELINE, for the record)
@@ -194,14 +242,15 @@ closed: that working set was committed as `41489c6` and tagged `pre-flutter`, an
 
 ## Summary
 
-|                                                         | count                                              |
-| ------------------------------------------------------- | -------------------------------------------------- |
-| OPEN — replicate                                        | 8 (B-01, B-02, B-05, B-07, B-12, B-13, B-14, B-16) |
-| RULED at a gate                                         | 5 (B-03, B-04, B-09, B-11, B-15)                   |
-| DECISION still needed                                   | 3 (B-06, B-08, B-10)                               |
-| PRE-BASELINE                                            | 2                                                  |
-| Web-app **logic/UI/UX** files changed by this migration | **0**                                              |
-| Non-web-app files changed under explicit authorisation  | 2 (`qa-shot.cjs`, `.env.example`)                  |
+|                                                         | count                                                                         |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| OPEN — replicate                                        | 8 (B-01, B-02, B-05, B-07, B-12, B-13, B-14, B-16)                            |
+| RULED at a gate                                         | 6 (B-03, B-04, B-09, B-11, B-15, **B-23 — fix on the web**)                   |
+| DECISION still needed                                   | 3 (B-06, B-08, B-10)                                                          |
+| PRE-BASELINE                                            | 2                                                                             |
+| Web-app **logic/UI/UX** files changed by this migration | **1 — `src/supabase.ts`, and only because you ruled B-23 a web-side fix**     |
+| Web-app **test** files changed under the same ruling    | 1 (`src/supabase.test.ts`, 2 cases: one red before the fix, both green after) |
+| Non-web-app files changed under explicit authorisation  | 2 (`qa-shot.cjs`, `.env.example`)                                             |
 
 B-03 and B-04 were ruled **replicate, do not fix** at the Phase 1 gate, so both are now fixture targets
 that encode the defect as the contract. B-06/B-07 defer to Phase 3 and B-10 to any fresh database; B-08
@@ -209,4 +258,7 @@ is live because it degrades the fixture generator itself, which is why D8 requir
 to be schema-validated and case-counted rather than trusted to a passing test.
 
 `qa-shot.cjs` is a local screenshot harness and `.env.example` a template; neither is imported by the web
-app, and both were changed only on your explicit instruction. No screen, handler, or SQL file has been touched.
+app, and both were changed only on your explicit instruction. No screen, handler, or SQL file has been
+touched. B-23 is the one exception to that last sentence and it is bounded: `src/supabase.ts` gained the
+snapshot fallback for `creditCardPurchases` and nothing else changed — no component, no handler, no
+route, no SQL, no dependency, and the `pre-flutter` tag was not moved.
