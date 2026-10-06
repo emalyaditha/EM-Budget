@@ -25,6 +25,12 @@ describe('CardFace money', () => {
     const { container } = render(<CardFace bankName="NDB" balance={1234.56} currency="Rs." />);
     expect(container.textContent).toContain('Rs.1,235');
   });
+
+  it('invents no last-four for an account that has no card number', () => {
+    const { container } = render(<CardFace fluid bankName="Office Safe" balance={26000} currency="Rs." />);
+    expect(container.textContent).not.toContain('••••');
+    expect(container.textContent).not.toContain('0000');
+  });
 });
 
 describe('CardFace sizing', () => {

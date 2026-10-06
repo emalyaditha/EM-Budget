@@ -1,4 +1,5 @@
 import type { BankCard, CreditCardInstallment, CreditCardInstallmentPayment } from '../types';
+import { addMonthsClamped } from '../utils';
 
 const SAMPATH_ESP_FEES: Record<number, number> = {
   6: 0,
@@ -24,7 +25,6 @@ export function generateInstallmentSchedule(
   originalAmount?: number,
 ): Omit<CreditCardInstallmentPayment, 'id'>[] {
   const payments: Omit<CreditCardInstallmentPayment, 'id'>[] = [];
-  const start = new Date(startDate);
 
   const baseCents = Math.round(monthlyPayment * 100);
   // An equal monthlyPayment rounded to cents usually does not tile the principal
@@ -33,9 +33,6 @@ export function generateInstallmentSchedule(
   const targetTotalCents = Math.round((originalAmount ?? monthlyPayment * tenureMonths) * 100);
 
   for (let i = 1; i <= tenureMonths; i++) {
-    const dueDate = new Date(start);
-    dueDate.setMonth(dueDate.getMonth() + i);
-
     let amountDueCents = baseCents;
     if (i === tenureMonths) {
       const absorbed = targetTotalCents - baseCents * (tenureMonths - 1);
@@ -47,7 +44,9 @@ export function generateInstallmentSchedule(
       paymentNumber: i,
       amountDue: amountDueCents / 100,
       amountPaid: 0,
-      dueDate: dueDate.toISOString().split('T')[0],
+      // Clamped, not `setMonth`: `Date#setMonth` has no Feb 31, so a plan started
+      // on the 31st owed its February payment on Mar 3 instead of Feb 28.
+      dueDate: addMonthsClamped(startDate, i),
       status: 'pending',
     });
   }

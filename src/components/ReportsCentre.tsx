@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react';
 import type { Transaction, Income, Expense, Debt, CashAccount, BankCard, LoanGiven, Subscription } from '../types';
-import { exportTransactionsToCSV, EXPENSE_COLORS } from '../utils';
+import { exportTransactionsToCSV, EXPENSE_COLORS, isSpendingRow } from '../utils';
+import { sumMoney, addMoney, subtractMoney } from '../lib/money';
 import {
   FileDown,
   Printer,
@@ -64,20 +65,17 @@ export default function ReportsCentre({
       return true;
     });
   }, [transactions, reportType, selectedMonth, selectedYear]);
-  const totalIncome = filteredTransactions.filter((t) => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = filteredTransactions.filter((t) => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-  const totalDebtPaid = filteredTransactions
-    .filter((t) => t.type === 'debt_payment')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const netSavings = totalIncome - totalExpense - totalDebtPaid;
+  const totalIncome = sumMoney(filteredTransactions.filter((t) => t.type === 'income').map((t) => t.amount));
+  const expenseRows = React.useMemo(() => filteredTransactions.filter(isSpendingRow), [filteredTransactions]);
+  const totalExpense = sumMoney(expenseRows.map((t) => t.amount));
+  const totalDebtPaid = sumMoney(filteredTransactions.filter((t) => t.type === 'debt_payment').map((t) => t.amount));
+  const netSavings = subtractMoney(totalIncome, addMoney(totalExpense, totalDebtPaid));
   const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
   const expensesByCategory: Record<string, number> = {};
-  filteredTransactions
-    .filter((t) => t.type === 'expense')
-    .forEach((t) => {
-      expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
-    });
-  const totalExpenseCategorySum = Object.values(expensesByCategory).reduce((s, v) => s + v, 0) || 1;
+  expenseRows.forEach((t) => {
+    expensesByCategory[t.category] = addMoney(expensesByCategory[t.category] || 0, t.amount);
+  });
+  const totalExpenseCategorySum = sumMoney(Object.values(expensesByCategory)) || 1;
   const categoryChartList = Object.entries(expensesByCategory)
     .map(([name, val]) => ({
       name,
@@ -87,16 +85,14 @@ export default function ReportsCentre({
     }))
     .sort((a, b) => b.value - a.value);
   const sparklineData = React.useMemo(() => {
-    if (filteredTransactions.length === 0) return [];
-    const uniqueDates = Array.from(new Set(filteredTransactions.map((t) => t.date.split('T')[0]))).sort();
+    if (expenseRows.length === 0) return [];
+    const uniqueDates = Array.from(new Set(expenseRows.map((t) => t.date.split('T')[0]))).sort();
     const last6Dates = uniqueDates.slice(-6);
     return last6Dates.map((dateStr) => ({
       date: dateStr,
-      value: filteredTransactions
-        .filter((t) => t.date.split('T')[0] === dateStr)
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+      value: sumMoney(expenseRows.filter((t) => t.date.split('T')[0] === dateStr).map((t) => t.amount)),
     }));
-  }, [filteredTransactions]);
+  }, [expenseRows]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
@@ -319,7 +315,7 @@ export default function ReportsCentre({
                     </span>
                     Spending velocity
                   </p>
-                  <TrendAnalysisChart data={sparklineData} currency={currency} />
+                  <TrendAnalysisChart data={sparklineData} currency={currency} label="Spending" />
                 </div>
               </div>
             ) : (

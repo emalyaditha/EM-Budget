@@ -4,7 +4,7 @@ import { Plus, ArrowDownLeft, Send, ArrowUpRight, ChevronDown, Wallet } from 'lu
 import type { Transaction } from '../../types';
 import { AnimatedCountUp } from '../ui/AnimatedCountUp';
 import { formatMoney } from '../../lib/money';
-import { WalletDeck, type HeroWallet } from './WalletDeck';
+import { WalletDeck, KIND_LABEL, type HeroWallet } from './WalletDeck';
 
 interface DashboardHeroProps {
   currency: string;
@@ -153,9 +153,12 @@ export function DashboardHero({
                     aria-label="Choose which wallet the balance shows"
                   >
                     <option value="all">All wallets</option>
+                    {/* The kind is part of the label because a wallet and a card can
+                        carry the same name, and the picker is the one place that has
+                        to say which figure is about to be shown. */}
                     {wallets.map((wallet) => (
                       <option key={wallet.id} value={wallet.id}>
-                        {wallet.name}
+                        {wallet.name} · {KIND_LABEL[wallet.kind]}
                       </option>
                     ))}
                   </select>
@@ -177,6 +180,20 @@ export function DashboardHero({
                   <span className="numeral-sup">{currency}</span>
                 </p>
               </div>
+              {/* Tapping a deck lip, or choosing in the chip, narrows the headline
+                  figure to that one account. Without the aggregate on screen the
+                  number reads as if the money moved, so the total stays visible
+                  and one tap returns to it. */}
+              {shown && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedId('all')}
+                  title="Show every wallet together"
+                  className="money text-[11px] font-bold text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] rounded-full px-2 py-0.5"
+                >
+                  All wallets {formatMoney(currency, liquidCash, { maxFractionDigits: 0 })}
+                </button>
+              )}
               <span className={`delta-chip ${positive ? 'delta-up' : 'delta-down'}`} title="This month net">
                 {positive ? '▲' : '▼'} {formatMoney(currency, net, { maxFractionDigits: 0 })}
               </span>

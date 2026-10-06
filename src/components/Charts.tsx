@@ -8,7 +8,15 @@ export interface CategorySum {
   color: string;
 }
 
-export function TrendAnalysisChart({ data, currency }: { data: { date: string; value: number }[]; currency: string }) {
+export function TrendAnalysisChart({
+  data,
+  currency,
+  label = 'Trend',
+}: {
+  data: { date: string; value: number }[];
+  currency: string;
+  label?: string;
+}) {
   if (!data || data.length === 0) {
     return (
       <div className="card p-8 text-center min-h-[160px] grid place-items-center overflow-hidden relative">
@@ -41,7 +49,9 @@ export function TrendAnalysisChart({ data, currency }: { data: { date: string; v
     <div className="card p-5 overflow-hidden relative">
       <div className="rainbow-bar !h-1 !rounded-none absolute top-0 left-0 right-0 opacity-30" />
       <div className="flex justify-between items-center mb-4">
-        <p className="eyebrow">Net asset trend · 6 days</p>
+        <p className="eyebrow">
+          {label} · {data.length} {data.length === 1 ? 'day' : 'days'}
+        </p>
         <span className="pill !py-1 !px-2 mono !text-[10px] inline-flex items-center gap-1">
           <TrendingUp size={11} />
           Live

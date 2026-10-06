@@ -1,4 +1,5 @@
 import type { AppState } from '../types';
+import { budgetSpendingForMonth } from '../utils';
 
 type AlertSeverity = 'critical' | 'warning' | 'info';
 
@@ -51,15 +52,20 @@ export function computeAlerts(state: AppState, todayMs: number = Date.now()): Fi
   const currency = state.currency || 'Rs.';
 
   // 1. Budget alerts
+  // `b.spent` is the value the envelope was created with and nothing ever wrote it
+  // back, so reading it here made every budget report 0% and no budget alert could
+  // ever fire. Derived from the ledger instead — the same helper the dashboard tray
+  // and the Budgets tab use, so all three agree on what an envelope has been charged.
   for (const b of state.budgets || []) {
     if (b.limit <= 0) continue;
-    const pct = b.spent / b.limit;
+    const { spent } = budgetSpendingForMonth(b.category, state.transactions || [], state.subscriptions || [], todayMs);
+    const pct = spent / b.limit;
     if (pct >= BUDGET_CRITICAL_AT) {
       alerts.push({
         id: `budget-over-${b.id}`,
         severity: 'critical',
         title: `${b.category} budget exceeded`,
-        detail: `Spent ${formatMoney(b.spent, currency)} of ${formatMoney(b.limit, currency)} (${Math.round(pct * 100)}%).`,
+        detail: `Spent ${formatMoney(spent, currency)} of ${formatMoney(b.limit, currency)} (${Math.round(pct * 100)}%).`,
         type: 'budget',
       });
     } else if (pct >= BUDGET_WARN_AT) {
@@ -67,7 +73,7 @@ export function computeAlerts(state: AppState, todayMs: number = Date.now()): Fi
         id: `budget-close-${b.id}`,
         severity: 'warning',
         title: `${b.category} budget almost reached`,
-        detail: `Spent ${formatMoney(b.spent, currency)} of ${formatMoney(b.limit, currency)} (${Math.round(pct * 100)}%).`,
+        detail: `Spent ${formatMoney(spent, currency)} of ${formatMoney(b.limit, currency)} (${Math.round(pct * 100)}%).`,
         type: 'budget',
       });
     }

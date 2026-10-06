@@ -90,7 +90,7 @@ describe('DashboardHero wallet selection', () => {
     return render(
       <DashboardHero
         currency="Rs."
-        aggregateActiveWorth={1000}
+        aggregateActiveWealth={1000}
         totalCashAmount={1500}
         totalDebitCardsAmount={4250}
         wallets={wallets}
@@ -115,7 +115,7 @@ describe('DashboardHero wallet selection', () => {
 
   it('renders no deck and no chip when the ledger has no accounts', () => {
     const { container } = render(
-      <DashboardHero currency="Rs." aggregateActiveWorth={0} totalCashAmount={0} totalDebitCardsAmount={0} />,
+      <DashboardHero currency="Rs." aggregateActiveWealth={0} totalCashAmount={0} totalDebitCardsAmount={0} />,
     );
     expect(container.querySelector('.deck')).toBeNull();
     expect(container.querySelector('select')).toBeNull();

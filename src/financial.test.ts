@@ -129,5 +129,41 @@ describe('💰 Financial Ledger Integrity Audits', () => {
       expect(breakdown.loansGiven).toBe(800); // tracks remaining unpaid loans
       expect(breakdown.netWorth).toBe(2550); // 2000 + 400 + 150 - 300 - 500 + 800
     });
+
+    it('counts a savings jar as money the household still has', () => {
+      // Funding a jar moves money out of the wallet. If the jar is not in the sum,
+      // every allocation the user makes silently makes them poorer on screen.
+      // 2000 started as cash; 500 of it now sits in the jar.
+      const withJar = {
+        cashAccounts: [{ id: 'cash-1', name: 'Main Vault', balance: 1500 }],
+        cards: [],
+        debts: [],
+        loansGiven: [],
+        savingsGoals: [{ id: 'g1', name: 'Deposit', target: 2000, current: 500 }],
+      };
+
+      const breakdown = calculateNetWorth(withJar as unknown as Partial<AppState>);
+
+      expect(breakdown.cash).toBe(1500);
+      expect(breakdown.savings).toBe(500);
+      expect(breakdown.netWorth).toBe(2000);
+    });
+
+    it('tiles a ledger of float-dusted amounts into exact cents', () => {
+      const dusty = {
+        cashAccounts: [
+          { id: 'c1', balance: 0.1 },
+          { id: 'c2', balance: 0.2 },
+        ],
+        cards: [],
+        debts: [{ id: 'd1', remainingAmount: 0.3 }],
+        loansGiven: [],
+      };
+
+      const breakdown = calculateNetWorth(dusty as unknown as Partial<AppState>);
+
+      expect(breakdown.cash).toBe(0.3);
+      expect(breakdown.netWorth).toBe(0);
+    });
   });
 });

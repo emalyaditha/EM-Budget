@@ -84,9 +84,14 @@ export function CardFace({
           <span className="card-face-chip" aria-hidden />
           {onClick && <ChevronRight size={14} className="text-white/60" />}
         </div>
-        <p className="mono text-[10px] tracking-[0.14em] text-white/80 whitespace-nowrap">
-          {maskCardNumber(cardNumber)}
-        </p>
+        {/* A cash wallet has no number to mask. Falling back to a placeholder
+            would have the app state a last-four it does not know, and the deck
+            lip puts this line straight into the button's accessible name. */}
+        {cardNumber && (
+          <p className="mono text-[10px] tracking-[0.14em] text-white/80 whitespace-nowrap">
+            {maskCardNumber(cardNumber)}
+          </p>
+        )}
       </div>
     </>
   );

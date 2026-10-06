@@ -12,14 +12,19 @@ import type {
   Expense,
 } from './types';
 import { downloadBlob, escapeCsvRow } from './lib/download';
+import { sumMoney, subtractMoney, toMinorUnits } from './lib/money';
 import { logger } from './lib/logger';
 
-// Local-timezone "YYYY-MM-DD" date for today. Replaces the widespread
+// Local-timezone "YYYY-MM-DD" day key. Replaces the widespread
 // `new Date().toISOString().split('T')[0]` pattern, which returns the UTC date
-// and can be YESTERDAY for UTC+5:30 users in the morning — misdating entries.
-export function todayLocal(): string {
-  const d = new Date();
+// and can be YESTERDAY for UTC+5:30 users in the morning — misdating entries and
+// filing them under the wrong month or chart column.
+export function localDayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function todayLocal(): string {
+  return localDayKey(new Date());
 }
 
 // An alert is worth surfacing for its own day and the one before it, and for
@@ -28,21 +33,53 @@ export function todayLocal(): string {
 // note from last month, kept returning to the top of the list forever.
 const ALERT_LOOKBACK_DAYS = 1;
 
+/** Midnight, local time, for a ledger day (`YYYY-MM-DD`) or a full timestamp.
+ *  A bare day is parsed from its parts on purpose: `new Date('2026-10-04')` is
+ *  read as UTC midnight, which is the previous evening for a UTC+5:30 reader. */
+function dayStartMs(value: string): number | null {
+  const trimmed = value.trim();
+  const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  if (parts) return new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])).getTime();
+  const instant = Date.parse(trimmed);
+  if (isNaN(instant)) return null;
+  return new Date(instant).setHours(0, 0, 0, 0);
+}
+
+/** True when a ledger day falls in the same calendar month as `nowMs`. Month
+ *  figures used to test `date.includes('-10-')`, which matched October of every
+ *  year on record and inflated every monthly total in the app. */
+export function isInCurrentMonth(iso: string | undefined, nowMs: number = Date.now()): boolean {
+  if (!iso) return false;
+  const day = dayStartMs(iso);
+  if (day === null || isNaN(day)) return false;
+  const now = new Date(nowMs);
+  const then = new Date(day);
+  return then.getFullYear() === now.getFullYear() && then.getMonth() === now.getMonth();
+}
+
 /** True when a ledger day (`YYYY-MM-DD`, or a timestamp) is today or yesterday. */
 export function isAlertDayRecent(iso: string | undefined, nowMs: number = Date.now()): boolean {
   if (!iso) return false;
-  const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
-  let day: number;
-  if (parts) {
-    day = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])).getTime();
-  } else {
-    const instant = Date.parse(iso);
-    if (isNaN(instant)) return false;
-    day = new Date(instant).setHours(0, 0, 0, 0);
-  }
-  if (isNaN(day)) return false;
+  const day = dayStartMs(iso);
+  if (day === null || isNaN(day)) return false;
   const today = new Date(nowMs).setHours(0, 0, 0, 0);
   return day <= today && today - day <= ALERT_LOOKBACK_DAYS * 86400000;
+}
+
+/** Advance a ledger day (`YYYY-MM-DD`, or a timestamp) by whole months, clamped to
+ *  the last day of the target month. `Date#setMonth` overflows instead: a schedule
+ *  due on the 31st rolled to Mar 3 because Feb 31 does not exist, pushing every
+ *  short-month due date a few days into the following month — which is what feeds
+ *  late-fee and installment-due logic.
+ *  The clamp is one-way. A rolled Feb 28 advances to Mar 28, not Mar 31, because
+ *  nothing in the data model remembers the original anniversary day. */
+export function addMonthsClamped(iso: string, months: number): string {
+  const start = dayStartMs(iso);
+  if (start === null) return iso;
+  const src = new Date(start);
+  const target = new Date(src.getFullYear(), src.getMonth() + months, 1);
+  const lastDayOfTarget = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  return localDayKey(new Date(target.getFullYear(), target.getMonth(), Math.min(src.getDate(), lastDayOfTarget)));
 }
 
 const STORAGE_KEY = 'cashflow_manager_state_v1';
@@ -487,9 +524,125 @@ export interface NetWorthBreakdown {
   debitCards: number;
   creditCardAssets: number;
   creditCardLiabilities: number;
+  savings: number;
   debts: number;
   loansGiven: number;
   netWorth: number;
+}
+
+/** The one definition of "this row bought something".
+ *
+ *  Several surfaces compute spending and each wrote its own predicate, so they drifted:
+ *  the Reports "Spending velocity" chart summed every row of any type, which made a
+ *  salary, a sideways transfer between two of your own wallets and a balance
+ *  correction all look like purchases. Expense *and* a positive amount — the deletion
+ *  and subscription-deletion audit rows are expense-shaped but carry 0, so they would
+ *  otherwise appear as 0-value categories in the spread chart.
+ */
+export function isSpendingRow(t: Transaction): boolean {
+  return t.type === 'expense' && t.amount > 0;
+}
+
+/** What a monthly envelope has actually been charged this month.
+ *
+ *  Both budget surfaces used to sum every row the user ever recorded against a
+ *  monthly limit — which is how a budget reading "277% spent" appeared while
+ *  nothing had been bought this month — and both treated any negative amount as
+ *  spending, so moving money sideways between two of your own wallets counted as
+ *  buying something. Only a positive expense dated in this month is spending.
+ *  Subscriptions bill once a cycle, so an active one counts in full. */
+export function budgetSpendingForMonth(
+  category: string,
+  transactions: Transaction[],
+  subscriptions: Subscription[],
+  nowMs: number = Date.now(),
+): { spent: number; items: { name: string; spent: number }[] } {
+  const wanted = category.toLowerCase().trim();
+
+  const matchingTx = transactions.filter((t) => {
+    if (!isSpendingRow(t) || !t.category) return false;
+    return t.category.toLowerCase().trim() === wanted && isInCurrentMonth(t.date, nowMs);
+  });
+
+  const matchingSubs = subscriptions.filter((s) => {
+    if (s.status !== 'Active' || !s.category) return false;
+    return s.category.toLowerCase().trim() === wanted;
+  });
+
+  return {
+    spent: sumMoney([...matchingTx.map((t) => t.amount), ...matchingSubs.map((s) => s.amount)]),
+    items: [
+      ...matchingTx.map((t) => ({ name: t.title || 'Transaction spend', spent: t.amount })),
+      ...matchingSubs.map((s) => ({ name: `${s.name} (Subscription)`, spent: s.amount })),
+    ],
+  };
+}
+
+/** The signed effect a ledger row has on the balance of the account it names:
+ *  positive credits it, negative debits it. Every handler that creates a row and
+ *  every reversal must agree on this or an edit leaves the balance and the ledger
+ *  disagreeing. A transfer is the one case where the stored amount's sign carries
+ *  meaning, so its direction is read from the category it was created with — an
+ *  edit form always submits a positive amount and would otherwise turn the "out"
+ *  leg into an "in" leg. */
+export function ledgerBalanceEffect(type: Transaction['type'], category: string | undefined, amount: number): number {
+  const magnitude = Math.abs(Number(amount) || 0);
+  switch (type) {
+    case 'income':
+    case 'deposit':
+    case 'financing':
+      return magnitude;
+    case 'expense':
+    case 'debt_payment':
+    case 'withdrawal':
+    case 'credit_card_charge':
+      return -magnitude;
+    case 'transfer':
+      return category === 'Transfer In' ? magnitude : -magnitude;
+    default:
+      return 0;
+  }
+}
+
+/** How moving money between a wallet and a savings jar changes both sides.
+ *
+ *  The jar and the wallet must move equal and opposite, or the household silently
+ *  gains or loses the difference — funding used to credit both, which invented the
+ *  full amount. A jar also cannot hand back more than it holds, so a withdrawal is
+ *  clamped to the jar before the wallet is credited rather than after.
+ *
+ *  Returns null when nothing would move.
+ */
+export function applyGoalAllocation(
+  goalCurrent: number,
+  walletBalance: number,
+  amount: number,
+): { committed: number; goal: number; wallet: number } | null {
+  const jarCents = toMinorUnits(goalCurrent);
+  const requestedCents = toMinorUnits(amount);
+  const committed = Math.max(-jarCents, requestedCents) / 100;
+  if (committed === 0) return null;
+  return {
+    committed,
+    goal: (jarCents + toMinorUnits(committed)) / 100,
+    wallet: subtractMoney(walletBalance, committed),
+  };
+}
+
+/** What a repayment actually settles.
+ *
+ *  You cannot hand over more than is owed. Both repayment paths used to clamp only
+ *  the balance: a debt payment deducted the whole typed figure from the wallet while
+ *  the debt stopped at zero (the surplus vanished), and a loan settlement banked the
+ *  whole typed figure while the loan stopped at zero (the surplus was invented).
+ *  Clamping here, once, keeps the two sides the same distance apart — and means
+ *  deleting the row later restores exactly what was settled.
+ */
+export function applyRepayment(outstanding: number, requested: number): { applied: number; remaining: number } {
+  const owed = Math.max(0, Number(outstanding) || 0);
+  const asked = Math.max(0, Number(requested) || 0);
+  const applied = Math.min(asked, owed);
+  return { applied, remaining: subtractMoney(owed, applied) };
 }
 
 export function calculateNetWorth(state: Partial<AppState>): NetWorthBreakdown {
@@ -497,34 +650,50 @@ export function calculateNetWorth(state: Partial<AppState>): NetWorthBreakdown {
   const cards = state.cards || [];
   const debts = state.debts || [];
   const loansGiven = state.loansGiven || [];
+  const savingsGoals = state.savingsGoals || [];
 
-  const cash = cashAccounts.reduce((sum, c) => sum + c.balance, 0);
+  const cash = sumMoney(cashAccounts.map((c) => c.balance));
 
-  const debitCards = cards
-    .filter((c) => !c.isCanceled && c.cardType === 'Debit')
-    .reduce((sum, c) => sum + (c.currentBalance - (Number(c.lockedAmount) || 0)), 0);
-
-  const creditCardLiabilities = cards
-    .filter((c) => !c.isCanceled && c.cardType === 'Credit')
-    .reduce((sum, c) => sum + (c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0), 0);
-
-  const creditCardAssets = cards
-    .filter((c) => !c.isCanceled && c.cardType === 'Credit')
-    .reduce((sum, c) => sum + (c.currentBalance > 0 ? c.currentBalance : 0), 0);
-
-  const debtsAmount = debts.reduce((sum, d) => sum + d.remainingAmount, 0);
-  const loansGivenAmount = loansGiven.reduce(
-    (sum, l) => sum + (l.remainingAmount !== undefined ? l.remainingAmount : l.totalAmount),
-    0,
+  const debitCards = sumMoney(
+    cards
+      .filter((c) => !c.isCanceled && c.cardType === 'Debit')
+      .map((c) => c.currentBalance - (Number(c.lockedAmount) || 0)),
   );
 
-  const netWorth = cash + debitCards + creditCardAssets - creditCardLiabilities - debtsAmount + loansGivenAmount;
+  const creditCards = cards.filter((c) => !c.isCanceled && c.cardType === 'Credit');
+
+  const creditCardLiabilities = sumMoney(
+    creditCards.filter((c) => c.currentBalance < 0).map((c) => Math.abs(c.currentBalance)),
+  );
+
+  const creditCardAssets = sumMoney(creditCards.filter((c) => c.currentBalance > 0).map((c) => c.currentBalance));
+
+  const debtsAmount = sumMoney(debts.map((d) => d.remainingAmount));
+  const loansGivenAmount = sumMoney(
+    loansGiven.map((l) => (l.remainingAmount !== undefined ? l.remainingAmount : l.totalAmount)),
+  );
+
+  // A savings jar is money the owner still has — funding one moves it out of the
+  // wallet, so leaving it out of the sum would report a household that got poorer
+  // by every allocation it made.
+  const savings = sumMoney(savingsGoals.map((g) => g.current || 0));
+
+  const netWorth = sumMoney([
+    cash,
+    debitCards,
+    creditCardAssets,
+    savings,
+    loansGivenAmount,
+    -creditCardLiabilities,
+    -debtsAmount,
+  ]);
 
   return {
     cash,
     debitCards,
     creditCardAssets,
     creditCardLiabilities,
+    savings,
     debts: debtsAmount,
     loansGiven: loansGivenAmount,
     netWorth,
