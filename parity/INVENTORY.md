@@ -297,28 +297,28 @@ copy the authority. Both paths coexist today. The port must pick one.
 
 ### 7b. API mapping
 
-| Current                                                   | Evidence                                                                                                                                                         | Flutter equivalent                                 | Behavioural delta                                                                                                                                           |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| localStorage state mirror                                 | `utils.ts:85-309`                                                                                                                                                | `drift` (SQLite)                                   | Browser = one JSON blob overwrite; drift = row-level. Must keep local-first + dirty-flag semantics                                                          |
-| Auth tokens in localStorage                               | `App.tsx:4201-4203`                                                                                                                                              | `flutter_secure_storage`                           | Never plain shared_prefs                                                                                                                                    |
-| httpOnly cookies                                          | `server.ts:1322-1345`; `credentials:'include'` at `App.tsx:499,546`, `lib/authSession.ts:34,47`                                                                  | `dio` + `dio_cookie_manager`                       | **No httpOnly on native**; CSRF/`APP_ORIGIN` origin checks need a new scheme — NEEDS ANSWER                                                                 |
-| Runtime Supabase config                                   | `supabase.ts:49-101`                                                                                                                                             | `shared_preferences`                               | Users paste URL/key in-app today; decide whether to keep                                                                                                    |
-| WebAuthn / passkeys                                       | `lib/appLock.ts:193-278`; `server.ts:2176-2191`                                                                                                                  | `local_auth` or native WebAuthn                    | **NEEDS ANSWER** whether the server accepts native assertions (origin/RP checks assume browser)                                                             |
-| Google GSI injected script                                | `EmailLogin.tsx:159`                                                                                                                                             | `google_sign_in`                                   | Verify native ID-token audience matches `GOOGLE_CLIENT_ID`                                                                                                  |
-| **tesseract.js WASM worker**                              | `ReceiptScanner.tsx:15-16, 173-205` (`PSM.SINGLE_COLUMN`, `eng`)                                                                                                 | server OCR (`/api/ocr/free-scan` exists) or ML Kit | **No practical on-device equivalent — biggest functional gap.** Server fallback already exists and is concurrency-bounded (`server/ocr-semaphore.ts` → 503) |
-| canvas pre-OCR re-encode, FileReader, drag-drop           | `ReceiptScanner.tsx:32-144, 287, 295`; `App.tsx:3606`; `ProfileSection.tsx:61,129`; `SettingsModal.tsx:348,1089`                                                 | `image_picker`, `file_picker`                      | HEIC→JPEG/greyscale resize must be redone; no `getUserMedia` (CSP sets `camera=()`, `vercel.json:22,33`)                                                    |
-| `URL.createObjectURL` + anchor download                   | `lib/download.ts:3-10`, used `utils.ts:340,362,370`                                                                                                              | `share_plus` / `path_provider`                     | No anchor-download on native                                                                                                                                |
-| `window.print()` + `@media print`                         | `ReportsCentre.tsx:149`; `index.css:1424`                                                                                                                        | `printing` package                                 | Print stylesheet rebuilt as a PDF widget tree                                                                                                               |
-| ⌘K palette, focus traps, Esc                              | `CommandPalette.tsx:112`; `ui/Modal.tsx:32`                                                                                                                      | `Shortcuts`/`Actions`                              | Desktop-web UX; likely dropped on mobile                                                                                                                    |
-| `pagehide`/`beforeunload`/`visibilitychange`              | `App.tsx:908-914`                                                                                                                                                | `AppLifecycleState.paused`                         | Native pauses are coarser; flush must not be debounced                                                                                                      |
-| `navigator.onLine` + `online`/`offline` + HEAD probe      | `useOnlineStatus.ts:11-37`                                                                                                                                       | `connectivity_plus`                                | Event model differs; keep the sync state machine                                                                                                            |
-| `matchMedia` colour-scheme                                | `ThemeContext.tsx:24,54`                                                                                                                                         | `platformBrightness`                               | Direct equivalent                                                                                                                                           |
-| `matchMedia` reduced-motion + `MotionConfig`              | `AnimatedCountUp.tsx:28`; `main.tsx:26`                                                                                                                          | `MediaQuery.disableAnimations`                     | Direct equivalent                                                                                                                                           |
-| **OKLCH colours**                                         | `index.css:49-121, 183-268` pervasive                                                                                                                            | precompute sARGB tokens                            | **Flutter `Color` has no OKLCH** — bake every value, fixture-check each                                                                                     |
-| **`color-mix(in oklab, …)`**                              | `index.css:120-171, 231-261`                                                                                                                                     | bake mixed values                                  | No equivalent                                                                                                                                               |
-| `backdrop-filter` / glass                                 | `App.tsx:4170,4556`; `NotificationContext.tsx:83,116`; `.glass-pill`, `.shell-sidebar`                                                                           | `BackdropFilter`                                   | Perf and compositing differ                                                                                                                                 |
-| Service worker / PWA manifest / web push / install prompt | **NONE EXIST** (verified: no `serviceWorker`, no manifest link in `index.html`, no `PushManager`, no `Notification.requestPermission`, no `beforeinstallprompt`) | n/a                                                | **Nothing to port**                                                                                                                                         |
-| Sentry client                                             | **NOT WIRED** (`INFRA.md` confirms; `ErrorBoundary.tsx:32` only peeks at `window.Sentry`)                                                                        | —                                                  | Server-side only                                                                                                                                            |
+| Current                                                   | Evidence                                                                                                                                                         | Flutter equivalent                                                                                                         | Behavioural delta                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| localStorage state mirror                                 | `utils.ts:85-309`                                                                                                                                                | `drift` (SQLite)                                                                                                           | Browser = one JSON blob overwrite; drift = row-level. Must keep local-first + dirty-flag semantics                                                                                                                                                                                                                                  |
+| Auth tokens in localStorage                               | `App.tsx:4201-4203`                                                                                                                                              | `flutter_secure_storage`                                                                                                   | Never plain shared_prefs                                                                                                                                                                                                                                                                                                            |
+| httpOnly cookies                                          | `server.ts:1322-1345`; `credentials:'include'` at `App.tsx:499,546`, `lib/authSession.ts:34,47`                                                                  | `dio 5.11.1` + `dio_cookie_manager 3.5.0` + `cookie_jar 4.0.9`, with a `flutter_secure_storage`-backed encrypted `Storage` | **RESOLVED at the Phase 3 spike (§13f).** No new scheme is needed: the `/api` guard admits an absent `Origin`, and every session-guarded route also accepts `Authorization: Bearer`. Only `app_lock_trust` (`server.ts:2823-2865`) truly requires a cookie, so the jar exists for that one flow. No httpOnly on native — see D-U15. |
+| Runtime Supabase config                                   | `supabase.ts:49-101`                                                                                                                                             | `shared_preferences`                                                                                                       | Users paste URL/key in-app today; decide whether to keep                                                                                                                                                                                                                                                                            |
+| WebAuthn / passkeys                                       | `lib/appLock.ts:193-278`; `server.ts:2181-2189`, `:2599-2607`, `:2723`                                                                                           | `local_auth` only                                                                                                          | **ANSWERED: not portable, and not ported (D-U14).** `expectedOrigin` is pinned to `APP_ORIGIN`, which a native assertion origin (`android:apk-key-hash:…`) can never equal. Mobile unlock is `local_auth` + the unchanged bcrypt PIN routes.                                                                                        |
+| Google GSI injected script                                | `EmailLogin.tsx:159`                                                                                                                                             | `google_sign_in`                                                                                                           | Verify native ID-token audience matches `GOOGLE_CLIENT_ID`                                                                                                                                                                                                                                                                          |
+| **tesseract.js WASM worker**                              | `ReceiptScanner.tsx:15-16, 173-205` (`PSM.SINGLE_COLUMN`, `eng`)                                                                                                 | server OCR (`/api/ocr/free-scan` exists) or ML Kit                                                                         | **No practical on-device equivalent — biggest functional gap.** Server fallback already exists and is concurrency-bounded (`server/ocr-semaphore.ts` → 503)                                                                                                                                                                         |
+| canvas pre-OCR re-encode, FileReader, drag-drop           | `ReceiptScanner.tsx:32-144, 287, 295`; `App.tsx:3606`; `ProfileSection.tsx:61,129`; `SettingsModal.tsx:348,1089`                                                 | `image_picker`, `file_picker`                                                                                              | HEIC→JPEG/greyscale resize must be redone; no `getUserMedia` (CSP sets `camera=()`, `vercel.json:22,33`)                                                                                                                                                                                                                            |
+| `URL.createObjectURL` + anchor download                   | `lib/download.ts:3-10`, used `utils.ts:340,362,370`                                                                                                              | `share_plus` / `path_provider`                                                                                             | No anchor-download on native                                                                                                                                                                                                                                                                                                        |
+| `window.print()` + `@media print`                         | `ReportsCentre.tsx:149`; `index.css:1424`                                                                                                                        | `printing` package                                                                                                         | Print stylesheet rebuilt as a PDF widget tree                                                                                                                                                                                                                                                                                       |
+| ⌘K palette, focus traps, Esc                              | `CommandPalette.tsx:112`; `ui/Modal.tsx:32`                                                                                                                      | `Shortcuts`/`Actions`                                                                                                      | Desktop-web UX; likely dropped on mobile                                                                                                                                                                                                                                                                                            |
+| `pagehide`/`beforeunload`/`visibilitychange`              | `App.tsx:908-914`                                                                                                                                                | `AppLifecycleState.paused`                                                                                                 | Native pauses are coarser; flush must not be debounced                                                                                                                                                                                                                                                                              |
+| `navigator.onLine` + `online`/`offline` + HEAD probe      | `useOnlineStatus.ts:11-37`                                                                                                                                       | `connectivity_plus`                                                                                                        | Event model differs; keep the sync state machine                                                                                                                                                                                                                                                                                    |
+| `matchMedia` colour-scheme                                | `ThemeContext.tsx:24,54`                                                                                                                                         | `platformBrightness`                                                                                                       | Direct equivalent                                                                                                                                                                                                                                                                                                                   |
+| `matchMedia` reduced-motion + `MotionConfig`              | `AnimatedCountUp.tsx:28`; `main.tsx:26`                                                                                                                          | `MediaQuery.disableAnimations`                                                                                             | Direct equivalent                                                                                                                                                                                                                                                                                                                   |
+| **OKLCH colours**                                         | `index.css:49-121, 183-268` pervasive                                                                                                                            | precompute sARGB tokens                                                                                                    | **Flutter `Color` has no OKLCH** — bake every value, fixture-check each                                                                                                                                                                                                                                                             |
+| **`color-mix(in oklab, …)`**                              | `index.css:120-171, 231-261`                                                                                                                                     | bake mixed values                                                                                                          | No equivalent                                                                                                                                                                                                                                                                                                                       |
+| `backdrop-filter` / glass                                 | `App.tsx:4170,4556`; `NotificationContext.tsx:83,116`; `.glass-pill`, `.shell-sidebar`                                                                           | `BackdropFilter`                                                                                                           | Perf and compositing differ                                                                                                                                                                                                                                                                                                         |
+| Service worker / PWA manifest / web push / install prompt | **NONE EXIST** (verified: no `serviceWorker`, no manifest link in `index.html`, no `PushManager`, no `Notification.requestPermission`, no `beforeinstallprompt`) | n/a                                                                                                                        | **Nothing to port**                                                                                                                                                                                                                                                                                                                 |
+| Sentry client                                             | **NOT WIRED** (`INFRA.md` confirms; `ErrorBoundary.tsx:32` only peeks at `window.Sentry`)                                                                        | —                                                                                                                          | Server-side only                                                                                                                                                                                                                                                                                                                    |
 
 ---
 
@@ -675,3 +675,175 @@ Before any auth code is written, the mobile authentication path against the **un
 cookie, CSRF/`APP_ORIGIN`, and WebAuthn — must be presented and approved. No server file may be changed
 without approval. B-06 and B-07 (the three representations of "who is authenticated") are the open
 DECISION items this overlaps, and they surface here, not at Phase 7.
+
+## 13f. Phase 3 spike — auth against the unchanged server (executed, evidence)
+
+The Phase 2 precondition is discharged. Two throwaway tenants were minted by the real
+registration path on the running dev server (`NODE_ENV=development`, `DEV_OTP_RESPONSE=true`) and
+probed only with reads and one reversible insert. **No server file, migration or web-app file was
+touched.** Commands and outputs are reproduced here because the scratch scripts were deleted with
+the spike, per the scratch policy.
+
+### Is this database production? — answer, with one correction to my earlier read
+
+**No. It is a shared dev/test project — but not a clean one, and the 5 gmail addresses are not test
+data.** Counts are exact `COUNT`s (`head: true`), never paged payloads; addresses are never printed
+except for the QA tenants in the cleanup scope.
+
+| Table                  | total | `qa-*@example.com` | other `@example.com` | `@gmail.com` |
+| ---------------------- | ----- | ------------------ | -------------------- | ------------ |
+| `auth_accounts`        | 504   | 16                 | 483                  | 5            |
+| `transactions`         | 2,292 | 2,050              | 21                   | 221          |
+| `ledger_states`        | 426   | 13                 | 408                  | 5            |
+| `trusted_devices`      | 116   | 0                  | 112                  | 4            |
+| `app_lock_credentials` | 49    | 0                  | 47                   | 2            |
+| `webauthn_credentials` | 1     | 0                  | 0                    | 1            |
+
+- `@example.com` is a reserved test domain and `e2e/auth.ts:8-13` mints exactly that address shape
+  (`<prefix>-<stamp>@example.com`) for the repo's own Playwright suite, against the dev server with
+  `DEV_OTP_RESPONSE=true`. 483 of the 504 accounts are that residue, not users.
+- **The 5 `@gmail.com` accounts hold 221 transactions, 5 ledger snapshots, 4 trusted devices, 2 app-lock
+  PINs and the only passkey credential in the database.** That is real personal usage, and it is in the
+  same project as the test churn. It is **not** in the cleanup scope and nothing here may touch it.
+- ⚠ **Correction.** An earlier scratch probe reported `app_lock_credentials rows: 0`; the true number is
+  **49**. That probe was unverified at the time and is now wrong on the record. The verdict it supported
+  ("no app-lock usage, therefore no real users") was therefore weaker than stated — the passkey and PIN
+  evidence above replaces it.
+
+### Spike A — `/api` with `Authorization: Bearer` and no `Origin` (6/6)
+
+Tenants `qa-spike-a-20261006104609@example.com` and `qa-spike-b-…`, created through
+`send-otp` → `register` (`server.ts:1683`, `:1839`) with no `Origin` header on any request. The Supabase
+URL and anon key came from `GET /api/config` (`server.ts:3218`) rather than from disk, so nothing read
+`.env`. Probed route: `POST /api/app-lock/status` (`server.ts:2211`), which is session-guarded by
+`requireSession` (`:1294`) and read-only.
+
+| id  | request                                        | expected | got   |
+| --- | ---------------------------------------------- | -------- | ----- |
+| A1  | `Bearer <token>`, **no `Origin`**              | 200      | 200 ✓ |
+| A2  | same + `Origin: https://evil.example`          | 403      | 403 ✓ |
+| A3  | same + `Origin: http://localhost:3000`         | 200      | 200 ✓ |
+| A4  | last two signature characters changed          | 401      | 401 ✓ |
+| A5  | tenant A's token, tenant B's email in the body | 401      | 401 ✓ |
+| A6  | `verify-session`, bearer only, no cookie       | 200      | 200 ✓ |
+
+A6 is the one that matters for the port: a 24-hour session is echoed back **unchanged** (`:3183`), so a
+native client that never stores a cookie still keeps its session, and a 30-day `rememberMe` session is
+rotated and the new token is returned in the body (`:3177-3179`) — the client swaps its header and
+rebuilds the Supabase client, which is exactly what `src/supabase.ts:166-186` already does on the web.
+
+**Conclusion: no server change is required for the mobile API path.** The guard admits an absent `Origin`
+by design (`:1381-1403`), and A2 proves it is a real check rather than a disabled one.
+
+### Spike B — RLS honours both custom headers as sent by `supabase_flutter` (15/15)
+
+Run from `mobile/` with `flutter test`, `supabase_flutter 2.18.0`, table `cash_accounts`, policy text
+`supabase/migrations/20260906000000_fix_verify_functions_vault_secret.sql:19-84`.
+
+| id  | client as configured                                            | select                                 | insert      |
+| --- | --------------------------------------------------------------- | -------------------------------------- | ----------- |
+| B1  | `Supabase.initialize(headers: {x-user-email, x-session-token})` | 1 row                                  | accepted    |
+| B2  | anon key only, neither custom header                            | 0 rows                                 | `42501` RLS |
+| B3  | email of A + token of B (both valid, mismatched pair)           | 0 rows                                 | `42501` RLS |
+| B4  | email of A + tampered signature                                 | 0 rows                                 | `42501` RLS |
+| B5  | email of A + `expiresAt: 1` (structurally valid, expired)       | 0 rows                                 | —           |
+| B6  | two tenants, each with their own pair                           | A cannot see B's row; B cannot see A's | —           |
+| B7  | `X-User-Email` / `X-Session-Token` capitalised                  | 1 row                                  | —           |
+
+`42501 new row violates row-level security policy for table "cash_accounts"` is the WITH CHECK failure,
+so the anon key alone is provably useless for writes. B3 is the load-bearing one: `verify_user_token`
+returns null unless `lower(payload->>'email') = lower(x-user-email)` (`:75`), so the email header cannot
+be detached from its token. B7 confirms PostgREST's header map is case-insensitive in practice, which the
+SQL `coalesce` also defends against.
+
+Two substitutions were needed to run this under `flutter test`, both test-harness only and neither
+present in the shipped app: `HttpOverrides.global = null` (the binding otherwise answers every request
+with 400 without leaving the process) and an in-memory `GotrueAsyncStorage` (the default is
+SharedPreferences-backed and has no platform implementation in a test). The headers themselves went
+through the real `Supabase.initialize` → `SupabaseClient` path.
+
+**Residue: net zero.** Both spike rows were deleted in the same test (B8: 0 rows after). The two spike
+_accounts_ remain, and they are now in the cleanup list below — which grew from 13 tenants to 16
+because the spike, the `qa-light`/`qa-dark` baseline runs and an early single-tenant spike each created
+one.
+
+### Cookie jar — the packages, and a correction
+
+The Phase 2 report said "**no `dio`**". That was wrong and is retracted: `dio` is required. Ruling 2
+(persisted, encrypted, no server change) is met by
+
+```
+dio 5.11.1  +  dio_cookie_manager 3.5.0  +  cookie_jar 4.0.9
+```
+
+with `PersistCookieJar(dir: …, storage: <custom>)`, the custom `Storage` implemented on
+`flutter_secure_storage 11.2.0` so the serialized cookie file is never plaintext on disk. Added to
+`mobile/pubspec.yaml` and resolved by `flutter pub get`; not yet wired into any code, and its encrypted
+persistence is a Phase 3 test, not a claim I have proven. Only `app_lock_trust`
+(`server.ts:2823-2865`) needs it — every other route works on the bearer token (Spike A).
+
+### Dry run — what a cleanup would delete, and what it must not
+
+`qa-%@example.com` on `auth_accounts` currently selects **16 exact tenants**; all 16 are listed in the
+export. Counts are exact; the export was moved **outside the repository** to
+`D:\Emcode\backups\qa-export-20261006.json` (4,329,488 bytes, sha256 `2698c196f6b0ef758261671653bfa4ec1464ce827f3adfd82bd102f91a69066a`,
+credential columns redacted to `<redacted type len=N>`, QA rows only). It is never committed and never
+copied back inside `EM-Budget/`. The delete uses the **hard-coded list of those 16 addresses**, not the
+`like` pattern, so a tenant created between the dry run and the delete cannot be swept in silently.
+
+| Table                              | owner column | QA rows | non-QA | note                                                                |
+| ---------------------------------- | ------------ | ------- | ------ | ------------------------------------------------------------------- |
+| `auth_accounts`                    | email        | 16      | 488    | deleting these cascades the 15 tables below                         |
+| `bank_cards`                       | user_email   | 92      | 9      | FK cascade                                                          |
+| `cash_accounts`                    | user_email   | 138     | 25     | FK cascade                                                          |
+| `debts`                            | user_email   | 92      | 12     | FK cascade                                                          |
+| `expenses`                         | user_email   | 1,012   | 138    | FK cascade                                                          |
+| `incomes`                          | user_email   | 46      | 15     | FK cascade                                                          |
+| `ledger_states`                    | user_email   | 13      | 413    | FK cascade                                                          |
+| `loans_given`                      | user_email   | 92      | 2      | FK cascade                                                          |
+| `notifications`                    | user_email   | 92      | 13     | FK cascade                                                          |
+| `spending_envelopes`               | user_email   | 276     | 0      | FK cascade                                                          |
+| `subscriptions`                    | user_email   | 188     | 14     | FK cascade                                                          |
+| `transactions`                     | user_email   | 2,050   | 242    | FK cascade                                                          |
+| `app_lock_credentials`             | user_email   | 0       | 49     | FK cascade, nothing to delete                                       |
+| `webauthn_credentials`             | user_email   | 0       | 1      | FK cascade, nothing to delete                                       |
+| `webauthn_challenges`              | user_email   | 0       | 0      | —                                                                   |
+| `trusted_devices`                  | user_email   | 0       | 116    | FK cascade, nothing to delete                                       |
+| `credit_card_installments`         | user_email   | 0       | 0      | —                                                                   |
+| **`auth_otps`**                    | email        | 7       | 81     | **no FK** — must be deleted explicitly                              |
+| **`login_attempts`**               | email        | 13      | 456    | **no FK** — must be deleted explicitly                              |
+| **`auth_device_tokens`**           | hashed_email | 250     | 1,205  | **no FK**; `sha256(email)` (`server.ts:591`), no secret → reachable |
+| `auth_rate_limits`                 | —            | 0       | —      | no owner column; out of scope                                       |
+| `credit_card_installment_payments` | —            | 0       | —      | no owner column; its QA parents are 0, so nothing links             |
+
+- **Total in scope: 4,377 rows across 15 tables** (`auth_accounts` included), plus the cascade.
+- `auth_device_tokens` also has **28 rows with `hashed_email = ''`** (devices registered without an
+  email). They are not addressable by email and are **excluded** from the scope.
+- Two open gaps before any delete: the 7 `auth_otps` rows are unconsumed QA passcode hashes, and
+  `ledger_states` holds the JSON snapshot that `refresh-subscriptions` patches — both are covered by
+  the exact-email list, but neither is cascade-covered.
+- **Nothing here authorises itself.** Awaiting an explicit OK on the exact 16 addresses and the
+  single-transaction delete, then a re-run of the same counts to show every non-QA figure unchanged.
+
+## 13g. Phase 3 gate rulings (D18-D22)
+
+| id      | subject                                                        | ruling                                                                                                                                                                                                                                                  |
+| ------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D18** | QA cleanup                                                     | **Approved for the exact 16 addresses only.** Export moved to `D:\Emcode\backups\` (never committed). Counts identical before and after, every non-QA figure unchanged. **Executes only on an explicit "GO" after the user confirms their own backup.** |
+| **D19** | Everything outside those 16                                    | **Untouched.** The 483 other `@example.com` e2e accounts and the 5 `@gmail.com` accounts stay exactly as they are. No pattern-based delete, ever.                                                                                                       |
+| **D20** | `dio 5.11.1` + `dio_cookie_manager 3.5.0` + `cookie_jar 4.0.9` | **Approved, pinned.**                                                                                                                                                                                                                                   |
+| **D21** | Cookie tests in Phase 3                                        | Three named proofs required: it **survives a restart**, it is **not plaintext at rest**, and **logout deletes it**.                                                                                                                                     |
+| **D22** | Standing rule for live-DB tests, from now on                   | Every test that touches the live database **creates its own tenant under a unique prefix and deletes it in a `finally` block.** No test may read, write or clean up a tenant it did not create.                                                         |
+| —       | `parity/.qa_export.cjs`                                        | Not committed. Deleted after the cleanup runs.                                                                                                                                                                                                          |
+
+### D20 in detail — the pinned cookie stack
+
+```yaml
+dio: 5.11.1
+dio_cookie_manager: 3.5.0
+cookie_jar: 4.0.9
+```
+
+`PersistCookieJar` with a custom `cookie_jar.Storage` implemented over `flutter_secure_storage 11.2.0`,
+so the serialized jar never exists as plaintext on disk. Scope is the `app_lock_trust` cookie only
+(`server.ts:2823-2865`); every other route works on the bearer token (Spike A). No server change.
