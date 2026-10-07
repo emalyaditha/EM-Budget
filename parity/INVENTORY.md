@@ -2,7 +2,9 @@
 
 **Project:** EM-Budget (`D:\Emcode\EM-Budget`) · branch `main` · HEAD `8ccddf3`
 **Playbook:** `D:\Emcode\MIGRATION_PLAYBOOK.md` — Flutter + Node.js, zero logic / zero UI change
-**Phase:** 0 (read-only). No app code written. No existing file modified.
+**Phase:** 0 (read-only) when written; maintained through Phase 3. Phase 0 itself wrote no app code and
+modified no existing file. The only web-side edit since is **B-23**, which you ruled a web fix at the
+Phase 3 gate — 9 lines in `src/supabase.ts` on `bugfix/b23-credit-card-purchases`, ported to Dart after it.
 **Date:** 2026-10-06
 
 **Verified first-hand:** git state, orphan components, `auth_session_token` in localStorage, absence of a
@@ -240,7 +242,9 @@ coverage entirely**).
 
 ## 6. Sync and conflict resolution — the riskiest logic in the app
 
-Whole-state, last-write-wins. **There is no per-record merge anywhere.**
+Whole-state, last-write-wins. **There is no per-record merge on the server** — the RPC deletes all rows for
+the user and re-inserts. The one record-level merge in the app is the client's boot merge, four bullets
+down.
 
 - **Dirty flag at edit time:** `updateState` (`App.tsx:686-714`) → `markStateDirty(email)`
   (`utils.ts:98-124`), owner-keyed; survives a crash between edit and push.
@@ -248,16 +252,21 @@ Whole-state, last-write-wins. **There is no per-record merge anywhere.**
   them on the next merge.
 - **Hydration gate** (`supabase.ts:32-45, 531-537`): push is **aborted** until a cloud pull succeeds for
   that email — _"prevents blank local state from destroying existing user data"_.
-- **Boot merge** `mergeCloudIntoLocal` (`App.tsx:213-250`): union collections by id, **cloud wins on same
-  id**; records edited during hydration protected (`hydrationInFlight` L205); tombstoned ids never return;
-  scalars cloud-wins **except `currency`, which is local-wins**.
+- **Boot merge** `mergeCloudIntoLocal` (`App.tsx:213-250`): union collections by id, **local wins on same
+  id** — the loop is `putIfAbsent` over `[...localArr, ...cloudArr]` (`:216-219`), so the cloud copy fills a
+  gap rather than overwriting; a row with no id is dropped whole from either side. Records edited during
+  hydration protected (`hydrationInFlight` L205); tombstoned ids never return; scalars cloud-wins **except
+  `currency`, which is local-wins**; `creditCards` is not unioned at all and rides the `...cloud` spread
+  (B-23). _Corrected here in Phase 3 — an earlier draft of this bullet said "cloud wins", which the code
+  does not do; `mobile/lib/data/cloud_merge.dart` ports the local-wins order and guards the source text._
 - **Dedupe:** `lastSyncedStatesCache` JSON-equality (`supabase.ts:544-552`) skips no-op pushes.
 - **Ordering:** `syncChains` per-email promise chains (`supabase.ts:22, 841-852`) — pushes commit in
   initiation order, newest last; chain poisoning guarded.
-- **Write path:** only `syncStateToSupabase` → `sync_complete_ledger` (14 params), `pinCode` stripped from
-  the pushed state; double retry (`SYNC_RPC_RETRY {2,500ms}` inside `retryWithBackoff(…, maxRetries:2,
-baseDelayMs:2000, maxDelayMs:5000)`). The RPC **deletes all rows for the user then re-inserts** — no
-  row-level merge exists.
+- **Write path:** only `syncStateToSupabase` → `sync_complete_ledger` (14 params), `pinCode` set to `''` on
+  the pushed state (a no-op — nothing ever puts a PIN there, B-21); nominally a double retry
+  (`SYNC_RPC_RETRY {2,500ms}` inside `retryWithBackoff(…, maxRetries:2, baseDelayMs:2000, maxDelayMs:5000)`)
+  but **the outer one can never fire**, because `doPush` returns its failures instead of rejecting them
+  (B-22). The RPC **deletes all rows for the user then re-inserts** — no row-level merge exists.
 - **Read path:** parallel relational pull (5s/table, 15s total) **unioned** with the `ledger_states.state`
   JSON fallback; `mergeSubscriptions` prefers relational by id; numeric coercion `''`/`NaN` → 0.
 - **Timing:** 1500ms debounced auto-push (`App.tsx:717-771`), undebounced localStorage mirror (`:778-781`),
@@ -297,28 +306,28 @@ copy the authority. Both paths coexist today. The port must pick one.
 
 ### 7b. API mapping
 
-| Current                                                   | Evidence                                                                                                                                                         | Flutter equivalent                                 | Behavioural delta                                                                                                                                           |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| localStorage state mirror                                 | `utils.ts:85-309`                                                                                                                                                | `drift` (SQLite)                                   | Browser = one JSON blob overwrite; drift = row-level. Must keep local-first + dirty-flag semantics                                                          |
-| Auth tokens in localStorage                               | `App.tsx:4201-4203`                                                                                                                                              | `flutter_secure_storage`                           | Never plain shared_prefs                                                                                                                                    |
-| httpOnly cookies                                          | `server.ts:1322-1345`; `credentials:'include'` at `App.tsx:499,546`, `lib/authSession.ts:34,47`                                                                  | `dio` + `dio_cookie_manager`                       | **No httpOnly on native**; CSRF/`APP_ORIGIN` origin checks need a new scheme — NEEDS ANSWER                                                                 |
-| Runtime Supabase config                                   | `supabase.ts:49-101`                                                                                                                                             | `shared_preferences`                               | Users paste URL/key in-app today; decide whether to keep                                                                                                    |
-| WebAuthn / passkeys                                       | `lib/appLock.ts:193-278`; `server.ts:2176-2191`                                                                                                                  | `local_auth` or native WebAuthn                    | **NEEDS ANSWER** whether the server accepts native assertions (origin/RP checks assume browser)                                                             |
-| Google GSI injected script                                | `EmailLogin.tsx:159`                                                                                                                                             | `google_sign_in`                                   | Verify native ID-token audience matches `GOOGLE_CLIENT_ID`                                                                                                  |
-| **tesseract.js WASM worker**                              | `ReceiptScanner.tsx:15-16, 173-205` (`PSM.SINGLE_COLUMN`, `eng`)                                                                                                 | server OCR (`/api/ocr/free-scan` exists) or ML Kit | **No practical on-device equivalent — biggest functional gap.** Server fallback already exists and is concurrency-bounded (`server/ocr-semaphore.ts` → 503) |
-| canvas pre-OCR re-encode, FileReader, drag-drop           | `ReceiptScanner.tsx:32-144, 287, 295`; `App.tsx:3606`; `ProfileSection.tsx:61,129`; `SettingsModal.tsx:348,1089`                                                 | `image_picker`, `file_picker`                      | HEIC→JPEG/greyscale resize must be redone; no `getUserMedia` (CSP sets `camera=()`, `vercel.json:22,33`)                                                    |
-| `URL.createObjectURL` + anchor download                   | `lib/download.ts:3-10`, used `utils.ts:340,362,370`                                                                                                              | `share_plus` / `path_provider`                     | No anchor-download on native                                                                                                                                |
-| `window.print()` + `@media print`                         | `ReportsCentre.tsx:149`; `index.css:1424`                                                                                                                        | `printing` package                                 | Print stylesheet rebuilt as a PDF widget tree                                                                                                               |
-| ⌘K palette, focus traps, Esc                              | `CommandPalette.tsx:112`; `ui/Modal.tsx:32`                                                                                                                      | `Shortcuts`/`Actions`                              | Desktop-web UX; likely dropped on mobile                                                                                                                    |
-| `pagehide`/`beforeunload`/`visibilitychange`              | `App.tsx:908-914`                                                                                                                                                | `AppLifecycleState.paused`                         | Native pauses are coarser; flush must not be debounced                                                                                                      |
-| `navigator.onLine` + `online`/`offline` + HEAD probe      | `useOnlineStatus.ts:11-37`                                                                                                                                       | `connectivity_plus`                                | Event model differs; keep the sync state machine                                                                                                            |
-| `matchMedia` colour-scheme                                | `ThemeContext.tsx:24,54`                                                                                                                                         | `platformBrightness`                               | Direct equivalent                                                                                                                                           |
-| `matchMedia` reduced-motion + `MotionConfig`              | `AnimatedCountUp.tsx:28`; `main.tsx:26`                                                                                                                          | `MediaQuery.disableAnimations`                     | Direct equivalent                                                                                                                                           |
-| **OKLCH colours**                                         | `index.css:49-121, 183-268` pervasive                                                                                                                            | precompute sARGB tokens                            | **Flutter `Color` has no OKLCH** — bake every value, fixture-check each                                                                                     |
-| **`color-mix(in oklab, …)`**                              | `index.css:120-171, 231-261`                                                                                                                                     | bake mixed values                                  | No equivalent                                                                                                                                               |
-| `backdrop-filter` / glass                                 | `App.tsx:4170,4556`; `NotificationContext.tsx:83,116`; `.glass-pill`, `.shell-sidebar`                                                                           | `BackdropFilter`                                   | Perf and compositing differ                                                                                                                                 |
-| Service worker / PWA manifest / web push / install prompt | **NONE EXIST** (verified: no `serviceWorker`, no manifest link in `index.html`, no `PushManager`, no `Notification.requestPermission`, no `beforeinstallprompt`) | n/a                                                | **Nothing to port**                                                                                                                                         |
-| Sentry client                                             | **NOT WIRED** (`INFRA.md` confirms; `ErrorBoundary.tsx:32` only peeks at `window.Sentry`)                                                                        | —                                                  | Server-side only                                                                                                                                            |
+| Current                                                   | Evidence                                                                                                                                                         | Flutter equivalent                                                                                                         | Behavioural delta                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| localStorage state mirror                                 | `utils.ts:85-309`                                                                                                                                                | `FileKeyValueStore` — one file per key, create-then-rename (`mobile/lib/data/file_key_value_store.dart`)                   | Browser = one JSON blob overwrite; the phone keeps that shape exactly. **`drift` is gone** (Phase 3 gate): it never appeared in an import, and a row-level store would add a schema for behaviour no screen uses. Rename, not truncate, because a `null` read of the dirty marker mid-write is R4. Local-first + dirty-flag semantics are pinned by `test/data/durability_restart_test.dart`. Needs `path_provider` for the app-support directory — approval item, Phase 5. |
+| Auth tokens in localStorage                               | `App.tsx:4201-4203`                                                                                                                                              | `flutter_secure_storage`                                                                                                   | Never plain shared_prefs                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| httpOnly cookies                                          | `server.ts:1322-1345`; `credentials:'include'` at `App.tsx:499,546`, `lib/authSession.ts:34,47`                                                                  | `dio 5.11.1` + `dio_cookie_manager 3.5.0` + `cookie_jar 4.0.9`, with a `flutter_secure_storage`-backed encrypted `Storage` | **RESOLVED at the Phase 3 spike (§13f).** No new scheme is needed: the `/api` guard admits an absent `Origin`, and every session-guarded route also accepts `Authorization: Bearer`. Only `app_lock_trust` (`server.ts:2823-2865`) truly requires a cookie, so the jar exists for that one flow. No httpOnly on native — see D-U15.                                                                                                                                         |
+| Runtime Supabase config                                   | `supabase.ts:49-101`                                                                                                                                             | not ported — `lib/config/env.dart` reads four `--dart-define` values                                                       | **ANSWERED at the Phase 3 gate.** The in-app URL/key paste is a development affordance the web's own Settings panel treats as config input; the phone compiles the four public values in, so no `shared_preferences` dependency exists. The panel is not in Phase 3 scope, and nothing on the web changed.                                                                                                                                                                  |
+| WebAuthn / passkeys                                       | `lib/appLock.ts:193-278`; `server.ts:2181-2189`, `:2599-2607`, `:2723`                                                                                           | `local_auth` only                                                                                                          | **ANSWERED: not portable, and not ported (D-U14).** `expectedOrigin` is pinned to `APP_ORIGIN`, which a native assertion origin (`android:apk-key-hash:…`) can never equal. Mobile unlock is `local_auth` + the unchanged bcrypt PIN routes.                                                                                                                                                                                                                                |
+| Google GSI injected script                                | `EmailLogin.tsx:159`                                                                                                                                             | `google_sign_in`                                                                                                           | Verify native ID-token audience matches `GOOGLE_CLIENT_ID`                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **tesseract.js WASM worker**                              | `ReceiptScanner.tsx:15-16, 173-205` (`PSM.SINGLE_COLUMN`, `eng`)                                                                                                 | server OCR (`/api/ocr/free-scan` exists) or ML Kit                                                                         | **No practical on-device equivalent — biggest functional gap.** Server fallback already exists and is concurrency-bounded (`server/ocr-semaphore.ts` → 503)                                                                                                                                                                                                                                                                                                                 |
+| canvas pre-OCR re-encode, FileReader, drag-drop           | `ReceiptScanner.tsx:32-144, 287, 295`; `App.tsx:3606`; `ProfileSection.tsx:61,129`; `SettingsModal.tsx:348,1089`                                                 | `image_picker`, `file_picker`                                                                                              | HEIC→JPEG/greyscale resize must be redone; no `getUserMedia` (CSP sets `camera=()`, `vercel.json:22,33`)                                                                                                                                                                                                                                                                                                                                                                    |
+| `URL.createObjectURL` + anchor download                   | `lib/download.ts:3-10`, used `utils.ts:340,362,370`                                                                                                              | `share_plus` / `path_provider`                                                                                             | No anchor-download on native                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `window.print()` + `@media print`                         | `ReportsCentre.tsx:149`; `index.css:1424`                                                                                                                        | `printing` package                                                                                                         | Print stylesheet rebuilt as a PDF widget tree                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ⌘K palette, focus traps, Esc                              | `CommandPalette.tsx:112`; `ui/Modal.tsx:32`                                                                                                                      | `Shortcuts`/`Actions`                                                                                                      | Desktop-web UX; likely dropped on mobile                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `pagehide`/`beforeunload`/`visibilitychange`              | `App.tsx:908-914`                                                                                                                                                | `AppLifecycleState.paused`                                                                                                 | Native pauses are coarser; flush must not be debounced                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `navigator.onLine` + `online`/`offline` + HEAD probe      | `useOnlineStatus.ts:11-37`                                                                                                                                       | `connectivity_plus`                                                                                                        | Event model differs; keep the sync state machine                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `matchMedia` colour-scheme                                | `ThemeContext.tsx:24,54`                                                                                                                                         | `platformBrightness`                                                                                                       | Direct equivalent                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `matchMedia` reduced-motion + `MotionConfig`              | `AnimatedCountUp.tsx:28`; `main.tsx:26`                                                                                                                          | `MediaQuery.disableAnimations`                                                                                             | Direct equivalent                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **OKLCH colours**                                         | `index.css:49-121, 183-268` pervasive                                                                                                                            | precompute sARGB tokens                                                                                                    | **Flutter `Color` has no OKLCH** — bake every value, fixture-check each                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **`color-mix(in oklab, …)`**                              | `index.css:120-171, 231-261`                                                                                                                                     | bake mixed values                                                                                                          | No equivalent                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `backdrop-filter` / glass                                 | `App.tsx:4170,4556`; `NotificationContext.tsx:83,116`; `.glass-pill`, `.shell-sidebar`                                                                           | `BackdropFilter`                                                                                                           | Perf and compositing differ                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Service worker / PWA manifest / web push / install prompt | **NONE EXIST** (verified: no `serviceWorker`, no manifest link in `index.html`, no `PushManager`, no `Notification.requestPermission`, no `beforeinstallprompt`) | n/a                                                                                                                        | **Nothing to port**                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Sentry client                                             | **NOT WIRED** (`INFRA.md` confirms; `ErrorBoundary.tsx:32` only peeks at `window.Sentry`)                                                                        | —                                                                                                                          | Server-side only                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 ---
 
@@ -526,21 +535,49 @@ a logic spec with goldens, a UI spec with numbers, and pixel baselines.
 
 ### Logic side
 
-| artefact                            | produced by                           | what it is                                                                                                                                               |
-| ----------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parity/LOGIC_SPEC.md`              | hand-written against the tagged code  | 12 units, **278 named cases** the Dart port must satisfy, each with the exact input and the reason the case exists.                                      |
-| `parity/fixtures/*.json` (12 files) | `npx tsx parity/fixtures/generate.ts` | **661 measured goldens** — the `expected` value is what the real TypeScript produced, never what it was expected to produce. Each carries `_provenance`. |
-| `parity/fixtures/validate.ts`       | `npx tsx parity/fixtures/validate.ts` | The D8 gate: non-empty, ≥ the spec's case count, every object schema-checked, provenance re-verified. Currently **PASS, 661 / 278**.                     |
-| `parity/fixtures/tz-proof.ts`       | `npx tsx parity/fixtures/tz-proof.ts` | Re-runs all 661 goldens in `Asia/Colombo`, `UTC` and `America/New_York`. **5 cases differ**, all in the two units §5 warned about.                       |
+| artefact                            | produced by                           | what it is                                                                                                                                                                                                                                                                                                       |
+| ----------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parity/LOGIC_SPEC.md`              | hand-written against the tagged code  | 13 units, **510 named cases** the Dart port must satisfy, each with the exact input and the reason the case exists.                                                                                                                                                                                              |
+| `parity/fixtures/*.json` (13 files) | `npx tsx parity/fixtures/generate.ts` | **963 measured goldens** — the `expected` value is what the real TypeScript produced, never what it was expected to produce. Each carries `_provenance`. `--only money,alerts` regenerates named units only, because each file stamps its own `generatedAt` and a full run churns thirteen files for one change. |
+| `parity/fixtures/validate.ts`       | `npx tsx parity/fixtures/validate.ts` | The D8 gate: non-empty, ≥ the spec's case count, every object schema-checked, provenance re-verified. Currently **PASS, 963 / 510**.                                                                                                                                                                             |
+| `parity/fixtures/tz-proof.ts`       | `npx tsx parity/fixtures/tz-proof.ts` | Re-runs every golden in `Asia/Colombo` (the committed zone), `America/New_York` and `Pacific/Kiritimati` — always the full set, since it regenerates rather than reads `--only`. **5 cases differ**, all in the two units §5 warned about.                                                                       |
+
+### Data side (Phase 3)
+
+| artefact                   | produced by                                     | what it is                                                                                                                                                                                                                                              |
+| -------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parity/DATA_SPEC.md`      | written against the ports themselves            | The **representation** contract: absent-vs-null, `num` vs `double`, `jsonEncode` vs `JSON.stringify`, the two date regimes, the column allow-list, the sync contracts, and a 13-item divergence register (D-01 … D-13).                                 |
+| `mobile/lib/models/*.dart` | field-for-field from `src/types.ts`             | Typed state models, hand-written (codegen cannot express §1–§2 of the spec). `test/models/` — 33 tests, incl. a source-textual type-drift guard.                                                                                                        |
+| `mobile/lib/data/*.dart`   | the `supabase.ts` / `utils.ts` / `api.ts` ports | Casing, JS semantics, local-date regime, column mapping, record builders, durability (interface + file store), the ledger repository (push + pull), the boot merge, `transactionService`. `test/data/` — 343 tests, incl. the restart durability proof. |
+| `mobile/lib/auth/*.dart`   | the auth contract, after the two spikes (§13f)  | `ApiClient`, `AuthRepository`, one identity holder, the encrypted cookie jar. `test/auth/` — 66 tests, incl. the three D21 cookie proofs.                                                                                                               |
+
+Total at the Phase 3 gate: **443 Dart tests, 0 failures**, `flutter analyze` clean, `dart format` clean.
+
+### Logic side (Phase 4, first unit)
+
+| artefact                                        | produced by                          | what it is                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mobile/lib/domain/money.dart`                  | the `src/lib/money.ts` port          | Integer-cent core, 8 functions, bug-compatible (`Infinity` survives `toMinorUnits`, `-0` too). `test/domain/money_test.dart` — **11** tests replaying all **200** cases of `money.json`, each case name consumed exactly once.                                                                                         |
+| `mobile/lib/data/js_semantics.dart`             | the JS number→text rules             | `jsParseFloat`, `jsMathRound`, `jsToFixed`, `jsToLocaleStringFixed` — four rounding rules that disagree with each other and with Dart, kept four ways round. `test/domain/js_semantics_format_test.dart` — **17** tests, every divergence named and each function swept against Node over tens of thousands of values. |
+| `mobile/lib/data/number_locale.dart` (§13h D25) | `intl`'s CLDR metadata, nothing else | Separators, grouping runs, zero digit and sign affixes for a locale tag; the digits never come from `intl`. `test/domain/number_locale_test.dart` — **10** tests replaying all **232** cases of `number-locale.json`, each in the locale its case names.                                                               |
+
+Total at this gate: **481 Dart tests, 0 failures** (443 + 38), `dart format --set-exit-if-changed` and
+`flutter analyze --fatal-infos --fatal-warnings` clean, `validate.ts` **PASS 963 / 510**, `tz-proof.ts`
+**5 of 963 differ across three zones** — the same five the Phase 1 gate named, and `number-locale` is
+zone-stable. On the web side `npm run lint` (eslint `--max-warnings 0` + `tsc --noEmit`) is clean and
+`npx vitest run` is **456 / 457**: the one failure is `auth.integration.test.ts`'s PIN lockout case, which
+exceeded vitest's default 5 s against the live server on this host. It is a network timeout, not an
+assertion, and cannot be caused by this commit — `git diff pre-flutter -- src/ server.ts server/ api-src/
+migrations/` is empty and no web file is staged. Reported rather than hidden; CI is the authority.
 
 ### UI side
 
-| artefact                                    | produced by                 | what it is                                                                                                                                                                                               |
-| ------------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parity/ui-tokens.cjs` → `ui-tokens.json`   | Chromium via Playwright     | Measures, does not convert: **210** custom properties × 4 passes, **100** class probes, **160** colour utilities harvested from `src/` of which **81** paint, **17** `dark:` tokens × 4 app×OS contexts. |
-| `parity/render_ui_spec.cjs` → `UI_SPEC.md`  | the JSON above              | **917 lines.** Refuses to render if `src/index.css` is not the tagged blob, refuses to record an unresolved colour, and formats its own output.                                                          |
-| `parity/run_baselines.cjs` → `screenshots/` | the untouched `qa-shot.cjs` | **48 PNGs** (2 themes × 3 widths × 8 tabs, 5.0 MB) plus `MANIFEST.json` with a sha256 per file and the harness's own report kept verbatim.                                                               |
-| `parity/BUGS_FOUND.md`                      | all of it                   | B-01 … **B-16**. Two entries are new to Phase 1 and both are theme findings; see below.                                                                                                                  |
+| artefact                                    | produced by                 | what it is                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parity/ui-tokens.cjs` → `ui-tokens.json`   | Chromium via Playwright     | Measures, does not convert: **210** custom properties × 4 passes, **100** class probes, **160** colour utilities harvested from `src/` of which **81** paint, **17** `dark:` tokens × 4 app×OS contexts.                                                                                              |
+| `parity/render_ui_spec.cjs` → `UI_SPEC.md`  | the JSON above              | **917 lines.** Refuses to render if `src/index.css` is not the tagged blob, refuses to record an unresolved colour, and formats its own output.                                                                                                                                                       |
+| `parity/run_baselines.cjs` → `screenshots/` | the untouched `qa-shot.cjs` | **48 PNGs** (2 themes × 3 widths × 8 tabs, 5.0 MB) plus `MANIFEST.json` with a sha256 per file and the harness's own report kept verbatim.                                                                                                                                                            |
+| `parity/BUGS_FOUND.md`                      | all of it                   | B-01 … **B-25**. B-17 … B-20 were found porting the auth contract and B-21 … B-25 the sync engine, both in Phase 3; the web code they describe was read, never edited — except **B-23**, ruled a web-side fix: 9 lines on `bugfix/b23-credit-card-purchases` (`1d1efe8`), unmerged, then ported here. |
 
 ### What the measurements settled
 
@@ -596,12 +633,15 @@ scaffold is verified by `analyze` + `test` here; the first real `flutter build` 
 
 ### Dependencies, as `pub get` resolved them
 
-`flutter_riverpod 3.4.3` · `go_router 18.0.2` · `supabase_flutter 2.18.0` · `drift 2.35.1` +
-`drift_flutter 0.3.1` · `flutter_secure_storage 11.2.0` · `local_auth 3.0.2` · codegen dev-only:
-`freezed 4.0.2`, `json_serializable 6.14.1`, `drift_dev 2.35.1`, `build_runner 2.16.1`.
-All coexist — that was the point of declaring them at scaffold time. Riverpod is **v3**, whose API
-differs from the v2 examples most write-ups assume. **No `dio`**: D1 removed `server/`, so the client
-speaks to the routes the web app already uses.
+`flutter_riverpod 3.4.3` · `go_router 18.0.2` · `supabase_flutter 2.18.0` · `dio 5.11.1` +
+`dio_cookie_manager 3.5.0` + `cookie_jar 4.0.9` · `flutter_secure_storage 11.2.0` · `local_auth 3.0.2`.
+Dev: `flutter_lints 6.0.0` only. **Removed at the Phase 3 gate:** `freezed`, `json_serializable`,
+`build_runner`, `drift`, `drift_flutter`, `drift_dev`, `freezed_annotation`, `json_annotation` — none was
+imported anywhere in `lib/` or `test/`, and the models are hand-written for the reason given in
+`DATA_SPEC.md` §1–§2. `path_provider` is **not yet** a dependency; it is needed when `FileKeyValueStore`
+gets a real directory in Phase 5 and requires approval. Riverpod is **v3**, whose API differs from the v2
+examples most write-ups assume. The client speaks to the routes the web app already uses; D1 removed
+`server/`, so there is no new backend.
 
 ### Two tracked web-side files changed — both need your approval
 
@@ -622,8 +662,10 @@ web gates were re-run after them (below).
 
 ### Choices a later phase may not silently revisit
 
-- `*.g.dart` / `*.freezed.dart` are **committed, not ignored**. Reviewable diffs and no `build_runner`
-  in CI; the analyzer excludes them instead.
+- There is **no codegen in this project at all** — no `*.g.dart`, no `*.freezed.dart`, no
+  `build_runner` step, in CI or locally. The models are hand-written (§ `DATA_SPEC.md` 1–§2) and the
+  Phase 3 gate removed the packages that would have produced them, so "run the generator" is never a
+  setup step a reviewer or a build has to remember.
 - `environment: sdk: ^3.13.5` — the SDK is pinned by `pubspec.lock`, so CI must install 3.47.6 exactly.
 - `gradle-wrapper.jar` is a committed binary that gitleaks has never seen. If the first push trips its
   high-entropy rules the fix is a gitleaks allowlist entry, not removing the wrapper.
@@ -675,3 +717,217 @@ Before any auth code is written, the mobile authentication path against the **un
 cookie, CSRF/`APP_ORIGIN`, and WebAuthn — must be presented and approved. No server file may be changed
 without approval. B-06 and B-07 (the three representations of "who is authenticated") are the open
 DECISION items this overlaps, and they surface here, not at Phase 7.
+
+## 13f. Phase 3 spike — auth against the unchanged server (executed, evidence)
+
+The Phase 2 precondition is discharged. Two throwaway tenants were minted by the real
+registration path on the running dev server (`NODE_ENV=development`, `DEV_OTP_RESPONSE=true`) and
+probed only with reads and one reversible insert. **No server file, migration or web-app file was
+touched.** Commands and outputs are reproduced here because the scratch scripts were deleted with
+the spike, per the scratch policy.
+
+### Is this database production? — answer, with one correction to my earlier read
+
+**No. It is a shared dev/test project — but not a clean one, and the 5 gmail addresses are not test
+data.** Counts are exact `COUNT`s (`head: true`), never paged payloads; addresses are never printed
+except for the QA tenants in the cleanup scope.
+
+| Table                  | total | `qa-*@example.com` | other `@example.com` | `@gmail.com` |
+| ---------------------- | ----- | ------------------ | -------------------- | ------------ |
+| `auth_accounts`        | 504   | 16                 | 483                  | 5            |
+| `transactions`         | 2,292 | 2,050              | 21                   | 221          |
+| `ledger_states`        | 426   | 13                 | 408                  | 5            |
+| `trusted_devices`      | 116   | 0                  | 112                  | 4            |
+| `app_lock_credentials` | 49    | 0                  | 47                   | 2            |
+| `webauthn_credentials` | 1     | 0                  | 0                    | 1            |
+
+- `@example.com` is a reserved test domain and `e2e/auth.ts:8-13` mints exactly that address shape
+  (`<prefix>-<stamp>@example.com`) for the repo's own Playwright suite, against the dev server with
+  `DEV_OTP_RESPONSE=true`. 483 of the 504 accounts are that residue, not users.
+- **The 5 `@gmail.com` accounts hold 221 transactions, 5 ledger snapshots, 4 trusted devices, 2 app-lock
+  PINs and the only passkey credential in the database.** That is real personal usage, and it is in the
+  same project as the test churn. It is **not** in the cleanup scope and nothing here may touch it.
+- ⚠ **Correction.** An earlier scratch probe reported `app_lock_credentials rows: 0`; the true number is
+  **49**. That probe was unverified at the time and is now wrong on the record. The verdict it supported
+  ("no app-lock usage, therefore no real users") was therefore weaker than stated — the passkey and PIN
+  evidence above replaces it.
+
+### Spike A — `/api` with `Authorization: Bearer` and no `Origin` (6/6)
+
+Tenants `qa-spike-a-20261006104609@example.com` and `qa-spike-b-…`, created through
+`send-otp` → `register` (`server.ts:1683`, `:1839`) with no `Origin` header on any request. The Supabase
+URL and anon key came from `GET /api/config` (`server.ts:3218`) rather than from disk, so nothing read
+`.env`. Probed route: `POST /api/app-lock/status` (`server.ts:2211`), which is session-guarded by
+`requireSession` (`:1294`) and read-only.
+
+| id  | request                                        | expected | got   |
+| --- | ---------------------------------------------- | -------- | ----- |
+| A1  | `Bearer <token>`, **no `Origin`**              | 200      | 200 ✓ |
+| A2  | same + `Origin: https://evil.example`          | 403      | 403 ✓ |
+| A3  | same + `Origin: http://localhost:3000`         | 200      | 200 ✓ |
+| A4  | last two signature characters changed          | 401      | 401 ✓ |
+| A5  | tenant A's token, tenant B's email in the body | 401      | 401 ✓ |
+| A6  | `verify-session`, bearer only, no cookie       | 200      | 200 ✓ |
+
+A6 is the one that matters for the port: a 24-hour session is echoed back **unchanged** (`:3183`), so a
+native client that never stores a cookie still keeps its session, and a 30-day `rememberMe` session is
+rotated and the new token is returned in the body (`:3177-3179`) — the client swaps its header and
+rebuilds the Supabase client, which is exactly what `src/supabase.ts:166-186` already does on the web.
+
+**Conclusion: no server change is required for the mobile API path.** The guard admits an absent `Origin`
+by design (`:1381-1403`), and A2 proves it is a real check rather than a disabled one.
+
+### Spike B — RLS honours both custom headers as sent by `supabase_flutter` (15/15)
+
+Run from `mobile/` with `flutter test`, `supabase_flutter 2.18.0`, table `cash_accounts`, policy text
+`supabase/migrations/20260906000000_fix_verify_functions_vault_secret.sql:19-84`.
+
+| id  | client as configured                                            | select                                 | insert      |
+| --- | --------------------------------------------------------------- | -------------------------------------- | ----------- |
+| B1  | `Supabase.initialize(headers: {x-user-email, x-session-token})` | 1 row                                  | accepted    |
+| B2  | anon key only, neither custom header                            | 0 rows                                 | `42501` RLS |
+| B3  | email of A + token of B (both valid, mismatched pair)           | 0 rows                                 | `42501` RLS |
+| B4  | email of A + tampered signature                                 | 0 rows                                 | `42501` RLS |
+| B5  | email of A + `expiresAt: 1` (structurally valid, expired)       | 0 rows                                 | —           |
+| B6  | two tenants, each with their own pair                           | A cannot see B's row; B cannot see A's | —           |
+| B7  | `X-User-Email` / `X-Session-Token` capitalised                  | 1 row                                  | —           |
+
+`42501 new row violates row-level security policy for table "cash_accounts"` is the WITH CHECK failure,
+so the anon key alone is provably useless for writes. B3 is the load-bearing one: `verify_user_token`
+returns null unless `lower(payload->>'email') = lower(x-user-email)` (`:75`), so the email header cannot
+be detached from its token. B7 confirms PostgREST's header map is case-insensitive in practice, which the
+SQL `coalesce` also defends against.
+
+Two substitutions were needed to run this under `flutter test`, both test-harness only and neither
+present in the shipped app: `HttpOverrides.global = null` (the binding otherwise answers every request
+with 400 without leaving the process) and an in-memory `GotrueAsyncStorage` (the default is
+SharedPreferences-backed and has no platform implementation in a test). The headers themselves went
+through the real `Supabase.initialize` → `SupabaseClient` path.
+
+**Residue: net zero.** Both spike rows were deleted in the same test (B8: 0 rows after). The two spike
+_accounts_ remain, and they are now in the cleanup list below — which grew from 13 tenants to 16
+because the spike, the `qa-light`/`qa-dark` baseline runs and an early single-tenant spike each created
+one.
+
+### Cookie jar — the packages, and a correction
+
+The Phase 2 report said "**no `dio`**". That was wrong and is retracted: `dio` is required. Ruling 2
+(persisted, encrypted, no server change) is met by
+
+```
+dio 5.11.1  +  dio_cookie_manager 3.5.0  +  cookie_jar 4.0.9
+```
+
+with `PersistCookieJar(dir: …, storage: <custom>)`, the custom `Storage` implemented on
+`flutter_secure_storage 11.2.0` so the serialized cookie file is never plaintext on disk. Added to
+`mobile/pubspec.yaml` and resolved by `flutter pub get`; not yet wired into any code, and its encrypted
+persistence is a Phase 3 test, not a claim I have proven. Only `app_lock_trust`
+(`server.ts:2823-2865`) needs it — every other route works on the bearer token (Spike A).
+
+### Dry run — what a cleanup would delete, and what it must not
+
+`qa-%@example.com` on `auth_accounts` currently selects **16 exact tenants**; all 16 are listed in the
+export. Counts are exact; the export was moved **outside the repository** to
+`D:\Emcode\backups\qa-export-20261006.json` (4,329,488 bytes, sha256 `2698c196f6b0ef758261671653bfa4ec1464ce827f3adfd82bd102f91a69066a`,
+credential columns redacted to `<redacted type len=N>`, QA rows only). It is never committed and never
+copied back inside `EM-Budget/`. The delete uses the **hard-coded list of those 16 addresses**, not the
+`like` pattern, so a tenant created between the dry run and the delete cannot be swept in silently.
+
+| Table                              | owner column | QA rows | non-QA | note                                                                |
+| ---------------------------------- | ------------ | ------- | ------ | ------------------------------------------------------------------- |
+| `auth_accounts`                    | email        | 16      | 488    | deleting these cascades the 15 tables below                         |
+| `bank_cards`                       | user_email   | 92      | 9      | FK cascade                                                          |
+| `cash_accounts`                    | user_email   | 138     | 25     | FK cascade                                                          |
+| `debts`                            | user_email   | 92      | 12     | FK cascade                                                          |
+| `expenses`                         | user_email   | 1,012   | 138    | FK cascade                                                          |
+| `incomes`                          | user_email   | 46      | 15     | FK cascade                                                          |
+| `ledger_states`                    | user_email   | 13      | 413    | FK cascade                                                          |
+| `loans_given`                      | user_email   | 92      | 2      | FK cascade                                                          |
+| `notifications`                    | user_email   | 92      | 13     | FK cascade                                                          |
+| `spending_envelopes`               | user_email   | 276     | 0      | FK cascade                                                          |
+| `subscriptions`                    | user_email   | 188     | 14     | FK cascade                                                          |
+| `transactions`                     | user_email   | 2,050   | 242    | FK cascade                                                          |
+| `app_lock_credentials`             | user_email   | 0       | 49     | FK cascade, nothing to delete                                       |
+| `webauthn_credentials`             | user_email   | 0       | 1      | FK cascade, nothing to delete                                       |
+| `webauthn_challenges`              | user_email   | 0       | 0      | —                                                                   |
+| `trusted_devices`                  | user_email   | 0       | 116    | FK cascade, nothing to delete                                       |
+| `credit_card_installments`         | user_email   | 0       | 0      | —                                                                   |
+| **`auth_otps`**                    | email        | 7       | 81     | **no FK** — must be deleted explicitly                              |
+| **`login_attempts`**               | email        | 13      | 456    | **no FK** — must be deleted explicitly                              |
+| **`auth_device_tokens`**           | hashed_email | 250     | 1,205  | **no FK**; `sha256(email)` (`server.ts:591`), no secret → reachable |
+| `auth_rate_limits`                 | —            | 0       | —      | no owner column; out of scope                                       |
+| `credit_card_installment_payments` | —            | 0       | —      | no owner column; its QA parents are 0, so nothing links             |
+
+- **Total in scope: 4,377 rows across 15 tables** (`auth_accounts` included), plus the cascade.
+- `auth_device_tokens` also has **28 rows with `hashed_email = ''`** (devices registered without an
+  email). They are not addressable by email and are **excluded** from the scope.
+- Two open gaps before any delete: the 7 `auth_otps` rows are unconsumed QA passcode hashes, and
+  `ledger_states` holds the JSON snapshot that `refresh-subscriptions` patches — both are covered by
+  the exact-email list, but neither is cascade-covered.
+- **Nothing here authorises itself.** Awaiting an explicit OK on the exact 16 addresses and the
+  single-transaction delete, then a re-run of the same counts to show every non-QA figure unchanged.
+
+## 13g. Phase 3 gate rulings (D18-D24)
+
+| id      | subject                                                        | ruling                                                                                                                                                                                                                                                  |
+| ------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D18** | QA cleanup                                                     | **Approved for the exact 16 addresses only.** Export moved to `D:\Emcode\backups\` (never committed). Counts identical before and after, every non-QA figure unchanged. **Executes only on an explicit "GO" after the user confirms their own backup.** |
+| **D19** | Everything outside those 16                                    | **Untouched.** The 483 other `@example.com` e2e accounts and the 5 `@gmail.com` accounts stay exactly as they are. No pattern-based delete, ever.                                                                                                       |
+| **D20** | `dio 5.11.1` + `dio_cookie_manager 3.5.0` + `cookie_jar 4.0.9` | **Approved, pinned.**                                                                                                                                                                                                                                   |
+| **D21** | Cookie tests in Phase 3                                        | Three named proofs required: it **survives a restart**, it is **not plaintext at rest**, and **logout deletes it**.                                                                                                                                     |
+| **D22** | Standing rule for live-DB tests, from now on                   | Every test that touches the live database **creates its own tenant under a unique prefix and deletes it in a `finally` block.** No test may read, write or clean up a tenant it did not create.                                                         |
+| **D23** | Identity holder on the phone                                   | **Approved: one holder, in secure storage.** Resolves B-06 and supersedes B-07's "port both as two units". Tests required for login, logout, remember-me, 401 handling and logout-clears-everything — delivered in `mobile/test/auth/`.                 |
+| **D24** | Auth design vs the unchanged server                            | **Approved, conditional on the two spikes** (§13f), which passed. **No server change without approval.** "WebAuthn not ported on mobile" is recorded as D-U14 in `UI_SPEC.md`, together with the revoke-all asymmetry and the Phase 7 note.             |
+| —       | `parity/.qa_export.cjs`                                        | Not committed. Deleted after the cleanup runs.                                                                                                                                                                                                          |
+
+### D20 in detail — the pinned cookie stack
+
+```yaml
+dio: 5.11.1
+dio_cookie_manager: 3.5.0
+cookie_jar: 4.0.9
+```
+
+`PersistCookieJar` with a custom `cookie_jar.Storage` implemented over `flutter_secure_storage 11.2.0`,
+so the serialized jar never exists as plaintext on disk. Scope is the `app_lock_trust` cookie only
+(`server.ts:2823-2865`); every other route works on the bearer token (Spike A). No server change.
+
+---
+
+## 13h. Phase 4 gate rulings (D25-D30)
+
+Given when the first logic port (`src/lib/money.ts`) was put up for approval. Binding from here.
+
+| #       | Ruling                                                                                                                                                                                           | Consequence                                                                                                                                                                                                                                                                          |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **D25** | **`DATA_SPEC.md` §11 D-12 is rejected as a divergence.** Number formatting uses the **device locale** in the app; `en-US` is named only by a test, through an injected locale.                   | `formatMoney(currency, amount, options, [locale])` defaults to `JsNumberLocale.device()`; `money_test.dart` injects `en-US` to replay `money.json`, and `number-locale.json` (232 goldens, 8 locales) is the proof. Rule 3 is untouched — the web passes `undefined` and still does. |
+| **D26** | **D-13 (`-0` leaving the add-family) and `asJsonSafeNumber` are approved** as written.                                                                                                           | The register keeps D-13; `test/domain/money_test.dart` asserts the surviving `-0` of `toMinorUnits` by sign bit.                                                                                                                                                                     |
+| **D27** | The money port is **one commit, by explicit path**, only after the full gate set passes. `.qa_*` scripts are not committed.                                                                      | Same convention as D11 and the §13g `parity/.qa_*` row.                                                                                                                                                                                                                              |
+| **D28** | `freeOcrParser.ts` stays **out of the Dart port list** (confirming D4): the mobile side calls `/api/ocr/free-scan`, so the artefact is a **server contract test**, not a 387-LOC heuristic port. | Its parse rules and category lists are the fifth copy of a set already hand-synced across four places (§5 landmine 11). A contract fixture pins the response shape instead.                                                                                                          |
+| **D29** | `download.ts` is ported as **pure logic only** — CSV content, escaping, sanitisation, filenames. The save/share step is Phase 7.                                                                 | The `csv` golden unit (§10) is unchanged; the difference between an anchor download and a share sheet goes to `UI_SPEC.md` as a deviation, not into the fixture.                                                                                                                     |
+| **D30** | `alerts.ts` and `installments.ts` are ported against an **injected fixed clock**, and each unit must pass the **three-zone check**. Goldens come from code at the `pre-flutter` tag only (D7).   | No test reads `DateTime.now()` or the device's zone; `today` is a parameter, so the same case fails identically in `Asia/Colombo`, `America/New_York` and `Pacific/Kiritimati`.                                                                                                      |
+
+### D25 in detail — why the locale is ambient, and why `intl` does not produce the digits
+
+The web calls `toLocaleString(undefined, …)`. "Ambient locale, whatever the runtime says" is therefore
+_not_ sloppiness to be pinned away — it is the behaviour, and a phone that always printed `Rs.125,000`
+while its owner's browser printed `Rs.1,25,000` would be the change. So the port takes the platform
+locale, and the golden machinery does what goldens are for: `money.json` was measured under `en-US`, so
+`money_test.dart` injects `en-US`; `number-locale.json` measures eight locales and
+`test/domain/number_locale_test.dart` replays each case **in the locale its name names**.
+
+What the ruling settled empirically, not by argument:
+
+- `intl`'s CLDR **metadata** matches V8 exactly — separators, grouping runs, zero digits, sign affixes,
+  including `fr-FR`'s `U+202F`, `cs-CZ`'s `U+00A0` and `ar-EG`'s `U+061C`-prefixed minus. It is the source
+  for those, read through `number_locale.dart`.
+- `intl`'s **digits** do not match V8: over 720 `(value, min, max)` triples it diverged on 60, every one at
+  `1.005` (rounding) or `1e22` (int64 saturation). So `js_semantics.dart` does the rounding and grouping
+  itself, and that implementation was swept against the same 720 V8 measurements with **0 divergences**.
+- A tag with no CLDR data must not throw. V8 answers `zzy-ZZ` with its runtime default; the port resolves it
+  to the `en-US` shape and keeps the caller's tag (`LOGIC_SPEC.md` §13).
+
+`src/lib/money.ts` is byte-identical to the tag: `git diff pre-flutter -- src/lib/money.ts` is empty, and
+every fixture stamps blob `c1407ccba7794ba543ec4631a5a9aaa14e3ed97b`. `money.json` grew from 130 to 200
+cases for this port; **no existing `expected` value changed** (re-checked case-by-case), and the surplus
+exists because the two formatters round differently and a case must exist for each rule.

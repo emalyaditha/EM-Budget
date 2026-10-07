@@ -1,0 +1,2241 @@
+{
+  "_provenance": {
+    "generatedFrom": "pre-flutter",
+    "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
+    "unitFile": "src/lib/money.ts",
+    "gitBlob": "c1407ccba7794ba543ec4631a5a9aaa14e3ed97b",
+    "sha256": "265f021a49a00b0b73fa57e1494bb4aa566f3b9da2c8f8be4ffe5d1230a5f04e",
+    "tz": "Asia/Colombo",
+    "locale": "en-US",
+    "node": "v24.19.0",
+    "pinnedNow": "2026-10-04T04:30:00.000Z",
+    "generatedAt": "2026-10-07T03:59:32.489Z",
+    "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
+  },
+  "cases": [
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',0)",
+      "input": ["en-US", "Rs.", 0, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',0,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        0,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',-0)",
+      "input": [
+        "en-US",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {}
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',-0,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',0.015)",
+      "input": ["en-US", "Rs.", 0.015, {}],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',0.015,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1.005)",
+      "input": ["en-US", "Rs.", 1.005, {}],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1.005,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',2.5)",
+      "input": ["en-US", "Rs.", 2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',2.5,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',-2.5)",
+      "input": ["en-US", "Rs.", -2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',-2.5,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',999.9999)",
+      "input": ["en-US", "Rs.", 999.9999, {}],
+      "expected": "Rs.1,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',999.9999,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',125000.0049)",
+      "input": ["en-US", "Rs.", 125000.0049, {}],
+      "expected": "Rs.125,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',125000.0049,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.125,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1234567.891)",
+      "input": ["en-US", "Rs.", 1234567.891, {}],
+      "expected": "Rs.1,234,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1234567.891,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        1234567.891,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,234,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1250000)",
+      "input": ["en-US", "Rs.", 1250000, {}],
+      "expected": "Rs.1,250,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1250000,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        1250000,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,250,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1e+21)",
+      "input": ["en-US", "Rs.", 1e21, {}],
+      "expected": "Rs.1,000,000,000,000,000,000,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1e+21,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        1e21,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,000,000,000,000,000,000,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1e-7)",
+      "input": ["en-US", "Rs.", 1e-7, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1e-7,2dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1234567.891,0dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        1234567.891,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1,234,568"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',0.015,0dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',1250000,0dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        1250000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1,250,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'Rs.',-2.5,0dp)",
+      "input": [
+        "en-US",
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.3"
+    },
+    {
+      "name": "formatMoneyIn(\"en-US\",'',1234567.891)",
+      "input": ["en-US", "", 1234567.891, {}],
+      "expected": "1,234,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',0)",
+      "input": ["en-IN", "Rs.", 0, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',0,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        0,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',-0)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {}
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',-0,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',0.015)",
+      "input": ["en-IN", "Rs.", 0.015, {}],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',0.015,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1.005)",
+      "input": ["en-IN", "Rs.", 1.005, {}],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1.005,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',2.5)",
+      "input": ["en-IN", "Rs.", 2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',2.5,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',-2.5)",
+      "input": ["en-IN", "Rs.", -2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',-2.5,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',999.9999)",
+      "input": ["en-IN", "Rs.", 999.9999, {}],
+      "expected": "Rs.1,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',999.9999,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',125000.0049)",
+      "input": ["en-IN", "Rs.", 125000.0049, {}],
+      "expected": "Rs.1,25,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',125000.0049,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,25,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1234567.891)",
+      "input": ["en-IN", "Rs.", 1234567.891, {}],
+      "expected": "Rs.12,34,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1234567.891,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        1234567.891,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.12,34,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1250000)",
+      "input": ["en-IN", "Rs.", 1250000, {}],
+      "expected": "Rs.12,50,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1250000,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        1250000,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.12,50,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1e+21)",
+      "input": ["en-IN", "Rs.", 1e21, {}],
+      "expected": "Rs.1,00,00,00,00,00,00,00,00,00,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1e+21,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        1e21,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,00,00,00,00,00,00,00,00,00,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1e-7)",
+      "input": ["en-IN", "Rs.", 1e-7, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1e-7,2dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1234567.891,0dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        1234567.891,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.12,34,568"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',0.015,0dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',1250000,0dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        1250000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.12,50,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'Rs.',-2.5,0dp)",
+      "input": [
+        "en-IN",
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.3"
+    },
+    {
+      "name": "formatMoneyIn(\"en-IN\",'',1234567.891)",
+      "input": ["en-IN", "", 1234567.891, {}],
+      "expected": "12,34,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',0)",
+      "input": ["de-DE", "Rs.", 0, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',0,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        0,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,00"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',-0)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {}
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',-0,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,00"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',0.015)",
+      "input": ["de-DE", "Rs.", 0.015, {}],
+      "expected": "Rs.0,02"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',0.015,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,02"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1.005)",
+      "input": ["de-DE", "Rs.", 1.005, {}],
+      "expected": "Rs.1,01"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1.005,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,01"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',2.5)",
+      "input": ["de-DE", "Rs.", 2.5, {}],
+      "expected": "Rs.2,5"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',2.5,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2,50"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',-2.5)",
+      "input": ["de-DE", "Rs.", -2.5, {}],
+      "expected": "Rs.2,5"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',-2.5,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2,50"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',999.9999)",
+      "input": ["de-DE", "Rs.", 999.9999, {}],
+      "expected": "Rs.1.000"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',999.9999,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',125000.0049)",
+      "input": ["de-DE", "Rs.", 125000.0049, {}],
+      "expected": "Rs.125.000"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',125000.0049,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.125.000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1234567.891)",
+      "input": ["de-DE", "Rs.", 1234567.891, {}],
+      "expected": "Rs.1.234.567,89"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1234567.891,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        1234567.891,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.234.567,89"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1250000)",
+      "input": ["de-DE", "Rs.", 1250000, {}],
+      "expected": "Rs.1.250.000"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1250000,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        1250000,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.250.000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1e+21)",
+      "input": ["de-DE", "Rs.", 1e21, {}],
+      "expected": "Rs.1.000.000.000.000.000.000.000"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1e+21,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        1e21,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.000.000.000.000.000.000.000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1e-7)",
+      "input": ["de-DE", "Rs.", 1e-7, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1e-7,2dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,00"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1234567.891,0dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        1234567.891,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1.234.568"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',0.015,0dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',1250000,0dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        1250000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1.250.000"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'Rs.',-2.5,0dp)",
+      "input": [
+        "de-DE",
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.3"
+    },
+    {
+      "name": "formatMoneyIn(\"de-DE\",'',1234567.891)",
+      "input": ["de-DE", "", 1234567.891, {}],
+      "expected": "1.234.567,89"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',0)",
+      "input": ["fr-FR", "Rs.", 0, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',0,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        0,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,00"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',-0)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {}
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',-0,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,00"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',0.015)",
+      "input": ["fr-FR", "Rs.", 0.015, {}],
+      "expected": "Rs.0,02"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',0.015,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,02"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1.005)",
+      "input": ["fr-FR", "Rs.", 1.005, {}],
+      "expected": "Rs.1,01"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1.005,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,01"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',2.5)",
+      "input": ["fr-FR", "Rs.", 2.5, {}],
+      "expected": "Rs.2,5"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',2.5,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2,50"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',-2.5)",
+      "input": ["fr-FR", "Rs.", -2.5, {}],
+      "expected": "Rs.2,5"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',-2.5,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2,50"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',999.9999)",
+      "input": ["fr-FR", "Rs.", 999.9999, {}],
+      "expected": "Rs.1 000"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',999.9999,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1 000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',125000.0049)",
+      "input": ["fr-FR", "Rs.", 125000.0049, {}],
+      "expected": "Rs.125 000"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',125000.0049,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.125 000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1234567.891)",
+      "input": ["fr-FR", "Rs.", 1234567.891, {}],
+      "expected": "Rs.1 234 567,89"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1234567.891,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        1234567.891,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1 234 567,89"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1250000)",
+      "input": ["fr-FR", "Rs.", 1250000, {}],
+      "expected": "Rs.1 250 000"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1250000,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        1250000,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1 250 000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1e+21)",
+      "input": ["fr-FR", "Rs.", 1e21, {}],
+      "expected": "Rs.1 000 000 000 000 000 000 000"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1e+21,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        1e21,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1 000 000 000 000 000 000 000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1e-7)",
+      "input": ["fr-FR", "Rs.", 1e-7, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1e-7,2dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,00"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1234567.891,0dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        1234567.891,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1 234 568"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',0.015,0dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',1250000,0dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        1250000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1 250 000"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'Rs.',-2.5,0dp)",
+      "input": [
+        "fr-FR",
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.3"
+    },
+    {
+      "name": "formatMoneyIn(\"fr-FR\",'',1234567.891)",
+      "input": ["fr-FR", "", 1234567.891, {}],
+      "expected": "1 234 567,89"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',0)",
+      "input": ["hi-IN", "Rs.", 0, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',0,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        0,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',-0)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {}
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',-0,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',0.015)",
+      "input": ["hi-IN", "Rs.", 0.015, {}],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',0.015,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1.005)",
+      "input": ["hi-IN", "Rs.", 1.005, {}],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1.005,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',2.5)",
+      "input": ["hi-IN", "Rs.", 2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',2.5,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',-2.5)",
+      "input": ["hi-IN", "Rs.", -2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',-2.5,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',999.9999)",
+      "input": ["hi-IN", "Rs.", 999.9999, {}],
+      "expected": "Rs.1,000"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',999.9999,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',125000.0049)",
+      "input": ["hi-IN", "Rs.", 125000.0049, {}],
+      "expected": "Rs.1,25,000"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',125000.0049,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,25,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1234567.891)",
+      "input": ["hi-IN", "Rs.", 1234567.891, {}],
+      "expected": "Rs.12,34,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1234567.891,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        1234567.891,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.12,34,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1250000)",
+      "input": ["hi-IN", "Rs.", 1250000, {}],
+      "expected": "Rs.12,50,000"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1250000,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        1250000,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.12,50,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1e+21)",
+      "input": ["hi-IN", "Rs.", 1e21, {}],
+      "expected": "Rs.1,00,00,00,00,00,00,00,00,00,000"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1e+21,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        1e21,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,00,00,00,00,00,00,00,00,00,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1e-7)",
+      "input": ["hi-IN", "Rs.", 1e-7, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1e-7,2dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1234567.891,0dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        1234567.891,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.12,34,568"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',0.015,0dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',1250000,0dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        1250000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.12,50,000"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'Rs.',-2.5,0dp)",
+      "input": [
+        "hi-IN",
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.3"
+    },
+    {
+      "name": "formatMoneyIn(\"hi-IN\",'',1234567.891)",
+      "input": ["hi-IN", "", 1234567.891, {}],
+      "expected": "12,34,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',0)",
+      "input": ["ar-EG", "Rs.", 0, {}],
+      "expected": "Rs.٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',0,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        0,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.٠٫٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',-0)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {}
+      ],
+      "expected": "Rs.٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',-0,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.٠٫٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',0.015)",
+      "input": ["ar-EG", "Rs.", 0.015, {}],
+      "expected": "Rs.٠٫٠٢"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',0.015,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.٠٫٠٢"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1.005)",
+      "input": ["ar-EG", "Rs.", 1.005, {}],
+      "expected": "Rs.١٫٠١"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1.005,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.١٫٠١"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',2.5)",
+      "input": ["ar-EG", "Rs.", 2.5, {}],
+      "expected": "Rs.٢٫٥"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',2.5,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.٢٫٥٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',-2.5)",
+      "input": ["ar-EG", "Rs.", -2.5, {}],
+      "expected": "Rs.٢٫٥"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',-2.5,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.٢٫٥٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',999.9999)",
+      "input": ["ar-EG", "Rs.", 999.9999, {}],
+      "expected": "Rs.١٬٠٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',999.9999,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.١٬٠٠٠٫٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',125000.0049)",
+      "input": ["ar-EG", "Rs.", 125000.0049, {}],
+      "expected": "Rs.١٢٥٬٠٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',125000.0049,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.١٢٥٬٠٠٠٫٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1234567.891)",
+      "input": ["ar-EG", "Rs.", 1234567.891, {}],
+      "expected": "Rs.١٬٢٣٤٬٥٦٧٫٨٩"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1234567.891,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        1234567.891,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.١٬٢٣٤٬٥٦٧٫٨٩"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1250000)",
+      "input": ["ar-EG", "Rs.", 1250000, {}],
+      "expected": "Rs.١٬٢٥٠٬٠٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1250000,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        1250000,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.١٬٢٥٠٬٠٠٠٫٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1e+21)",
+      "input": ["ar-EG", "Rs.", 1e21, {}],
+      "expected": "Rs.١٬٠٠٠٬٠٠٠٬٠٠٠٬٠٠٠٬٠٠٠٬٠٠٠٬٠٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1e+21,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        1e21,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.١٬٠٠٠٬٠٠٠٬٠٠٠٬٠٠٠٬٠٠٠٬٠٠٠٬٠٠٠٫٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1e-7)",
+      "input": ["ar-EG", "Rs.", 1e-7, {}],
+      "expected": "Rs.٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1e-7,2dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.٠٫٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1234567.891,0dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        1234567.891,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.١٬٢٣٤٬٥٦٨"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',0.015,0dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',1250000,0dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        1250000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.١٬٢٥٠٬٠٠٠"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'Rs.',-2.5,0dp)",
+      "input": [
+        "ar-EG",
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.٣"
+    },
+    {
+      "name": "formatMoneyIn(\"ar-EG\",'',1234567.891)",
+      "input": ["ar-EG", "", 1234567.891, {}],
+      "expected": "١٬٢٣٤٬٥٦٧٫٨٩"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',0)",
+      "input": ["cs-CZ", "Rs.", 0, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',0,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        0,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,00"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',-0)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {}
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',-0,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,00"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',0.015)",
+      "input": ["cs-CZ", "Rs.", 0.015, {}],
+      "expected": "Rs.0,02"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',0.015,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,02"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1.005)",
+      "input": ["cs-CZ", "Rs.", 1.005, {}],
+      "expected": "Rs.1,01"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1.005,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,01"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',2.5)",
+      "input": ["cs-CZ", "Rs.", 2.5, {}],
+      "expected": "Rs.2,5"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',2.5,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2,50"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',-2.5)",
+      "input": ["cs-CZ", "Rs.", -2.5, {}],
+      "expected": "Rs.2,5"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',-2.5,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2,50"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',999.9999)",
+      "input": ["cs-CZ", "Rs.", 999.9999, {}],
+      "expected": "Rs.1 000"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',999.9999,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1 000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',125000.0049)",
+      "input": ["cs-CZ", "Rs.", 125000.0049, {}],
+      "expected": "Rs.125 000"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',125000.0049,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.125 000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1234567.891)",
+      "input": ["cs-CZ", "Rs.", 1234567.891, {}],
+      "expected": "Rs.1 234 567,89"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1234567.891,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        1234567.891,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1 234 567,89"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1250000)",
+      "input": ["cs-CZ", "Rs.", 1250000, {}],
+      "expected": "Rs.1 250 000"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1250000,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        1250000,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1 250 000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1e+21)",
+      "input": ["cs-CZ", "Rs.", 1e21, {}],
+      "expected": "Rs.1 000 000 000 000 000 000 000"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1e+21,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        1e21,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1 000 000 000 000 000 000 000,00"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1e-7)",
+      "input": ["cs-CZ", "Rs.", 1e-7, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1e-7,2dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0,00"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1234567.891,0dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        1234567.891,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1 234 568"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',0.015,0dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',1250000,0dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        1250000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1 250 000"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'Rs.',-2.5,0dp)",
+      "input": [
+        "cs-CZ",
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.3"
+    },
+    {
+      "name": "formatMoneyIn(\"cs-CZ\",'',1234567.891)",
+      "input": ["cs-CZ", "", 1234567.891, {}],
+      "expected": "1 234 567,89"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',0)",
+      "input": ["bn-BD", "Rs.", 0, {}],
+      "expected": "Rs.০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',0,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        0,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.০.০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',-0)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {}
+      ],
+      "expected": "Rs.০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',-0,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.০.০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',0.015)",
+      "input": ["bn-BD", "Rs.", 0.015, {}],
+      "expected": "Rs.০.০২"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',0.015,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.০.০২"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1.005)",
+      "input": ["bn-BD", "Rs.", 1.005, {}],
+      "expected": "Rs.১.০১"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1.005,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.১.০১"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',2.5)",
+      "input": ["bn-BD", "Rs.", 2.5, {}],
+      "expected": "Rs.২.৫"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',2.5,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.২.৫০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',-2.5)",
+      "input": ["bn-BD", "Rs.", -2.5, {}],
+      "expected": "Rs.২.৫"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',-2.5,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.২.৫০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',999.9999)",
+      "input": ["bn-BD", "Rs.", 999.9999, {}],
+      "expected": "Rs.১,০০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',999.9999,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.১,০০০.০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',125000.0049)",
+      "input": ["bn-BD", "Rs.", 125000.0049, {}],
+      "expected": "Rs.১,২৫,০০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',125000.0049,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.১,২৫,০০০.০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1234567.891)",
+      "input": ["bn-BD", "Rs.", 1234567.891, {}],
+      "expected": "Rs.১২,৩৪,৫৬৭.৮৯"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1234567.891,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        1234567.891,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.১২,৩৪,৫৬৭.৮৯"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1250000)",
+      "input": ["bn-BD", "Rs.", 1250000, {}],
+      "expected": "Rs.১২,৫০,০০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1250000,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        1250000,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.১২,৫০,০০০.০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1e+21)",
+      "input": ["bn-BD", "Rs.", 1e21, {}],
+      "expected": "Rs.১,০০,০০,০০,০০,০০,০০,০০,০০,০০,০০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1e+21,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        1e21,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.১,০০,০০,০০,০০,০০,০০,০০,০০,০০,০০০.০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1e-7)",
+      "input": ["bn-BD", "Rs.", 1e-7, {}],
+      "expected": "Rs.০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1e-7,2dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.০.০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1234567.891,0dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        1234567.891,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.১২,৩৪,৫৬৮"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',0.015,0dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',1250000,0dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        1250000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.১২,৫০,০০০"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'Rs.',-2.5,0dp)",
+      "input": [
+        "bn-BD",
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.৩"
+    },
+    {
+      "name": "formatMoneyIn(\"bn-BD\",'',1234567.891)",
+      "input": ["bn-BD", "", 1234567.891, {}],
+      "expected": "১২,৩৪,৫৬৭.৮৯"
+    }
+  ]
+}

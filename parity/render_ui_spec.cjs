@@ -958,7 +958,21 @@ put(
       '`dark:` utility variants',
       `§6.5 matrix: ${TOKENS.darkVariantMatrix.combos[1].painted.length} tokens paint when only the OS is dark; ${TOKENS.darkVariantMatrix.combos[2].painted.length} paint from the app toggle`,
       'On the web the OS preference drives them. Flutter has one theme of its own and no separate “OS scheme” signal unless the app chooses to read `platformBrightness`.',
-      '**Needs your decision.** Bug-compatible = follow `platformBrightness` for these utilities and let the in-app toggle ignore them (B-15 kept), which also means freezing the *variable* theme at first run as the web does (B-16). Intended-looking = fold both into the app theme (a visible change from the web for OS-dark users in light mode). Nothing has been assumed.',
+      '**Ruled at the Phase 2 gate (`INVENTORY.md` §13e): reproduce the split bug-compatible.** Variables freeze at first seed, `dark:` utilities read `platformBrightness` live. Four golden combinations, plus a fourth web baseline set (app light + OS dark) before Phase 5.',
+    ],
+    [
+      'D-U14',
+      'WebAuthn / passkey unlock — **not ported on mobile**',
+      '`server.ts:2181-2189` `getOrigin()` pins `expectedOrigin` to `APP_ORIGIN` in production, and `server.ts:2599-2607` / `:2723` pass it to `@simplewebauthn` as the verification condition. `server.ts:2194` `userIDBytes` is sha256 of the normalised email, so the credential *identifier* is portable — the *origin* is not.',
+      'A native assertion presents `android:apk-key-hash:<…>` (or the iOS bundle-id form) as its origin. It can never equal a `https://` `APP_ORIGIN`, so the unchanged server rejects it. Making it work would require a server change, which is not approved.',
+      '**No.** Mobile unlock is `local_auth` (biometric/PIN, on-device only) plus the unchanged bcrypt PIN routes `/api/app-lock/pin/set` and `/api/app-lock/pin/verify`. `biometricCount` from `/api/app-lock/status` is therefore always 0 on the phone, and the web’s “add a passkey” affordance has no mobile counterpart. Recorded so the golden tests do not treat a missing passkey row as a defect.',
+    ],
+    [
+      'D-U15',
+      '“Revoke all devices” cannot lock a phone out',
+      '`server.ts:2945-2974` `/api/app-lock/device/revoke-all` clears the caller’s `trusted_devices` rows and expires the `app_lock_trust` cookie (`server.ts:1325-1337`), which is browser-only. The session token itself is an HMAC string with no server-side record — `verifySecureToken` (`server/security.ts:36-53`) checks signature and expiry and nothing else.',
+      'On the web, revoking all devices removes the *cookie*, so the browser loses trust on next load. A phone holds the session token in secure storage and is not affected by any cookie deletion, and there is no token revocation list to consult. The asymmetry is inherent to the unchanged server, not a porting mistake.',
+      'Report it, do not fix it. The phone reproduces the web’s *token* semantics exactly; only the cookie half has no native twin. Phase 7 must state this in the trust-device screen copy so a user is not told a phone was revoked when it was not.',
     ],
   ];
   table(['id', 'subject', 'evidence', 'why the phone differs', 'proposed handling'], rows);
