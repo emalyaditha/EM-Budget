@@ -9,7 +9,7 @@
     "locale": "en-US",
     "node": "v24.19.0",
     "pinnedNow": "2026-10-04T04:30:00.000Z",
-    "generatedAt": "2026-10-06T09:18:10.497Z",
+    "generatedAt": "2026-10-06T20:07:59.454Z",
     "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
   },
   "cases": [
@@ -1049,6 +1049,642 @@
       "name": "formatMoney('',500)",
       "input": ["", 500, {}],
       "expected": "500"
+    },
+    {
+      "name": "toMinorUnits(-0.125)",
+      "input": [-0.125],
+      "expected": -12
+    },
+    {
+      "name": "toMinorUnits(0.125)",
+      "input": [0.125],
+      "expected": 13
+    },
+    {
+      "name": "toMinorUnits(-0.5)",
+      "input": [-0.5],
+      "expected": -50
+    },
+    {
+      "name": "toMinorUnits(0.5)",
+      "input": [0.5],
+      "expected": 50
+    },
+    {
+      "name": "toMinorUnits(-1.5)",
+      "input": [-1.5],
+      "expected": -150
+    },
+    {
+      "name": "toMinorUnits(1.5)",
+      "input": [1.5],
+      "expected": 150
+    },
+    {
+      "name": "toMinorUnits(-100000000000000000)",
+      "input": [-100000000000000000],
+      "expected": -10000000000000000000
+    },
+    {
+      "name": "toMinorUnits(100000000000000000)",
+      "input": [100000000000000000],
+      "expected": 10000000000000000000
+    },
+    {
+      "name": "toMajorUnits(1.5)",
+      "input": [1.5],
+      "expected": "0.01"
+    },
+    {
+      "name": "toMajorUnits(2.5)",
+      "input": [2.5],
+      "expected": "0.03"
+    },
+    {
+      "name": "toMajorUnits(-1.5)",
+      "input": [-1.5],
+      "expected": "-0.01"
+    },
+    {
+      "name": "toMajorUnits(-2.5)",
+      "input": [-2.5],
+      "expected": "-0.03"
+    },
+    {
+      "name": "toMajorUnits(12345.678)",
+      "input": [12345.678],
+      "expected": "123.46"
+    },
+    {
+      "name": "toMajorUnits(1e-7)",
+      "input": [1e-7],
+      "expected": "0.00"
+    },
+    {
+      "name": "toMajorUnits(1e+21)",
+      "input": [1e21],
+      "expected": "10000000000000000000.00"
+    },
+    {
+      "name": "formatMoney('Rs.',0.015)",
+      "input": ["Rs.", 0.015, {}],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoney('Rs.',0.015,signed)",
+      "input": [
+        "Rs.",
+        0.015,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoney('Rs.',0.015,2dp)",
+      "input": [
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoney('Rs.',0.015,0dp)",
+      "input": [
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoney('Rs.',0.015,4dp)",
+      "input": [
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.0.015"
+    },
+    {
+      "name": "formatMoney('Rs.',-0.015)",
+      "input": ["Rs.", -0.015, {}],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoney('Rs.',-0.015,signed)",
+      "input": [
+        "Rs.",
+        -0.015,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "-Rs.0.02"
+    },
+    {
+      "name": "formatMoney('Rs.',-0.015,2dp)",
+      "input": [
+        "Rs.",
+        -0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoney('Rs.',-0.015,0dp)",
+      "input": [
+        "Rs.",
+        -0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoney('Rs.',-0.015,4dp)",
+      "input": [
+        "Rs.",
+        -0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.0.015"
+    },
+    {
+      "name": "formatMoney('Rs.',1.005)",
+      "input": ["Rs.", 1.005, {}],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoney('Rs.',1.005,signed)",
+      "input": [
+        "Rs.",
+        1.005,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoney('Rs.',1.005,2dp)",
+      "input": [
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoney('Rs.',1.005,0dp)",
+      "input": [
+        "Rs.",
+        1.005,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1"
+    },
+    {
+      "name": "formatMoney('Rs.',1.005,4dp)",
+      "input": [
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.1.005"
+    },
+    {
+      "name": "formatMoney('Rs.',8.835)",
+      "input": ["Rs.", 8.835, {}],
+      "expected": "Rs.8.84"
+    },
+    {
+      "name": "formatMoney('Rs.',8.835,signed)",
+      "input": [
+        "Rs.",
+        8.835,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "Rs.8.84"
+    },
+    {
+      "name": "formatMoney('Rs.',8.835,2dp)",
+      "input": [
+        "Rs.",
+        8.835,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.8.84"
+    },
+    {
+      "name": "formatMoney('Rs.',8.835,0dp)",
+      "input": [
+        "Rs.",
+        8.835,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.9"
+    },
+    {
+      "name": "formatMoney('Rs.',8.835,4dp)",
+      "input": [
+        "Rs.",
+        8.835,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.8.835"
+    },
+    {
+      "name": "formatMoney('Rs.',0.999)",
+      "input": ["Rs.", 0.999, {}],
+      "expected": "Rs.1"
+    },
+    {
+      "name": "formatMoney('Rs.',0.999,signed)",
+      "input": [
+        "Rs.",
+        0.999,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "Rs.1"
+    },
+    {
+      "name": "formatMoney('Rs.',0.999,2dp)",
+      "input": [
+        "Rs.",
+        0.999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.00"
+    },
+    {
+      "name": "formatMoney('Rs.',0.999,0dp)",
+      "input": [
+        "Rs.",
+        0.999,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1"
+    },
+    {
+      "name": "formatMoney('Rs.',0.999,4dp)",
+      "input": [
+        "Rs.",
+        0.999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.0.999"
+    },
+    {
+      "name": "formatMoney('Rs.',999.9999)",
+      "input": ["Rs.", 999.9999, {}],
+      "expected": "Rs.1,000"
+    },
+    {
+      "name": "formatMoney('Rs.',999.9999,signed)",
+      "input": [
+        "Rs.",
+        999.9999,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "Rs.1,000"
+    },
+    {
+      "name": "formatMoney('Rs.',999.9999,2dp)",
+      "input": [
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,000.00"
+    },
+    {
+      "name": "formatMoney('Rs.',999.9999,0dp)",
+      "input": [
+        "Rs.",
+        999.9999,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1,000"
+    },
+    {
+      "name": "formatMoney('Rs.',999.9999,4dp)",
+      "input": [
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.999.9999"
+    },
+    {
+      "name": "formatMoney('Rs.',125000.0049)",
+      "input": ["Rs.", 125000.0049, {}],
+      "expected": "Rs.125,000"
+    },
+    {
+      "name": "formatMoney('Rs.',125000.0049,signed)",
+      "input": [
+        "Rs.",
+        125000.0049,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "Rs.125,000"
+    },
+    {
+      "name": "formatMoney('Rs.',125000.0049,2dp)",
+      "input": [
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.125,000.00"
+    },
+    {
+      "name": "formatMoney('Rs.',125000.0049,0dp)",
+      "input": [
+        "Rs.",
+        125000.0049,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.125,000"
+    },
+    {
+      "name": "formatMoney('Rs.',125000.0049,4dp)",
+      "input": [
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.125,000.0049"
+    },
+    {
+      "name": "formatMoney('Rs.',1e-7)",
+      "input": ["Rs.", 1e-7, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoney('Rs.',1e-7,signed)",
+      "input": [
+        "Rs.",
+        1e-7,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoney('Rs.',1e-7,2dp)",
+      "input": [
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoney('Rs.',1e-7,0dp)",
+      "input": [
+        "Rs.",
+        1e-7,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoney('Rs.',1e-7,4dp)",
+      "input": [
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoney('Rs.',1e+22)",
+      "input": ["Rs.", 1e22, {}],
+      "expected": "Rs.10,000,000,000,000,000,000,000"
+    },
+    {
+      "name": "formatMoney('Rs.',1e+22,signed)",
+      "input": [
+        "Rs.",
+        1e22,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "Rs.10,000,000,000,000,000,000,000"
+    },
+    {
+      "name": "formatMoney('Rs.',1e+22,2dp)",
+      "input": [
+        "Rs.",
+        1e22,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.10,000,000,000,000,000,000,000.00"
+    },
+    {
+      "name": "formatMoney('Rs.',1e+22,0dp)",
+      "input": [
+        "Rs.",
+        1e22,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.10,000,000,000,000,000,000,000"
+    },
+    {
+      "name": "formatMoney('Rs.',1e+22,4dp)",
+      "input": [
+        "Rs.",
+        1e22,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.10,000,000,000,000,000,000,000.00"
+    },
+    {
+      "name": "formatMoney('Rs.',2.5)",
+      "input": ["Rs.", 2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoney('Rs.',2.5,signed)",
+      "input": [
+        "Rs.",
+        2.5,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoney('Rs.',2.5,2dp)",
+      "input": [
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoney('Rs.',2.5,0dp)",
+      "input": [
+        "Rs.",
+        2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.3"
+    },
+    {
+      "name": "formatMoney('Rs.',2.5,4dp)",
+      "input": [
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoney('Rs.',-2.5)",
+      "input": ["Rs.", -2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoney('Rs.',-2.5,signed)",
+      "input": [
+        "Rs.",
+        -2.5,
+        {
+          "signed": true
+        }
+      ],
+      "expected": "-Rs.2.5"
+    },
+    {
+      "name": "formatMoney('Rs.',-2.5,2dp)",
+      "input": [
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoney('Rs.',-2.5,0dp)",
+      "input": [
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.3"
+    },
+    {
+      "name": "formatMoney('Rs.',-2.5,4dp)",
+      "input": [
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 4
+        }
+      ],
+      "expected": "Rs.2.50"
     }
   ]
 }
