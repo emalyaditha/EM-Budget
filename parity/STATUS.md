@@ -1,44 +1,38 @@
 # STATUS.md — migration state at a glance
 
 **Repo:** `D:\Emcode\EM-Budget` · **Playbook:** `D:\Emcode\MIGRATION_PLAYBOOK.md`
-**Updated:** 2026-10-07 (after session crash; recon re-verified against the tree, not memory)
-**Phase:** 4 (logic port) — branch `phase4-logic-units`, HEAD `5485b7f`, PR #5 open.
+**Updated:** 2026-10-08 · **Phase:** 4 (logic port) — branch `phase4-logic-units`, HEAD `98ac2b8` (pushed), PR #5 open.
 
 ## Tasks
 
 | # | Task | State |
 | --- | --- | --- |
 | — | Phases 0–3 (inventory, specs+goldens, scaffold, data/auth layer) | DONE — merged to `origin/main` via PR #2/#4 |
-| #60 | `money` port + locale ruling (D25) | DONE — committed `049b772` |
-| #61 | Five mid-size units (installments, alerts, csv, validators, display-interest) | DONE — committed `cc8b247` |
-| #63 | Credit-card cycle engine | DONE — committed `fe8102d` |
-| #62 | Net-worth aggregates + second coercion | DONE — committed `5485b7f` |
-| #64a | transaction-service re-record; `PROJECTION_DEBT` emptied; D35 `srcTree` stamps | DONE **uncommitted** — all 14 fixtures + `src-tree.ts`, `validate.ts` PASS 14/1108 |
-| #64b | Live harness `parity/live/` (D34), `app-handlers.json` (16 cases), Dart port of the nine `App.tsx` handlers | CODE DONE **uncommitted** — `flutter test` 769/769, analyze + format clean; **INVENTORY §13m write-up not yet written** |
-| #65 | Three-way OCR contract (D28/D32) | OPEN — ruled 2026-10-07: its own branch after #64 is pushed; **synthetic receipts only**. `parity/live/ocr/` scaffold + `.qa_ocr_*` scratch stay untracked. |
-| — | Phase 4 gate deliverables | OPEN — the **B-26 count query** and the **read-only audit report** are owed to the user at the gate. |
-| — | Phase 4 gate → Phase 5 (design system) | OPEN |
-
-## Open decisions waiting for the user
-
-1. **#64 commit authorization** — needs §13m written, then one commit by explicit path (D27 style). Never pushed without approval.
-2. **PR #3 (B-23 web fix)** — awaits "MERGE". Both CI jobs currently FAIL on it (Enterprise = known `npm audit`; Mobile Parity CI failure needs a look before merge).
-3. **PR #5** — Mobile Parity CI green at HEAD; merge decision after #64 lands.
-4. **B-26** — rollover double-charge: phone-side trigger design (roll only after completed pull, inside `syncChains`) awaits ruling.
-5. **QA cleanup (D18)** — 16 `qa-*@example.com` tenants still exist; the current `--leftover qa-` list must be re-matched against the approved 16 in `D:\Emcode\backups\qa-export-20261006.json` before any "GO".
-6. Standing DECISIONs: B-08, B-10, B-20 (recommendation: send `instance_type`), B-25 (recommendation: re-enable), B-19 bearer deviation.
+| #60–#63 | money port · five mid-size units · cycle engine · net-worth aggregates | DONE — `049b772`, `cc8b247`, `fe8102d`, `5485b7f` |
+| #64a | transaction-service re-record, `PROJECTION_DEBT` emptied, D35 `srcTree` stamps | DONE — in `98ac2b8`; `validate.ts` PASS 14/1108 |
+| #64b | live harness `parity/live/` (D34), 16-case `app-handlers.json`, Dart port of the nine `App.tsx` handlers | DONE — in `98ac2b8`; `flutter test` 769/769 |
+| #64c | INVENTORY §13m write-up | OPEN — the only part of #64 still owed |
+| #65 | Three-way OCR contract (D28/D32) | OPEN — own branch, **synthetic receipts only** |
+| — | Phase 4 gate: B-26 count query + read-only audit report | DONE — `parity/sql/b26_double_rollover_count.sql` (unexecuted; user runs it) |
+| — | `fix/audit-lockfile` — lockfile-only refresh of `compression`, `proxy-addr`, `source-map-js` | IN PROGRESS — never `npm audit fix`, no `package.json` change |
+| — | Phase 4 gate → Phase 5 (design system) | BLOCKED on §13m + the five rulings below |
 
 ## Branches & PRs
 
 | Ref | What |
 | --- | --- |
-| `origin/main` @ `337bd4a` | Phases 0–3 + money port (PR #4 merged). Local `main` is stale at `a35bf61`. |
-| `phase4-logic-units` @ `5485b7f` + dirty tree | PR #5. Dirty = all of #64 + D34/D35/§13l doc records (uncommitted). |
-| `bugfix/b23-credit-card-purchases` @ `1f6a1ce` | PR #3. Contains `1d1efe8` (9-line `src/supabase.ts` fix) + docs. Not merged. |
-| `flutter-migration` | historical; already merged. |
+| `main` @ `337bd4a` (local == origin) | Phases 0–3 + money port. **Enterprise CI FAILS here** at `npm audit --audit-level=high` (28 adv: 25 moderate, 2 high, 1 critical) |
+| `phase4-logic-units` @ `98ac2b8` | PR #5. Mobile Parity CI **green** (fixes the dart lint); Enterprise still red on npm audit; Vercel green |
+| `bugfix/b23-credit-card-purchases` @ `1f6a1ce` | PR #3. **Already contains `origin/main`** (`524bbb4`), so re-testing against main cannot help — its Mobile Parity failure is the same dart lint only PR #5 fixes |
+
+## Open decisions waiting for the user
+
+1. **Merge order (user merges on GitHub; the assistant never merges)** — PR #5 first, then `bugfix/b23` is updated onto the new main and pushed, Mobile Parity green awaited, then "MERGE" for PR #3.
+2. **`fix/audit-lockfile`** — review only; not merged. Merging it is what turns Enterprise CI (and therefore the gated `e2e` job) green.
+3. **B-26 phone-side trigger design** — roll only after a completed pull, inside `syncChains`. Awaits ruling.
+4. **Tenants** — no deletions. 16 `qa-*@example.com` still live, re-matched IDENTICAL to `D:\Emcode\backups\qa-export-20261006.json`. **457 `e2e-*@example.com` exist and are outside D18's scope** (448 pre-existing + 9 from the local b23 e2e run); no spec destroys its tenant.
+5. **Rulings owed:** B-08, B-10, B-19, B-20, B-25. Default for logic bugs is *replicate*.
 
 ## Exact next step
 
-Finish #64: write INVENTORY §13m (harness + nine-handler port + B-28 ruling evidence), re-run the full
-gate set (`validate.ts`, `tz-proof.ts`, `flutter test`, `npm run lint`), then ask for commit authorization
-on the explicit path list — do not commit or push without it.
+Write INVENTORY §13m, then re-run the gate set (`validate.ts`, `tz-proof.ts`, `flutter test`, `npm run lint`) and ask for commit authorization on an explicit path list. #65 starts on its own branch after `98ac2b8` + this gate commit are pushed. Nothing is committed, pushed, merged or deleted without the user's word.
