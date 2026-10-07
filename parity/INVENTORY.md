@@ -535,23 +535,40 @@ a logic spec with goldens, a UI spec with numbers, and pixel baselines.
 
 ### Logic side
 
-| artefact                            | produced by                           | what it is                                                                                                                                               |
-| ----------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parity/LOGIC_SPEC.md`              | hand-written against the tagged code  | 12 units, **278 named cases** the Dart port must satisfy, each with the exact input and the reason the case exists.                                      |
-| `parity/fixtures/*.json` (12 files) | `npx tsx parity/fixtures/generate.ts` | **661 measured goldens** — the `expected` value is what the real TypeScript produced, never what it was expected to produce. Each carries `_provenance`. |
-| `parity/fixtures/validate.ts`       | `npx tsx parity/fixtures/validate.ts` | The D8 gate: non-empty, ≥ the spec's case count, every object schema-checked, provenance re-verified. Currently **PASS, 661 / 278**.                     |
-| `parity/fixtures/tz-proof.ts`       | `npx tsx parity/fixtures/tz-proof.ts` | Re-runs all 661 goldens in `Asia/Colombo`, `UTC` and `America/New_York`. **5 cases differ**, all in the two units §5 warned about.                       |
+| artefact                            | produced by                           | what it is                                                                                                                                                                                                                                                                                                       |
+| ----------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parity/LOGIC_SPEC.md`              | hand-written against the tagged code  | 13 units, **510 named cases** the Dart port must satisfy, each with the exact input and the reason the case exists.                                                                                                                                                                                              |
+| `parity/fixtures/*.json` (13 files) | `npx tsx parity/fixtures/generate.ts` | **963 measured goldens** — the `expected` value is what the real TypeScript produced, never what it was expected to produce. Each carries `_provenance`. `--only money,alerts` regenerates named units only, because each file stamps its own `generatedAt` and a full run churns thirteen files for one change. |
+| `parity/fixtures/validate.ts`       | `npx tsx parity/fixtures/validate.ts` | The D8 gate: non-empty, ≥ the spec's case count, every object schema-checked, provenance re-verified. Currently **PASS, 963 / 510**.                                                                                                                                                                             |
+| `parity/fixtures/tz-proof.ts`       | `npx tsx parity/fixtures/tz-proof.ts` | Re-runs every golden in `Asia/Colombo` (the committed zone), `America/New_York` and `Pacific/Kiritimati` — always the full set, since it regenerates rather than reads `--only`. **5 cases differ**, all in the two units §5 warned about.                                                                       |
 
 ### Data side (Phase 3)
 
 | artefact                   | produced by                                     | what it is                                                                                                                                                                                                                                              |
 | -------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parity/DATA_SPEC.md`      | written against the ports themselves            | The **representation** contract: absent-vs-null, `num` vs `double`, `jsonEncode` vs `JSON.stringify`, the two date regimes, the column allow-list, the sync contracts, and an 11-item divergence register (D-01 … D-11).                                |
+| `parity/DATA_SPEC.md`      | written against the ports themselves            | The **representation** contract: absent-vs-null, `num` vs `double`, `jsonEncode` vs `JSON.stringify`, the two date regimes, the column allow-list, the sync contracts, and a 13-item divergence register (D-01 … D-13).                                 |
 | `mobile/lib/models/*.dart` | field-for-field from `src/types.ts`             | Typed state models, hand-written (codegen cannot express §1–§2 of the spec). `test/models/` — 33 tests, incl. a source-textual type-drift guard.                                                                                                        |
 | `mobile/lib/data/*.dart`   | the `supabase.ts` / `utils.ts` / `api.ts` ports | Casing, JS semantics, local-date regime, column mapping, record builders, durability (interface + file store), the ledger repository (push + pull), the boot merge, `transactionService`. `test/data/` — 343 tests, incl. the restart durability proof. |
 | `mobile/lib/auth/*.dart`   | the auth contract, after the two spikes (§13f)  | `ApiClient`, `AuthRepository`, one identity holder, the encrypted cookie jar. `test/auth/` — 66 tests, incl. the three D21 cookie proofs.                                                                                                               |
 
 Total at the Phase 3 gate: **443 Dart tests, 0 failures**, `flutter analyze` clean, `dart format` clean.
+
+### Logic side (Phase 4, first unit)
+
+| artefact                                        | produced by                          | what it is                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mobile/lib/domain/money.dart`                  | the `src/lib/money.ts` port          | Integer-cent core, 8 functions, bug-compatible (`Infinity` survives `toMinorUnits`, `-0` too). `test/domain/money_test.dart` — **11** tests replaying all **200** cases of `money.json`, each case name consumed exactly once.                                                                                         |
+| `mobile/lib/data/js_semantics.dart`             | the JS number→text rules             | `jsParseFloat`, `jsMathRound`, `jsToFixed`, `jsToLocaleStringFixed` — four rounding rules that disagree with each other and with Dart, kept four ways round. `test/domain/js_semantics_format_test.dart` — **17** tests, every divergence named and each function swept against Node over tens of thousands of values. |
+| `mobile/lib/data/number_locale.dart` (§13h D25) | `intl`'s CLDR metadata, nothing else | Separators, grouping runs, zero digit and sign affixes for a locale tag; the digits never come from `intl`. `test/domain/number_locale_test.dart` — **10** tests replaying all **232** cases of `number-locale.json`, each in the locale its case names.                                                               |
+
+Total at this gate: **481 Dart tests, 0 failures** (443 + 38), `dart format --set-exit-if-changed` and
+`flutter analyze --fatal-infos --fatal-warnings` clean, `validate.ts` **PASS 963 / 510**, `tz-proof.ts`
+**5 of 963 differ across three zones** — the same five the Phase 1 gate named, and `number-locale` is
+zone-stable. On the web side `npm run lint` (eslint `--max-warnings 0` + `tsc --noEmit`) is clean and
+`npx vitest run` is **456 / 457**: the one failure is `auth.integration.test.ts`'s PIN lockout case, which
+exceeded vitest's default 5 s against the live server on this host. It is a network timeout, not an
+assertion, and cannot be caused by this commit — `git diff pre-flutter -- src/ server.ts server/ api-src/
+migrations/` is empty and no web file is staged. Reported rather than hidden; CI is the authority.
 
 ### UI side
 
@@ -874,3 +891,43 @@ cookie_jar: 4.0.9
 `PersistCookieJar` with a custom `cookie_jar.Storage` implemented over `flutter_secure_storage 11.2.0`,
 so the serialized jar never exists as plaintext on disk. Scope is the `app_lock_trust` cookie only
 (`server.ts:2823-2865`); every other route works on the bearer token (Spike A). No server change.
+
+---
+
+## 13h. Phase 4 gate rulings (D25-D30)
+
+Given when the first logic port (`src/lib/money.ts`) was put up for approval. Binding from here.
+
+| #       | Ruling                                                                                                                                                                                           | Consequence                                                                                                                                                                                                                                                                          |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **D25** | **`DATA_SPEC.md` §11 D-12 is rejected as a divergence.** Number formatting uses the **device locale** in the app; `en-US` is named only by a test, through an injected locale.                   | `formatMoney(currency, amount, options, [locale])` defaults to `JsNumberLocale.device()`; `money_test.dart` injects `en-US` to replay `money.json`, and `number-locale.json` (232 goldens, 8 locales) is the proof. Rule 3 is untouched — the web passes `undefined` and still does. |
+| **D26** | **D-13 (`-0` leaving the add-family) and `asJsonSafeNumber` are approved** as written.                                                                                                           | The register keeps D-13; `test/domain/money_test.dart` asserts the surviving `-0` of `toMinorUnits` by sign bit.                                                                                                                                                                     |
+| **D27** | The money port is **one commit, by explicit path**, only after the full gate set passes. `.qa_*` scripts are not committed.                                                                      | Same convention as D11 and the §13g `parity/.qa_*` row.                                                                                                                                                                                                                              |
+| **D28** | `freeOcrParser.ts` stays **out of the Dart port list** (confirming D4): the mobile side calls `/api/ocr/free-scan`, so the artefact is a **server contract test**, not a 387-LOC heuristic port. | Its parse rules and category lists are the fifth copy of a set already hand-synced across four places (§5 landmine 11). A contract fixture pins the response shape instead.                                                                                                          |
+| **D29** | `download.ts` is ported as **pure logic only** — CSV content, escaping, sanitisation, filenames. The save/share step is Phase 7.                                                                 | The `csv` golden unit (§10) is unchanged; the difference between an anchor download and a share sheet goes to `UI_SPEC.md` as a deviation, not into the fixture.                                                                                                                     |
+| **D30** | `alerts.ts` and `installments.ts` are ported against an **injected fixed clock**, and each unit must pass the **three-zone check**. Goldens come from code at the `pre-flutter` tag only (D7).   | No test reads `DateTime.now()` or the device's zone; `today` is a parameter, so the same case fails identically in `Asia/Colombo`, `America/New_York` and `Pacific/Kiritimati`.                                                                                                      |
+
+### D25 in detail — why the locale is ambient, and why `intl` does not produce the digits
+
+The web calls `toLocaleString(undefined, …)`. "Ambient locale, whatever the runtime says" is therefore
+_not_ sloppiness to be pinned away — it is the behaviour, and a phone that always printed `Rs.125,000`
+while its owner's browser printed `Rs.1,25,000` would be the change. So the port takes the platform
+locale, and the golden machinery does what goldens are for: `money.json` was measured under `en-US`, so
+`money_test.dart` injects `en-US`; `number-locale.json` measures eight locales and
+`test/domain/number_locale_test.dart` replays each case **in the locale its name names**.
+
+What the ruling settled empirically, not by argument:
+
+- `intl`'s CLDR **metadata** matches V8 exactly — separators, grouping runs, zero digits, sign affixes,
+  including `fr-FR`'s `U+202F`, `cs-CZ`'s `U+00A0` and `ar-EG`'s `U+061C`-prefixed minus. It is the source
+  for those, read through `number_locale.dart`.
+- `intl`'s **digits** do not match V8: over 720 `(value, min, max)` triples it diverged on 60, every one at
+  `1.005` (rounding) or `1e22` (int64 saturation). So `js_semantics.dart` does the rounding and grouping
+  itself, and that implementation was swept against the same 720 V8 measurements with **0 divergences**.
+- A tag with no CLDR data must not throw. V8 answers `zzy-ZZ` with its runtime default; the port resolves it
+  to the `en-US` shape and keeps the caller's tag (`LOGIC_SPEC.md` §13).
+
+`src/lib/money.ts` is byte-identical to the tag: `git diff pre-flutter -- src/lib/money.ts` is empty, and
+every fixture stamps blob `c1407ccba7794ba543ec4631a5a9aaa14e3ed97b`. `money.json` grew from 130 to 200
+cases for this port; **no existing `expected` value changed** (re-checked case-by-case), and the surplus
+exists because the two formatters round differently and a case must exist for each rule.

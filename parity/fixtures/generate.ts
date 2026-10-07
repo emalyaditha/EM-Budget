@@ -97,6 +97,7 @@ const TAG = 'pre-flutter';
 // Paths of every file this generator samples, keyed by fixture unit.
 const UNIT_SOURCES: Record<string, string> = {
   money: 'src/lib/money.ts',
+  'number-locale': 'src/lib/money.ts',
   'credit-cycles': 'src/lib/creditCards.ts',
   'credit-payments': 'src/lib/creditCards.ts',
   'cycle-rollover': 'src/lib/creditCards.ts',
@@ -116,6 +117,7 @@ const sha256 = (s: string | Buffer): string => createHash('sha256').update(s).di
 /** The fixture set. The validator requires a file for each, in this order. */
 export const UNITS = [
   'money',
+  'number-locale',
   'credit-cycles',
   'credit-payments',
   'cycle-rollover',
@@ -399,6 +401,19 @@ const BAD_DATES = [
 // ===========================================================================
 // 1. money
 // ===========================================================================
+/**
+ * Amounts that sit exactly on a decimal half in the *typed* sense — `0.015`,
+ * `1.005`, `2.5` cents — which is where `money.ts`'s two formatters disagree.
+ *
+ * `toMajorUnits` uses `toFixed`, which rounds on the exact binary value, while
+ * `formatMoney` uses `toLocaleString`, which rounds on the shortest decimal
+ * (`(0.015).toFixed(2)` is `"0.01"`, the same value through `toLocaleString` is
+ * `"0.02"`). Nothing in `INVENTORY.md` §5 warned about this pair, so the cases are
+ * here to pin which side the port lands on; a Dart port that implements one
+ * formatter with the other moves a displayed rupee by a paisa.
+ */
+const FORMAT_EDGE_AMOUNTS = [0.015, -0.015, 1.005, 8.835, 0.999, 999.9999, 125000.0049, 1e-7, 1e22, 2.5, -2.5];
+
 function unitMoney(prov: ReturnType<typeof resolveProvenance>): void {
   const c: Case[] = [];
   for (const a of AMOUNTS) c.push(measure(`toMinorUnits(${fmt(a)})`, [a], () => toMinorUnits(a as never)));
@@ -458,7 +473,157 @@ function unitMoney(prov: ReturnType<typeof resolveProvenance>): void {
     );
   }
   c.push(measure("formatMoney('',500)", ['', 500, {}], () => formatMoney('', 500)));
+
+  // Half-cent negatives — the exact inputs where `Math.round`'s tie (toward +∞) and
+  // Dart's `.round()` (away from zero) land differently and the value is not already an
+  // integer, so `AMOUNTS`' `2.5` / `0.005` pair above does not cover them.
+  for (const a of [-0.125, 0.125, -0.5, 0.5, -1.5, 1.5, -1e17 - 0.5, 1e17 + 0.5]) {
+    c.push(measure(`toMinorUnits(${fmt(a)})`, [a], () => toMinorUnits(a as never)));
+  }
+
+  // Non-integer cents reaching `toFixed`, which rounds a second time and does it on the
+  // exact binary value: `1.5` cents is `"0.01"` while `2.5` cents is `"0.03"`, because
+  // `0.015` is below its decimal half in binary and `0.025` is above it.
+  for (const cents of [1.5, 2.5, -1.5, -2.5, 12345.678, 1e-7, 1e21]) {
+    c.push(measure(`toMajorUnits(${fmt(cents)})`, [cents], () => toMajorUnits(cents as never)));
+  }
+
+  // `formatMoney` on the same tie values, through `toLocaleString`, which rounds on the
+  // shortest decimal instead — `0.015` here is `"0.02"`, not the `"0.01"` above.
+  for (const amt of FORMAT_EDGE_AMOUNTS) {
+    c.push(measure(`formatMoney('Rs.',${fmt(amt)})`, ['Rs.', amt, {}], () => formatMoney('Rs.', amt)));
+    c.push(
+      measure(`formatMoney('Rs.',${fmt(amt)},signed)`, ['Rs.', amt, { signed: true }], () =>
+        formatMoney('Rs.', amt, { signed: true }),
+      ),
+    );
+    c.push(
+      measure(`formatMoney('Rs.',${fmt(amt)},2dp)`, ['Rs.', amt, { minFractionDigits: 2, maxFractionDigits: 2 }], () =>
+        formatMoney('Rs.', amt, { minFractionDigits: 2, maxFractionDigits: 2 }),
+      ),
+    );
+    c.push(
+      measure(`formatMoney('Rs.',${fmt(amt)},0dp)`, ['Rs.', amt, { maxFractionDigits: 0 }], () =>
+        formatMoney('Rs.', amt, { maxFractionDigits: 0 }),
+      ),
+    );
+    c.push(
+      measure(`formatMoney('Rs.',${fmt(amt)},4dp)`, ['Rs.', amt, { minFractionDigits: 2, maxFractionDigits: 4 }], () =>
+        formatMoney('Rs.', amt, { minFractionDigits: 2, maxFractionDigits: 4 }),
+      ),
+    );
+  }
   write('money', prov, c);
+}
+
+// ===========================================================================
+// 1b. number-locale
+// ===========================================================================
+/**
+ * `formatMoney` renders its digits through `toLocaleString(undefined, …)`
+ * (`src/lib/money.ts:61`), so the separators, the grouping runs, the digit set and the
+ * negative glyph all come from the runtime's locale — the browser's on the web, the
+ * phone's in the port (ruled at the Phase 4 gate, `parity/DATA_SPEC.md` §11 D-12).
+ *
+ * The web can only ever be measured under the locale the generator happens to run in,
+ * which is why `money.json` alone proves nothing about `en-IN` or `de-DE`. These cases
+ * pin the same expression with the locale argument made explicit: `formatMoneyIn('de-DE',
+ * 'Rs.', 1234.5)` is what a de-DE browser shows for the call `money.ts` makes.
+ *
+ * **This function is a transcription, not an import** — the only one in this file, and
+ * forced by the fact that `money.ts` hardcodes `undefined`. It is copied from the tagged
+ * bytes rather than called, and the `undefined` is the only token replaced. Two things
+ * keep the copy honest: D7 refuses to generate at all unless `src/lib/money.ts` is
+ * byte-identical to `pre-flutter`, and `assertCopyMatchesOriginal` below fails the run if
+ * the transcription and the real function disagree under the runtime's own locale.
+ */
+function formatMoneyIn(
+  tag: string,
+  currency: string,
+  amount: number,
+  options: { minFractionDigits?: number; maxFractionDigits?: number; signed?: boolean } = {},
+): string {
+  const { minFractionDigits = 0, maxFractionDigits = 2, signed = false } = options;
+  const safe = Number.isFinite(amount) ? amount : 0;
+  const digits = Math.min(minFractionDigits, maxFractionDigits);
+  const body = Math.abs(safe).toLocaleString(tag, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: maxFractionDigits,
+  });
+  return `${signed && safe < 0 ? '-' : ''}${currency}${body}`;
+}
+
+/** The copy's proof: passing the runtime's own tag explicitly must equal passing
+ *  `undefined`. Anything else means the transcription drifted from `money.ts`. */
+function assertCopyMatchesOriginal(): void {
+  const here = Intl.NumberFormat().resolvedOptions().locale;
+  for (const amount of [0.015, 1234.5, -500, 1e21, 999.9999, 1250000, 0]) {
+    for (const options of [
+      {},
+      { minFractionDigits: 2, maxFractionDigits: 2 },
+      { maxFractionDigits: 0 },
+      { signed: true },
+    ]) {
+      const mine = formatMoneyIn(here, 'Rs.', amount, options);
+      const real = formatMoney('Rs.', amount, options);
+      if (mine !== real) {
+        throw new Error(
+          `number-locale: the transcribed formatter diverged from money.ts under ${here} for ` +
+            `${JSON.stringify(amount)} ${JSON.stringify(options)}: "${mine}" != "${real}"`,
+        );
+      }
+    }
+  }
+}
+
+const NUMBER_LOCALES = ['en-US', 'en-IN', 'de-DE', 'fr-FR', 'hi-IN', 'ar-EG', 'cs-CZ', 'bn-BD'];
+
+/** Amounts chosen for what each one exercises: `1250000` is the lakh grouping,
+ *  `1234567.891` the three-group case, `1e21` expansion past exponential notation,
+ *  `1e-7` the zero-digit rounding, `0.015`/`1.005` the shortest-decimal tie, `-2.5` the
+ *  negative shape, and `-0` the sign `Intl` keeps but `toFixed` drops. */
+const NUMBER_LOCALE_AMOUNTS = [
+  0, -0, 0.015, 1.005, 2.5, -2.5, 999.9999, 125000.0049, 1234567.891, 1250000, 1e21, 1e-7,
+];
+
+function unitNumberLocale(prov: ReturnType<typeof resolveProvenance>): void {
+  assertCopyMatchesOriginal();
+  const c: Case[] = [];
+  for (const tag of NUMBER_LOCALES) {
+    for (const amt of NUMBER_LOCALE_AMOUNTS) {
+      c.push(
+        measure(
+          `formatMoneyIn("${tag}",'Rs.',${fmt(amt)})`,
+          [tag, 'Rs.', amt, {}],
+          () => formatMoneyIn(tag, 'Rs.', amt),
+        ),
+      );
+      c.push(
+        measure(
+          `formatMoneyIn("${tag}",'Rs.',${fmt(amt)},2dp)`,
+          [tag, 'Rs.', amt, { minFractionDigits: 2, maxFractionDigits: 2 }],
+          () => formatMoneyIn(tag, 'Rs.', amt, { minFractionDigits: 2, maxFractionDigits: 2 }),
+        ),
+      );
+    }
+    for (const amt of [1234567.891, 0.015, 1250000, -2.5]) {
+      c.push(
+        measure(
+          `formatMoneyIn("${tag}",'Rs.',${fmt(amt)},0dp)`,
+          [tag, 'Rs.', amt, { maxFractionDigits: 0 }],
+          () => formatMoneyIn(tag, 'Rs.', amt, { maxFractionDigits: 0 }),
+        ),
+      );
+    }
+    c.push(
+      measure(
+        `formatMoneyIn("${tag}",'',1234567.891)`,
+        [tag, '', 1234567.891, {}],
+        () => formatMoneyIn(tag, '', 1234567.891),
+      ),
+    );
+  }
+  write('number-locale', prov, c);
 }
 
 // Case names must identify the input unambiguously, because a Dart test file
@@ -1756,6 +1921,32 @@ function writeWithExtra(
 // ===========================================================================
 // main
 // ===========================================================================
+/**
+ * `npx tsx parity/fixtures/generate.ts --only money` regenerates one file.
+ *
+ * Every case is measured from the running module, so a subset run is not a partial
+ * truth — but leaving the other eleven files byte-identical is the point: each file
+ * carries its own `generatedAt`, so regenerating all of them to add three cases to one
+ * unit turns a Phase-4 change into a twelve-file diff, and a reviewer cannot see which
+ * unit actually moved.
+ */
+function selectedUnits(): Set<string> {
+  const at = process.argv.indexOf('--only');
+  if (at < 0) return new Set<string>(UNITS);
+  const arg = process.argv[at + 1];
+  if (!arg) throw new Error('--only needs a comma-separated unit name');
+  const wanted = arg
+    .split(',')
+    .map((s: string) => s.trim())
+    .filter((s: string) => s.length > 0);
+  for (const w of wanted) {
+    if (!(UNITS as readonly string[]).includes(w)) {
+      throw new Error(`--only: unknown unit "${w}" (one of ${UNITS.join(', ')})`);
+    }
+  }
+  return new Set<string>(wanted);
+}
+
 function main(): void {
   console.log(`\nPhase 1 golden generation\n  tag        ${TAG} -> ${git(['rev-list', '-n', '1', TAG])}`);
   console.log(
@@ -1778,18 +1969,26 @@ function main(): void {
     if (existsSync(stale) && readFileSync(stale, 'utf8').length === 0) rmSync(stale);
   }
 
-  unitMoney(prov);
-  unitCreditCycles(prov);
-  unitCreditPayments(prov);
-  unitCycleRollover(prov);
-  unitInstallments(prov);
-  unitDatesLocal(prov);
-  unitNetWorth(prov);
-  unitAlerts(prov);
-  unitTransactionService(prov);
-  unitCsv(prov);
-  unitValidators(prov);
-  unitDisplayInterest(prov);
+  const picked = selectedUnits();
+  const run = (unit: string, fn: () => void): void => {
+    if (picked.has(unit)) fn();
+  };
+  run('money', () => unitMoney(prov));
+  run('number-locale', () => unitNumberLocale(prov));
+  run('credit-cycles', () => unitCreditCycles(prov));
+  run('credit-payments', () => unitCreditPayments(prov));
+  run('cycle-rollover', () => unitCycleRollover(prov));
+  run('installments', () => unitInstallments(prov));
+  run('dates-local', () => unitDatesLocal(prov));
+  run('net-worth', () => unitNetWorth(prov));
+  run('alerts', () => unitAlerts(prov));
+  run('transaction-service', () => unitTransactionService(prov));
+  run('csv', () => unitCsv(prov));
+  run('validators', () => unitValidators(prov));
+  run('display-interest', () => unitDisplayInterest(prov));
+  if (picked.size < UNITS.length) {
+    console.log(`\n  --only: ${[...picked].join(', ')} — the other ${UNITS.length - picked.size} file(s) untouched`);
+  }
 
   console.log('\ndone.\n');
 }

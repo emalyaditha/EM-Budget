@@ -31,7 +31,8 @@ Naming: `parity/fixtures/<unit>.json` for each `unit` below.
 | 10  | `csv`                 | `src/lib/download.ts`                     | `escapeCsvRow` + formula-injection sanitize    | 12      |
 | 11  | `validators`          | `src/validators/index.ts`                 | Zod accept/reject tables                       | 16      |
 | 12  | `display-interest`    | `src/components/CreditCardManagement.tsx` | the **unrounded** UI interest, `:67-71` (B-03) | 10      |
-|     |                       |                                           | **total**                                      | **278** |
+| 13  | `number-locale`       | `src/lib/money.ts`                        | `formatMoney` under eight explicit locales     | 232     |
+|     |                       |                                           | **total**                                      | **510** |
 
 ### Fixture envelope (all files)
 
@@ -59,7 +60,10 @@ returned nothing). A thrown error is `{"__throws__": "Name: message"}`. The alph
 `validate.ts` rejects any other sentinel, any `__sentinel__`/`__throws__` sharing an object with another
 key, and any collision of case names, because a name-keyed Dart test suite silently drops the second case.
 
-Generation produced **662** cases against these **278** minimums; the surplus is the input families above.
+Generation produced **963** cases against these **510** minimums; the surplus is the input families above.
+(`money` grew from 130 to 200 when its port was built, so that a case exists for every rounding rule the
+two formatters follow. `number-locale` is the exception to the surplus: its 232 cases are exactly the
+8 × 29 matrix of §13, so dropping any cell fails the gate.)
 
 ---
 
@@ -115,8 +119,10 @@ operated on as integers, and divided by 100 **on output**.
 - `Math.min(minFractionDigits, maxFractionDigits)` — a min above max is silently clamped to max.
 - Non-finite `amount` → treated as `0` (`Number.isFinite` guard, stricter than the other functions).
 - **Grouping is locale-dependent**: it calls `toLocaleString(undefined, …)` with `undefined` locale, so the
-  separator and digits come from the runtime default. The generator records `locale` in provenance, and the
-  Dart port must pin an explicit locale rather than inherit the device's.
+  separator, grouping runs and digits come from the runtime default. The generator records that default in
+  provenance, and the port **inherits the phone's locale the same way** — the rule is "same ambient locale",
+  not "same output everywhere". `money.json` was measured under `en-US`, so the Dart suite _injects_ `en-US`
+  when replaying it and no other path is pinned. §13 is the unit that covers the other locales.
 - `-0` with `signed: true`: `-0 < 0` is **false**, so no minus sign is emitted.
 
 **Case families:** null/undefined/NaN/Infinity/-0 × each function; half-way negatives; lenient string parse;
@@ -304,7 +310,8 @@ progress with 0 payments, all paid, none paid, foreign rows mixed in.
   and `Pacific/Kiritimati` (UTC+14), then restores the canonical zone and re-validates. A shell `TZ=` prefix
   does **not** reach the child on this platform, so the tool sets `env` explicitly — an earlier proof done by
   hand reported "0 divergences" precisely because the zone never changed.
-  **5 of 661 cases are zone-sensitive**, and every one of them is a landmine rather than noise:
+  **5 of 731 cases are zone-sensitive**, and every one of them is a landmine rather than noise. Re-run at
+  the Phase 4 `money` gate: the 70 new `money` cases are all zone-stable, so the five below are unchanged.
 
   | Case                                  | Colombo      | New York                               |
   | ------------------------------------- | ------------ | -------------------------------------- |
@@ -545,7 +552,71 @@ the divergence rather than infer it.
 
 ---
 
-## 13. What Phase 1 does _not_ cover yet
+## 13. `number-locale` — the same `formatMoney` under eight locales
+
+`src/lib/money.ts` again, and deliberately a **separate unit** rather than more `money` cases: `money.json`
+is one locale's goldens (`_provenance.locale`, `en-US`), while the locale itself is the thing under test here,
+and a change to one must not silently invalidate the other.
+
+§1 says the web passes `undefined` as the locale, so the string a user sees is a function of the browser's
+language. That is the whole of the unit's contract: for a given tag, what does `formatMoney` produce?
+
+### How the goldens are produced
+
+`generate.ts` cannot call `formatMoney` with a locale — the web's call site has no such parameter — so §1's
+body is transcribed as `formatMoneyIn(tag, currency, amount, options)`, identical except that the `undefined`
+in `toLocaleString(undefined, …)` becomes `tag`. The transcription is then **measured against the original**:
+`assertCopyMatchesOriginal()` runs the real `formatMoney` and `formatMoneyIn` at the runtime default locale
+over 7 amounts × 4 option shapes and throws if any pair differs. The copy therefore cannot drift from
+`money.ts` without the generator failing.
+
+### The matrix
+
+| column     | values                                                                                                          |
+| ---------- | --------------------------------------------------------------------------------------------------------------- |
+| 8 locales  | `en-US`, `en-IN`, `de-DE`, `fr-FR`, `hi-IN`, `ar-EG`, `cs-CZ`, `bn-BD`                                          |
+| 12 amounts | `0`, `-0`, `0.015`, `1.005`, `2.5`, `-2.5`, `999.9999`, `125000.0049`, `1234567.891`, `1250000`, `1e21`, `1e-7` |
+| per locale | 12 amounts × (default digits, `2dp`) = 24, plus 4 `0dp` cases and 1 empty-currency case = **29**                |
+| **total**  | **8 × 29 = 232** cases, exactly the matrix — no surplus, so a dropped cell fails `validate.ts`                  |
+
+The locales are chosen by **what knob they move**, not by population: `en-US` is the generator's own default,
+so its rows are `money.json`'s `formatMoney` rows re-measured rather than a new claim;
+`en-IN`/`hi-IN`/`bn-BD` group in threes then
+twos (`Rs.1,25,000`, the lakh shape) and `bn-BD` adds Bengali digits; `de-DE` swaps the separators; `fr-FR`
+groups with `U+202F` and `cs-CZ` with `U+00A0`, neither of which is an ASCII space; `ar-EG` writes
+Arabic-Indic digits **and** prefixes a negative with `U+061C`, an invisible letter-mark that a port built from
+a format string would never produce. The amounts are chosen the same way: `0` and `-0` (does the locale keep
+the sign), the two tie cases (`0.015`, `1.005`), the two grouping-boundary cases (`1234567.891`, `1250000`),
+the `1e21` expansion, and `1e-7`, which is `0` at every digit count the matrix uses.
+
+### The ruling this unit exists to prove
+
+Ruled at the Phase-4 gate: **`D-12` is not a divergence.** The phone formats money in **its own locale**, the
+same ambient choice the browser makes, and `en-US` is named only where a test replays an `en-US`-measured
+golden. So the port is `formatMoney(currency, amount, options, [locale])` with the locale defaulting to the
+platform's (`dart:ui`'s `PlatformDispatcher.instance.locale`, not `intl`'s process-global default, which stays
+`en_US` unless an app sets it and would pin one locale under another name), and
+`test/domain/money_test.dart` passes `JsNumberLocale.resolve('en-US')` in explicitly.
+
+Two implementation facts, both measured rather than assumed:
+
+- `intl`'s `NumberFormat` may supply the **metadata** — separators, grouping runs, zero digit, sign affixes —
+  because its CLDR data agrees with V8 on every knob above. It may **not** supply the **digits**: over 720
+  `(value, min, max)` triples it diverged from V8 on 60 of them, all at `1.005` (its rounding is not Intl's
+  half-expand-on-shortest-decimal) and `1e22` (int64 saturation). `js_semantics.dart` therefore does the
+  rounding and grouping itself, and was swept against the same 720 V8 measurements across ten locales with
+  **zero divergences**.
+- A tag with no CLDR data at all must not throw. V8 answers `zzy-ZZ` with its runtime default; the port
+  resolves it to the `en-US` shape and keeps the caller's tag. A locale the phone reports is input the app
+  cannot validate, and the display path is not allowed to be the thing that stops a balance rendering.
+
+**Case families:** every locale × default/`2dp`/`0dp` digits; `-0`; the empty currency; the two rounding-tie
+cents; the lakh and non-ASCII-space groupers; Arabic-Indic and Bengali digit runs; the `1e21` expansion; a
+negative in a locale whose sign is an invisible mark.
+
+---
+
+## 14. What Phase 1 does _not_ cover yet
 
 | Deferred                                                                       | Why                                                                                                                                                                                      | Where it lands          |
 | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
