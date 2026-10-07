@@ -183,8 +183,22 @@ The Dart rules that make them portable:
   names, two-digit years — are **not** reproduced (§11 D-05). Out-of-range components are checked back
   against the literal, because V8 still rejects `2026-13-45` as an Invalid Date.
 - The heuristic arm is **local**, while the ISO date-only arm is **UTC**. That split is ECMAScript's own,
-  not an accident of the port, and `test/data/dates_local_test.dart` (80 cases, all from
-  `parity/fixtures/dates-local.json`) pins both sides of midnight and the leap days.
+  not an accident of the port, and `test/data/dates_local_test.dart` (81 tests over the 78 recorded
+  `parity/fixtures/dates-local.json` cases) pins both sides of midnight and the leap days.
+- **A fixture replay evaluates the zone it was measured in, never the host's.** `dates-local.json` is
+  `_provenance.tz: Asia/Colombo`; `localDayKey` reads the device zone, because that is the unit. On a UTC
+  runner the golden `2026-10-05` for `2026-10-04T18:30:00Z` came back as `2026-10-04` — not a port bug, a
+  replay bug. `replayMs` therefore shifts every **host-independent** instant (date-only, or carrying a `Z`
+  or an offset) by `measured − host`, so this host displays the wall clock the measurement saw. A naive
+  `2026-10-04T00:00:00` is _not_ shifted: V8 resolves it on the host, its fields are the literal wherever
+  it runs, and shifting it would move the very day it exists to pin. The shift is exact only while the
+  host offset is the same at both ends, so `_shiftToMeasuredZone` throws when a DST boundary falls inside
+  the window, and a companion test re-derives each shifted answer as `UTC + 05:30` so a future edit cannot
+  make the replay pass by moving both sides together. Measured with a Node twin of the port under ten
+  host zones — `UTC`, `Asia/Colombo`, `America/New_York`, `Pacific/Kiritimati`, `America/Santiago`,
+  `Australia/Lord_Howe`, `Europe/Dublin`, `Asia/Tehran`, `Pacific/Apia`, `America/Sao_Paulo`: **78/78 with
+  the shift**; without it, five of the ten zones break (2–3 cases each, and `Pacific/Kiritimati` passes
+  unshifted, which is why the UTC leg of CI is load-bearing and not the +14 one).
 - `jsDateToIso` / `jsDateToEpochMs` accept what `new Date(x)` accepts from the types the app actually
   holds (`String` and `num`), and return `null` where V8 would produce an Invalid Date — because every
   consumer of those results is behind a truthiness test on the web.

@@ -97,4 +97,16 @@ jobs:
             exit 1
           fi
       - name: Clock-dependent units under ${{ matrix.zone }}
-        run: flutter test test/domain/installments_test.dart test/domain/alerts_test.dart
+        # The five suites that touch a wall clock at all. `installments`/`alerts` take an
+        # injected instant and must be zone-blind; `dates_local` reads the *host* zone on
+        # purpose (that is the unit) and so replays its `Asia/Colombo` goldens through a
+        # shift to the measurement zone — the fourth leg of that proof is the `validate`
+        # job, which runs the same suite on a UTC runner and is where the unshifted replay
+        # first failed.
+        run: |
+          flutter test \
+            test/domain/installments_test.dart \
+            test/domain/alerts_test.dart \
+            test/data/dates_local_test.dart \
+            test/data/transaction_service_test.dart \
+            test/data/state_storage_test.dart

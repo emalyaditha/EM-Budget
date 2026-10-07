@@ -7,8 +7,82 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'web_source.dart';
 
+/// The zone `parity/fixtures/dates-local.json` was measured in, per its `_provenance.tz`.
+///
+/// A constant, not a lookup: `Sri Lanka` has kept UTC+05:30 since 1945 and has no DST, and
+/// the Dart SDK ships no tz database, so resolving an IANA name here would mean adding
+/// `package:timezone` to a parity-only seam. [_assertMeasuredZone] below is what makes the
+/// constant safe — the fixture has to keep saying the same thing.
+const Duration kMeasuredZone = Duration(hours: 5, minutes: 30);
+
+/// The fixture's `_provenance.tz`, which the shift is only valid for.
+void _assertMeasuredZone(Object? tz) {
+  if (tz != 'Asia/Colombo') {
+    throw StateError(
+      'dates-local.json was measured in "$tz", but this replay shifts instants to the '
+      'fixed +05:30 that kMeasuredZone records. Re-measure the fixture in the zone the '
+      'replay claims, or teach the replay to resolve this name.',
+    );
+  }
+}
+
+/// Whether JavaScript would have resolved [input] without consulting the machine.
+///
+/// ECMA-262 splits the date grammar in two: a date-*only* string (`2026-01-01`) is **UTC
+/// midnight**, and any date-time carrying an offset or a `Z` is an absolute instant —
+/// neither depends on the host. A date-time *without* an offset (`2026-10-04T00:00:00`) is
+/// local, and V8's `YYYY-M-D` heuristic is local too; those resolve to the host's own wall
+/// clock, and their fields are the literal wherever they run, so shifting them would move
+/// the very day they exist to pin.
+bool _resolvedOutOfHostZone(String input) {
+  final String trimmed = input.trim();
+  return RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(trimmed) ||
+      RegExp(r'(?:Z|[+-]\d{2}:?\d{2})$').hasMatch(trimmed);
+}
+
+/// [ms] re-expressed so this host shows the wall clock the measurement zone showed.
+///
+/// The host's fields of the shifted instant are `ms + (measured − host) + host`, i.e.
+/// `ms + measured` — the measurement zone's fields — which is why the shift is exact rather
+/// than approximate. It is only exact while the host's offset is the same at both ends, so
+/// a host whose DST boundary falls inside the fixture's window fails loudly here instead of
+/// reporting a golden mismatch that is really a zone artefact.
+int _shiftToMeasuredZone(int ms) {
+  final Duration host = DateTime.fromMillisecondsSinceEpoch(ms).timeZoneOffset;
+  final int shifted = ms + (kMeasuredZone - host).inMilliseconds;
+  final Duration hostAtShifted = DateTime.fromMillisecondsSinceEpoch(shifted)
+      .timeZoneOffset;
+  if (hostAtShifted != host) {
+    throw StateError(
+      'Cannot replay $ms outside the host zone: the offset at the instant is '
+      '${host.inMinutes} min but at the replayed instant it is '
+      '${hostAtShifted.inMinutes} min — a DST boundary sits inside the fixture window.',
+    );
+  }
+  return shifted;
+}
+
+/// The epoch a fixture input denotes, ready to hand to the port on *this* machine.
+int replayMs(String input) {
+  final int? ms = jsDateToEpochMs(input);
+  if (ms == null) {
+    throw StateError('Fixture input is not a date the port can read: $input');
+  }
+  return _resolvedOutOfHostZone(input) ? _shiftToMeasuredZone(ms) : ms;
+}
+
 /// The **local** date regime, replayed against `parity/fixtures/dates-local.json`
 /// (78 cases measured from `src/utils.ts:22-83` at `Asia/Colombo`).
+///
+/// The replay is host-zone independent, which the previous version of this file was not.
+/// `localDayKey` reads the host's zone the way the browser reads the browser's, and the
+/// goldens are the *Colombo* readings of an absolute instant, so on CI's UTC runners
+/// `2026-10-04T18:30:00Z` came back as `2026-10-04` instead of the recorded
+/// `2026-10-05`. [replayMs] shifts each host-independent instant by the difference
+/// between the measurement zone and this host, so the host displays the wall clock the
+/// measurement saw and the goldens mean what they say anywhere — `Asia/Colombo`, UTC and
+/// the three CI zones alike. Naive date-times are deliberately *not* shifted: the host
+/// resolves them, on the web as here.
 ///
 /// Each group drives itself from the fixture's own case names rather than a list
 /// transcribed here, because a transcribed list silently shrinks: if `generate.ts`
@@ -22,6 +96,10 @@ void main() {
   final Set<String> consumed = <String>{};
 
   late final int pinnedMs;
+
+  /// The same instant before the zone shift — kept only so the replay can be checked
+  /// against an independent reading of the measurement zone below.
+  late final int rawPinnedMs;
 
   Object? expected(String name) {
     if (!expectedByName.containsKey(name)) {
@@ -60,7 +138,9 @@ void main() {
     if (prov['unitFile'] != 'src/utils.ts') {
       throw StateError('dates-local.json is not from src/utils.ts');
     }
-    pinnedMs = jsDateToEpochMs(prov['pinnedNow'])!;
+    _assertMeasuredZone(prov['tz']);
+    pinnedMs = replayMs(prov['pinnedNow']! as String);
+    rawPinnedMs = jsDateToEpochMs(prov['pinnedNow']! as String)!;
 
     for (final Object? raw in root['cases']! as List<Object?>) {
       final Map<String, Object?> entry = raw! as Map<String, Object?>;
@@ -112,13 +192,48 @@ void main() {
         continue;
       }
       test(name, () {
-        final int ms = jsDateToEpochMs(inputOf(name).single)!;
+        final int ms = replayMs(inputOf(name).single! as String);
         expect(
           localDayKey(DateTime.fromMillisecondsSinceEpoch(ms)),
           expected(name),
         );
       });
     }
+
+    test(
+      'the shift is the measurement zone, not a number that happens to fit',
+      () {
+        // A second, independent route to the same answer: read the instant off UTC and add
+        // +05:30, which is what a Colombo browser displays. It agrees with the shifted-host
+        // reading only if the shift is arithmetically right on this machine, so this test is
+        // what stops a future edit from making the replay pass by moving both sides together.
+        for (final String name in named('localDayKey(')) {
+          if (name == 'localDayKey(Invalid Date)') continue;
+          final String input = inputOf(name).single! as String;
+          if (!_resolvedOutOfHostZone(input)) continue;
+          final int raw = jsDateToEpochMs(input)!;
+          expect(
+            localDayKey(DateTime.fromMillisecondsSinceEpoch(replayMs(input))),
+            localDayKey(
+              DateTime.fromMillisecondsSinceEpoch(
+                raw,
+                isUtc: true,
+              ).add(kMeasuredZone),
+            ),
+            reason: name,
+          );
+        }
+        expect(
+          localDayKey(DateTime.fromMillisecondsSinceEpoch(pinnedMs)),
+          localDayKey(
+            DateTime.fromMillisecondsSinceEpoch(
+              rawPinnedMs,
+              isUtc: true,
+            ).add(kMeasuredZone),
+          ),
+        );
+      },
+    );
 
     test('todayLocal() at the pinned clock', () {
       expect(

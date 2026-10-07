@@ -960,8 +960,8 @@ changed anywhere in the batch** — checked case-by-case against `HEAD`: the dif
 self-describing (the clock and the reference day moved _into_ the input, so a replay cannot read a fixture's
 provenance by accident).
 
-The full mobile suite is **647 tests, all passing**; `flutter analyze --fatal-infos --fatal-warnings` clean;
-`dart format --set-exit-if-changed lib test` clean. The five units account for 155 of those 647:
+The full mobile suite is **648 tests, all passing**; `flutter analyze --fatal-infos --fatal-warnings` clean;
+`dart format --set-exit-if-changed lib test` clean. The five units account for 155 of those 648:
 `installments` 22, `alerts` 11, `csv` 22, `validators` 68, `display-interest` 32.
 
 `npx prettier --check .` — the web job's own Format check — still warns on **five files, every one of them
@@ -973,12 +973,41 @@ currently unreachable in CI anyway — `npm audit --audit-level=high` fails firs
 
 ### D30 is now executable, not a promise
 
-`.github/workflows/mobile-verify.yml` gained a `timezone` job: the `installments` and `alerts` suites re-run
+`.github/workflows/mobile-verify.yml` gained a `timezone` job: the clock-dependent suites — `installments`
+and `alerts` at first, five after the next section — re-run
 under `Asia/Colombo`, `America/New_York` and `Pacific/Kiritimati` (+14, the furthest ahead there is), with a
 pre-flight step that fails the job if the runner's ambient offset is `+0000` — a silently ignored `TZ` would
 otherwise replay the same zone three times and report three passes. It can only live in CI: the Dart VM on
 Windows ignores `TZ`, which is measured rather than assumed here (printing `timeZoneOffset` under an exported
 `TZ` on this workstation leaves it unchanged). The web-side half is `parity/fixtures/tz-proof.ts`.
+
+### The first thing CI found: a replay that read the runner's zone, not the fixture's
+
+`Mobile Parity CI` ran 645/647 green on `ubuntu-latest` and failed two cases, both in
+`test/data/dates_local_test.dart`: `localDayKey(2026-10-04T18:30:00Z)` returned `2026-10-04` where the
+golden says `2026-10-05`, and `localDayKey(2026-12-31T23:59:59Z)` returned `2026-12-31` against
+`2027-01-01`. Nothing about the port was wrong — `localDayKey` reads the device zone because that is the
+unit, and the goldens are the `Asia/Colombo` (+05:30) readings of absolute instants. The runner is UTC, so
+the replay compared a Colombo day key against a UTC one. Both cases straddle midnight only for a reader
+ahead of Greenwich by six hours or more, which is why this host passed it and CI did not.
+
+Fixed on the replay side, not in the port (rule 3 forbids moving the unit, and the app must keep reading the
+device zone): `replayMs` shifts each host-independent instant — date-only, or carrying a `Z` or an explicit
+offset — by `measured − host`, so the host displays the wall clock the measurement saw. Naive date-times are
+left alone, because V8 resolves those on the host and their fields are the literal everywhere.
+`_shiftToMeasuredZone` throws if the host offset differs between the instant and the shifted one (a DST
+boundary inside the fixture window), and a new test re-derives every shifted answer as `UTC + 05:30`, so the
+replay cannot be made to pass by moving both halves together. `kMeasuredZone` is a constant because Dart
+ships no tz database and `package:timezone` does not belong in a parity seam; `_assertMeasuredZone` reads
+`_provenance.tz` and refuses the replay if the fixture is ever measured in another zone.
+
+Proved before pushing, on a Node twin of the port across ten host zones: **78/78 with the shift in every
+one**, and 75–76/78 without it in `UTC`, `America/New_York`, `America/Santiago`, `America/Sao_Paulo`,
+`Europe/Dublin` and `Asia/Tehran`. `Pacific/Kiritimati` and `Pacific/Apia` pass unshifted — a zone far
+enough ahead never loses a day — which is the reason the UTC leg (the `validate` job) is load-bearing and a
++14 matrix leg is not sufficient. The `timezone` job now runs the five clock-touching suites
+(`installments`, `alerts`, `dates_local`, `transaction_service`, `state_storage`) instead of two, giving four
+legs per suite: `Asia/Colombo`, `America/New_York`, `Pacific/Kiritimati` and UTC. Suite total 647 → 648.
 
 ### Two findings this batch produced, and where they went
 
