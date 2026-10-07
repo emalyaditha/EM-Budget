@@ -38,6 +38,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { sha256File, srcTreeDigest } from './src-tree';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
@@ -56,6 +57,12 @@ const SENTINELS = ['NaN', 'Infinity', '-Infinity', '-0', 'undefined', 'undefined
 const git = (args: string[]): string => execFileSync('git', args, { cwd: REPO, encoding: 'utf8' }).trim();
 const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex');
 
+/** `src-tree.ts` is the one generator-side module this file may import: it has no `main()`,
+ *  no side effects and reads nothing but the tree, so sharing it cannot rewrite what we are
+ *  checking. Sharing the *digest* is the whole point — a validator that recomputed the stamp
+ *  by a second definition would silently disagree with the generator instead of catching drift. */
+const SRC_TREE_NOW = srcTreeDigest(REPO);
+
 // ---------------------------------------------------------------------------
 // schemas
 // ---------------------------------------------------------------------------
@@ -72,6 +79,7 @@ const provenanceSchema = z.object({
   unitFile: z.string().regex(SOURCE_PATH),
   gitBlob: z.string().regex(HEX40),
   sha256: z.string().regex(HEX64),
+  srcTree: z.string().regex(HEX64),
   tz: z.string().min(1),
   locale: z.string().min(1),
   node: z.string().min(1),
@@ -81,7 +89,7 @@ const provenanceSchema = z.object({
 
 /** Extra provenance keys are whitelisted rather than ignored: a misspelled
  *  `extracton` would otherwise be stripped and its absence unreported. */
-const ALLOWED_EXTRA_PROVENANCE = ['extraction'];
+const ALLOWED_EXTRA_PROVENANCE = ['extraction', 'harness'];
 
 const REQUIRED_CASE_KEYS = ['expected', 'input', 'name'];
 const nameSchema = z.string().min(1);
@@ -206,12 +214,13 @@ function calleeOf(name: string): string {
  * collision, and each entry names the task that clears it. A unit leaves this
  * map in the same commit that fixes its `measure(...)` calls — an entry with no
  * remaining collision is a stale exemption, so the map is checked for that too.
- * `net-worth` left this map in #62, which is what the stale check is for.
+ *
+ * Empty since #64: `net-worth` left it in #62 and `transaction-service` in #64,
+ * each time forced by the stale check rather than by goodwill. An empty map does
+ * not disable check 5 — with nothing to exempt, the next digest-recorded case is
+ * a hard failure, not a warning.
  */
-const PROJECTION_DEBT: Record<string, string> = {
-  'transaction-service':
-    'rows are built in the Dart suite, not recorded (#64 regenerates this unit alongside the App.tsx handler goldens)',
-};
+const PROJECTION_DEBT: Record<string, string> = {};
 
 function checkDeterminism(cases: Array<{ name: string; input: unknown; expected: unknown }>): string[] {
   const byGroup = new Map<string, Map<string, Array<{ name: string; expected: string }>>>();
@@ -334,9 +343,27 @@ function validateUnit(spec: SpecUnit, fixturesDir: string, tagCommit: string): U
     );
   }
   if (workBlob) {
-    const digest = sha256(readFileSync(path.join(REPO, p.unitFile)));
+    const digest = sha256File(REPO, p.unitFile);
     if (digest !== p.sha256)
-      errors.push(`_provenance.sha256 ${p.sha256} != sha256 of the working-tree file (${digest})`);
+      errors.push(`_provenance.sha256 ${p.sha256} != content sha256 of the working-tree file (${digest})`);
+  }
+
+  // --- the tree, not just the file ---
+  // A unit's own blob proves `net-worth.json` was measured against the current `utils.ts`.
+  // It says nothing about the `money.ts` that `utils.ts` calls, so that golden could keep
+  // passing against arithmetic that no longer exists. This is the check that closes it, and
+  // it is the reason a change anywhere in `src/` invalidates every fixture at once.
+  if (p.srcTree !== SRC_TREE_NOW) {
+    const drifted = git(['diff', '--name-only', TAG, '--', 'src']).split('\n').filter(Boolean);
+    errors.push(
+      drifted.length > 0
+        ? `STALE AGAINST THE src/ TREE: this golden was measured against src-tree ${p.srcTree}, the tree now hashes to ` +
+            `${SRC_TREE_NOW}. ${drifted.length} file(s) under src/ differ from ${TAG}: ${drifted.join(', ')}. ` +
+            `Restore the tree or regenerate — every fixture, not only the units whose own file moved.`
+        : `STALE AGAINST THE src/ TREE: this golden was measured against src-tree ${p.srcTree}, but the working tree's src/ ` +
+            `hashes to ${SRC_TREE_NOW} while matching ${TAG}. The tree did not move under the fixture, so the stamp or the ` +
+            `covered-file set did — check src-tree.ts before believing either side.`,
+    );
   }
 
   // --- the extracted snippet, when a unit is measured by extraction ---
@@ -353,6 +380,47 @@ function validateUnit(spec: SpecUnit, fixturesDir: string, tagCommit: string): U
       }
       if (sha256(ex.extractedSource) !== ex.sha256OfExtractedSource) {
         errors.push('_provenance.extraction.sha256OfExtractedSource does not match the recorded source');
+      }
+    }
+  }
+
+  // --- the live-UI harness, when a golden was measured through the real app ---
+  // A fixture like this one is not a pure-function call: it describes a browser
+  // session that started from a specific seeded ledger. If that seed changes, the
+  // goldens describe an app that no longer exists, so the digest is re-derived
+  // here rather than trusted.
+  const hasHarness = 'harness' in (root.data._provenance as object);
+  // The app-handlers golden is a browser measurement, not a call: without the
+  // harness block the file is an unlabelled list of state diffs.
+  if (spec.unit === 'app-handlers' && !hasHarness) {
+    errors.push('_provenance.harness is required for "app-handlers"');
+  }
+  if (hasHarness) {
+    const h = (root.data._provenance as Record<string, unknown>).harness as Record<string, unknown>;
+    const hKeys = ['clock', 'cloud', 'ids', 'seed', 'surface'];
+    const gotH = Object.keys(h).sort();
+    if (JSON.stringify(gotH) !== JSON.stringify(hKeys)) {
+      errors.push(`_provenance.harness keys ${JSON.stringify(gotH)} != ${JSON.stringify(hKeys)}`);
+    } else {
+      for (const k of ['clock', 'cloud', 'ids', 'surface']) {
+        if (typeof h[k] !== 'string' || (h[k] as string).length === 0) {
+          errors.push(`_provenance.harness.${k} must be a non-empty string describing the harness`);
+        }
+      }
+      if (typeof h.seed !== 'string' || !HEX64.test(h.seed)) {
+        errors.push('_provenance.harness.seed must be a lowercase sha256 hex digest');
+      } else {
+        const seedPath = 'parity/live/seed-state.json';
+        try {
+          const digest = sha256File(REPO, seedPath);
+          if (digest !== h.seed) {
+            errors.push(
+              `SOURCE DRIFT: working-tree ${seedPath} is sha256 ${digest} but the golden was measured from ${h.seed}. Re-run the harness.`,
+            );
+          }
+        } catch {
+          errors.push(`${seedPath} is missing from the working tree, so this golden cannot be reproduced`);
+        }
       }
     }
   }

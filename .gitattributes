@@ -1,5 +1,8 @@
 # The measured goldens are compared byte-for-byte across machines (Windows dev box,
 # Linux CI) and read by both Node and Dart, so they are stored and checked out with LF
-# even though this repo's core.autocrlf is true. Nothing else is listed here: web-app
-# source keeps the repo's existing autocrlf behaviour, deliberately unchanged.
+# even though this repo's core.autocrlf is true. Since the #64 gate the whole parity/
+# tree shares that rule, because harness specs and live fixtures are re-run byte-wise
+# too; web-app source keeps the repo's existing autocrlf behaviour, deliberately
+# unchanged — no other path is listed here.
 parity/fixtures/*.json text eol=lf
+parity/** text eol=lf

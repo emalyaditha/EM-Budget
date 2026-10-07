@@ -32,7 +32,8 @@ Naming: `parity/fixtures/<unit>.json` for each `unit` below.
 | 11  | `validators`          | `src/validators/index.ts`                 | Zod accept/reject tables                                          | 16      |
 | 12  | `display-interest`    | `src/components/CreditCardManagement.tsx` | the **unrounded** UI interest, `:67-71` (B-03)                    | 10      |
 | 13  | `number-locale`       | `src/lib/money.ts`                        | `formatMoney` under ten explicit locales + the LKR baseline block | 335     |
-|     |                       |                                           | **total**                                                         | **613** |
+| 14  | `app-handlers`        | `src/App.tsx`                             | handler-level money math, recorded through the live UI (R7)       | 16      |
+|     |                       |                                           | **total**                                                         | **629** |
 
 ### Fixture envelope (all files)
 
@@ -43,7 +44,8 @@ Naming: `parity/fixtures/<unit>.json` for each `unit` below.
     "sourceCommit": "<sha of pre-flutter at generation time>",
     "unitFile": "src/lib/money.ts",
     "gitBlob": "<git blob id of that file>",
-    "sha256": "<sha256 of file bytes>",
+    "sha256": "<sha256 of that file's content, CRLF folded to LF>",
+    "srcTree": "<sha256 digest of the whole src/ tree it was measured against>",
     "tz": "<IANA zone the generator ran in>",
     "locale": "<resolved default locale>",
     "node": "<process.version>"
@@ -51,6 +53,13 @@ Naming: `parity/fixtures/<unit>.json` for each `unit` below.
   "cases": [ { "name": "...", "input": ..., "expected": ... } ]
 }
 ```
+
+`gitBlob` and `sha256` are the **file** drift checks: they prove the unit under measurement has not moved.
+`srcTree` (D35) is the **tree** check, because a unit imports other units: `net-worth.json` measures
+`src/utils.ts`, which calls into `src/lib/money.ts`, and a change to that arithmetic must not leave
+`net-worth.json` passing. Both are re-derived by `validate.ts` from the working copy and the `pre-flutter`
+tag; nothing in a provenance block is trusted. Content — not bytes on disk — is what is hashed, so the
+digest survives a CRLF checkout; see the header of `parity/fixtures/src-tree.ts`.
 
 `expected` is **always** the value the original code returned. Never typed by hand. JSON cannot hold
 `NaN`, `±Infinity`, `-0` or `undefined`, and a sentinel _string_ would be indistinguishable from real

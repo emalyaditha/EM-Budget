@@ -24,6 +24,7 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, readdirSync
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformSync } from 'esbuild';
+import { normalizeEol, srcTreeDigest } from './src-tree';
 
 // ---------------------------------------------------------------------------
 // imports of the code under measurement (never copies of it)
@@ -92,6 +93,11 @@ import {
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
 const OUT = HERE;
+
+/** The whole `src/` tree these goldens describe, not only each unit's own file (see
+ *  `src-tree.ts`). Taken once per run, so every fixture written by this generator carries the
+ *  same stamp, and `validate.ts` fails any one of them whose tree has since moved. */
+const SRC_TREE = srcTreeDigest(REPO);
 
 const TAG = 'pre-flutter';
 
@@ -164,11 +170,13 @@ function resolveProvenance(): Record<string, { commit: string; file: string; git
       continue;
     }
     const actualBlob = git(['hash-object', rel]);
-    // git hash-object applies text conversion, so compare normalised bytes too.
     if (actualBlob !== expectedBlob) {
       drift.push(`${unit}: ${rel} blob ${actualBlob} != ${TAG} blob ${expectedBlob}`);
     }
-    out[unit] = { commit, file: rel, gitBlob: expectedBlob, sha256: sha256(bytes) };
+    // Content, not bytes on disk: `core.autocrlf` is true and only the fixture JSONs are
+    // pinned to LF, so a working copy may hold CRLF for a file the tag recorded as LF.
+    // See the header of `src-tree.ts`.
+    out[unit] = { commit, file: rel, gitBlob: expectedBlob, sha256: sha256(normalizeEol(bytes)) };
   }
 
   if (drift.length) {
@@ -277,6 +285,7 @@ function write(
       unitFile: p.file,
       gitBlob: p.gitBlob,
       sha256: p.sha256,
+      srcTree: SRC_TREE,
       tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
       locale: Intl.NumberFormat().resolvedOptions().locale,
       node: process.version,
@@ -1549,45 +1558,52 @@ function unitTransactionService(prov: ReturnType<typeof resolveProvenance>): voi
     }),
   ] as never[];
 
+  // The recorded input is the call's real argument list, `rows` included: a filter
+  // whose rows are rebuilt inside the Dart suite is a second copy of this generator,
+  // not a replay of it. `#64` cleared the last three `PROJECTION_DEBT` entries this
+  // block used to carry.
   for (const q of ['', 'salar', 'SALARY', '185', '1E', 'zzz', ' '])
     c.push(
-      measure(`getFilteredTransactions(search=${JSON.stringify(q)})`, [q], () =>
+      measure(`getFilteredTransactions(search=${JSON.stringify(q)})`, [rows, q], () =>
         transactionService.getFilteredTransactions(rows, q),
       ),
     );
   c.push(
-    measure('getFilteredTransactions(category exact case)', ['shopping'], () =>
+    measure('getFilteredTransactions(category exact case)', [rows, '', 'shopping'], () =>
       transactionService.getFilteredTransactions(rows, '', 'shopping'),
     ),
   );
   c.push(
-    measure('getFilteredTransactions(category correct case)', ['Shopping'], () =>
+    measure('getFilteredTransactions(category correct case)', [rows, '', 'Shopping'], () =>
       transactionService.getFilteredTransactions(rows, '', 'Shopping'),
     ),
   );
   c.push(
-    measure('getFilteredTransactions(type=expense)', ['all', 'expense'], () =>
+    measure('getFilteredTransactions(type=expense)', [rows, '', 'all', 'expense'], () =>
       transactionService.getFilteredTransactions(rows, '', 'all', 'expense'),
     ),
   );
   c.push(
-    measure('getFilteredTransactions(account=targetAccountId)', ['cc-1'], () =>
+    measure('getFilteredTransactions(account=targetAccountId)', [rows, '', 'all', 'all', 'cc-1'], () =>
       transactionService.getFilteredTransactions(rows, '', 'all', 'all', 'cc-1'),
     ),
   );
   c.push(
-    measure('getFilteredTransactions(account=targetAccountId of transfer)', ['ca-2'], () =>
+    measure('getFilteredTransactions(account=targetAccountId of transfer)', [rows, '', 'all', 'all', 'ca-2'], () =>
       transactionService.getFilteredTransactions(rows, '', 'all', 'all', 'ca-2'),
     ),
   );
+  // Both built once, so what is recorded is what was called.
+  const noTitle = [tx({ title: undefined })] as never[];
+  const noCategory = [tx({ category: undefined })] as never[];
   c.push(
-    measure('getFilteredTransactions(row missing title -> throws)', [], () =>
-      transactionService.getFilteredTransactions([tx({ title: undefined })] as never),
+    measure('getFilteredTransactions(row missing title -> throws)', [noTitle], () =>
+      transactionService.getFilteredTransactions(noTitle),
     ),
   );
   c.push(
-    measure('getFilteredTransactions(row missing category -> throws)', [], () =>
-      transactionService.getFilteredTransactions([tx({ category: undefined })] as never),
+    measure('getFilteredTransactions(row missing category -> throws)', [noCategory], () =>
+      transactionService.getFilteredTransactions(noCategory),
     ),
   );
 
@@ -1601,35 +1617,33 @@ function unitTransactionService(prov: ReturnType<typeof resolveProvenance>): voi
     tx({ id: 'z2', date: '2026-10-02', updated_at: undefined, createdAt: undefined, date: undefined as never }),
     tx({ id: 'b1', date: '2026-10-05' }),
   ] as never[];
+  const prefersUpdatedAt = [
+    tx({ id: 'p1', date: '2026-01-01', updated_at: '2026-12-01T00:00:00Z' }),
+    tx({ id: 'p2', date: '2026-06-01' }),
+  ] as never[];
+  const camelCaseStamps = [
+    tx({ id: 'c1', date: '2026-01-01', updatedAt: '2026-12-01T00:00:00Z' }),
+    tx({ id: 'c2', date: '2026-06-01' }),
+  ] as never[];
   c.push(
-    measure('sortTransactionsByDate(desc) 4-level tiebreak', [], () =>
+    measure('sortTransactionsByDate(desc) 4-level tiebreak', [sortRows], () =>
       transactionService.sortTransactionsByDate(sortRows).map((t) => t.id),
     ),
   );
   c.push(
-    measure('sortTransactionsByDate(asc) 4-level tiebreak', [], () =>
+    measure('sortTransactionsByDate(asc) 4-level tiebreak', [sortRows, 'asc'], () =>
       transactionService.sortTransactionsByDate(sortRows, 'asc').map((t) => t.id),
     ),
   );
   c.push(measure('sortTransactionsByDate(empty)', [[]], () => transactionService.sortTransactionsByDate([])));
   c.push(
-    measure('sortTransactionsByDate(prefers updated_at over date)', [], () =>
-      transactionService
-        .sortTransactionsByDate([
-          tx({ id: 'p1', date: '2026-01-01', updated_at: '2026-12-01T00:00:00Z' }),
-          tx({ id: 'p2', date: '2026-06-01' }),
-        ] as never)
-        .map((t) => t.id),
+    measure('sortTransactionsByDate(prefers updated_at over date)', [prefersUpdatedAt], () =>
+      transactionService.sortTransactionsByDate(prefersUpdatedAt).map((t) => t.id),
     ),
   );
   c.push(
-    measure('sortTransactionsByDate(camelCase keys honoured)', [], () =>
-      transactionService
-        .sortTransactionsByDate([
-          tx({ id: 'c1', date: '2026-01-01', updatedAt: '2026-12-01T00:00:00Z' }),
-          tx({ id: 'c2', date: '2026-06-01' }),
-        ] as never)
-        .map((t) => t.id),
+    measure('sortTransactionsByDate(camelCase keys honoured)', [camelCaseStamps], () =>
+      transactionService.sortTransactionsByDate(camelCaseStamps).map((t) => t.id),
     ),
   );
 
@@ -1643,45 +1657,43 @@ function unitTransactionService(prov: ReturnType<typeof resolveProvenance>): voi
     ['debt_payment', 'debt_payment (excluded from both)'],
     ['transfer', 'transfer (excluded from both)'],
     ['financing', 'financing (excluded from both)'],
-  ] as Array<[string, string]>)
-    c.push(
-      measure(`getMonthlyTotals(${name})`, [type], () =>
-        transactionService.getMonthlyTotals([
-          tx({ type: type as never, amount: 0.1, date: '2026-10-02' }),
-          tx({ type: type as never, amount: 0.2, id: 'm2', date: '2026-10-03' }),
-        ] as never),
-      ),
-    );
+  ] as Array<[string, string]>) {
+    const pair = [
+      tx({ type: type as never, amount: 0.1, date: '2026-10-02' }),
+      tx({ type: type as never, amount: 0.2, id: 'm2', date: '2026-10-03' }),
+    ] as never[];
+    c.push(measure(`getMonthlyTotals(${name})`, [pair], () => transactionService.getMonthlyTotals(pair)));
+  }
   c.push(measure('getMonthlyTotals(empty)', [[]], () => transactionService.getMonthlyTotals([])));
+  const floatResidue = [
+    tx({ type: 'income', amount: 0.1, date: '2026-10-02' }),
+    tx({ type: 'income', amount: 0.2, id: 'f2', date: '2026-10-03' }),
+    tx({ type: 'income', amount: 0.3, id: 'f3', date: '2026-10-04' }),
+  ] as never[];
   c.push(
-    measure('getMonthlyTotals(float residue survives (B-04))', [], () =>
-      transactionService.getMonthlyTotals([
-        tx({ type: 'income', amount: 0.1, date: '2026-10-02' }),
-        tx({ type: 'income', amount: 0.2, id: 'f2', date: '2026-10-03' }),
-        tx({ type: 'income', amount: 0.3, id: 'f3', date: '2026-10-04' }),
-      ] as never),
+    measure('getMonthlyTotals(float residue survives (B-04))', [floatResidue], () =>
+      transactionService.getMonthlyTotals(floatResidue),
     ),
   );
+  const stringAmount = [tx({ type: 'income', amount: '5' as never, date: '2026-10-02' })] as never[];
+  const crossCheckRows = [
+    tx({ type: 'income', amount: 0.1, date: '2026-10-02' }),
+    tx({ type: 'income', amount: 0.2, id: 'x2', date: '2026-10-03' }),
+  ] as never[];
   c.push(
-    measure('getMonthlyTotals(string amount concatenates)', [], () =>
-      transactionService.getMonthlyTotals([tx({ type: 'income', amount: '5' as never, date: '2026-10-02' })] as never),
+    measure('getMonthlyTotals(string amount concatenates)', [stringAmount], () =>
+      transactionService.getMonthlyTotals(stringAmount),
     ),
   );
-  for (const d of ['2026-10-01', '2026-09-30', '2026-10-31', '2026-11-01', '2026-01-01', '2025-10-04', 'garbage', ''])
-    c.push(
-      measure(`getMonthlyTotals(date ${d || 'empty'})`, [d], () =>
-        transactionService.getMonthlyTotals([tx({ type: 'income', amount: 100, date: d })] as never),
-      ),
-    );
+  for (const d of ['2026-10-01', '2026-09-30', '2026-10-31', '2026-11-01', '2026-01-01', '2025-10-04', 'garbage', '']) {
+    const one = [tx({ type: 'income', amount: 100, date: d })] as never[];
+    c.push(measure(`getMonthlyTotals(date ${d || 'empty'})`, [one], () => transactionService.getMonthlyTotals(one)));
+  }
   c.push(
-    measure('getMonthlyTotals vs money.ts sumMoney of the same rows', [], () => {
-      const list = [
-        tx({ type: 'income', amount: 0.1, date: '2026-10-02' }),
-        tx({ type: 'income', amount: 0.2, id: 'x2', date: '2026-10-03' }),
-      ] as never[];
+    measure('getMonthlyTotals vs money.ts sumMoney of the same rows', [crossCheckRows], () => {
       return {
-        service: transactionService.getMonthlyTotals(list).income,
-        viaMoney: sumMoney(list.map((t) => t.amount)),
+        service: transactionService.getMonthlyTotals(crossCheckRows).income,
+        viaMoney: sumMoney(crossCheckRows.map((t) => t.amount)),
       };
     }),
   );
@@ -2110,6 +2122,7 @@ function writeWithExtra(
       unitFile: p.file,
       gitBlob: p.gitBlob,
       sha256: p.sha256,
+      srcTree: SRC_TREE,
       tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
       locale: Intl.NumberFormat().resolvedOptions().locale,
       node: process.version,
