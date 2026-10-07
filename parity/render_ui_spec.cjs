@@ -1090,7 +1090,12 @@ put(
   '',
 );
 put('---', '');
-put(`Rendered by \`parity/render_ui_spec.cjs\` from \`parity/ui-tokens.json\` at ${new Date().toISOString()}.`);
+put(`Rendered by \`parity/render_ui_spec.cjs\` from \`parity/ui-tokens.json\` at tag \`${TAG}\` (${commitSha}).`, '');
+put(
+  'No render timestamp is stamped here: rendering the same measurement file twice must produce the ' +
+    'same bytes, so a dirty `UI_SPEC.md` always means the inputs changed (D33).',
+  '',
+);
 
 // Prettier formats the output on the way to disk. Its config is resolved from the
 // repo rather than hardcoded, so `npm run format:check` sees exactly these bytes.

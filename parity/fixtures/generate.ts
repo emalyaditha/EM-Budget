@@ -83,6 +83,7 @@ import {
   TransactionSchema,
   DebtSchema,
   SubscriptionSchema,
+  BareRestoreStateSchema,
   LedgerExportV1Schema,
   LedgerRestorePayloadSchema,
   validateData,
@@ -280,7 +281,6 @@ function write(
       locale: Intl.NumberFormat().resolvedOptions().locale,
       node: process.version,
       pinnedNow: PINNED_UTC,
-      generatedAt: new REAL_DATE().toISOString(),
       sentinelAlphabet: SENTINELS,
     },
     cases,
@@ -576,14 +576,49 @@ function assertCopyMatchesOriginal(): void {
   }
 }
 
-const NUMBER_LOCALES = ['en-US', 'en-IN', 'de-DE', 'fr-FR', 'hi-IN', 'ar-EG', 'cs-CZ', 'bn-BD'];
+const NUMBER_LOCALES = [
+  'en-US',
+  'en-IN',
+  'de-DE',
+  'fr-FR',
+  'hi-IN',
+  'ar-EG',
+  'cs-CZ',
+  'bn-BD',
+  // The product's own two: `en-LK` and `si-LK` are the locales a Sri Lankan user's
+  // phone actually reports. Ruled at the Phase-4 gate (INVENTORY §13h D25): the app
+  // formats in the device locale, so the locales its users see have to be measured,
+  // not assumed. `Rs.` is the symbol the web's own CSV exporters default to
+  // (`src/utils.ts:348`); the currency the *screens* render in comes from state.
+  'en-LK',
+  'si-LK',
+];
 
 /** Amounts chosen for what each one exercises: `1250000` is the lakh grouping,
  *  `1234567.891` the three-group case, `1e21` expansion past exponential notation,
  *  `1e-7` the zero-digit rounding, `0.015`/`1.005` the shortest-decimal tie, `-2.5` the
  *  negative shape, and `-0` the sign `Intl` keeps but `toFixed` drops. */
-const NUMBER_LOCALE_AMOUNTS = [
-  0, -0, 0.015, 1.005, 2.5, -2.5, 999.9999, 125000.0049, 1234567.891, 1250000, 1e21, 1e-7,
+const NUMBER_LOCALE_AMOUNTS = [0, -0, 0.015, 1.005, 2.5, -2.5, 999.9999, 125000.0049, 1234567.891, 1250000, 1e21, 1e-7];
+
+/** The baseline block: the same figures the web renders in `parity/screenshots/web/`,
+ *  measured so that "what the phone prints for an LKR amount" is checked against what
+ *  the browser printed for it, rather than against a guess.
+ *
+ *  `LKR` is the seeded state's `currency` (`qa-shot.cjs:320`), so it is the symbol in
+ *  every one of the 48 PNGs. The first four amounts are read off
+ *  `web/light/390/overviewhub.png` — available balance `750,500`, the ▲ delta
+ *  `LKR488,820`, `Net worth LKR2,588,660`, `SPENT · TODAY LKR13,680` — and are produced
+ *  by `formatMoney(currency, x, { maxFractionDigits: 0 })` at
+ *  `src/components/dashboard/DashboardHero.tsx:194-228`. The rest are the money literals
+ *  the harness seeds (`qa-shot.cjs:121-283`), which reach the other tabs' rows.
+ *
+ *  Three locales, not ten: `en-US` is the Chromium default this harness shot under (no
+ *  `locale` is passed to `newContext`, so the browser inherits the OS), and `en-LK` /
+ *  `si-LK` are the tags a Sri Lankan phone reports. If those three agree, the screenshot
+ *  and the phone agree whatever the device language. */
+const NUMBER_LOCALE_BASELINE_LOCALES = ['en-US', 'en-LK', 'si-LK'];
+const NUMBER_LOCALE_BASELINE_AMOUNTS = [
+  750500, 488820, 2588660, 13680, 265000, 145000, 900000, 612500, 2899, 2399, 11400, 7200, 25000, 50000, 30000,
 ];
 
 function unitNumberLocale(prov: ReturnType<typeof resolveProvenance>): void {
@@ -592,10 +627,8 @@ function unitNumberLocale(prov: ReturnType<typeof resolveProvenance>): void {
   for (const tag of NUMBER_LOCALES) {
     for (const amt of NUMBER_LOCALE_AMOUNTS) {
       c.push(
-        measure(
-          `formatMoneyIn("${tag}",'Rs.',${fmt(amt)})`,
-          [tag, 'Rs.', amt, {}],
-          () => formatMoneyIn(tag, 'Rs.', amt),
+        measure(`formatMoneyIn("${tag}",'Rs.',${fmt(amt)})`, [tag, 'Rs.', amt, {}], () =>
+          formatMoneyIn(tag, 'Rs.', amt),
         ),
       );
       c.push(
@@ -608,20 +641,25 @@ function unitNumberLocale(prov: ReturnType<typeof resolveProvenance>): void {
     }
     for (const amt of [1234567.891, 0.015, 1250000, -2.5]) {
       c.push(
-        measure(
-          `formatMoneyIn("${tag}",'Rs.',${fmt(amt)},0dp)`,
-          [tag, 'Rs.', amt, { maxFractionDigits: 0 }],
-          () => formatMoneyIn(tag, 'Rs.', amt, { maxFractionDigits: 0 }),
+        measure(`formatMoneyIn("${tag}",'Rs.',${fmt(amt)},0dp)`, [tag, 'Rs.', amt, { maxFractionDigits: 0 }], () =>
+          formatMoneyIn(tag, 'Rs.', amt, { maxFractionDigits: 0 }),
         ),
       );
     }
     c.push(
-      measure(
-        `formatMoneyIn("${tag}",'',1234567.891)`,
-        [tag, '', 1234567.891, {}],
-        () => formatMoneyIn(tag, '', 1234567.891),
+      measure(`formatMoneyIn("${tag}",'',1234567.891)`, [tag, '', 1234567.891, {}], () =>
+        formatMoneyIn(tag, '', 1234567.891),
       ),
     );
+  }
+  for (const tag of NUMBER_LOCALE_BASELINE_LOCALES) {
+    for (const amt of NUMBER_LOCALE_BASELINE_AMOUNTS) {
+      c.push(
+        measure(`baseline("${tag}",'LKR',${fmt(amt)})`, [tag, 'LKR', amt, { maxFractionDigits: 0 }], () =>
+          formatMoneyIn(tag, 'LKR', amt, { maxFractionDigits: 0 }),
+        ),
+      );
+    }
   }
   write('number-locale', prov, c);
 }
@@ -1005,7 +1043,13 @@ function unitInstallments(prov: ReturnType<typeof resolveProvenance>): void {
     [creditCard({ limit: undefined }), 6000, 'no limit set'],
     [creditCard({ currentBalance: 0, limit: 250000 }), 250000, 'full available'],
   ] as Array<[never, number, string]>)
-    c.push(measure(`isCardEligibleForInstallment(${name})`, [amt], () => isCardEligibleForInstallment(card, amt)));
+    // The card travels in `input`, not only in the case name: the gate is a function
+    // of eight fields and a name like `over limit` cannot be replayed by a port that
+    // has to build the object itself. `limit: undefined` survives as an absent key,
+    // which is what the web's `card.limit || 0` actually sees.
+    c.push(
+      measure(`isCardEligibleForInstallment(${name})`, [card, amt], () => isCardEligibleForInstallment(card, amt)),
+    );
 
   const sched = generateInstallmentSchedule('inst-1', 1000, 3, '2026-01-15');
   for (const [mutate, name] of [
@@ -1027,43 +1071,43 @@ function unitInstallments(prov: ReturnType<typeof resolveProvenance>): void {
       ],
       'foreign installment row included',
     ],
-  ] as Array<[(p: unknown[]) => unknown[], string]>)
+  ] as Array<[(p: unknown[]) => unknown[], string]>) {
+    const rows = mutate(sched);
     c.push(
-      measure(`getInstallmentProgress(${name})`, [name], () =>
-        getInstallmentProgress({ id: 'inst-1' } as never, mutate(sched) as never),
+      measure(`getInstallmentProgress(${name})`, [{ id: 'inst-1' }, rows], () =>
+        getInstallmentProgress({ id: 'inst-1' } as never, rows as never),
       ),
     );
+  }
+  const midList = [
+    {
+      installmentId: 'inst-1',
+      paymentNumber: 2,
+      amountDue: 1000,
+      amountPaid: 1000,
+      dueDate: '2026-03-15',
+      status: 'paid',
+    },
+    {
+      installmentId: 'inst-1',
+      paymentNumber: 1,
+      amountDue: 1000,
+      amountPaid: 0,
+      dueDate: '2026-02-15',
+      status: 'pending',
+    },
+    {
+      installmentId: 'inst-1',
+      paymentNumber: 3,
+      amountDue: 1000,
+      amountPaid: 0,
+      dueDate: '2026-04-15',
+      status: 'pending',
+    },
+  ];
   c.push(
-    measure('getInstallmentProgress(partially paid mid-list)', [], () =>
-      getInstallmentProgress(
-        { id: 'inst-1' } as never,
-        [
-          {
-            installmentId: 'inst-1',
-            paymentNumber: 2,
-            amountDue: 1000,
-            amountPaid: 1000,
-            dueDate: '2026-03-15',
-            status: 'paid',
-          },
-          {
-            installmentId: 'inst-1',
-            paymentNumber: 1,
-            amountDue: 1000,
-            amountPaid: 0,
-            dueDate: '2026-02-15',
-            status: 'pending',
-          },
-          {
-            installmentId: 'inst-1',
-            paymentNumber: 3,
-            amountDue: 1000,
-            amountPaid: 0,
-            dueDate: '2026-04-15',
-            status: 'pending',
-          },
-        ] as never,
-      ),
+    measure('getInstallmentProgress(partially paid mid-list)', [{ id: 'inst-1' }, midList], () =>
+      getInstallmentProgress({ id: 'inst-1' } as never, midList as never),
     ),
   );
 
@@ -1285,6 +1329,10 @@ function unitAlerts(prov: ReturnType<typeof resolveProvenance>): void {
   c.push(measure('BUDGET_WARN_AT', [], () => BUDGET_WARN_AT));
   const now = PINNED_NOW;
 
+  // `daysRemaining`'s second argument defaults to `Date.now()`, which is the one thing
+  // about this unit that is not a pure function of its arguments. The pinned clock is
+  // what makes it reproducible, and the ms value is written into `input` beside the date
+  // so a replay reads the reference day off the fixture rather than off this file.
   for (const d of [
     '2026-10-04',
     '2026-10-05',
@@ -1297,9 +1345,9 @@ function unitAlerts(prov: ReturnType<typeof resolveProvenance>): void {
     '2026-13-99',
     'garbage',
   ])
-    c.push(measure(`daysRemaining(${d})`, [d], () => daysRemaining(d, now)));
+    c.push(measure(`daysRemaining(${d})`, [d, now], () => daysRemaining(d, now)));
   for (const d of ['2026-10-04T18:30:00Z', '2026-10-04T00:00:00'])
-    c.push(measure(`daysRemaining(timestamp ${d})`, [d], () => daysRemaining(d, now)));
+    c.push(measure(`daysRemaining(timestamp ${d})`, [d, now], () => daysRemaining(d, now)));
 
   const state = (over: Record<string, unknown> = {}) =>
     ({
@@ -1312,6 +1360,15 @@ function unitAlerts(prov: ReturnType<typeof resolveProvenance>): void {
       ...over,
     }) as never;
 
+  /** One `computeAlerts` call, recorded with the **state and reference day that produced
+   *  it** rather than a scenario label. A label made the golden replayable only by
+   *  transcribing this function's literals into the Dart test, which is the failure mode
+   *  that got `installments.json` rebuilt: the fixture has to be the contract. */
+  const alertCase = (name: string, over: Record<string, unknown> = {}) => {
+    const s = state(over);
+    c.push(measure(`computeAlerts(${name})`, [s, now], () => computeAlerts(s, now)));
+  };
+
   for (const [spent, limit, name] of [
     [799, 1000, 'just under warn'],
     [800, 1000, 'exactly 0.8'],
@@ -1320,27 +1377,16 @@ function unitAlerts(prov: ReturnType<typeof resolveProvenance>): void {
     [1500, 1000, '150%'],
     [10000, 1000, '1000%'],
   ] as Array<[number, number, string]>)
-    c.push(
-      measure(`computeAlerts(budget ${name})`, [name], () =>
-        computeAlerts(
-          state({
-            budgets: [{ id: 'b1', category: 'Shopping', limit, spent: 0 }],
-            transactions: [tx({ type: 'expense', category: 'Shopping', amount: spent, date: '2026-10-02' })],
-          }),
-          now,
-        ),
-      ),
-    );
-  c.push(
-    measure('computeAlerts(budget limit 0 -> skipped)', [], () =>
-      computeAlerts(state({ budgets: [{ id: 'b1', category: 'Shopping', limit: 0, spent: 500 }] }), now),
-    ),
-  );
-  c.push(
-    measure('computeAlerts(budget negative limit)', [], () =>
-      computeAlerts(state({ budgets: [{ id: 'b1', category: 'Shopping', limit: -100, spent: 500 }] }), now),
-    ),
-  );
+    alertCase(`budget ${name}`, {
+      budgets: [{ id: 'b1', category: 'Shopping', limit, spent: 0 }],
+      transactions: [tx({ type: 'expense', category: 'Shopping', amount: spent, date: '2026-10-02' })],
+    });
+  alertCase('budget limit 0 -> skipped', {
+    budgets: [{ id: 'b1', category: 'Shopping', limit: 0, spent: 500 }],
+  });
+  alertCase('budget negative limit', {
+    budgets: [{ id: 'b1', category: 'Shopping', limit: -100, spent: 500 }],
+  });
 
   for (const [due, status, name] of [
     ['2026-10-04', 'Active', 'due today'],
@@ -1350,26 +1396,19 @@ function unitAlerts(prov: ReturnType<typeof resolveProvenance>): void {
     ['2026-10-05', 'Paused', 'paused -> none'],
     ['', 'Active', 'no dueDate -> none'],
   ] as Array<[string, string, string]>)
-    c.push(
-      measure(`computeAlerts(bill ${name})`, [name], () =>
-        computeAlerts(
-          state({
-            subscriptions: [
-              {
-                id: 's1',
-                name: 'Netflix',
-                amount: 1500,
-                status,
-                dueDate: due,
-                billingCycle: 'Monthly',
-                category: 'Entertainment',
-              },
-            ],
-          }),
-          now,
-        ),
-      ),
-    );
+    alertCase(`bill ${name}`, {
+      subscriptions: [
+        {
+          id: 's1',
+          name: 'Netflix',
+          amount: 1500,
+          status,
+          dueDate: due,
+          billingCycle: 'Monthly',
+          category: 'Entertainment',
+        },
+      ],
+    });
 
   for (const [due, status, remaining, name] of [
     ['2026-10-04', 'Active', 5000, 'debt due today'],
@@ -1377,14 +1416,9 @@ function unitAlerts(prov: ReturnType<typeof resolveProvenance>): void {
     ['2026-10-05', 'Fully Repaid', 5000, 'fully repaid -> none'],
     ['2026-10-05', 'Active', 0, 'remaining 0 -> none'],
   ] as Array<[string, string, number, string]>)
-    c.push(
-      measure(`computeAlerts(${name})`, [name], () =>
-        computeAlerts(
-          state({ debts: [{ id: 'd1', debtSource: 'Bank', dueDate: due, status, remainingAmount: remaining }] }),
-          now,
-        ),
-      ),
-    );
+    alertCase(name, {
+      debts: [{ id: 'd1', debtSource: 'Bank', dueDate: due, status, remainingAmount: remaining }],
+    });
 
   for (const [targetDate, current, target, name] of [
     ['2026-10-11', 100, 1000, '7 days left (boundary included)'],
@@ -1394,79 +1428,65 @@ function unitAlerts(prov: ReturnType<typeof resolveProvenance>): void {
     ['2026-10-05', 1000, 1000, 'goal met -> none'],
     ['2026-10-05', 100, 0, 'target 0 -> none'],
   ] as Array<[string, number, number, string]>)
-    c.push(
-      measure(`computeAlerts(goal ${name})`, [name], () =>
-        computeAlerts(state({ savingsGoals: [{ id: 'g1', name: 'Japan Trip', targetDate, current, target }] }), now),
-      ),
-    );
+    alertCase(`goal ${name}`, {
+      savingsGoals: [{ id: 'g1', name: 'Japan Trip', targetDate, current, target }],
+    });
 
-  c.push(
-    measure('computeAlerts(all four types present -> emission order)', [], () =>
-      computeAlerts(
-        state({
-          budgets: [{ id: 'b1', category: 'Shopping', limit: 1000, spent: 0 }],
-          transactions: [tx({ type: 'expense', category: 'Shopping', amount: 1000, date: '2026-10-02' })],
-          subscriptions: [
-            {
-              id: 's1',
-              name: 'Netflix',
-              amount: 1500,
-              status: 'Active',
-              dueDate: '2026-10-04',
-              billingCycle: 'Monthly',
-              category: 'Entertainment',
-            },
-          ],
-          debts: [{ id: 'd1', debtSource: 'Bank', dueDate: '2026-10-05', status: 'Active', remainingAmount: 5000 }],
-          savingsGoals: [{ id: 'g1', name: 'Japan Trip', targetDate: '2026-10-06', current: 100, target: 1000 }],
-        }),
-        now,
-      ),
-    ),
-  );
+  alertCase('all four types present -> emission order', {
+    budgets: [{ id: 'b1', category: 'Shopping', limit: 1000, spent: 0 }],
+    transactions: [tx({ type: 'expense', category: 'Shopping', amount: 1000, date: '2026-10-02' })],
+    subscriptions: [
+      {
+        id: 's1',
+        name: 'Netflix',
+        amount: 1500,
+        status: 'Active',
+        dueDate: '2026-10-04',
+        billingCycle: 'Monthly',
+        category: 'Entertainment',
+      },
+    ],
+    debts: [{ id: 'd1', debtSource: 'Bank', dueDate: '2026-10-05', status: 'Active', remainingAmount: 5000 }],
+    savingsGoals: [{ id: 'g1', name: 'Japan Trip', targetDate: '2026-10-06', current: 100, target: 1000 }],
+  });
+
   // The local shadow formatMoney puts a SPACE after the currency; money.ts does not.
-  c.push(
-    measure('computeAlerts(currency spacing differs from lib/money formatMoney)', [], () => {
-      const alerts = computeAlerts(
-        state({
-          subscriptions: [
-            {
-              id: 's1',
-              name: 'Netflix',
-              amount: 1200,
-              status: 'Active',
-              dueDate: '2026-10-04',
-              billingCycle: 'Monthly',
-              category: 'Entertainment',
-            },
-          ],
-        }),
-        now,
-      );
-      return { alertsDetail: alerts[0]?.detail, sharedFormatMoney: formatMoney('Rs.', 1200) };
-    }),
-  );
-  c.push(
-    measure('computeAlerts(custom currency)', [], () =>
-      computeAlerts(
-        state({
-          currency: '$',
-          subscriptions: [
-            {
-              id: 's1',
-              name: 'Netflix',
-              amount: 1200,
-              status: 'Active',
-              dueDate: '2026-10-04',
-              billingCycle: 'Monthly',
-              category: 'Entertainment',
-            },
-          ],
-        }),
-        now,
-      ),
-    ),
-  );
+  {
+    const s = state({
+      subscriptions: [
+        {
+          id: 's1',
+          name: 'Netflix',
+          amount: 1200,
+          status: 'Active',
+          dueDate: '2026-10-04',
+          billingCycle: 'Monthly',
+          category: 'Entertainment',
+        },
+      ],
+    });
+    c.push(
+      measure('computeAlerts(currency spacing differs from lib/money formatMoney)', [s, now], () => {
+        const alerts = computeAlerts(s, now);
+        return { alertsDetail: alerts[0]?.detail, sharedFormatMoney: formatMoney('Rs.', 1200) };
+      }),
+    );
+  }
+
+  alertCase('custom currency', {
+    currency: '$',
+    subscriptions: [
+      {
+        id: 's1',
+        name: 'Netflix',
+        amount: 1200,
+        status: 'Active',
+        dueDate: '2026-10-04',
+        billingCycle: 'Monthly',
+        category: 'Entertainment',
+      },
+    ],
+  });
 
   write('alerts', prov, c);
 }
@@ -1659,6 +1679,12 @@ function unitCsv(prov: ReturnType<typeof resolveProvenance>): void {
     [['a', '', 'c'], 'empty string cell'],
     [[null, undefined], 'null and undefined'],
     [[NaN, 1e21, -0, 0.1 + 0.2], 'numbers keep JS formatting'],
+    // The `String(num)` rule that a Dart port breaks by reaching for `toInt()`: an
+    // integral double below 1e21 is written as its shortest digits **zero-padded**, not
+    // in exponential form, and 2^53 is already past the point where an integer can be
+    // distinguished from its neighbour. Measured because the first Dart version printed a
+    // negative number for `1e20` (int64 wrap), which then looked like a formula cell.
+    [[1e20, 9007199254740993, 2 ** 53, 1e21, 1e22], 'whole doubles either side of the exponent threshold'],
     [[], 'no cells at all'],
     [['x'.repeat(300)], 'long value'],
   ] as Array<[unknown[], string]>)
@@ -1735,6 +1761,15 @@ function unitValidators(prov: ReturnType<typeof resolveProvenance>): void {
   c.push(v('BankCard 15-digit PAN', BankCardSchema as never, { ...okCard, cardNumber: '452012345678377' }));
   c.push(v('BankCard null cardNumber', BankCardSchema as never, { ...okCard, cardNumber: null }));
   c.push(v('BankCard missing id', BankCardSchema as never, { ...okCard, id: undefined }));
+  // A required *enum* names its options rather than saying `received undefined`, which is
+  // not what the required string two lines above does — the two messages come from
+  // different checks in the same "the key was not there" situation.
+  c.push(
+    v('BankCard missing cardType (required enum names its options)', BankCardSchema as never, {
+      ...okCard,
+      cardType: undefined,
+    }),
+  );
   c.push(v('BankCard id empty string', BankCardSchema as never, { ...okCard, id: '' }));
   c.push(v('BankCard unknown cardType', BankCardSchema as never, { ...okCard, cardType: 'Prepaid' }));
   c.push(
@@ -1757,6 +1792,23 @@ function unitValidators(prov: ReturnType<typeof resolveProvenance>): void {
     }),
   );
   c.push(v('BankCard illegal HTML chars in name', BankCardSchema as never, { ...okCard, cardName: '<script>' }));
+  // `.finite()` never gets to speak: Zod 4's number *type* check is `isFinite`, so an
+  // Infinity is an invalid number, reported as `received number` — the odd spelling that
+  // distinguishes it from NaN, which is `received NaN`. Both messages are the port's.
+  c.push(
+    v('BankCard Infinity currentBalance (the type check, not finite())', BankCardSchema as never, {
+      ...okCard,
+      currentBalance: Infinity,
+    }),
+  );
+  // Two failures in one row pin the `'; '` join and the schema-key order of the issues.
+  c.push(
+    v('BankCard two failures joined in schema key order', BankCardSchema as never, {
+      ...okCard,
+      id: '',
+      cardType: 'Prepaid',
+    }),
+  );
   // Defaults the port must reproduce: keys absent from the input appear in the output.
   c.push(
     v('BankCard defaults injected (isLimitLocked/isCanceled/cardTheme/isFrozen)', BankCardSchema as never, {
@@ -1789,14 +1841,36 @@ function unitValidators(prov: ReturnType<typeof resolveProvenance>): void {
       startDate: '2026-01-01',
     }),
   );
+  const okSubscription = {
+    id: 's',
+    name: 'Netflix',
+    amount: 1500,
+    billingCycle: 'Monthly',
+    category: 'Entertainment',
+    status: 'Active',
+    dueDate: '2026-10-04',
+  };
+  c.push(v('Subscription valid', SubscriptionSchema as never, okSubscription));
+  // The contrast that makes landmine 11 dangerous: `TransactionSchema.category` is a free
+  // `z.string()`, so `Kryptokurrency` above is ACCEPTED, while the same value on a
+  // subscription is a closed-enum rejection that spells out all twelve options.
   c.push(
-    v('Subscription valid', SubscriptionSchema as never, {
+    v('Subscription unknown category (closed enum, unlike Transaction)', SubscriptionSchema as never, {
+      id: 's',
+      name: 'Netflix',
+      amount: 1500,
+      billingCycle: 'Monthly',
+      category: 'Kryptokurrency',
+      dueDate: '2026-10-04',
+    }),
+  );
+  c.push(
+    v('Subscription status defaulted', SubscriptionSchema as never, {
       id: 's',
       name: 'Netflix',
       amount: 1500,
       billingCycle: 'Monthly',
       category: 'Entertainment',
-      status: 'Active',
       dueDate: '2026-10-04',
     }),
   );
@@ -1809,6 +1883,109 @@ function unitValidators(prov: ReturnType<typeof resolveProvenance>): void {
     }),
   );
   c.push(v('LedgerRestorePayload union: matches neither branch', LedgerRestorePayloadSchema as never, { nope: true }));
+  // Which branch matched, and what the parse keeps, is part of the contract — the two
+  // cases above only prove the union can refuse.
+  c.push(
+    v('LedgerRestorePayload union: bare state branch accepted', LedgerRestorePayloadSchema as never, {
+      cashAccounts: [],
+      cards: [],
+      transactions: [],
+    }),
+  );
+  c.push(
+    v('LedgerRestorePayload union: v1 envelope branch accepted', LedgerRestorePayloadSchema as never, {
+      version: 'EM_BUDGET_SECURE_EX_V1',
+      data: { cashAccounts: [], cards: [], transactions: [] },
+    }),
+  );
+  // The three critical collections are required *inside* the bare branch, and a failure
+  // there is reported once, at the root, because a union does not say which branch spoke.
+  c.push(
+    v('LedgerRestorePayload union: bare state branch missing transactions', LedgerRestorePayloadSchema as never, {
+      cashAccounts: [],
+      cards: [],
+    }),
+  );
+  c.push(
+    v(
+      'LedgerRestorePayload union: bare state branch with a non-array collection',
+      LedgerRestorePayloadSchema as never,
+      {
+        cashAccounts: '[]',
+        cards: [],
+        transactions: [],
+      },
+    ),
+  );
+  // More than one failing field is covered above, in the BankCard block.
+
+  // The rest of the table is the **default** message catalogue. Every case so far hits a
+  // field whose schema supplies its own text, so a port could invent these four and stay
+  // green against the rest of the file — `DebtSchema` and `LedgerExportV1Schema` are the
+  // only schemas that leave a check messageless, and the restore flow can hand the phone
+  // any shape at all.
+  const okDebt = {
+    id: 'd',
+    debtSource: 'Bank',
+    totalAmount: 1000,
+    remainingAmount: 500,
+    dueDate: '2026-10-07',
+  };
+  c.push(
+    v('Debt payment fails two messageless checks (default min and regex, dotted path)', DebtSchema as never, {
+      ...okDebt,
+      payments: [{ id: 'p', debtId: '', amount: 1, date: 'bad', paidFromId: 'a', paidFromType: 'cash' }],
+    }),
+  );
+  c.push(v('Debt notes over the messageless max', DebtSchema as never, { ...okDebt, notes: 'x'.repeat(501) }));
+  c.push(v('Debt payments is not an array', DebtSchema as never, { ...okDebt, payments: 'x' }));
+  c.push(
+    v('Debt negative remainingAmount (the messageless nonnegative)', DebtSchema as never, {
+      ...okDebt,
+      remainingAmount: -1,
+    }),
+  );
+  c.push(v('Debt whole payload is null (the issue is at the Root)', DebtSchema as never, null));
+  c.push(
+    v('Subscription name over the messageless max', SubscriptionSchema as never, {
+      ...okSubscription,
+      name: 'N'.repeat(61),
+    }),
+  );
+  c.push(
+    v('LedgerExportV1 wrong literal', LedgerExportV1Schema as never, {
+      version: 'OTHER',
+      data: { cashAccounts: [], cards: [], transactions: [] },
+    }),
+  );
+  // Two `_missingMessage` branches that no other case reaches: a required field that is
+  // **absent** answers differently from one that is present and wrong. A missing literal
+  // produces the same quoted text a wrong literal does, and a missing array says
+  // `received undefined` where `Debt payments is not an array` above says `received
+  // string`. Without these the port could return a plausible message for a payload that
+  // simply forgot the key, and nothing else in the file would notice.
+  c.push(
+    v('LedgerExportV1 missing version (a required literal absent)', LedgerExportV1Schema as never, {
+      data: { cashAccounts: [], cards: [], transactions: [] },
+    }),
+  );
+  c.push(
+    v('BareRestore missing cashAccounts (a required array absent)', BareRestoreStateSchema as never, {
+      cards: [],
+      transactions: [],
+    }),
+  );
+  // `z.array(z.unknown())` keeps the elements exactly as they came, `null` and nested
+  // arrays included — the guard that stops a malformed doppelganger payload from wiping
+  // state is about the three required collections being arrays, not about their contents.
+  c.push(
+    v('BareRestore keeps unknown element values', BareRestoreStateSchema as never, {
+      cashAccounts: [1, 'a', null, { z: 1 }, [2]],
+      cards: [],
+      transactions: [],
+      budgets: [],
+    }),
+  );
 
   write('validators', prov, c);
 }
@@ -1908,7 +2085,6 @@ function writeWithExtra(
       locale: Intl.NumberFormat().resolvedOptions().locale,
       node: process.version,
       pinnedNow: PINNED_UTC,
-      generatedAt: new REAL_DATE().toISOString(),
       sentinelAlphabet: SENTINELS,
       ...extra,
     },
@@ -1925,10 +2101,16 @@ function writeWithExtra(
  * `npx tsx parity/fixtures/generate.ts --only money` regenerates one file.
  *
  * Every case is measured from the running module, so a subset run is not a partial
- * truth — but leaving the other eleven files byte-identical is the point: each file
- * carries its own `generatedAt`, so regenerating all of them to add three cases to one
- * unit turns a Phase-4 change into a twelve-file diff, and a reviewer cannot see which
- * unit actually moved.
+ * truth. Nothing in a golden is now machine-volatile: the clock inside every case is
+ * `pinnedNow`, and the wall-clock stamp this file used to write into `_provenance` is
+ * gone, so a full re-run on unchanged code rewrites thirteen files that `git diff`
+ * reports as empty. `--only` survives for the other reason — it skips re-measuring the
+ * twelve units you did not touch, which is most of the run's wall-clock time.
+ *
+ * The two exceptions are deliberate machine facts, not churn: `tz` and `locale` record
+ * the zone and default locale the goldens were measured under, which is what makes a
+ * golden attributable. A run in another zone changes those two keys and nothing else;
+ * `tz-proof.ts` restores the canonical zone when it finishes.
  */
 function selectedUnits(): Set<string> {
   const at = process.argv.indexOf('--only');

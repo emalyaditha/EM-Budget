@@ -9,7 +9,6 @@
     "locale": "en-US",
     "node": "v24.19.0",
     "pinnedNow": "2026-10-04T04:30:00.000Z",
-    "generatedAt": "2026-10-07T03:59:32.489Z",
     "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
   },
   "cases": [
@@ -2236,6 +2235,1102 @@
       "name": "formatMoneyIn(\"bn-BD\",'',1234567.891)",
       "input": ["bn-BD", "", 1234567.891, {}],
       "expected": "১২,৩৪,৫৬৭.৮৯"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',0)",
+      "input": ["en-LK", "Rs.", 0, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',0,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        0,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',-0)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {}
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',-0,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',0.015)",
+      "input": ["en-LK", "Rs.", 0.015, {}],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',0.015,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1.005)",
+      "input": ["en-LK", "Rs.", 1.005, {}],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1.005,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',2.5)",
+      "input": ["en-LK", "Rs.", 2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',2.5,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',-2.5)",
+      "input": ["en-LK", "Rs.", -2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',-2.5,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',999.9999)",
+      "input": ["en-LK", "Rs.", 999.9999, {}],
+      "expected": "Rs.1,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',999.9999,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',125000.0049)",
+      "input": ["en-LK", "Rs.", 125000.0049, {}],
+      "expected": "Rs.125,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',125000.0049,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.125,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1234567.891)",
+      "input": ["en-LK", "Rs.", 1234567.891, {}],
+      "expected": "Rs.1,234,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1234567.891,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        1234567.891,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,234,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1250000)",
+      "input": ["en-LK", "Rs.", 1250000, {}],
+      "expected": "Rs.1,250,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1250000,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        1250000,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,250,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1e+21)",
+      "input": ["en-LK", "Rs.", 1e21, {}],
+      "expected": "Rs.1,000,000,000,000,000,000,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1e+21,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        1e21,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,000,000,000,000,000,000,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1e-7)",
+      "input": ["en-LK", "Rs.", 1e-7, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1e-7,2dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1234567.891,0dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        1234567.891,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1,234,568"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',0.015,0dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',1250000,0dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        1250000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1,250,000"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'Rs.',-2.5,0dp)",
+      "input": [
+        "en-LK",
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.3"
+    },
+    {
+      "name": "formatMoneyIn(\"en-LK\",'',1234567.891)",
+      "input": ["en-LK", "", 1234567.891, {}],
+      "expected": "1,234,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',0)",
+      "input": ["si-LK", "Rs.", 0, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',0,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        0,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',-0)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {}
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',-0,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        {
+          "__sentinel__": "-0"
+        },
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',0.015)",
+      "input": ["si-LK", "Rs.", 0.015, {}],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',0.015,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        0.015,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.02"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1.005)",
+      "input": ["si-LK", "Rs.", 1.005, {}],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1.005,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        1.005,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1.01"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',2.5)",
+      "input": ["si-LK", "Rs.", 2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',2.5,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',-2.5)",
+      "input": ["si-LK", "Rs.", -2.5, {}],
+      "expected": "Rs.2.5"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',-2.5,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        -2.5,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.2.50"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',999.9999)",
+      "input": ["si-LK", "Rs.", 999.9999, {}],
+      "expected": "Rs.1,000"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',999.9999,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        999.9999,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',125000.0049)",
+      "input": ["si-LK", "Rs.", 125000.0049, {}],
+      "expected": "Rs.125,000"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',125000.0049,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        125000.0049,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.125,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1234567.891)",
+      "input": ["si-LK", "Rs.", 1234567.891, {}],
+      "expected": "Rs.1,234,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1234567.891,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        1234567.891,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,234,567.89"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1250000)",
+      "input": ["si-LK", "Rs.", 1250000, {}],
+      "expected": "Rs.1,250,000"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1250000,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        1250000,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,250,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1e+21)",
+      "input": ["si-LK", "Rs.", 1e21, {}],
+      "expected": "Rs.1,000,000,000,000,000,000,000"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1e+21,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        1e21,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.1,000,000,000,000,000,000,000.00"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1e-7)",
+      "input": ["si-LK", "Rs.", 1e-7, {}],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1e-7,2dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        1e-7,
+        {
+          "minFractionDigits": 2,
+          "maxFractionDigits": 2
+        }
+      ],
+      "expected": "Rs.0.00"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1234567.891,0dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        1234567.891,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1,234,568"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',0.015,0dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        0.015,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.0"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',1250000,0dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        1250000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.1,250,000"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'Rs.',-2.5,0dp)",
+      "input": [
+        "si-LK",
+        "Rs.",
+        -2.5,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "Rs.3"
+    },
+    {
+      "name": "formatMoneyIn(\"si-LK\",'',1234567.891)",
+      "input": ["si-LK", "", 1234567.891, {}],
+      "expected": "1,234,567.89"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',750500)",
+      "input": [
+        "en-US",
+        "LKR",
+        750500,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR750,500"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',488820)",
+      "input": [
+        "en-US",
+        "LKR",
+        488820,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR488,820"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',2588660)",
+      "input": [
+        "en-US",
+        "LKR",
+        2588660,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR2,588,660"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',13680)",
+      "input": [
+        "en-US",
+        "LKR",
+        13680,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR13,680"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',265000)",
+      "input": [
+        "en-US",
+        "LKR",
+        265000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR265,000"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',145000)",
+      "input": [
+        "en-US",
+        "LKR",
+        145000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR145,000"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',900000)",
+      "input": [
+        "en-US",
+        "LKR",
+        900000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR900,000"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',612500)",
+      "input": [
+        "en-US",
+        "LKR",
+        612500,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR612,500"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',2899)",
+      "input": [
+        "en-US",
+        "LKR",
+        2899,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR2,899"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',2399)",
+      "input": [
+        "en-US",
+        "LKR",
+        2399,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR2,399"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',11400)",
+      "input": [
+        "en-US",
+        "LKR",
+        11400,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR11,400"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',7200)",
+      "input": [
+        "en-US",
+        "LKR",
+        7200,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR7,200"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',25000)",
+      "input": [
+        "en-US",
+        "LKR",
+        25000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR25,000"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',50000)",
+      "input": [
+        "en-US",
+        "LKR",
+        50000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR50,000"
+    },
+    {
+      "name": "baseline(\"en-US\",'LKR',30000)",
+      "input": [
+        "en-US",
+        "LKR",
+        30000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR30,000"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',750500)",
+      "input": [
+        "en-LK",
+        "LKR",
+        750500,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR750,500"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',488820)",
+      "input": [
+        "en-LK",
+        "LKR",
+        488820,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR488,820"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',2588660)",
+      "input": [
+        "en-LK",
+        "LKR",
+        2588660,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR2,588,660"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',13680)",
+      "input": [
+        "en-LK",
+        "LKR",
+        13680,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR13,680"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',265000)",
+      "input": [
+        "en-LK",
+        "LKR",
+        265000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR265,000"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',145000)",
+      "input": [
+        "en-LK",
+        "LKR",
+        145000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR145,000"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',900000)",
+      "input": [
+        "en-LK",
+        "LKR",
+        900000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR900,000"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',612500)",
+      "input": [
+        "en-LK",
+        "LKR",
+        612500,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR612,500"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',2899)",
+      "input": [
+        "en-LK",
+        "LKR",
+        2899,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR2,899"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',2399)",
+      "input": [
+        "en-LK",
+        "LKR",
+        2399,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR2,399"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',11400)",
+      "input": [
+        "en-LK",
+        "LKR",
+        11400,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR11,400"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',7200)",
+      "input": [
+        "en-LK",
+        "LKR",
+        7200,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR7,200"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',25000)",
+      "input": [
+        "en-LK",
+        "LKR",
+        25000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR25,000"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',50000)",
+      "input": [
+        "en-LK",
+        "LKR",
+        50000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR50,000"
+    },
+    {
+      "name": "baseline(\"en-LK\",'LKR',30000)",
+      "input": [
+        "en-LK",
+        "LKR",
+        30000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR30,000"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',750500)",
+      "input": [
+        "si-LK",
+        "LKR",
+        750500,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR750,500"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',488820)",
+      "input": [
+        "si-LK",
+        "LKR",
+        488820,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR488,820"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',2588660)",
+      "input": [
+        "si-LK",
+        "LKR",
+        2588660,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR2,588,660"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',13680)",
+      "input": [
+        "si-LK",
+        "LKR",
+        13680,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR13,680"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',265000)",
+      "input": [
+        "si-LK",
+        "LKR",
+        265000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR265,000"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',145000)",
+      "input": [
+        "si-LK",
+        "LKR",
+        145000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR145,000"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',900000)",
+      "input": [
+        "si-LK",
+        "LKR",
+        900000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR900,000"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',612500)",
+      "input": [
+        "si-LK",
+        "LKR",
+        612500,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR612,500"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',2899)",
+      "input": [
+        "si-LK",
+        "LKR",
+        2899,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR2,899"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',2399)",
+      "input": [
+        "si-LK",
+        "LKR",
+        2399,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR2,399"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',11400)",
+      "input": [
+        "si-LK",
+        "LKR",
+        11400,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR11,400"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',7200)",
+      "input": [
+        "si-LK",
+        "LKR",
+        7200,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR7,200"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',25000)",
+      "input": [
+        "si-LK",
+        "LKR",
+        25000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR25,000"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',50000)",
+      "input": [
+        "si-LK",
+        "LKR",
+        50000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR50,000"
+    },
+    {
+      "name": "baseline(\"si-LK\",'LKR',30000)",
+      "input": [
+        "si-LK",
+        "LKR",
+        30000,
+        {
+          "maxFractionDigits": 0
+        }
+      ],
+      "expected": "LKR30,000"
     }
   ]
 }

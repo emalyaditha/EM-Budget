@@ -33,6 +33,27 @@ Object? jsFirstTruthy(List<Object?> values) {
   return null;
 }
 
+/// `a !== b` — ECMAScript Strict Equality, negated.
+///
+/// Dart's `!=` is *not* this. `double.nan == double.nan` is `true` in Dart and `false`
+/// in JavaScript, so a difference test written with `!=` reports two `NaN` results as
+/// identical; `display-interest.json` pins a case where the web's `!==` says the engine
+/// and the UI disagree precisely because both are `NaN`. `-0 === 0` holds on both sides,
+/// which is why the numeric branch does not special-case the sign bit.
+///
+/// For the primitives this port compares — numbers, strings, booleans, `null` and
+/// [Object]s standing in for `undefined` — Dart's `==` agrees with `===`. It is **not**
+/// JS object identity, so never apply this to a map or a list.
+bool jsStrictNotEqual(Object? a, Object? b) {
+  if (a is num && b is num) {
+    final double x = a.toDouble();
+    final double y = b.toDouble();
+    if (x.isNaN || y.isNaN) return true;
+    return x != y;
+  }
+  return a != b;
+}
+
 /// `new Date(value).getTime()`, for the shapes the ledger actually holds.
 ///
 /// Two divergences from Dart's own parsing are reproduced deliberately:
@@ -137,13 +158,36 @@ String jsNumberToString(num value) {
   final double d = value.toDouble();
   if (d.isNaN) return 'NaN';
   if (d.isInfinite) return d > 0 ? 'Infinity' : '-Infinity';
+  // `-0` prints as `0`, as in JavaScript.
+  if (d == 0) return '0';
   // `1e21` and above (and their negatives) go exponential on both sides, so the
   // integral fix-up is limited to the range JavaScript writes in plain decimal.
   if (d == d.roundToDouble() && d.abs() < 1e21) {
-    // `-0` prints as `0`, as in JavaScript.
-    return d.round().toInt().toString();
+    // ECMAScript `Number::toString` step 5 writes the shortest digits padded out with
+    // zeros. Padding them by hand rather than going through `toInt()` matters: a whole
+    // double above `2^63` has no 64-bit `int`, and `1e20` wrapped to a negative number
+    // — which the CSV export then quoted as a formula cell.
+    final _ShortestDecimal dec = _ShortestDecimal.of(d.abs());
+    final int zeros = dec.pointPos - dec.digits.length;
+    final String digits = dec.digits + '0' * (zeros > 0 ? zeros : 0);
+    return d < 0 ? '-$digits' : digits;
   }
   return d.toString();
+}
+
+/// `String(value)` for the values a cell of the CSV export can actually hold.
+///
+/// `src/lib/download.ts` types its cells `string | number` and then calls `String(value)`
+/// anyway, which is what makes `null` and `undefined` observable in the golden: the web's
+/// type was a lie and the runtime printed them. Dart collapses both into one absent value
+/// (`DATA_SPEC.md` §1: *absent ≡ `undefined`*), so this renders a Dart `null` the way the
+/// web renders `null` — the value a **nullable model field** holds — and the
+/// `String(undefined)` half of that case is not reachable from a ported model at all.
+String jsToString(Object? value) {
+  if (value == null) return 'null';
+  if (value is num) return jsNumberToString(value);
+  // Dart interpolates `String` and `bool` exactly as `String()` prints them.
+  return '$value';
 }
 
 /// `a.localeCompare(b)` with no arguments — the comparator
@@ -358,8 +402,9 @@ String jsToLocaleStringFixed(
 /// meaning the locale does not group at all.
 String _group(String digits, JsNumberLocale locale) {
   final int primary = locale.primaryGroup;
-  if (primary <= 0 || digits.length <= primary)
+  if (primary <= 0 || digits.length <= primary) {
     return _localeDigits(digits, locale);
+  }
   final int secondary = locale.secondaryGroup <= 0
       ? primary
       : locale.secondaryGroup;

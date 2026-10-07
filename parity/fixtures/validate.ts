@@ -71,7 +71,6 @@ const provenanceSchema = z.object({
   locale: z.string().min(1),
   node: z.string().min(1),
   pinnedNow: z.string().regex(ISO_INSTANT),
-  generatedAt: z.string().regex(ISO_INSTANT),
   sentinelAlphabet: z.array(z.string()).length(SENTINELS.length),
 });
 

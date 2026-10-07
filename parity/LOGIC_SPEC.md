@@ -17,22 +17,22 @@ Naming: `parity/fixtures/<unit>.json` for each `unit` below.
 
 ## 0. Units and required case counts
 
-| #   | unit                  | source file (at `pre-flutter`)            | surface                                        | cases   |
-| --- | --------------------- | ----------------------------------------- | ---------------------------------------------- | ------- |
-| 1   | `money`               | `src/lib/money.ts`                        | 8 functions                                    | 44      |
-| 2   | `credit-cycles`       | `src/lib/creditCards.ts`                  | date + tariff arithmetic, no card objects      | 40      |
-| 3   | `credit-payments`     | `src/lib/creditCards.ts`                  | window/payment matching over transactions      | 20      |
-| 4   | `cycle-rollover`      | `src/lib/creditCards.ts`                  | `runCycleRollover` end-to-end                  | 14      |
-| 5   | `installments`        | `src/lib/installments.ts`                 | fee, schedule, eligibility, progress           | 30      |
-| 6   | `dates-local`         | `src/utils.ts`                            | local-midnight regime: 4 exported helpers      | 28      |
-| 7   | `net-worth`           | `src/utils.ts`                            | `calculateNetWorth` + 5 row-level helpers      | 22      |
-| 8   | `alerts`              | `src/lib/alerts.ts`                       | `daysRemaining`, `computeAlerts`               | 18      |
-| 9   | `transaction-service` | `src/services/transactionService.ts`      | filter, sort, **float** monthly totals         | 24      |
-| 10  | `csv`                 | `src/lib/download.ts`                     | `escapeCsvRow` + formula-injection sanitize    | 12      |
-| 11  | `validators`          | `src/validators/index.ts`                 | Zod accept/reject tables                       | 16      |
-| 12  | `display-interest`    | `src/components/CreditCardManagement.tsx` | the **unrounded** UI interest, `:67-71` (B-03) | 10      |
-| 13  | `number-locale`       | `src/lib/money.ts`                        | `formatMoney` under eight explicit locales     | 232     |
-|     |                       |                                           | **total**                                      | **510** |
+| #   | unit                  | source file (at `pre-flutter`)            | surface                                                           | cases   |
+| --- | --------------------- | ----------------------------------------- | ----------------------------------------------------------------- | ------- |
+| 1   | `money`               | `src/lib/money.ts`                        | 8 functions                                                       | 44      |
+| 2   | `credit-cycles`       | `src/lib/creditCards.ts`                  | date + tariff arithmetic, no card objects                         | 40      |
+| 3   | `credit-payments`     | `src/lib/creditCards.ts`                  | window/payment matching over transactions                         | 20      |
+| 4   | `cycle-rollover`      | `src/lib/creditCards.ts`                  | `runCycleRollover` end-to-end                                     | 14      |
+| 5   | `installments`        | `src/lib/installments.ts`                 | fee, schedule, eligibility, progress                              | 30      |
+| 6   | `dates-local`         | `src/utils.ts`                            | local-midnight regime: 4 exported helpers                         | 28      |
+| 7   | `net-worth`           | `src/utils.ts`                            | `calculateNetWorth` + 5 row-level helpers                         | 22      |
+| 8   | `alerts`              | `src/lib/alerts.ts`                       | `daysRemaining`, `computeAlerts`                                  | 18      |
+| 9   | `transaction-service` | `src/services/transactionService.ts`      | filter, sort, **float** monthly totals                            | 24      |
+| 10  | `csv`                 | `src/lib/download.ts`                     | `escapeCsvRow` + formula-injection sanitize                       | 12      |
+| 11  | `validators`          | `src/validators/index.ts`                 | Zod accept/reject tables                                          | 16      |
+| 12  | `display-interest`    | `src/components/CreditCardManagement.tsx` | the **unrounded** UI interest, `:67-71` (B-03)                    | 10      |
+| 13  | `number-locale`       | `src/lib/money.ts`                        | `formatMoney` under ten explicit locales + the LKR baseline block | 335     |
+|     |                       |                                           | **total**                                                         | **613** |
 
 ### Fixture envelope (all files)
 
@@ -60,10 +60,12 @@ returned nothing). A thrown error is `{"__throws__": "Name: message"}`. The alph
 `validate.ts` rejects any other sentinel, any `__sentinel__`/`__throws__` sharing an object with another
 key, and any collision of case names, because a name-keyed Dart test suite silently drops the second case.
 
-Generation produced **963** cases against these **510** minimums; the surplus is the input families above.
+Generation produced **1086** cases against these **613** minimums; the surplus is the input families above.
 (`money` grew from 130 to 200 when its port was built, so that a case exists for every rounding rule the
-two formatters follow. `number-locale` is the exception to the surplus: its 232 cases are exactly the
-8 × 29 matrix of §13, so dropping any cell fails the gate.)
+two formatters follow. `validators` grew 16 → 30 → 49 as its port was written: the first batch measured the
+default-message catalogue in §11, the last two the `_missingMessage` branches nothing else reaches.
+`number-locale` is the exception to the surplus: its 335 cases are exactly the 10 × 29 matrix of §13 plus
+that section's 3 × 15 baseline block, so dropping any cell fails the gate.)
 
 ---
 
@@ -283,6 +285,14 @@ a month end depending on which engine produced the date. Replicate both.
 31st (Feb clamp), leap Feb 29; debit/cancelled/frozen cards; 5000 boundary; exactly-at-limit and over-limit;
 progress with 0 payments, all paid, none paid, foreign rows mixed in.
 
+### The port
+
+`mobile/lib/domain/installments.dart` + `mobile/test/domain/installments_test.dart` (61 cases, 22 tests).
+Every case is replayed against an injected reference instant rather than the device clock, and the suite runs
+in CI under **three zones** — `Asia/Colombo`, `America/New_York`, `Pacific/Kiritimati` — in
+`.github/workflows/mobile-verify.yml`, because the local-midnight arithmetic above is exactly what an ambient
+zone would change. See §8's port note for why that job can only exist on Linux.
+
 ---
 
 ## 6. `dates-local` — the second, deliberately different date regime
@@ -410,6 +420,16 @@ debts and goals; cancelled/inactive subscription; debt `'Fully Repaid'` and `rem
 `current >= target`; malformed `dueDate` → no alert; the currency-spacing assertion; a state with all four
 alert types present, to pin emission order.
 
+### The port
+
+`mobile/lib/domain/alerts.dart` + `mobile/test/domain/alerts_test.dart` (40 cases, 11 tests). The reference
+day is a parameter everywhere, taken from the fixture's own `_provenance.pinnedNow`, and the shadow
+`formatMoney` is replayed under the locale the golden was measured in (`en-US`) named explicitly rather than
+inherited from the host — D25. Like §5 this suite is in the three-zone CI matrix. **That matrix cannot run on
+this workstation**: the Dart VM on Windows ignores `TZ` and follows the OS zone, which is why the check lives
+in `.github/workflows/mobile-verify.yml` (ubuntu-latest, where glibc and ICU both honour `TZ`) and not in a
+local script; `parity/fixtures/tz-proof.ts` is the web-side half, and it _does_ run here because Node's ICU reads `TZ`.
+
 ---
 
 ## 9. `transaction-service` — filters, sort, and the float totals
@@ -478,6 +498,18 @@ native-integration item, not a fixture target.
 **Case families:** `=`, `+`, `-`, `@`, tab, CR starts; a `"` inside and outside the formula branch; `null`,
 `undefined`, `NaN`, large/small numbers, an empty string, an empty cell list, a negative amount as text.
 
+### The port
+
+`mobile/lib/domain/csv.dart` + `mobile/test/domain/csv_test.dart` (16 cases, 22 tests). The cell is
+`String(value)`, so this unit is where `jsToString` is load-bearing, and writing the tests found a real defect
+in it: `jsNumberToString` routed an integral double through `toDouble().toInt()`, which **wraps silently**
+past 2^63 — so a cell holding `1e20` printed a negative number, which then matched the `^[=+\-@…]` formula
+rule and came out quote-prefixed. V8's `Number::toString` step 5 writes an integral double below 1e21 as its
+shortest digits padded with zeros, and the fix uses the shortest-decimal decomposition `jsToFixed` already
+computes. `escapeCsvRow(whole doubles either side of the exponent threshold)` pins the rule end-to-end
+(`1e20` → `"100000000000000000000"`, `2**53` → `"9007199254740992"`, `1e21` → `"1e+21"`), and
+`mobile/test/data/js_semantics_test.dart` covers the formatter on its own.
+
 ---
 
 ## 11. `validators` — Zod accept/reject tables
@@ -507,12 +539,59 @@ small accept/reject table rather than a prose spec, because the contract is the 
 - Category fields are **closed enums** duplicated by hand across `types.ts`, `validators`, `utils.ts`
   constants and `freeOcrParser` (§5 landmine 11) — the fixture pins the validator's copy as authoritative
   for what it accepts.
-- Behaviour to pin: unknown keys (stripped or forbidden?), `null` vs missing, `''` against a min-length,
-  numeric strings against `z.number()`, and whether the error message text is stable enough to port.
+
+### The questions §11 used to leave open, now measured
+
+`validators.json` carries **49 cases** (was 30; the 19 added are the default-message catalogue below) and
+the Dart port is `mobile/lib/domain/validators.dart`, replayed by `mobile/test/domain/validators_test.dart`
+(68 tests: 49 goldens + 19 properties). The engine is a hand-written mini-Zod, because a Dart re-use of the
+schema _objects_ was never on the table — only their **behaviour** was. Measured on the tag:
+
+| Question                         | Answer                                                                               | Case that proves it                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| unknown keys                     | **stripped**, silently — `success` is still `true` and the key is gone from `parsed` | `Transaction unknown key present`                                            |
+| output key order                 | the **schema's** order, not the input's                                              | `Transaction valid` (fed `id, title, category, …`)                           |
+| absent optional key              | **omitted from the output**, not `null`                                              | `BankCard defaults injected (isLimitLocked/isCanceled/cardTheme/isFrozen)`   |
+| `null` vs missing                | different messages: `received null` / `received undefined`                           | `BankCard null cardNumber`, `BankCard missing id`                            |
+| `''` against a min-length        | rejected, and the **caller's** text wins when the schema supplies one                | `CashAccount empty name`, `BankCard id empty string`                         |
+| numeric strings                  | rejected — `z.number()` is a type check, `'1500'` never coerces                      | `Transaction numeric string amount`                                          |
+| error text stable enough to port | **yes**, byte-for-byte, including the `Root` fallback                                | all 24 rejection cases                                                       |
+| union failure                    | one issue at the **given path**, no branch named                                     | `LedgerRestorePayload union: matches neither branch` → `Root: Invalid input` |
+| `.finite()`                      | never speaks — Zod 4's number _type_ check is already `isFinite`                     | `BankCard Infinity currentBalance (the type check, not finite())`            |
+| array elements                   | validated, path dotted with the index                                                | `Debt payment fails two messageless checks (…dotted path)`                   |
+| `z.array(z.unknown())`           | elements pass through **verbatim**, including unknown shapes                         | `BareRestore keeps unknown element values`                                   |
+
+### The default-message catalogue
+
+Every rule in `src/validators/index.ts` that carries no explicit message produces Zod 4's own text, so the
+port must contain that text. None of it was guessed — each line below was produced by running the tag's
+schema and is pinned as a fixture case. Note the asymmetry: a **required** field that is _absent_ answers
+with `_missingMessage`, which is not the same sentence as the one for a field that is _present and wrong_ —
+a missing literal excepted, because `expected "EM_BUDGET_SECURE_EX_V1"` is both its absence message and its
+wrong-value message.
+
+| Check, with no message                    | Zod 4 produces                                                                      | Case                                                                                |
+| ----------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| missing required `z.string()`             | `Invalid input: expected string, received undefined`                                | `BankCard missing id`                                                               |
+| missing required `z.enum([...])`          | `Invalid option: expected one of "A"\|"B"` (quoted, `\|`-joined, declaration order) | `BankCard missing cardType (required enum names its options)`                       |
+| missing required `z.literal(x)`           | `Invalid input: expected "x"`                                                       | `LedgerExportV1 missing version (a required literal absent)`                        |
+| required `z.literal(x)` present and wrong | the **same** text as above                                                          | `LedgerExportV1 wrong literal`                                                      |
+| missing required `z.array(...)`           | `Invalid input: expected array, received undefined`                                 | `BareRestore missing cashAccounts (a required array absent)`                        |
+| `z.array(...)` present and wrong type     | `Invalid input: expected array, received string`                                    | `Debt payments is not an array`                                                     |
+| whole payload is `null`                   | `Root: Invalid input: expected object, received null`                               | `Debt whole payload is null (the issue is at the Root)`                             |
+| `z.number().nonnegative()`                | `Too small: expected number to be >=0`                                              | `Debt negative remainingAmount (the messageless nonnegative)`                       |
+| `z.string().min(n)`                       | `Too small: expected string to have >=n characters`                                 | `Debt payment fails two messageless checks (default min and regex, dotted path)`    |
+| `z.string().max(n)`                       | `Too big: expected string to have <=n characters`                                   | `Debt notes over the messageless max`, `Subscription name over the messageless max` |
+| `z.string().regex(p)`                     | `Invalid string: must match pattern /p/`                                            | the `Debt payment fails two messageless checks…` case again                         |
+
+Joined by `validateData` as `issues.map((e) => `${e.path.join('.') || 'Root'}: ${e.message}`).join('; ')` —
+so the **order** of a two-failure message is schema key order, which `BankCard two failures joined in schema
+key order` pins.
 
 **Case families:** a valid instance of each schema; one targeted violation each for the PAN pattern,
 amount ≤ 0, an unknown category, a missing required id, a `null` optional, and a restore payload that
-matches neither union branch.
+matches neither union branch; plus the 19 message-default cases in the table above, which exist only so the
+ported strings are measurements rather than the port's own opinions.
 
 ---
 
@@ -535,16 +614,37 @@ golden comes from running the original bytes.
 
 Divergences from §2's `interestForCycle`, all of which must survive into the port:
 
-| Input           | `interestForCycle` (engine)                                                   | `calculateInterest` (display)   |
-| --------------- | ----------------------------------------------------------------------------- | ------------------------------- |
-| `days < 0`      | `0` (guard `days <= 0`)                                                       | **negative number**             |
-| `days = 0`      | `0`                                                                           | `0`                             |
-| `apr = NaN`     | `0` (`!(NaN > 0)`)                                                            | **`NaN`** (`NaN <= 0` is false) |
-| `balance = NaN` | `0` (`NaN >= 0` false → guard on days? no: proceeds, `Math.abs(NaN)` → `NaN`) | **`NaN`**                       |
-| ordinary values | rounded to 2 dp                                                               | **unrounded full precision**    |
+| Input           | `interestForCycle` (engine)                                                                          | `calculateInterest` (display)   |
+| --------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `days < 0`      | `0` (guard `days <= 0`)                                                                              | **negative number**             |
+| `days = 0`      | `0`                                                                                                  | `0`                             |
+| `apr = NaN`     | `0` (`!(NaN > 0)`)                                                                                   | **`NaN`** (`NaN <= 0` is false) |
+| `balance = NaN` | **`NaN`** — `NaN >= 0` is false, so the guard does not fire, and `Math.abs(NaN)` poisons the product | **`NaN`**                       |
+| ordinary values | rounded to 2 dp                                                                                      | **unrounded full precision**    |
 
 The consequence, per your ruling, is that the card screen can show a figure the engine does not charge, and
 mobile must show **the same** wrong figure. Do not "helpfully" route the display through the engine.
+
+### The port
+
+`mobile/lib/domain/display_interest.dart` holds `displayInterest`; the engine half is `interestForCycle` in
+`mobile/lib/domain/credit_cards.dart`, which #63 extends with the rest of `creditCards.ts` **in that file** —
+the pair's two halves are deliberately kept as one definition each, so no future edit can align them by
+accident. `mobile/test/domain/display_interest_test.dart` is 32 tests (24 goldens + 8 properties) and refuses
+to run at all unless the fixture's recorded `extractedSource` is byte-identical to the five lines quoted
+above, so a re-generation against a moved function fails loudly instead of replaying 24 goldens against a
+different body.
+
+Two facts about replaying this unit, both measured rather than assumed:
+
+- **`differs` is JS `!==`, not Dart `!=`.** Dart defines `double.nan == double.nan` as `true`; V8 defines it
+  as `false`. `pair: engine vs display (NaN,24.9,30)` is the case where both sides are `NaN` and the golden
+  still records `differs: true`, so the comparison needs `jsStrictNotEqual` (`lib/data/js_semantics.dart`),
+  which also knows `-0 === 0`.
+- **`undefined` collapses to `NaN` for this unit only.** The signature is `num`, so the generator's
+  `undefined` APR argument needs a Dart value. It is safe because the web answered `undefined` and `NaN`
+  identically on both sides of the pair — a test asserts exactly that by comparing the two fixtures'
+  `expected` values, not by re-running anything.
 
 **Case families:** ordinary balance/apr/days; `days` −1/0/1/365; `apr` 0/NaN/undefined; `balance` 0/positive/
 NaN/-0; and one **explicit pair** per row showing engine-vs-display for the same input, so a reviewer can see
@@ -552,7 +652,7 @@ the divergence rather than infer it.
 
 ---
 
-## 13. `number-locale` — the same `formatMoney` under eight locales
+## 13. `number-locale` — the same `formatMoney` under ten locales, and the LKR baseline
 
 `src/lib/money.ts` again, and deliberately a **separate unit** rather than more `money` cases: `money.json`
 is one locale's goldens (`_provenance.locale`, `en-US`), while the locale itself is the thing under test here,
@@ -574,10 +674,11 @@ over 7 amounts × 4 option shapes and throws if any pair differs. The copy there
 
 | column     | values                                                                                                          |
 | ---------- | --------------------------------------------------------------------------------------------------------------- |
-| 8 locales  | `en-US`, `en-IN`, `de-DE`, `fr-FR`, `hi-IN`, `ar-EG`, `cs-CZ`, `bn-BD`                                          |
+| 10 locales | `en-US`, `en-IN`, `de-DE`, `fr-FR`, `hi-IN`, `ar-EG`, `cs-CZ`, `bn-BD`, **`en-LK`**, **`si-LK`**                |
 | 12 amounts | `0`, `-0`, `0.015`, `1.005`, `2.5`, `-2.5`, `999.9999`, `125000.0049`, `1234567.891`, `1250000`, `1e21`, `1e-7` |
 | per locale | 12 amounts × (default digits, `2dp`) = 24, plus 4 `0dp` cases and 1 empty-currency case = **29**                |
-| **total**  | **8 × 29 = 232** cases, exactly the matrix — no surplus, so a dropped cell fails `validate.ts`                  |
+| baseline   | 3 locales (`en-US`, `en-LK`, `si-LK`) × 15 LKR amounts at `{ maxFractionDigits: 0 }` = **45**                   |
+| **total**  | **10 × 29 + 45 = 335** cases, exactly the matrix — no surplus, so a dropped cell fails `validate.ts`            |
 
 The locales are chosen by **what knob they move**, not by population: `en-US` is the generator's own default,
 so its rows are `money.json`'s `formatMoney` rows re-measured rather than a new claim;
@@ -588,6 +689,35 @@ Arabic-Indic digits **and** prefixes a negative with `U+061C`, an invisible lett
 a format string would never produce. The amounts are chosen the same way: `0` and `-0` (does the locale keep
 the sign), the two tie cases (`0.015`, `1.005`), the two grouping-boundary cases (`1234567.891`, `1250000`),
 the `1e21` expansion, and `1e-7`, which is `0` at every digit count the matrix uses.
+
+### `en-LK` and `si-LK`, and what the baseline block is for
+
+Added at the Phase-4 gate on the ruling that the app formats in the **device's** locale: that makes the
+locales a Sri Lankan phone reports the only pair whose correctness a user can actually notice, and they were
+not in the eight. Both are **measured, not assumed**, and both land on the plain shape — comma grouping,
+full-stop decimal, ASCII digits, `-` prefix, three-and-three — so a Sinhala phone writes `1,250,000` and not
+the `en-IN` `12,50,000`. V8 collapses `en-LK` to `en` in `resolvedOptions()` while `si-LK` survives intact,
+but the two produce identical strings; `intl` carries real CLDR data for both, so neither reaches the
+`zzy-ZZ` fallback (the test names that library call directly, because the metadata the fallback would
+produce is the same shape and a passing golden alone cannot tell the two paths apart).
+
+The **baseline block** answers the second half of the same ruling. If the phone formats in its own locale,
+then the web's own screenshots are the reference for what it must print, and `parity/screenshots/` is 48
+PNGs of seeded LKR data. Fifteen amounts are therefore rendered under the three locales that matter —
+`en-US`, the Chromium default the harness shot under (`qa-shot.cjs` passes no `locale` to `newContext`, so
+the browser inherits the OS), plus the two LK tags — with the currency the seed actually carries
+(`'LKR'`, `qa-shot.cjs:320`) and the digit shape the hero component passes (`{ maxFractionDigits: 0 }`,
+`src/components/dashboard/DashboardHero.tsx:194-228`). Four of the fifteen are figures read off
+`web/light/390/overviewhub.png`: `750,500`, `488,820`, `2,588,660`, `13,680`. All three locales agree on all
+fifteen, which is what lets one screenshot stand for both device languages, and
+`test/domain/number_locale_test.dart` pins the four observed strings as Dart literals **as well as**
+replaying the golden — so changing either side forces someone to look at the picture again.
+
+This is the string-level half of the check. The pixel-level half — the phone's own widget golden compared
+against these PNGs — is Phase 5: it needs the golden harness that does not exist yet and an Android SDK that
+is not on this host (`INVENTORY.md` §13 D14, task #41). `MANIFEST.json` records a sha256 per PNG and the
+harness's own report, but no seeded amount or rendered text, so nothing in the UI artefacts can be diffed
+against a number today.
 
 ### The ruling this unit exists to prove
 
@@ -612,7 +742,8 @@ Two implementation facts, both measured rather than assumed:
 
 **Case families:** every locale × default/`2dp`/`0dp` digits; `-0`; the empty currency; the two rounding-tie
 cents; the lakh and non-ASCII-space groupers; Arabic-Indic and Bengali digit runs; the `1e21` expansion; a
-negative in a locale whose sign is an invisible mark.
+negative in a locale whose sign is an invisible mark; and the LKR baseline block — the same figure in the
+screenshot's locale and in both device languages, at the digit shape the component that draws it uses.
 
 ---
 

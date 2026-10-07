@@ -9,7 +9,6 @@
     "locale": "en-US",
     "node": "v24.19.0",
     "pinnedNow": "2026-10-04T04:30:00.000Z",
-    "generatedAt": "2026-10-06T09:18:10.514Z",
     "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
   },
   "cases": [
@@ -95,6 +94,11 @@
         ]
       ],
       "expected": "\"NaN\",\"1e+21\",\"0\",\"0.30000000000000004\""
+    },
+    {
+      "name": "escapeCsvRow(whole doubles either side of the exponent threshold)",
+      "input": [[100000000000000000000, 9007199254740992, 9007199254740992, 1e21, 1e22]],
+      "expected": "\"100000000000000000000\",\"9007199254740992\",\"9007199254740992\",\"1e+21\",\"1e+22\""
     },
     {
       "name": "escapeCsvRow(no cells at all)",

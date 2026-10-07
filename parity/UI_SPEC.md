@@ -915,4 +915,6 @@ a re-measure leaves it unformatted until Prettier runs again.
 
 ---
 
-Rendered by `parity/render_ui_spec.cjs` from `parity/ui-tokens.json` at 2026-10-06T10:50:58.213Z.
+Rendered by `parity/render_ui_spec.cjs` from `parity/ui-tokens.json` at tag `pre-flutter` (41489c659af29fdd3ea3ac12cf78f6ffc2c39799).
+
+No render timestamp is stamped here: rendering the same measurement file twice must produce the same bytes, so a dirty `UI_SPEC.md` always means the inputs changed (D33).

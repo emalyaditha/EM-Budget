@@ -1,0 +1,5 @@
+# The measured goldens are compared byte-for-byte across machines (Windows dev box,
+# Linux CI) and read by both Node and Dart, so they are stored and checked out with LF
+# even though this repo's core.autocrlf is true. Nothing else is listed here: web-app
+# source keeps the repo's existing autocrlf behaviour, deliberately unchanged.
+parity/fixtures/*.json text eol=lf
