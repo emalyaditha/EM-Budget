@@ -83,6 +83,79 @@ void main() {
     });
   });
 
+  group('jsToNumber', () {
+    // `Number(v)`, measured in V8 over the same corpus as `jsParseFloat` above. The two
+    // readers disagree in exactly the three places `src/utils.ts` and `src/lib/money.ts`
+    // route different amounts through: radix, unparsable tail, and leading/trailing space
+    // around a sign.
+    test(
+      'is a whole-string reader, so a tail that parseFloat would drop is NaN',
+      () {
+        expect(jsToNumber('5000'), 5000);
+        expect(jsToNumber('00'), 0);
+        expect(jsToNumber('.5'), 0.5);
+        expect(jsToNumber('5.'), 5);
+        expect(jsToNumber('1e308'), 1e308);
+        expect(jsToNumber('1.7976931348623157e309'), double.infinity);
+        for (final String s in <String>[
+          'abc',
+          '12abc',
+          '1,250',
+          '1_000',
+          '123n',
+          '1.2.3',
+          '.e3',
+          '1e+',
+          '+ 5',
+          'true',
+          'NaN',
+        ]) {
+          expect(jsToNumber(s).isNaN, isTrue, reason: '"$s" is not NaN');
+        }
+      },
+    );
+
+    test('takes the three radix forms, but no sign in front of them', () {
+      expect(jsToNumber('0x10'), 16);
+      expect(jsToNumber('0b11'), 3);
+      expect(jsToNumber('0o17'), 15);
+      // `parseFloat` stops at the `x` and answers `0`; `Number` refuses the whole string.
+      expect(jsParseFloat('0x10'), 0);
+      for (final String s in <String>['0x', '-0x10', '0b2', '0o8', '0 x10']) {
+        expect(jsToNumber(s).isNaN, isTrue, reason: '"$s" is not NaN');
+      }
+    });
+
+    test('empty and whitespace-only are zero, an unquoted tail is not', () {
+      expect(jsToNumber(''), 0);
+      expect(jsToNumber('   '), 0);
+      expect(jsToNumber('\t\n\u00a0'), 0);
+      expect(jsToNumber('  12abc  ').isNaN, isTrue);
+      // `parseFloat` reads the `12` out of the same string.
+      expect(jsParseFloat('  12abc  '), 12);
+    });
+
+    test('keeps the sign of a negative-zero literal', () {
+      for (final String s in <String>['-0', '-0.', '-.0', '-0e3']) {
+        final double n = jsToNumber(s);
+        expect(n == 0, isTrue, reason: '"$s" is $n');
+        expect(n.isNegative, isTrue, reason: '"$s" lost its sign');
+      }
+    });
+
+    test('Infinity needs the whole word, a non-string maps by ToPrimitive\'s cover', () {
+      expect(jsToNumber('Infinity'), double.infinity);
+      expect(jsToNumber('+Infinity'), double.infinity);
+      expect(jsToNumber('-Infinity'), double.negativeInfinity);
+      expect(jsToNumber('inf').isNaN, isTrue);
+      expect(jsToNumber(null), 0);
+      expect(jsToNumber(true), 1);
+      expect(jsToNumber(false), 0);
+      expect(jsToNumber(7.5), 7.5);
+      expect(jsToNumber(7), 7);
+    });
+  });
+
   group('jsMathRound', () {
     test('breaks ties toward +Infinity, which Dart\'s .round() does not', () {
       expect(jsMathRound(2.5), 3);

@@ -1206,35 +1206,34 @@ function unitNetWorth(prov: ReturnType<typeof resolveProvenance>): void {
   const c: Case[] = [];
   const state = (over: Record<string, unknown> = {}) => ({ currency: 'Rs.', ...over });
 
-  c.push(measure('calculateNetWorth(empty state)', [{}], () => calculateNetWorth(state() as never)));
+  c.push(measure('calculateNetWorth(empty state)', [state()], () => calculateNetWorth(state() as never)));
   c.push(measure('calculateNetWorth(all collections absent)', [{}], () => calculateNetWorth({} as never)));
-  c.push(
-    measure('calculateNetWorth(happy path)', [], () =>
-      calculateNetWorth(
-        state({
-          cashAccounts: [
-            { id: 'a', name: 'w', balance: 184500 },
-            { id: 'b', name: 's', balance: 26000 },
-          ],
-          cards: [
-            debitCard({ currentBalance: 74250, lockedAmount: 5000 }),
-            creditCard({ currentBalance: -38420 }),
-            creditCard({ id: 'cc-2', currentBalance: 12000 }),
-          ],
-          debts: [{ id: 'd1', remainingAmount: 100000 }],
-          loansGiven: [
-            { id: 'l1', remainingAmount: 40000 },
-            { id: 'l2', totalAmount: 15000 },
-          ],
-          savingsGoals: [{ id: 'g1', current: 312000 }],
-        }) as never,
-      ),
-    ),
-  );
+  // One object, used as both the recorded input and the real argument. A second
+  // literal here would be a drift risk with the same shape check 5 exists to catch.
+  const happy = state({
+    cashAccounts: [
+      { id: 'a', name: 'w', balance: 184500 },
+      { id: 'b', name: 's', balance: 26000 },
+    ],
+    cards: [
+      debitCard({ currentBalance: 74250, lockedAmount: 5000 }),
+      creditCard({ currentBalance: -38420 }),
+      creditCard({ id: 'cc-2', currentBalance: 12000 }),
+    ],
+    debts: [{ id: 'd1', remainingAmount: 100000 }],
+    loansGiven: [
+      { id: 'l1', remainingAmount: 40000 },
+      { id: 'l2', totalAmount: 15000 },
+    ],
+    savingsGoals: [{ id: 'g1', current: 312000 }],
+  });
+  c.push(measure('calculateNetWorth(happy path)', [happy], () => calculateNetWorth(happy as never)));
   for (const [over, name] of [
     [{ cards: [debitCard({ lockedAmount: '5000' })] }, 'lockedAmount as numeric string'],
     [{ cards: [debitCard({ lockedAmount: null })] }, 'lockedAmount null'],
     [{ cards: [debitCard({ lockedAmount: 'abc' })] }, 'lockedAmount NaN string'],
+    [{ cards: [debitCard({ lockedAmount: '1,250' })] }, 'lockedAmount with a comma'],
+    [{ cards: [debitCard({ currentBalance: '74,250' })] }, 'currentBalance is not a number'],
     [{ cards: [creditCard({ currentBalance: 0 })] }, 'credit card at exactly zero'],
     [{ cards: [creditCard({ isCanceled: true })] }, 'cancelled credit card with debt'],
     [{ cards: [debitCard({ isCanceled: true })] }, 'cancelled debit card'],
@@ -1251,8 +1250,10 @@ function unitNetWorth(prov: ReturnType<typeof resolveProvenance>): void {
       },
       'float residue absorbed by sumMoney',
     ],
-  ] as Array<[Record<string, unknown>, string]>)
-    c.push(measure(`calculateNetWorth(${name})`, [name], () => calculateNetWorth(state(over) as never)));
+  ] as Array<[Record<string, unknown>, string]>) {
+    const one = state(over);
+    c.push(measure(`calculateNetWorth(${name})`, [one], () => calculateNetWorth(one as never)));
+  }
 
   for (const [type, category, amount] of [
     ['income', undefined, 500],
@@ -1269,6 +1270,12 @@ function unitNetWorth(prov: ReturnType<typeof resolveProvenance>): void {
     ['expense', undefined, -500],
     ['expense', undefined, 'abc'],
     ['expense', undefined, NaN],
+    // The three strings `Number(…)` and `parseFloat(…)` disagree about. `money.ts` reads
+    // an amount string with `parseFloat`, `utils.ts` reads this one with `Number`, so a
+    // row typed into the wrong path differs by a factor of the whole tail.
+    ['expense', undefined, '1,250'],
+    ['expense', undefined, '0x10'],
+    ['expense', undefined, '  12abc  '],
     ['unknown-type', undefined, 500],
     ['income', undefined, -0],
   ] as Array<[string, string | undefined, number]>)
@@ -1298,6 +1305,7 @@ function unitNetWorth(prov: ReturnType<typeof resolveProvenance>): void {
     [1000, -500, 'negative asked clamps to 0'],
     [1000, NaN, 'NaN asked'],
     [1000, '500', 'string asked'],
+    [1000, '1,250', 'comma string asked (Number, not parseFloat)'],
   ] as Array<[number, number, string]>)
     c.push(measure(`applyRepayment(${name})`, [owed, asked], () => applyRepayment(owed, asked)));
 
@@ -1314,27 +1322,27 @@ function unitNetWorth(prov: ReturnType<typeof resolveProvenance>): void {
     { id: 's2', name: 'Old Sub', category: 'Entertainment', amount: 900, status: 'Paused' },
     { id: 's3', name: 'Annual', category: 'Entertainment', amount: 12000, status: 'Active' },
   ];
+  const mixedTx = [
+    tx({ category: 'Entertainment', amount: 500 }),
+    tx({ category: 'ENTERTAINMENT', amount: 300 }),
+    tx({ category: 'Entertainment', amount: 400, date: '2026-01-01' }),
+  ] as never[];
   c.push(
-    measure('budgetSpendingForMonth(active subs count in full regardless of date)', [], () =>
-      budgetSpendingForMonth('Entertainment', [], subs as never, PINNED_NOW),
+    measure(
+      'budgetSpendingForMonth(active subs count in full regardless of date)',
+      ['Entertainment', [], subs, PINNED_NOW],
+      () => budgetSpendingForMonth('Entertainment', [], subs as never, PINNED_NOW),
     ),
   );
   c.push(
-    measure('budgetSpendingForMonth(mixed-case category, this month)', [], () =>
-      budgetSpendingForMonth(
-        ' entertainment ',
-        [
-          tx({ category: 'Entertainment', amount: 500 }),
-          tx({ category: 'ENTERTAINMENT', amount: 300 }),
-          tx({ category: 'Entertainment', amount: 400, date: '2026-01-01' }),
-        ] as never,
-        subs as never,
-        PINNED_NOW,
-      ),
+    measure(
+      'budgetSpendingForMonth(mixed-case category, this month)',
+      [' entertainment ', mixedTx, subs, PINNED_NOW],
+      () => budgetSpendingForMonth(' entertainment ', mixedTx as never, subs as never, PINNED_NOW),
     ),
   );
   c.push(
-    measure('budgetSpendingForMonth(no match)', [], () =>
+    measure('budgetSpendingForMonth(no match)', ['Groceries', [tx({ category: 'Shopping' })], [], PINNED_NOW], () =>
       budgetSpendingForMonth('Groceries', [tx({ category: 'Shopping' })] as never, [] as never, PINNED_NOW),
     ),
   );

@@ -69,9 +69,11 @@ which makes the "replay" a second copy of the generator's scaffolding rather tha
 a projection still exists it is named in `PROJECTION_DEBT` with the task that clears it, reported as
 `KNOWN DEBT` rather than passed, and a **stale** exemption is itself an error.
 
-Generation produced **1086** cases against these **613** minimums; the surplus is the input families above.
+Generation produced **1092** cases against these **613** minimums; the surplus is the input families above.
 (`money` grew from 130 to 200 when its port was built, so that a case exists for every rounding rule the
-two formatters follow. `validators` grew 16 → 30 → 49 as its port was written: the first batch measured the
+two formatters follow. `net-worth` grew 52 → 58 for §7's two-coercion families — the strings a user can
+actually put in an amount field, read once through `Number` and once through `parseFloat`.
+`validators` grew 16 → 30 → 49 as its port was written: the first batch measured the
 default-message catalogue in §11, the last two the `_missingMessage` branches nothing else reaches.
 `number-locale` is the exception to the surplus: its 335 cases are exactly the 10 × 29 matrix of §13 plus
 that section's 3 × 15 baseline block, so dropping any cell fails the gate.)
@@ -409,9 +411,14 @@ non-leap years.
   is legal and yields zeros. Components: `cash`, `debitCards`, `creditCardAssets`, `creditCardLiabilities`,
   `savings`, `debts`, `loansGiven`, `netWorth`.
   - `debitCards` = `sumMoney(currentBalance − (Number(lockedAmount) || 0))` over **non-cancelled Debit**
-    cards. `lockedAmount` as a numeric _string_ is honoured; `null`/`undefined`/`'abc'` → `0`.
-  - Credit cards split by sign: `currentBalance < 0` → liability (absolute), `> 0` → asset.
-    **`currentBalance === 0` belongs to neither**, so it appears nowhere in the breakdown.
+    cards. `lockedAmount` as a numeric _string_ is honoured; `null`/`undefined`/`'abc'`/`'1,250'` → `0`, so
+    a **comma-formatted lock is silently not applied** and the whole balance counts. The subtraction is
+    bare, so a `currentBalance` that `Number` cannot read (`'74,250'`) makes the term `NaN`, and
+    `sumMoney` turns that into `0` — the card contributes nothing.
+  - Credit cards split by sign: `currentBalance < 0` → liability (absolute), `> 0` → asset. Both tests are
+    **bare comparisons**, so both go through `Number`; `null`/`undefined`/`''` are all `< 0`-false and
+    `> 0`-false, and **`currentBalance === 0` belongs to neither**, so it appears nowhere in the breakdown.
+    An unparseable string (`'74,250'`) fails both tests too and contributes nothing either way.
   - `savings` = `g.current || 0` — so a jar at `0` and a jar with `undefined` are identical.
   - `loansGiven` uses `remainingAmount` **unless it is `undefined`**, falling back to `totalAmount`; an
     explicit `null` does **not** fall back and reaches `toMinorUnits(null)` → `0`.
@@ -419,7 +426,9 @@ non-leap years.
     summed through `sumMoney` (one pass, cent-rounded).
   - Cancelled cards are excluded from **both** debit and credit sides.
 - `ledgerBalanceEffect(type, category, amount)` — magnitude is `Math.abs(Number(amount) || 0)`, so a
-  non-numeric string → `0`.
+  non-numeric string → `0` on the credit legs and **`-0`** on the four debit legs (`-magnitude` is a unary
+  minus, and V8 keeps the sign). `amount` is typed `number`, but a `numeric` column can arrive from
+  Supabase as a **string** (`DATA_SPEC.md` §2), which is why `Number` is applied here at all.
   - `+` for `income | deposit | financing`; `−` for `expense | debt_payment | withdrawal |
 credit_card_charge`; `transfer` → `+` **only when `category === 'Transfer In'` exactly**, anything else
     (including `'transfer in'`, `undefined`) is the out leg. Unknown type → `0`.
@@ -438,11 +447,59 @@ credit_card_charge`; `transfer` → `+` **only when `category === 'Transfer In'`
 - Side effects: none of these touch storage. Errors: they assume iterable collections; `transactions` is not
   null-guarded in `budgetSpendingForMonth` (only `state.transactions || []` at the caller).
 
+### The two coercions — `Number` here, `parseFloat` in §1
+
+`src/utils.ts` reads an amount with **`Number(…)`**; `src/lib/money.ts` reads the same field with
+**`parseFloat(…)`**. They are different grammars, not two leniencies of one grammar: `Number` is a
+whole-string reader that takes the `0x`/`0b`/`0o` radix forms and a sign in front of a decimal literal,
+while `parseFloat` is a prefix reader that takes neither. Every one of these was measured in V8 and each
+row below is a golden.
+
+| input            | `Number` — `utils.ts`      | `parseFloat` — `money.ts`            |
+| ---------------- | -------------------------- | ------------------------------------ |
+| `"1,250"`        | `NaN` → `\|\| 0` → **`0`** | **`1`** → `toMinorUnits` = 100 cents |
+| `"0x10"`         | **`16`**                   | **`0`** (hex stops at the `x`)       |
+| `"  12abc  "`    | `NaN` → **`0`**            | **`12`**                             |
+| `""` / `"   "`   | **`0`**                    | `NaN` → `toMinorUnits` = 0           |
+| `"1e3"` / `".5"` | 1000 / 0.5                 | 1000 / 0.5 (agree)                   |
+
+The consequences this unit has to carry bug-compatible:
+
+- `ledgerBalanceEffect('expense', undefined, "0x10")` is **`-16`** while `toMinorUnits("0x10")` is **`0`** —
+  one row can move the ledger by sixteen and settle nothing, depending on which function reads it.
+- `ledgerBalanceEffect('expense', undefined, "1,250")` and `("  12abc  ")` are **`-0`**. JSON has no `-0`,
+  so both are recorded as the `{"__sentinel__":"-0"}` and the Dart test asserts `isNegative`, because
+  `-0.0 == 0.0` is `true` in Dart and an ordinary `expect` cannot see the difference.
+- `applyRepayment(1000, "1,250")` → `{applied: 0, remaining: 1000}`: a comma-formatted repayment is
+  accepted by the form and **pays nothing**.
+- `calculateNetWorth` with `lockedAmount: "1,250"` → the lock is dropped, `debitCards` = full `74250`;
+  with `currentBalance: "74,250"` → `Number` is `NaN`, so the card contributes `0` and every component is
+  zero. A thousands-separator therefore either overstates a wallet or erases it, never in between.
+
+A port that picks one of the two coercions for the whole app fails one of these families; the Dart side
+keeps both (`jsToNumber` / `jsParseFloat` in `lib/data/js_semantics.dart`) and each call site names which
+one the web used.
+
+### The port's input boundary
+
+`calculateNetWorth` is exercised with a decoded-JSON map, not a typed `AppState`, and that moves two
+responsibilities onto the harness (`DATA_SPEC.md` §1):
+
+- **absent key vs `null`.** `Number(null)` is `0`, `Number(undefined)` is `NaN`, and a Dart value alone
+  cannot tell them apart. Where the difference is load-bearing — the loan fallback at `src/utils.ts:673`
+  tests `!== undefined`, so an explicit `null` does **not** fall back to `totalAmount` — the port tests key
+  presence (`containsKey`), and the test harness _drops_ an explicit `undefined` from a map instead of
+  converting it to `null`, so a case measured with the key absent replays with the key absent.
+- **`_provenance` and case-name integrity.** The suite asserts `unitFile == 'src/utils.ts'`,
+  `generatedFrom == 'pre-flutter'`, the recorded case count, that every fixture name is consumed, and that
+  each golden object's key set matches its Dart result, so a field the port forgets cannot pass silently.
+
 **Case families:** empty state; each collection absent vs empty; a cancelled credit card with debt; `0`
 balance card; locked amount as string/null/NaN; jar at 0/undefined; loan with `remainingAmount` undefined vs
 null vs 0; `ledgerBalanceEffect` over every type plus an unknown one, and `'Transfer In'` vs `'transfer in'`;
 goal allocation at exactly the jar balance, over it, and zero; repayment over-payment; budget with
-mixed-case categories, an Active annual subscription, and an expense dated last month.
+mixed-case categories, an Active annual subscription, and an expense dated last month; and the
+coercion family above — `"1,250"`, `"0x10"`, `"  12abc  "`, `""` — on each of the four money paths.
 
 ---
 

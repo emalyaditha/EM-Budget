@@ -1124,12 +1124,86 @@ LF and the Format step cannot trip on this; it remains unreachable behind `npm a
 ### What #63 deliberately did not do
 
 - **No rollover trigger.** `today` is the third argument, so the suite has no clock and the fixture's
-  `pinnedNow` is unused here. _When_ the phone closes a cycle is D3 / §5.3 — an on-open catch-up or a server
-  cron, both a behaviour change, both your call. The port does not quietly pick one, and the measured
-  double-charge case (`-40406.29 → -42433.24`) is the reason that decision cannot be deferred to an
-  implementation detail: re-running this function for one cycle overcharges a real card.
+  `pinnedNow` is unused here. _When_ the phone closes a cycle is ruled (**D3 / B-11: on-open catch-up in the
+  client, no server cron**), and the port does not quietly implement it. What #63's measured double charge
+  (`-40406.29 → -42433.24`) turned up is the reason the trigger is not a detail: the engine has **no**
+  idempotence guard, and the web's protection lives entirely in the caller's `seen` set, which is built from
+  **one device's** state (`src/App.tsx:805-809`, `:820`, `:861-869`). That is now **B-26**, with the three
+  paths on which a cycle can be charged twice and the phone-side ordering that closes the one needing no
+  second device.
 - **No persistence.** `runCycleRollover` returns a `CycleRolloverResult` of drafts; writing a `Charge` and a
   `credit_card_charge` transaction is the caller's job, and the caller is `App.tsx` (#64).
 - The `undefined` APR description (`"undefined% p.a. …"`, §4 step 7) is ported for exactness even though the
   `interest > 0` guard means it is unreachable — a stored, user-visible string is not a place to diverge.
 - `net-worth` (#62), the `App.tsx` handler goldens (#64) and the OCR contract (#65) are untouched.
+
+## 13k. Phase 4 delivered — the net-worth aggregates and the second coercion (#62)
+
+`src/utils.ts`'s money helpers: `calculateNetWorth`, `ledgerBalanceEffect`, `applyGoalAllocation`,
+`applyRepayment`, on top of the `budgetSpendingForMonth`/`isSpendingRow` pair #61 already ported.
+
+| unit        | Dart                         | golden           | cases | tests  | what the suite is really guarding                                                           |
+| ----------- | ---------------------------- | ---------------- | ----- | ------ | ------------------------------------------------------------------------------------------- |
+| `net-worth` | `lib/domain/net_worth.dart`  | `net-worth.json` | 58    | 66     | aggregates that read amounts with **`Number`**, not `parseFloat`, and keep the sign of `-0` |
+| primitives  | `lib/data/js_semantics.dart` | —                | —     | 22 + 5 | `Number`'s whole-string grammar, measured against V8 as `parseFloat`'s was in §13i          |
+
+Totals at this gate: **13 units, 1092 cases, 613 required minimum — `validate.ts` PASS**; the mobile suite
+is **755 tests, all passing** (684 + 66 + 5); `flutter analyze --fatal-infos --fatal-warnings`,
+`dart format --set-exit-if-changed lib test`, `npm run lint` (eslint `--max-warnings 0` + `tsc --noEmit`) and
+`tz-proof.ts` all clean; `npx prettier --check .` names only the two `src/` files, per §13j.
+
+### The projection debt cleared itself, which is the proof the check works
+
+#63 left `net-worth` in `PROJECTION_DEBT`: six `calculateNetWorth` cases recorded a scenario **name** as
+their `input`, so the same recorded argument list had to cover several different states. `validate.ts` treats
+an exemption with **no live collision** as an error, so finishing the recording did not just clear the debt —
+it deleted the entry, and the run that did it is the first time the stale-exemption rule fired for real.
+Regenerating against `pre-flutter` gave **`cases 52 → 58, expected-changed=0, input-changed=16,
+structural=0`**: every golden kept its answer while sixteen inputs became the call's real argument list. The
+remaining three exemptions are all `transaction-service` and are #64's, because those rows are built inside
+the Dart suite rather than recorded.
+
+### The finding this unit exists for: the app has two number grammars
+
+`money.ts` reads a user-typed amount with **`parseFloat`** (prefix reader, no radix); `utils.ts` reads the
+same field with **`Number`** (whole-string reader, takes `0x`/`0b`/`0o`). #60's port therefore could not
+reuse its own parse, and the split is now a rule with goldens on both sides — `parity/LOGIC_SPEC.md` §7
+carries the table. The measured consequences, all of them asserted rather than argued:
+
+- `ledgerBalanceEffect('expense', undefined, "0x10")` is **`-16`** while `toMinorUnits("0x10")` is **`0`**;
+- `ledgerBalanceEffect('expense', undefined, "1,250")` is **`-0`** — `Math.abs(NaN || 0)` is `+0` and the
+  debit leg is a unary minus, so a value that is not a number still gets the sign of a subtraction. Three
+  of the fifty-eight goldens are the `-0` sentinel, and Dart's `-0.0 == 0.0` is `true`, so the test asserts
+  `isNegative` rather than equality;
+- `applyRepayment(1000, "1,250")` → `{applied: 0, remaining: 1000}`: a comma-formatted repayment settles
+  nothing, while the same string through `money.ts` is Rs 1;
+- `calculateNetWorth` drops a `lockedAmount: "1,250"` lock entirely (the full balance counts) and zeroes a
+  card whose `currentBalance: "74,250"` it cannot read. The web's `_ || 0` idiom is why both fail quietly.
+
+The 38-case `Number` truth table was run in V8 on this box before any Dart assertion was written, and the
+two guesses it killed — `"-0x10"` is `NaN` (a radix literal takes no sign) and `"123n"` is `NaN` rather than
+a `BigInt` throw — are in the test as measured lines, not as commentary.
+
+### The input boundary is JSON, and the harness has to preserve absence
+
+`calculateNetWorth` is replayed against a decoded-JSON map, where a Dart value cannot distinguish JS `null`
+from JS `undefined`. `Number(null)` is `0` and `Number(undefined)` is `NaN`, and `src/utils.ts:673`'s loan
+fallback tests `!== undefined`, so the difference is load-bearing in one case and invisible in the data.
+Two things follow, both in the suite rather than in a comment: the port tests **key presence**
+(`containsKey`) at that one site, and the harness **drops** an explicit `undefined` from a map instead of
+converting it to `null`, so a case measured without the key replays without it. The same harness asserts
+`unitFile`, `generatedFrom`, the exact recorded case count before any case runs, that every fixture name is
+consumed, and each golden object's key set against the Dart result.
+
+### What #62 deliberately did not do
+
+- **No `Number` support for lists and maps.** `Number([])` is `0` and `Number(["5"])` is `5` in V8; neither
+  is reachable from a `num | string | null` field, so `jsToNumber` answers `NaN` and fails loudly instead of
+  inventing a zero. The Dart test names the exclusion rather than pretending the case passes.
+- **No change to the aggregates' shape.** `NetWorthBreakdown` has the web's eight fields and every value
+  leaves `toJson()` through `asJsonSafeNumber` (`mobile/lib/domain/money.dart:177`) — the normaliser #60
+  established for amounts that land in app state, which writes an integral double as an `int` and leaves a
+  non-finite one alone. A cleaner breakdown would change the spelling of a number inside the
+  `ledger_states` snapshot, and that snapshot is a second source of truth (§6).
+- `transaction-service` (#64) and the OCR contract (#65) are untouched, and nothing under `src/` changed:
+  `git diff pre-flutter -- src/` is empty at this gate.

@@ -206,11 +206,11 @@ function calleeOf(name: string): string {
  * collision, and each entry names the task that clears it. A unit leaves this
  * map in the same commit that fixes its `measure(...)` calls — an entry with no
  * remaining collision is a stale exemption, so the map is checked for that too.
+ * `net-worth` left this map in #62, which is what the stale check is for.
  */
 const PROJECTION_DEBT: Record<string, string> = {
   'transaction-service':
     'rows are built in the Dart suite, not recorded (#64 regenerates this unit alongside the App.tsx handler goldens)',
-  'net-worth': 'the ledger state is built in the Dart suite, not recorded (#62 ports this unit and fixes it)',
 };
 
 function checkDeterminism(cases: Array<{ name: string; input: unknown; expected: unknown }>): string[] {

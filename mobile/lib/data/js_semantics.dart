@@ -296,6 +296,79 @@ final RegExp _parseFloatPattern = RegExp(
   r'|\.\d+(?:[eE][+-]?\d+)?|Infinity)',
 );
 
+/// The set `String.prototype.trim` removes, i.e. ECMAScript `WhiteSpace` plus
+/// `LineTerminator`. Dart's own `trim()` works off the Unicode `White_Space` property,
+/// which additionally claims `U+001C`–`U+001F`, so the class here is the smaller set and
+/// `Number("\u001c5")` stays `NaN` the way V8 has it.
+final RegExp _trimSpaces = RegExp(r'^\s+|\s+$');
+
+/// A `StringNumericLiteral` in the **decimal** form. Anchored at both ends, which is the
+/// whole difference from [jsParseFloat]: `"12abc"` and `"1,250"` are `NaN` here where
+/// `parseFloat` answers `12` and `1`. A trailing point is legal (`"5."` is `5`), so the
+/// caller re-writes it before handing the token to Dart's parser.
+final RegExp _decimalLiteral = RegExp(
+  r'^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$',
+);
+
+/// The three radix forms `Number` accepts and `parseFloat` does not. Each claims its own
+/// digit class, which is why `"0b2"`, `"0o8"` and a bare `"0x"` are `NaN`: the prefix is
+/// not enough, the digits have to belong to it.
+final List<(RegExp, int)> _radixLiterals = <(RegExp, int)>[
+  (RegExp(r'^0[xX][0-9a-fA-F]+$'), 16),
+  (RegExp(r'^0[bB][01]+$'), 2),
+  (RegExp(r'^0[oO][0-7]+$'), 8),
+];
+
+/// `Number(v)` — ECMAScript **ToNumber**.
+///
+/// Not [jsParseFloat], and the two cannot share a helper: `parseFloat` is a *prefix*
+/// reader with no radix support, while `Number` is a whole-string reader that accepts
+/// `0x`/`0b`/`0o` and rejects anything it cannot consume entirely. `src/utils.ts` calls
+/// `Number(…)` in three money paths — `ledgerBalanceEffect` (`:589`), `applyRepayment`
+/// (`:642-643`) and `calculateNetWorth`'s `lockedAmount` (`:660`) — whereas
+/// `src/lib/money.ts` calls `parseFloat` on the same kind of user-typed string. The two
+/// disagree on the strings a real row can hold: `"1,250"` is 100 cents (Rs 1) to
+/// `toMinorUnits` and `0` to `utils.ts`, and `"0x10"` is `0` to one and `-16` — an
+/// expense — to the other. Both routes are goldens (`net-worth.json`).
+///
+/// Measured in V8 (`test/domain/js_semantics_format_test.dart`), including the cases that
+/// look like typos but are not: `"+Infinity"` is `Infinity` while `"-0x10"` is `NaN` (a
+/// radix literal takes no sign), `"0x"` and `"1e+"` are `NaN`, `"00"` is `0`, `"-0."` is
+/// **negative zero**, and `"123n"` is `NaN` rather than a `BigInt` throw.
+///
+/// `null` answers `0`, which is `Number(null)`. An **absent** property is `undefined` and
+/// answers `NaN`, and a value alone cannot tell the two apart — where the difference is
+/// load-bearing (`calculateNetWorth`'s loan fallback, `src/utils.ts:673`) the caller tests
+/// key presence instead, which is what makes this asymmetry safe rather than silent.
+double jsToNumber(Object? value) {
+  if (value == null) return 0;
+  if (value is num) return value.toDouble();
+  if (value is bool) return value ? 1 : 0;
+  // A list or map is outside every shape the ledger stores. `Number([])` is `0` and
+  // `Number(["5"])` is `5` in V8; neither is reachable from a `num | string | null`, and
+  // answering `NaN` fails loudly instead of inventing a `0`.
+  if (value is! String) return double.nan;
+
+  final String token = value.replaceAll(_trimSpaces, '');
+  if (token.isEmpty) return 0;
+  if (token == 'Infinity' || token == '+Infinity') return double.infinity;
+  if (token == '-Infinity') return double.negativeInfinity;
+
+  for (final (RegExp pattern, int radix) in _radixLiterals) {
+    if (pattern.hasMatch(token)) {
+      return double.parse(
+        int.parse(token.substring(2), radix: radix).toString(),
+      );
+    }
+  }
+  // A radix prefix that brought no legal digits with it.
+  if (RegExp(r'^0[xXbBoO]').hasMatch(token)) return double.nan;
+
+  if (!_decimalLiteral.hasMatch(token)) return double.nan;
+  final String normalized = token.endsWith('.') ? '${token}0' : token;
+  return double.tryParse(normalized) ?? double.nan;
+}
+
 /// `Math.round(x)` — **round half toward +∞**, which is not Dart's `round()` and not
 /// banker's rounding either.
 ///
