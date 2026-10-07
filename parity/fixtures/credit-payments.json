@@ -390,62 +390,334 @@
     },
     {
       "name": "isMinimumSatisfied(deduction)",
-      "input": [1921, "2026-10-15"],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "q-deduction",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 1921,
+            "date": "2026-10-15",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ]
+      ],
       "expected": true
     },
     {
       "name": "isMinimumSatisfied(day-before-deduction)",
-      "input": [1921, "2026-10-14"],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "q-day-before-deduction",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 1921,
+            "date": "2026-10-14",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ]
+      ],
       "expected": false
     },
     {
       "name": "isMinimumSatisfied(window-end)",
-      "input": [1921, "2026-10-07"],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "q-window-end",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 1921,
+            "date": "2026-10-07",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ]
+      ],
       "expected": true
     },
     {
       "name": "isMinimumSatisfied(window-middle)",
-      "input": [1921, "2026-09-20"],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "q-window-middle",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 1921,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ]
+      ],
       "expected": true
     },
     {
       "name": "isMinimumSatisfied(min-zero)",
-      "input": [0, "2026-09-20"],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 0,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "q-min-zero",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 1921,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ]
+      ],
       "expected": false
     },
     {
       "name": "isMinimumSatisfied(min-unset)",
       "input": [
         {
-          "__sentinel__": "undefined"
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": {
+            "__sentinel__": "undefined"
+          },
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
-        "2026-09-20"
+        [
+          {
+            "id": "q-min-unset",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 1921,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ]
       ],
       "expected": false
     },
     {
       "name": "isMinimumSatisfied(deduction amount 0)",
-      "input": [],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "z",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 0,
+            "date": "2026-10-15",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ]
+      ],
       "expected": false
     },
     {
       "name": "isMinimumSatisfied(no dueDate)",
-      "input": [],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "p-2026-09-20",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ]
+      ],
       "expected": false
     },
     {
       "name": "isMinimumSatisfied(overpaid in window)",
-      "input": [],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "big",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 9000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ]
+      ],
       "expected": true
     },
     {
       "name": "maybeRollCard(-38420+5000,due=true)",
-      "input": [-38420, 5000, true],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [],
+        5000
+      ],
       "expected": {}
     },
     {
       "name": "maybeRollCard(-38420+38420,due=true)",
-      "input": [-38420, 38420, true],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [],
+        38420
+      ],
       "expected": {
         "dueDate": {
           "__sentinel__": "undefined"
@@ -457,7 +729,23 @@
     },
     {
       "name": "maybeRollCard(-38420+38421,due=true)",
-      "input": [-38420, 38421, true],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [],
+        38421
+      ],
       "expected": {
         "dueDate": {
           "__sentinel__": "undefined"
@@ -469,7 +757,23 @@
     },
     {
       "name": "maybeRollCard(0+0,due=true)",
-      "input": [0, 0, true],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": 0,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [],
+        0
+      ],
       "expected": {
         "dueDate": {
           "__sentinel__": "undefined"
@@ -481,23 +785,69 @@
     },
     {
       "name": "maybeRollCard(-100+100,due=false)",
-      "input": [-100, 100, false],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -100,
+          "limit": 250000,
+          "dueDate": {
+            "__sentinel__": "undefined"
+          },
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [],
+        100
+      ],
       "expected": {}
     },
     {
       "name": "maybeRollCard(-38420+NaN,due=true)",
       "input": [
-        -38420,
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [],
         {
           "__sentinel__": "NaN"
-        },
-        true
+        }
       ],
       "expected": {}
     },
     {
       "name": "maybeRollCard(-38420+\"5000\",due=true)",
-      "input": [-38420, "5000", true],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [],
+        "5000"
+      ],
       "expected": {}
     }
   ]

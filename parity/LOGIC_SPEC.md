@@ -60,6 +60,15 @@ returned nothing). A thrown error is `{"__throws__": "Name: message"}`. The alph
 `validate.ts` rejects any other sentinel, any `__sentinel__`/`__throws__` sharing an object with another
 key, and any collision of case names, because a name-keyed Dart test suite silently drops the second case.
 
+**`input` is the call's argument list, verbatim — not a digest of the scenario that produced it.** This is
+check 5 of `validate.ts` (added while #63 was ported, after the cycle fixtures were found to record a
+scenario label while the real arguments were rebuilt in generator scaffolding): cases are grouped by callee,
+then by canonical input, and two cases with the same callee and the same input but different `expected`
+fail the gate. A projected fixture cannot be replayed — the Dart suite can only look the answer up by name,
+which makes the "replay" a second copy of the generator's scaffolding rather than a test of the port. Where
+a projection still exists it is named in `PROJECTION_DEBT` with the task that clears it, reported as
+`KNOWN DEBT` rather than passed, and a **stale** exemption is itself an error.
+
 Generation produced **1086** cases against these **613** minimums; the surplus is the input families above.
 (`money` grew from 130 to 200 when its port was built, so that a case exists for every rounding rule the
 two formatters follow. `validators` grew 16 → 30 → 49 as its port was written: the first batch measured the
@@ -161,6 +170,10 @@ grouping case.
   `days > 0`. Note `!(aprPercent > 0)` makes `NaN`/`undefined` return `0`. Rounds to 2 dp.
 - `latePaymentFee(minPayment?)` → `0` when falsy or `<= 0`, else `max(1200, 5% · min)`, rounded.
 - `daysBetween(start, end)` → whole days via `Date.UTC`, **end exclusive**; `0` if either side is unparseable.
+  - **Port trap, measured by `credit-cycles.json`:** `Date.UTC` takes a **0-based** month and
+    `DateTime.utc` takes a 1-based one. `credit_cards.dart` passes `parts.month` unchanged; passing the
+    web's `month - 1` into Dart shifts every count by up to a month — `daysBetween('2026-09-15',
+'2026-10-07')` came out 23 instead of 22, which is a whole day of interest on every cycle.
 - `cycleAnchor(card)` → `statementCloseDate || dueDate || ''` — the cut-off date wins outright.
 - Side effects: none. These functions never mutate the card.
 
@@ -201,6 +214,26 @@ Same file, but these take `Transaction[]`, so behaviour depends on stored shapes
 **Case families:** payment on window start / end / the day after / the day before; the 8th–14th gap (inside
 the month but outside the window); exactly the 15th; unpadded date; wrong `targetAccountType`; wrong card id;
 `transfer` type instead of `debt_payment`; zero and negative amount on the 15th; `minPayment` 0/undefined/NaN.
+
+### The port
+
+`mobile/lib/domain/credit_cards.dart`, replayed by `mobile/test/domain/credit_payments_test.dart` (10 tests,
+34 goldens + the properties that name the traps). Three decisions worth stating, because each is a place a
+later edit could "simplify" the contract away:
+
+- **`RollCardPatch` instead of a `Map`.** The web returns `{}` or `{ dueDate: undefined, minPayment:
+undefined }` and the caller spreads it, so the two payloads mean _leave the dates_ and _erase the dates_.
+  The port encodes that as `RollCardPatch.none()` / `.cleared()` with one `settles` boolean, which cannot
+  collapse into `null` and cannot lose the second meaning. The golden's **key set** is asserted, not just the
+  balance, so a future port that returns one shape for both fails here.
+- **A string amount is coerced at the test's boundary, not in the port.** The fixture calls `maybeRollCard`
+  with `"5000"` as a contract probe; the web's type is `number`, and the coercion that makes it work lives
+  one level down in `toMinorUnits(Object?)` (`money.dart:37`), which is already golden-proven. The port keeps
+  `num amount`; the suite passes `toMinorUnits("5000") / 100`, which is literally what the web does to that
+  argument on the way in.
+- **`NaN` behaves, it is not guarded.** `paymentsInCycle` over a `NaN` amount is `0` because `toMinorUnits`
+  catches it, and `maybeRollCard` with a `NaN` amount leaves the due date alone because `NaN >= 0` is false.
+  Neither is defensive code; both are measured, and a "fix" that clamps them changes which card looks paid.
 
 ---
 
@@ -244,6 +277,32 @@ computeMinimumPayment(newBalance, card.limit), charges }`.
 absent; carried balance with and without APR; paid-in-full mid-cycle; minimum unpaid with `minPayment` set
 vs unset; over-limit card; a cycle whose charges settle the balance to exactly 0; leap-year February cycle;
 a Jan→Dec boundary; zero balance with a due date (clears dates with no charges).
+
+### The port
+
+`mobile/lib/domain/credit_cards.dart`, replayed by `mobile/test/domain/cycle_rollover_test.dart` (6 tests,
+19 goldens). The whole result is compared as **one payload** — the four keys, each charge's five keys and the
+exact `description` strings — because a charge is persisted into the ledger, so its text is stored data, not
+a rendered label.
+
+- **`today` is an argument, so there is no clock here.** The fixture's `pinnedNow` is recorded but unused by
+  this suite; the web supplies `today` from a mount effect and a 60-second interval. That supply mechanism is
+  `INVENTORY.md` §5.3's open behaviour question (D3), not a detail of this function, and the port does not
+  silently choose one.
+- **The double-charge probe is measured, not asserted.** `cycle-rollover.json` carries one case whose input is
+  _two_ argument triples — the second card being the first call's own output — and its expected pair
+  `-40406.29 → -42433.24` is the evidence for the idempotency warning above. The Dart suite replays both
+  calls and additionally asserts the two balances **differ**, so a future refactor that made this function
+  idempotent fails against the golden rather than silently agreeing with the new behaviour.
+- **`minPayment !== undefined` at step 8 is not ported as a separate test.** `minOk` is `true` whenever no
+  minimum is configured (`!jsTruthy(minPayment) || minPayment <= 0`), so reaching `!minOk` already proves one
+  exists; the web's third conjunct is the same fact stated twice. The `minPayment unset → never a late fee`
+  golden covers the branch from the other side.
+- **`JsNumberLocale` is injectable and the suite pins `en-US`, per D-12.** The golden's `1,921` is what an
+  `en-US` measuring host produced; the phone uses the device locale at runtime, and `number_locale_test.dart`
+  is what proves `en-LK`/`si-LK` devices format their own cycles correctly. The suite refuses to run if the
+  fixture's recorded `locale` ever stops being `en-US`, so the injected value cannot drift from the measured
+  one.
 
 ---
 
@@ -628,7 +687,7 @@ mobile must show **the same** wrong figure. Do not "helpfully" route the display
 ### The port
 
 `mobile/lib/domain/display_interest.dart` holds `displayInterest`; the engine half is `interestForCycle` in
-`mobile/lib/domain/credit_cards.dart`, which #63 extends with the rest of `creditCards.ts` **in that file** —
+`mobile/lib/domain/credit_cards.dart`, which #63 extended with the rest of `creditCards.ts` **in that file** —
 the pair's two halves are deliberately kept as one definition each, so no future edit can align them by
 accident. `mobile/test/domain/display_interest_test.dart` is 32 tests (24 goldens + 8 properties) and refuses
 to run at all unless the fixture's recorded `extractedSource` is byte-identical to the five lines quoted
@@ -641,10 +700,14 @@ Two facts about replaying this unit, both measured rather than assumed:
   as `false`. `pair: engine vs display (NaN,24.9,30)` is the case where both sides are `NaN` and the golden
   still records `differs: true`, so the comparison needs `jsStrictNotEqual` (`lib/data/js_semantics.dart`),
   which also knows `-0 === 0`.
-- **`undefined` collapses to `NaN` for this unit only.** The signature is `num`, so the generator's
-  `undefined` APR argument needs a Dart value. It is safe because the web answered `undefined` and `NaN`
-  identically on both sides of the pair — a test asserts exactly that by comparing the two fixtures'
-  `expected` values, not by re-running anything.
+- **`undefined` collapses to `NaN` for the display half only.** `displayInterest` keeps the port's `num`
+  signature, so the generator's `undefined` APR needs a Dart value there. It is safe because the web answered
+  `undefined` and `NaN` identically on both sides of the pair — a test asserts exactly that by comparing the
+  two fixtures' `expected` values, not by re-running anything. The engine half is `num?`, widened when #63
+  ported it: its guard is `!(aprPercent > 0)`, which is the very thing `credit-cycles.json` measures for
+  `undefined` and `NaN`, so collapsing the two before the guard would test the collapse instead of the guard.
+  The real call site (`card.apr ?? 0`, `creditCards.ts:354`) can never supply `undefined`; the widened type
+  serves the fixture, not the app.
 
 **Case families:** ordinary balance/apr/days; `days` −1/0/1/365; `apr` 0/NaN/undefined; `balance` 0/positive/
 NaN/-0; and one **explicit pair** per row showing engine-vs-display for the same input, so a reviewer can see

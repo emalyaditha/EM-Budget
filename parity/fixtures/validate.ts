@@ -6,7 +6,7 @@
  * it would be *trusted*. This script refuses to pass that set. It is a hard
  * gate, run before and after generation.
  *
- * Four independent checks, in this order:
+ * Five independent checks, in this order:
  *
  *  1. Presence and size — every unit LOGIC_SPEC §0 lists must have a file, it
  *     must be non-empty and parse as JSON, and it must carry **at least** the
@@ -22,6 +22,11 @@
  *  4. Provenance — the file claims a commit, a blob and a hash; all three are
  *     re-derived from git and the working tree here. A fixture generated from
  *     newer code than `pre-flutter`, or whose source has since drifted, fails.
+ *  5. Faithfulness — within one unit, the recorded `input` must determine the
+ *     `expected`. Two cases that call the same function with a byte-identical
+ *     argument list and disagree about the answer prove that `input` is a
+ *     *digest* of the scenario rather than its arguments, and that the Dart
+ *     port is reading the case name, not the data.
  *
  * Usage: npx tsx parity/fixtures/validate.ts [--fixtures <dir>]
  * Exit 0 = the set is trustworthy. Exit 1 = every failure above is listed.
@@ -169,24 +174,91 @@ function checkValue(where: string, v: unknown, errs: string[]): void {
 }
 
 // ---------------------------------------------------------------------------
+// check 5 — does the recorded input determine the expected?
+// ---------------------------------------------------------------------------
+/** Canonical JSON: keys sorted, so `{a:1,b:2}` and `{b:2,a:1}` compare equal.
+ *  Object key order carries no meaning to a fixture reader (a map lookup), so
+ *  order is *not* a licence for two cases to disagree about an answer. Sentinels
+ *  are already plain objects by the time they get here, so `undefined` stays
+ *  distinct from an absent key and `-0` stays distinct from `0`. */
+function canonical(v: unknown): string {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? 'null';
+  if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`;
+  const o = v as Record<string, unknown>;
+  return `{${Object.keys(o)
+    .sort()
+    .map((k) => `${JSON.stringify(k)}:${canonical(o[k])}`)
+    .join(',')}}`;
+}
+
+/** The callee a case name claims to measure: the identifier immediately before
+ *  the first `(`. `advanceDueDate^3(…)` and `pair: engine vs display (…)` do not
+ *  match, so each becomes its own group — a name that is not a plain call site is
+ *  never merged with one that is. */
+function calleeOf(name: string): string {
+  const m = /^([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\(/.exec(name);
+  return m ? m[1] : name;
+}
+
+/**
+ * Units whose generator still records a scenario digest instead of the argument
+ * list. This is a debt register, not a pass: the check still reports every
+ * collision, and each entry names the task that clears it. A unit leaves this
+ * map in the same commit that fixes its `measure(...)` calls — an entry with no
+ * remaining collision is a stale exemption, so the map is checked for that too.
+ */
+const PROJECTION_DEBT: Record<string, string> = {
+  'transaction-service':
+    'rows are built in the Dart suite, not recorded (#64 regenerates this unit alongside the App.tsx handler goldens)',
+  'net-worth': 'the ledger state is built in the Dart suite, not recorded (#62 ports this unit and fixes it)',
+};
+
+function checkDeterminism(cases: Array<{ name: string; input: unknown; expected: unknown }>): string[] {
+  const byGroup = new Map<string, Map<string, Array<{ name: string; expected: string }>>>();
+  for (const c of cases) {
+    const g = calleeOf(c.name);
+    if (!byGroup.has(g)) byGroup.set(g, new Map());
+    const byInput = byGroup.get(g)!;
+    const k = canonical(c.input);
+    if (!byInput.has(k)) byInput.set(k, []);
+    byInput.get(k)!.push({ name: c.name, expected: canonical(c.expected) });
+  }
+  const collisions: string[] = [];
+  for (const [g, byInput] of byGroup) {
+    for (const [, list] of byInput) {
+      const answers = new Set(list.map((x) => x.expected));
+      if (list.length > 1 && answers.size > 1) {
+        collisions.push(
+          `${g}: ${list.length} cases share one recorded input but assert ${answers.size} different answers — ` +
+            `[${list.map((x) => x.name).join(', ')}]`,
+        );
+      }
+    }
+  }
+  return collisions;
+}
+
+// ---------------------------------------------------------------------------
 // per-unit validation
 // ---------------------------------------------------------------------------
-type UnitResult = { unit: string; cases: number; minCases: number; errors: string[] };
+type UnitResult = { unit: string; cases: number; minCases: number; errors: string[]; warnings: string[] };
 
 function validateUnit(spec: SpecUnit, fixturesDir: string, tagCommit: string): UnitResult {
   const errors: string[] = [];
+  const warnings: string[] = [];
+  const wellFormed: Array<{ name: string; input: unknown; expected: unknown }> = [];
   const file = path.join(fixturesDir, `${spec.unit}.json`);
   let cases: number = 0;
 
   if (!existsSync(file)) {
     errors.push(`fixture file missing: ${path.relative(REPO, file)}`);
-    return { unit: spec.unit, cases, minCases: spec.minCases, errors };
+    return { unit: spec.unit, cases, minCases: spec.minCases, errors, warnings };
   }
 
   const size = statSync(file).size;
   if (size === 0) {
     errors.push(`fixture file is empty (0 bytes) — generation was interrupted or never ran`);
-    return { unit: spec.unit, cases, minCases: spec.minCases, errors };
+    return { unit: spec.unit, cases, minCases: spec.minCases, errors, warnings };
   }
 
   const raw = readFileSync(file, 'utf8');
@@ -195,7 +267,7 @@ function validateUnit(spec: SpecUnit, fixturesDir: string, tagCommit: string): U
     parsed = JSON.parse(raw);
   } catch (e) {
     errors.push(`fixture file is not valid JSON: ${(e as Error).message}`);
-    return { unit: spec.unit, cases, minCases: spec.minCases, errors };
+    return { unit: spec.unit, cases, minCases: spec.minCases, errors, warnings };
   }
 
   const root = z
@@ -206,7 +278,7 @@ function validateUnit(spec: SpecUnit, fixturesDir: string, tagCommit: string): U
     for (const issue of root.error.issues) {
       errors.push(`envelope: ${issue.path.join('.') || '(root)'} — ${issue.message}`);
     }
-    return { unit: spec.unit, cases, minCases: spec.minCases, errors };
+    return { unit: spec.unit, cases, minCases: spec.minCases, errors, warnings };
   }
 
   // --- provenance shape ---
@@ -216,7 +288,7 @@ function validateUnit(spec: SpecUnit, fixturesDir: string, tagCommit: string): U
     for (const issue of prov.error.issues) {
       errors.push(`_provenance.${issue.path.join('.') || '(root)'} — ${issue.message}`);
     }
-    return { unit: spec.unit, cases, minCases: spec.minCases, errors };
+    return { unit: spec.unit, cases, minCases: spec.minCases, errors, warnings };
   }
   const p = prov.data;
   const unexpectedProv = provKeys.filter(
@@ -319,9 +391,26 @@ function validateUnit(spec: SpecUnit, fixturesDir: string, tagCommit: string): U
     else names.set(nm.data, i);
     checkValue(`${where}.input`, c.input, errors);
     checkValue(`${where}.expected`, c.expected, errors);
+    wellFormed.push({ name: nm.data, input: c.input, expected: c.expected });
   });
 
-  return { unit: spec.unit, cases, minCases: spec.minCases, errors };
+  // --- check 5: the recorded input must determine the expected ---
+  const collisions = checkDeterminism(wellFormed);
+  const debt = PROJECTION_DEBT[spec.unit];
+  if (collisions.length > 0 && debt) {
+    for (const c of collisions) warnings.push(`${c} — known debt, ${debt}`);
+  } else {
+    for (const c of collisions) {
+      errors.push(`recorded input does not determine expected; ${c}. Record the real argument list.`);
+    }
+    if (collisions.length === 0 && debt) {
+      errors.push(
+        `PROJECTION_DEBT exempts "${spec.unit}" but no collision remains — the generator is fixed; delete the exemption.`,
+      );
+    }
+  }
+
+  return { unit: spec.unit, cases, minCases: spec.minCases, errors, warnings };
 }
 
 // ---------------------------------------------------------------------------
@@ -362,7 +451,9 @@ function main(): void {
   }
 
   const errors: string[] = [];
+  const warnings: string[] = [];
   for (const r of results) for (const e of r.errors) errors.push(`${r.unit}: ${e}`);
+  for (const r of results) for (const w of r.warnings) warnings.push(`${r.unit}: ${w}`);
 
   let generatedTotal = 0;
   for (const r of results) generatedTotal += r.cases;
@@ -374,6 +465,12 @@ function main(): void {
     errors.push(
       `unlisted fixture files present — either a unit was renamed or a stale golden is still on disk: ${stale.join(', ')}`,
     );
+  }
+
+  if (warnings.length > 0) {
+    console.log(`KNOWN DEBT — ${warnings.length} projection loss(es) recorded in PROJECTION_DEBT, not passing:`);
+    for (const w of warnings) console.log(`  ! ${w}`);
+    console.log('');
   }
 
   if (errors.length > 0) {

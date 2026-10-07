@@ -840,6 +840,11 @@ function unitCreditPayments(prov: ReturnType<typeof resolveProvenance>): void {
     ),
   );
 
+  // The card and its transactions are built once and handed to *both* `measure`
+  // and the call, so the recorded input is literally the argument list. Spelling
+  // these as a digest (`[minPayment, date]`, or worse `[]`) leaves the Dart port
+  // no way to reconstruct the scenario from the fixture: three of the cases below
+  // used to record `[]` and share it, while asserting different answers.
   for (const [minPay, date, kind] of [
     [1921, '2026-10-15', 'deduction'],
     [1921, '2026-10-14', 'day-before-deduction'],
@@ -847,36 +852,38 @@ function unitCreditPayments(prov: ReturnType<typeof resolveProvenance>): void {
     [1921, '2026-09-20', 'window-middle'],
     [0, '2026-09-20', 'min-zero'],
     [undefined, '2026-09-20', 'min-unset'],
-  ] as Array<[number | undefined, string, string]>)
+  ] as Array<[number | undefined, string, string]>) {
+    const card = creditCard({ minPayment: minPay });
+    const txs = [pay(date, { amount: 1921, id: `q-${kind}` })];
     c.push(
-      measure(`isMinimumSatisfied(${kind})`, [minPay, date], () =>
-        isMinimumSatisfied(
-          creditCard({ minPayment: minPay }) as never,
-          [pay(date, { amount: 1921, id: `q-${kind}` })] as never[],
-        ),
+      measure(`isMinimumSatisfied(${kind})`, [card, txs], () => isMinimumSatisfied(card as never, txs as never[])),
+    );
+  }
+  {
+    const card = creditCard({ minPayment: 1921 });
+    const txs = [pay('2026-10-15', { amount: 0, id: 'z' })];
+    c.push(
+      measure('isMinimumSatisfied(deduction amount 0)', [card, txs], () =>
+        isMinimumSatisfied(card as never, txs as never[]),
       ),
     );
-  c.push(
-    measure('isMinimumSatisfied(deduction amount 0)', [], () =>
-      isMinimumSatisfied(
-        creditCard({ minPayment: 1921 }) as never,
-        [pay('2026-10-15', { amount: 0, id: 'z' })] as never[],
+  }
+  {
+    const card = creditCard({ dueDate: '' });
+    const txs = [pay('2026-09-20')];
+    c.push(
+      measure('isMinimumSatisfied(no dueDate)', [card, txs], () => isMinimumSatisfied(card as never, txs as never[])),
+    );
+  }
+  {
+    const card = creditCard({ minPayment: 1921 });
+    const txs = [pay('2026-09-20', { amount: 9000, id: 'big' })];
+    c.push(
+      measure('isMinimumSatisfied(overpaid in window)', [card, txs], () =>
+        isMinimumSatisfied(card as never, txs as never[]),
       ),
-    ),
-  );
-  c.push(
-    measure('isMinimumSatisfied(no dueDate)', [], () =>
-      isMinimumSatisfied(creditCard({ dueDate: '' }) as never, [pay('2026-09-20')] as never[]),
-    ),
-  );
-  c.push(
-    measure('isMinimumSatisfied(overpaid in window)', [], () =>
-      isMinimumSatisfied(
-        creditCard({ minPayment: 1921 }) as never,
-        [pay('2026-09-20', { amount: 9000, id: 'big' })] as never[],
-      ),
-    ),
-  );
+    );
+  }
 
   for (const [bal, amt, hasDue] of [
     [-38420, 5000, true],
@@ -886,16 +893,15 @@ function unitCreditPayments(prov: ReturnType<typeof resolveProvenance>): void {
     [-100, 100, false],
     [-38420, NaN, true],
     [-38420, '5000', true],
-  ] as Array<[number, number, boolean]>)
+  ] as Array<[number, number, boolean]>) {
+    const card = creditCard({ currentBalance: bal, dueDate: hasDue ? '2026-10-07' : undefined });
+    const txs: never[] = [];
     c.push(
-      measure(`maybeRollCard(${fmt(bal)}+${fmt(amt)},due=${hasDue})`, [bal, amt, hasDue], () =>
-        maybeRollCard(
-          creditCard({ currentBalance: bal, dueDate: hasDue ? '2026-10-07' : undefined }) as never,
-          [],
-          amt,
-        ),
+      measure(`maybeRollCard(${fmt(bal)}+${fmt(amt)},due=${hasDue})`, [card, txs, amt], () =>
+        maybeRollCard(card as never, txs, amt),
       ),
     );
+  }
 
   write('credit-payments', prov, c);
 }
@@ -954,11 +960,18 @@ function unitCycleRollover(prov: ReturnType<typeof resolveProvenance>): void {
     ],
   ];
 
+  // Same rule as `isMinimumSatisfied` above: `input` is the argument list of the
+  // call that produced `expected`, not a note about it. The override object alone
+  // was a projection — three scenarios shared `[{"minPayment":1921},"2026-10-15"]`
+  // while disagreeing about the transactions, so the fixture could only be read by
+  // name and a Dart "replay" would have been a second hand-written copy of this
+  // scaffolding. `runCycleRollover` mutates nothing, so the same card object is
+  // safe to record and pass.
   for (const [name, over, txs, today] of scenarios) {
+    const card = creditCard(over);
     c.push(
-      measure(`runCycleRollover(${name})`, [over, today], () => {
-        const card = creditCard(over) as never;
-        const r = runCycleRollover(card, txs as never[], today);
+      measure(`runCycleRollover(${name})`, [card, txs, today], () => {
+        const r = runCycleRollover(card as never, txs as never[], today);
         // `undefined` cannot be a JSON key, so the "still open" answer is explicit.
         return r === undefined ? { __sentinel__: 'undefined-result' } : r;
       }),
@@ -966,18 +979,26 @@ function unitCycleRollover(prov: ReturnType<typeof resolveProvenance>): void {
   }
 
   // idempotency: the function is idempotent-free, and a port that calls it twice
-  // double-charges. Measured, not assumed.
-  const once = runCycleRollover(creditCard({}) as never, [] as never[], '2026-10-15');
-  const twice = runCycleRollover(
-    creditCard({ currentBalance: (once as { currentBalance: number }).currentBalance }) as never,
-    [] as never[],
-    '2026-10-15',
-  );
+  // double-charges. Measured, not assumed. The input is the *list of calls*, in
+  // order, each with its own full argument list, so the replay is one loop over
+  // recorded data rather than a re-derivation of how the second card was built.
+  const firstCard = creditCard({});
+  const noTx: never[] = [];
+  const once = runCycleRollover(firstCard as never, noTx, '2026-10-15');
+  const secondCard = creditCard({ currentBalance: (once as { currentBalance: number }).currentBalance });
+  const twice = runCycleRollover(secondCard as never, noTx, '2026-10-15');
   c.push(
-    measure('runCycleRollover applied twice double-charges', ['same card, same cycle'], () => ({
-      firstBalance: once?.currentBalance,
-      secondBalance: (twice as { currentBalance: number })?.currentBalance,
-    })),
+    measure(
+      'runCycleRollover applied twice double-charges',
+      [
+        [firstCard, noTx, '2026-10-15'],
+        [secondCard, noTx, '2026-10-15'],
+      ],
+      () => ({
+        firstBalance: once?.currentBalance,
+        secondBalance: (twice as { currentBalance: number })?.currentBalance,
+      }),
+    ),
   );
 
   write('cycle-rollover', prov, c);

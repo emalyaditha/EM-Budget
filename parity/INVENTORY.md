@@ -204,7 +204,8 @@ authoritative in prod before any fresh DB is built.
    YYYY-MM-DD with string `>=`/`<=` (tz-immune, inclusive due date). `utils.ts dayStartMs` and
    `alerts.ts parseDay` use **local midnight** and explicitly reject `Date.parse` as off-by-one for
    non-UTC users. Dart months are 1-indexed and parsing is stricter. **Every date unit needs fixtures on
-   both sides of local midnight and on leap days.**
+   both sides of local midnight and on leap days.** _This one was hit for real: the first `daysBetween` port
+   subtracted 1 from the month as `Date.UTC` requires, and `credit-cycles.json` failed it by one day. §13j._
 2. **`addMonthsClamped` forgets the anniversary.** 2026-01-31 → 02-28; 2028 → 02-29. A 31st due date
    drifts back only by luck of later months. Replicate verbatim or historical due dates diverge.
 3. **Rollover runs in the browser** (mount + 60s interval, `App.tsx:800-883`). **A closed Flutter app stops
@@ -971,6 +972,10 @@ artefacts). `parity/fixtures/generate.ts` was in that set and is now formatted; 
 thirteen fixture files byte-for-byte, so the whitespace moved in the generator and nowhere else. The step is
 currently unreachable in CI anyway — `npm audit --audit-level=high` fails first and the job never gets here.
 
+_**Corrected in §13j:** those five warnings are not five unformatted files. All five are LF in git; four of_
+_the working copies were CRLF because this box checks text out with `core.autocrlf=true`. Formatting them was_
+_a working-copy cleanup, not a commit — see §13j's line-ending note._
+
 ### D30 is now executable, not a promise
 
 `.github/workflows/mobile-verify.yml` gained a `timezone` job: the clock-dependent suites — `installments`
@@ -1033,4 +1038,98 @@ the _port's_ invariants — key order, per-parse defaults, `null` vs absent — 
 - `download.ts`'s `downloadBlob` — not ported, per D29; the save/share difference is a `UI_SPEC.md` row.
 - The rest of `src/lib/creditCards.ts` — `credit_cards.dart` currently holds only `interestForCycle`, because
   the display pair needs exactly that half (#63 adds the engine and must extend this file, not fork it).
+  _Superseded: #63 landed it in that file, §13j._
 - `src/utils.ts` net worth and the `dates-local` helpers are separate units (#62) and are not touched here.
+
+## 13j. Phase 4 delivered — the credit-card cycle engine (#63)
+
+`src/lib/creditCards.ts` in full: the pure-UTC arithmetic of §2, the payment window of §3 and
+`runCycleRollover` of §4. It went into the same file the display pair already used, per §13i's last bullet.
+
+| unit              | Dart                           | golden                 | cases | tests | what the suite is really guarding                                                                 |
+| ----------------- | ------------------------------ | ---------------------- | ----- | ----- | ------------------------------------------------------------------------------------------------- |
+| `credit-cycles`   | `lib/domain/credit_cards.dart` | `credit-cycles.json`   | 139   | 20    | the two-day asymmetry (cycle ends the 15th, deadline advances from the 7th) and the one-way clamp |
+| `credit-payments` | `lib/domain/credit_cards.dart` | `credit-payments.json` | 34    | 10    | dates compared **as strings**, so `'2026-9-20'` silently leaves every window                      |
+| `cycle-rollover`  | `lib/domain/credit_cards.dart` | `cycle-rollover.json`  | 19    | 6     | the whole stored charge payload — amounts, `appliedDate` and the exact `description` text         |
+
+Totals at this gate: **13 units, 1086 cases, 613 required minimum — `validate.ts` PASS**; the mobile suite is
+**684 tests, all passing** (648 + 36); `flutter analyze --fatal-infos --fatal-warnings` and
+`dart format --set-exit-if-changed lib test` clean; `tz-proof.ts` reports the same five zone-sensitive cases
+it always did (`dates-local` ×3, `transaction-service` ×2) and **none** from these three units, which is the
+point of the pure-UTC half. The three-zone leg itself runs in CI only: the Dart VM on Windows ignores `TZ`
+and follows the OS zone, so this workstation can only ever replay one zone (`mobile-verify.yml:59-60`).
+
+### The fixture-integrity gate this batch was actually about
+
+The audit that opened #63 found that three of the cycle cases recorded a **scenario digest** as their `input`
+while the generator rebuilt the real arguments in scaffolding — `isMinimumSatisfied`'s three "minimum paid /
+unpaid" cases all wrote `[{"minPayment":1921}, "2026-10-15"]`, so no replay could tell them apart and a Dart
+suite could only pass by looking the answer up by name. That is not a test of the port; it is a second copy of
+the generator. Fixed in `generate.ts` (the recorded input is now the call's argument list, built once and
+passed to `measure`) and made permanent in `validate.ts` as **check 5 — determinism**: cases grouped by callee
+then by canonical input, and same input + different expected fails. `LOGIC_SPEC.md` §0 states the rule.
+
+Proof that the fix moved nothing but the recording: regenerating against `pre-flutter` gave
+**`cases=1086 expected-changed=0 input-changed=35 structural=0`**, and a second generation produced 13
+byte-identical files. Where a projection still exists it is named, dated and task-numbered in
+`PROJECTION_DEBT` (`net-worth` → #62, `transaction-service` → #64), reported as `KNOWN DEBT — 4`, never as a
+pass; a **stale** exemption is itself an error, so the debt cannot outlive the task that clears it.
+
+### What the goldens caught
+
+- **A real port bug, in the first minute.** `daysBetween` was written as `DateTime.utc(y, month - 1, d)`
+  because `Date.UTC` is 0-based — and `DateTime.utc` is 1-based. Every cycle length came out up to a month
+  short; `credit-cycles.json` says `daysBetween('2026-09-15', '2026-10-07')` is **22** and the port said 23,
+  which is a day of revolving interest on every card, every cycle. §5.1 predicted this trap in the abstract;
+  the fixture is what made it a failing test instead of a paragraph. Recorded in `LOGIC_SPEC.md` §2.
+- **Two hand-written "facts" in my own new tests were wrong**, not the port: `deductionDate('2026-02-31')`
+  is `2026-02-15` (the day is range-checked against 31, never against the month, so Feb 31 _parses_), and
+  `computeMinimumPayment(-260000, 250000)` is **22,500** — 5% of the limit **plus the whole 10,000 excess**,
+  not 5% of the outstanding. Both are now asserted as goldens are asserted: measured, with the wrong guess
+  deleted. It is the same lesson §13i learned twice — a property that states a fact about the web is an
+  opinion until the web has answered it.
+
+### Three port-boundary decisions, and why each is not a simplification
+
+- `interestForCycle(num balance, num? aprPercent, num days)` — **widened**. The web types `number`, but its
+  guard is `!(aprPercent > 0)`, which is the exact thing `credit-cycles.json` measures for `undefined` and
+  `NaN`. Collapsing `undefined` into `NaN` before the call would test the collapse instead of the guard. The
+  app's own call site is `card.apr ?? 0` and can never supply it (`LOGIC_SPEC.md` §12).
+- `RollCardPatch.none() / .cleared()` — the web returns `{}` or `{ dueDate: undefined, minPayment:
+undefined }` and the caller spreads it, so the two payloads mean _leave the dates_ and _erase them_. A
+  `null` would lose one of the two; the suite asserts the golden's **key set**, not a truthy shape.
+- A string payment amount is coerced **at the test boundary**, via `toMinorUnits`, because that is the
+  function the web coerces it in — `money.dart:37` already takes `Object?` and is golden-proven. Inventing a
+  second `addMoney` signature for a value no typed caller can produce would widen the port for the fixture's
+  benefit rather than the app's.
+
+### The prettier warnings were never formatting
+
+Asked whether `src/supabase.ts` and its test warn because of CRLF: **yes, and so do the three parity files** —
+but the stronger finding is that no file in this repo is mis-formatted in git. Measured two ways:
+
+- `git ls-files --eol` reports `i/lf` for every one of the five — `parity/BUGS_FOUND.md`, `parity/UI_SPEC.md`,
+  `parity/render_ui_spec.cjs`, `src/supabase.ts`, `src/supabase.test.ts` — i.e. the **committed** content is
+  LF. Four working copies carry `w/crlf` because this box has `core.autocrlf=true` and git smudges text on
+  checkout. (`git show HEAD:<file>` prints those blobs _with_ the checkout conversion applied, which is what
+  made §13i read them as five unformatted files.)
+- `npx prettier <file>` equals `tr -d '\r' <file>` for **all five**, so the only difference prettier can see
+  here is the line ending, not one space or break of style.
+
+Normalising the three parity working copies to LF (`prettier --write`) produced **no git diff at all** — there
+was nothing to commit — and `npx prettier --check .` on this box now names only the two `src/` files, which
+stay exactly as they are by rule 3 and by your instruction. CI on Linux has no `autocrlf`, so its checkout is
+LF and the Format step cannot trip on this; it remains unreachable behind `npm audit --audit-level=high`.
+
+### What #63 deliberately did not do
+
+- **No rollover trigger.** `today` is the third argument, so the suite has no clock and the fixture's
+  `pinnedNow` is unused here. _When_ the phone closes a cycle is D3 / §5.3 — an on-open catch-up or a server
+  cron, both a behaviour change, both your call. The port does not quietly pick one, and the measured
+  double-charge case (`-40406.29 → -42433.24`) is the reason that decision cannot be deferred to an
+  implementation detail: re-running this function for one cycle overcharges a real card.
+- **No persistence.** `runCycleRollover` returns a `CycleRolloverResult` of drafts; writing a `Charge` and a
+  `credit_card_charge` transaction is the caller's job, and the caller is `App.tsx` (#64).
+- The `undefined` APR description (`"undefined% p.a. …"`, §4 step 7) is ported for exactness even though the
+  `interest > 0` guard means it is unreachable — a stored, user-visible string is not a place to diverge.
+- `net-worth` (#62), the `App.tsx` handler goldens (#64) and the OCR contract (#65) are untouched.
