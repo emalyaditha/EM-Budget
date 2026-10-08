@@ -5,26 +5,26 @@
 
 ## Tasks
 
-| # | Task | State |
-| --- | --- | --- |
-| — | Phases 0–3 (inventory, specs+goldens, scaffold, data/auth layer) | DONE — merged to `origin/main` via PR #2/#4 |
-| #60–#63 | money port · five mid-size units · cycle engine · net-worth aggregates | DONE — `049b772`, `cc8b247`, `fe8102d`, `5485b7f` |
-| #64a | transaction-service re-record, `PROJECTION_DEBT` emptied, D35 `srcTree` stamps | DONE — in `98ac2b8`; `validate.ts` PASS 14/1108 |
-| #64b | live harness `parity/live/` (D34), 16-case `app-handlers.json`, Dart port of the nine `App.tsx` handlers | DONE — in `98ac2b8`; `flutter test` 769/769 |
-| #64c | INVENTORY §13m write-up | DONE — `INVENTORY.md:1326-1392`, pushed with the gate docs |
-| #64 | Phase 4 logic port as a whole | DONE — this is the last gate commit on the branch |
-| #65 | Three-way OCR contract (D28/D32) | IN PROGRESS — ruled **GO** 2026-10-08; own branch `feature/ocr-three-way-contract`, **synthetic receipts only** |
-| — | `fix/audit-lockfile` — lockfile-only refresh of `compression`, `proxy-addr`, `source-map-js` | PR OPEN — never `npm audit fix`, no `package.json` change; 24/24 e2e green, audit exit 0 |
-| — | Phase 4 gate → Phase 5 (design system) | OPEN — #65 capture outstanding, then the gate closes |
+| #       | Task                                                                                                     | State                                                                                                           |
+| ------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| —       | Phases 0–3 (inventory, specs+goldens, scaffold, data/auth layer)                                         | DONE — merged to `origin/main` via PR #2/#4                                                                     |
+| #60–#63 | money port · five mid-size units · cycle engine · net-worth aggregates                                   | DONE — `049b772`, `cc8b247`, `fe8102d`, `5485b7f`                                                               |
+| #64a    | transaction-service re-record, `PROJECTION_DEBT` emptied, D35 `srcTree` stamps                           | DONE — in `98ac2b8`; `validate.ts` PASS 14/1108                                                                 |
+| #64b    | live harness `parity/live/` (D34), 16-case `app-handlers.json`, Dart port of the nine `App.tsx` handlers | DONE — in `98ac2b8`; `flutter test` 769/769                                                                     |
+| #64c    | INVENTORY §13m write-up                                                                                  | DONE — `INVENTORY.md:1326-1392`, pushed with the gate docs                                                      |
+| #64     | Phase 4 logic port as a whole                                                                            | DONE — this is the last gate commit on the branch                                                               |
+| #65     | Three-way OCR contract (D28/D32)                                                                         | IN PROGRESS — ruled **GO** 2026-10-08; own branch `feature/ocr-three-way-contract`, **synthetic receipts only** |
+| —       | `fix/audit-lockfile` — lockfile-only refresh of `compression`, `proxy-addr`, `source-map-js`             | PR OPEN — never `npm audit fix`, no `package.json` change; 24/24 e2e green, audit exit 0                        |
+| —       | Phase 4 gate → Phase 5 (design system)                                                                   | OPEN — #65 capture outstanding, then the gate closes                                                            |
 
 ## Branches & PRs
 
-| Ref | What |
-| --- | --- |
-| `main` @ `337bd4a` (local == origin) | Phases 0–3 + money port. **Enterprise CI FAILS here** at `npm audit --audit-level=high` (28 adv: 25 moderate, 2 high, 1 critical) |
-| `phase4-logic-units` | PR #5. Mobile Parity CI **green**; Enterprise still red on npm audit; Vercel green |
+| Ref                                            | What                                                                                                                                                             |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main` @ `337bd4a` (local == origin)           | Phases 0–3 + money port. **Enterprise CI FAILS here** at `npm audit --audit-level=high` (28 adv: 25 moderate, 2 high, 1 critical)                                |
+| `phase4-logic-units`                           | PR #5. Mobile Parity CI **green**; Enterprise still red on npm audit; Vercel green                                                                               |
 | `bugfix/b23-credit-card-purchases` @ `1f6a1ce` | PR #3. **Already contains `origin/main`** (`524bbb4`), so re-testing against main cannot help — its Mobile Parity failure is the same dart lint only PR #5 fixes |
-| `fix/audit-lockfile` @ `67dfdc9` | Lockfile-only, 9-line diff. **Do not merge** — the user merges. |
+| `fix/audit-lockfile` @ `67dfdc9`               | Lockfile-only, 9-line diff. **Do not merge** — the user merges.                                                                                                  |
 
 ## Open decisions waiting for the user
 
@@ -36,11 +36,11 @@
 
 ## Ruled at this gate (D36–D39)
 
-| Bug | Ruling |
-| --- | --- |
-| B-08 | **Leave** the `tsconfig.json` exclude hole open (D36); `validate.ts` + `dart analyze --fatal-infos` stay the defence |
-| B-19 | **Option (a)** — Bearer stays on (D37); seam retained |
-| B-20 | **Replicate**, do not send `instance_type` (D38); web fix → post-parity list |
+| Bug  | Ruling                                                                                                                                              |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B-08 | **Leave** the `tsconfig.json` exclude hole open (D36); `validate.ts` + `dart analyze --fatal-infos` stay the defence                                |
+| B-19 | **Option (a)** — Bearer stays on (D37); seam retained                                                                                               |
+| B-20 | **Replicate**, do not send `instance_type` (D38); web fix → post-parity list                                                                        |
 | B-25 | **Deliberate deviation approved** (D39) — re-enable the control on timeout and show the error; recorded in `UI_SPEC.md`; web fix → post-parity list |
 
 ## Exact next step
