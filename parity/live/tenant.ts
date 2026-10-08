@@ -308,8 +308,14 @@ if (process.argv.includes('--leftover')) {
   const found = await listTenantsByPrefix(prefix);
   console.log(`${prefix}: ${found.length} leftover tenant(s)`);
   for (const email of found) {
-    const minted = /^[a-z0-9._-]+-\d{10,}$/.test(normalizeEmail(email).split('@')[0]) && normalizeEmail(email).endsWith('@example.com');
-    console.log(minted ? `  ${email}  — destroy with: --destroy ${email}` : `  ${email}  — NOT destroyable here (no run stamp; D18 scope, needs the user GO)`);
+    const minted =
+      /^[a-z0-9._-]+-\d{10,}$/.test(normalizeEmail(email).split('@')[0]) &&
+      normalizeEmail(email).endsWith('@example.com');
+    console.log(
+      minted
+        ? `  ${email}  — destroy with: --destroy ${email}`
+        : `  ${email}  — NOT destroyable here (no run stamp; D18 scope, needs the user GO)`,
+    );
   }
   if (found.length > 0) process.exitCode = 1;
 }
