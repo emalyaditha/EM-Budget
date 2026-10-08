@@ -518,7 +518,8 @@ not in the code.
 
 Auth-session representation (B-06/B-07 — three sources of "who is authenticated"), duplicate migration
 filenames (B-10), and WebAuthn/CSRF native origin checks (§7, §12 items 6-8). Re-surface each at the gate
-where it first bites (Phase 3 for auth, before any fresh DB is built for B-10).
+where it first bites. B-10 is the only one still open and is now pending your `schema_migrations` query; it must
+be answered before any fresh DB is built, including the separate e2e test project proposed in `STATUS.md`.
 
 ## 13b. Phase 1 gate rulings (D5-D8)
 
@@ -1390,3 +1391,17 @@ working-copy only; the web-file rules are unchanged).
 - **PR #3 and PR #5 were not merged by this work**, and nothing on `src/`, `server.ts`, `server/`,
   `api-src/` or `supabase/` moved.
 
+## 13n. Phase 4 gate rulings, second batch (D36-D39)
+
+Given at the Phase 4 gate on 2026-10-08, together with the B-26 count query and the read-only audit
+report. Standing default for logic bugs remains **replicate**; these four say where that default holds
+and where you overrode it. B-10 is deliberately absent — it is the one decision still open, awaiting
+your `schema_migrations` query.
+
+| #                | Ruling                                                                                                                                                                                                                                     | Consequence                                                                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D36**          | **B-08 — leave the `tsconfig` exclude open.** No web change.                                                                                                                                                                               | `tsc --noEmit` keeps not seeing tests and the fixture generator, so D8's `validate.ts` plus reading emitted `expected` values remain the defence. P-02 can recur and the family accepts that. |
+| **D37**          | **B-19 — option (a): Bearer stays on the phone.** Accepted deviation, not a replication.                                                                                                                                                   | `/api/app-lock/*` carries `Authorization: Bearer …` where the web never can (its token source is the dead `src/lib/authSession.ts`). Same session either way (`server.ts:1342-1348`), measured 6/6 in §13f. |
+| **D38**          | **B-20 — replicate; do not send `instance_type`.** Web fix → post-parity joint list with B-03/B-28.                                                                                                                                        | What is already built (`schema_columns.dart:112` omits the column, `record_builders.dart:352-353` lets the allow-list drop it), so no Dart change. The boot wipe is reproduced too. No golden carries the field. |
+| **D39**          | **B-25 — approved as a deliberate deviation: re-enable the control on timeout and show the error.** Web fix → post-parity joint list. Recorded in `UI_SPEC.md` §9 via `parity/render_ui_spec.cjs`.                                         | The phone catches, sets `error ?? 'No backup found.'`, keeps both buttons enabled. Message text unchanged (`JsError` carries the web's timeout string verbatim). Repository contract unchanged. No golden, no D35 re-stamp. |
+| **Docs**         | Inconsistencies fixed with these rulings: `BUGS_FOUND.md` said four DECISIONs while STATUS owed five (B-19 was classified separately); B-20's "before the Phase 3 models are generated" was stale (Phase 3 shipped); `UI_SPEC.md` §9 put overlay baselining in Phase 4 while B-25 put this control in Phase 5. | The baselining phase is corrected to **Phase 5** — `mobile/lib/presentation/` is empty, so nothing has a screen to baseline yet.                    |

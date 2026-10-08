@@ -893,8 +893,19 @@ this layout at these widths, and a phone that overflows at 360px will overflow i
   seed, and both are your call, not mine.
 - Overlays, modals and the gates (`LockScreen`, `EmailLogin`, `SettingsModal`) are absent for a
   simpler reason: the harness walks the eight tabs as the page loads them, and nothing opens those
-  surfaces. Each is baselined with its own screen in Phase 4, where the interaction that opens it is
-  ported too.
+  surfaces. Each is baselined with its own screen in Phase 5, where the interaction that opens it and
+  the control state itself are ported together. (This line said Phase 4 until the D39 ruling: Phase 4
+  delivered logic units only, and `mobile/lib/presentation/` is still empty, so no overlay has a screen
+  to baseline yet. Phase 5 is the design-system phase, and `BUGS_FOUND.md` B-25 already counted on that.)
+- **B-25 is a deliberate, ruled deviation on this screen — D39, Phase 4 gate.** When a manual cloud pull
+  times out, the web leaves the Settings sync panel dead for the rest of the session: the 15 s wall sits
+  outside `doSync`'s `try/catch` (`src/supabase.ts:1167-1171`), so the expiry rejects; `handlePullSync`
+  awaits without a `catch` (`src/components/SettingsModal.tsx:219`), so `syncStatus` never leaves
+  `'loading'` and both buttons stay `disabled` (`:614`, `:626`). The phone must not inherit that: it
+  catches, shows `error ?? 'No backup found.'`, and leaves both controls enabled. The wording is the web's
+  own — `JsError.message` carries `syncStateFromSupabase timed out after 15000ms` verbatim — so the phone
+  displays an error message the web never manages to show. The repository contract is unchanged and still
+  rejects (`mobile/lib/data/ledger_repository.dart:260-270`); the web fix is on the post-parity list.
 
 ## 10. Reproducing this file
 
