@@ -1405,3 +1405,45 @@ your `schema_migrations` query.
 | **D38**  | **B-20 — replicate; do not send `instance_type`.** Web fix → post-parity joint list with B-03/B-28.                                                                                                                                                                                                            | What is already built (`schema_columns.dart:112` omits the column, `record_builders.dart:352-353` lets the allow-list drop it), so no Dart change. The boot wipe is reproduced too. No golden carries the field.            |
 | **D39**  | **B-25 — approved as a deliberate deviation: re-enable the control on timeout and show the error.** Web fix → post-parity joint list. Recorded in `UI_SPEC.md` §9 via `parity/render_ui_spec.cjs`.                                                                                                             | The phone catches, sets `error ?? 'No backup found.'`, keeps both buttons enabled. Message text unchanged (`JsError` carries the web's timeout string verbatim). Repository contract unchanged. No golden, no D35 re-stamp. |
 | **Docs** | Inconsistencies fixed with these rulings: `BUGS_FOUND.md` said four DECISIONs while STATUS owed five (B-19 was classified separately); B-20's "before the Phase 3 models are generated" was stale (Phase 3 shipped); `UI_SPEC.md` §9 put overlay baselining in Phase 4 while B-25 put this control in Phase 5. | The baselining phase is corrected to **Phase 5** — `mobile/lib/presentation/` is empty, so nothing has a screen to baseline yet.                                                                                            |
+
+## 13o. Phase 4 gate ruling, third batch (D40) — OCR deferred out of mobile v1
+
+Given 2026-10-08 at the same gate, after the #65 capture was attempted, hung, and was ruled **parked**
+rather than left blocking Phase 4. D28 and D32 are not reversed; they are deferred with the feature.
+
+| #       | Ruling                                                                                                                                                        | Consequence                                                                                                                                                                                                                                                                                           |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D40** | **OCR deferred out of mobile v1; the plan to route scanning through `/api/ocr/free-scan` stands for when it is added; `freeOcrParser.ts` stays server-side.** | Nothing on the phone opens a camera sheet or an image drop for scanning, so every receipt-scan entry point is hidden — listed one by one as `UI_SPEC.md` §7 **D-U16**. No golden, no divergence register, and the D28/D32 three-way measurement has to be _taken_, not written, whenever OCR returns. |
+
+### What this removes from the gate
+
+#65 was the last open item on the Phase 4 gate checklist. It is struck, not completed: `STATUS.md` now
+closes the gate with nothing outstanding. D28/D32 stay in the ruling list as the shape OCR work takes
+when it is re-opened, so a later session does not mistake the park for a decision to port the parser.
+
+### What was left behind, and where it is
+
+The recorder scaffold is committed on `feature/ocr-three-way-contract` as a **local** commit only — no
+push, no PR, and no fixture. `parity/live/ocr/` holds `record.ts` (the three-way runner), `samples.ts`
+(synthetic receipt generation), `browser-entry.ts` (the in-browser `tesseract.js` leg) and
+`app-privates.ts` (the vite plugin that slices `prepareForOcr`, `loadImage`, `isUsableOcrText`,
+`OCR_MAX_EDGE` and `OCR_MIN_EDGE` out of `ReceiptScanner.tsx` rather than copying them). The synthetic
+PNGs under `parity/live/ocr/samples/` are generated, never authored.
+
+### The one real finding the attempt produced
+
+The capture did not hang in the web app. It hung in the harness's own source slicer: the brace walker
+in `app-privates.ts` incremented its depth on `{` without advancing the cursor, so it re-read the same
+brace forever — 100% CPU, no output, no fixture. Two consequences worth keeping:
+
+- **A synchronous CPU-bound loop starves `setTimeout`.** An in-process `Promise.race` budget cannot
+  interrupt one; only an external supervisor with a hard kill can. Proven, not inferred: a probe
+  guarded by a 25 s timer burned 259 CPU-seconds and never printed. Any future retry needs a
+  supervisor, not a bigger timeout.
+- **Slicing a declaration by scanning for the next `{` is wrong.** `prepareForOcr` returns
+  `Promise<{ image: string; mimeType: string }>`, so the first brace is inside the _type_, and the
+  slice cut the declaration in half. `bodyBrace` now walks the signature over comments and strings and
+  takes the first depth-zero `{`.
+
+`parity/live/ocr/` is deliberately excluded from nothing: it is outside `src/`, so it never enters the
+D35 `srcTree` digest, and it stays out of `npm run lint`'s four paths.

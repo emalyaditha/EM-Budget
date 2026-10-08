@@ -974,6 +974,13 @@ put(
       'On the web, revoking all devices removes the *cookie*, so the browser loses trust on next load. A phone holds the session token in secure storage and is not affected by any cookie deletion, and there is no token revocation list to consult. The asymmetry is inherent to the unchanged server, not a porting mistake.',
       'Report it, do not fix it. The phone reproduces the web’s *token* semantics exactly; only the cookie half has no native twin. Phase 7 must state this in the trust-device screen copy so a user is not told a phone was revoked when it was not.',
     ],
+    [
+      'D-U16',
+      'Receipt scanning / OCR — **hidden on mobile v1 (D40)**',
+      'Every scanning affordance sits behind one component with one mount: `src/components/ReceiptScanner.tsx` (drag-and-drop zone `:287`, click-to-pick `:288`, the hidden `<input type="file" accept="image/*">` `:295`, `Scan Issue` `:347`, the edit form and its post button `:430`), mounted only at `src/components/InflowsOutflows.tsx:296` (import `:5`), which `src/App.tsx:4456` renders in the `inflow_outflow` tab (lazy chunk `src/App.tsx:86`). Client-side parsing is `src/utils/freeOcrParser.ts` (tesseract.js), tested by `src/ocr-parser.test.ts`; the server path is `POST /api/ocr/free-scan`.',
+      'Deferred, not unbuildable. D40 at the Phase 4 gate moved OCR out of mobile v1, so no phone screen may open a camera sheet or accept an image drop for scanning, and the capture that was to measure the browser-OCR ↔ server-OCR ↔ parser contract (#65) is parked — there is no golden for any of it.',
+      '**No screen, no affordance, no OCR call in v1.** The plan stands for when OCR is added: scan through `POST /api/ocr/free-scan`, keep `freeOcrParser.ts` server-side, and measure the three-way contract (D28/D32) rather than write it. The recorder scaffold is committed on `feature/ocr-three-way-contract`, local only. Not to be confused with the web’s voucher controls — `LoansTracker.tsx:568` “Post receipt”, `DebtDetailModal.tsx:207` “Receipt account”, `DebtTracker.tsx:308` “Other / no receipt”, the `Receipt` icons at `CreditCardManagement.tsx:430` and `:649` and `ui/CategoryChip.tsx:36` and `:84`, and the avatar image picker at `ProfileSection.tsx:127-129`: none of them scan, and all of them are ported normally.',
+    ],
   ];
   table(['id', 'subject', 'evidence', 'why the phone differs', 'proposed handling'], rows);
 }
