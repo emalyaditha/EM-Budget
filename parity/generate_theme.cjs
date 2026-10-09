@@ -1217,6 +1217,524 @@ L.push(
   '',
 );
 finish('app_surfaces.dart');
+// ---------------------------------------------------------------- §6 controls (UI_SPEC buttons)
+// `AppButton`'s two paintable classes. Their base state is probed like every other
+// §6 class, so fill, text, border, radius and type come from Chrome. Their
+// PRESSED and DISABLED appearance is authored in `src/index.css`, which the probe
+// cannot see: the file is byte-identical to the tag the measurement was taken at
+// (`git diff --stat pre-flutter HEAD -- src/index.css` prints nothing), so it is
+// the same pinned source and not a newer one. `:hover` exists in the CSS and is
+// deliberately NOT ported — UI_SPEC D-U1 rules hover "decoration, not contract"
+// for a touch screen.
+const CONTROL_CLASSES = ['.btn-primary', '.btn-ghost'];
+const CSS_LINES = fs.readFileSync(path.join(ROOT, 'src', 'index.css'), 'utf8').split(/\r?\n/);
+
+/** The text of the rule whose head line matches `headRe`, with its line number. */
+const cssRule = (headRe, cls) => {
+  const i = CSS_LINES.findIndex((l) => headRe.test(l));
+  if (i < 0) fail(`${cls}: no rule head matching ${headRe} in src/index.css`);
+  const body = [];
+  let closed = false;
+  for (let j = i; j < CSS_LINES.length && j - i <= 16; j++) {
+    body.push(CSS_LINES[j]);
+    if (/\}\s*$/.test(CSS_LINES[j])) {
+      closed = true;
+      break;
+    }
+  }
+  if (!closed) fail(`${cls}: rule at src/index.css:${i + 1} never closes`);
+  return { line: i + 1, text: body.join('\n') };
+};
+
+/** One declaration of a parsed rule, or a generation failure — never a default. */
+const cssDecl = (rule, prop, cls) => {
+  const m = new RegExp(`${prop}:\\s*([^;]+);`).exec(rule.text);
+  if (!m) fail(`${cls}: no \`${prop}\` in src/index.css:${rule.line}`);
+  return m[1].trim();
+};
+
+/** Every `prop: value` pair of a parsed rule, in source order, head line dropped. */
+const ruleProps = (rule, cls) => {
+  // The body is between the first `{` and the last `}`: a `:disabled` rule is
+  // authored as a two-line selector list, so dropping "the head line" is not
+  // enough — the head is every line before the brace.
+  const open = rule.text.indexOf('{');
+  const close = rule.text.lastIndexOf('}');
+  if (open < 0 || close < open) {
+    fail(`${cls}: the rule at src/index.css:${rule.line} has no readable body`);
+  }
+  const body = rule.text.slice(open + 1, close);
+  const out = [];
+  for (const part of body.split(';')) {
+    const decl = part.replace(/[{}]/g, '').trim();
+    if (!decl) continue;
+    const i = decl.indexOf(':');
+    if (i < 0) fail(`${cls}: "${decl}" at src/index.css:${rule.line} is not a declaration`);
+    out.push([decl.slice(0, i).trim(), decl.slice(i + 1).trim()]);
+  }
+  if (!out.length) fail(`${cls}: the rule at src/index.css:${rule.line} declares nothing`);
+  return out;
+};
+
+/** The whole property set of a state rule, against what AppControlSpec can hold. A
+ *  state the web widens has to fail generation: a silently dropped declaration is a
+ *  phone that disagrees with the browser the moment it is pressed or disabled. */
+const checkStateProps = (props, allowed, label, cls, line) => {
+  for (const [prop] of props) {
+    if (!allowed.includes(prop)) {
+      fail(`${cls}: ${label} sets \`${prop}\` (src/index.css:${line}); AppControlSpec cannot port it`);
+    }
+  }
+};
+
+/** An authored colour that is a bare `var(--token)`, substituted from the same
+ *  pass's measured `:root`. Chrome's probe only sees the resting state, so this is
+ *  the substitution the browser would make, taken from the pinned measurement. */
+const authoredColour = (value, theme, themeTag, label, cls) => {
+  const m = /^var\((--[a-z0-9-]+)\)$/.exec(value);
+  if (!m) fail(`${cls}: ${label} "${value}" is not a bare var(--token); the port cannot substitute it`);
+  const t = theme.root[m[1]];
+  if (!t || !t.srgb) fail(`${cls}: ${label} references ${m[1]}, which is not a measured colour in ${themeTag}`);
+  return { token: m[1], srgb: t.srgb };
+};
+
+/** Flutter takes one family name where CSS takes a fallback stack, so the port
+ *  keeps the first family of the measured stack — the same rule
+ *  `app_typography.dart` is generated with. It matters here: `.btn-primary` and
+ *  `.btn-ghost` both author `--font-display`, so a label that inherits the
+ *  theme’s body font is not the measured control.
+ */
+const probeFamily = (p, cls) => {
+  const raw = probeRaw(p, 'fontFamily', cls);
+  const first = raw.split(',')[0].replace(/["']/g, '').trim();
+  if (!first) fail(`${cls}: fontFamily probe "${raw}" has no first family`);
+  return first;
+};
+
+/** The four §6 control properties a single `AnimatedContainer` can carry: the
+ *  box's fill and border colour, and its transform. Anything else in a
+ *  `transition` shorthand is a property the port has no field for. */
+const CONTROL_TRANSITION_PROPS = ['background-color', 'border-color', 'transform'];
+
+/** A `var(--token)` reference on its own, as a state or motion rule authors it. */
+const tokenRef = (value, label, cls) => {
+  const m = /^var\((--[a-z0-9-]+)\)$/.exec(value);
+  if (!m) fail(`${cls}: ${label} "${value}" is not a bare var(--token); the port cannot substitute it`);
+  return m[1];
+};
+
+/** The measured §4 token a rule names, by name. */
+const motionToken = (list, name, label, cls) => {
+  const t = list.find((o) => o.name === name);
+  if (!t) fail(`${cls}: the ${label} ${name} is not a §4 motion token the measurement emitted`);
+  return t;
+};
+
+/** What the class itself says about how a state change runs. `AnimatedContainer`
+ *  drives the whole box with one duration and one curve, so this accepts a
+ *  shorthand whose items all name the same pair; a rule that splits the clock per
+ *  property would need a controller per property, which is a §6 fact the port does
+ *  not have. The values are the measured tokens', never a widget's choice. */
+const controlTransition = (rule, cls) => {
+  const raw = cssDecl(rule, 'transition', cls).replace(/\s+/g, ' ').trim();
+  const items = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length);
+  if (!items.length) fail(`${cls}: \`transition: ${raw}\` lists nothing to animate`);
+  const props = [];
+  let dur = null;
+  let ease = null;
+  for (const item of items) {
+    const parts = item.split(/\s+/);
+    if (parts.length !== 3) {
+      fail(`${cls}: transition item "${item}" is not \`property var(--dur) var(--ease)\``);
+    }
+    const [prop, durRef, easeRef] = parts;
+    if (!CONTROL_TRANSITION_PROPS.includes(prop)) {
+      fail(`${cls}: transition animates \`${prop}\`, which AppControlSpec cannot port`);
+    }
+    if (props.includes(prop)) fail(`${cls}: transition lists \`${prop}\` twice`);
+    props.push(prop);
+    const d = motionToken(durs, tokenRef(durRef, 'transition duration', cls), 'duration', cls);
+    const e = motionToken(curves, tokenRef(easeRef, 'transition easing', cls), 'timing', cls);
+    if (dur && dur.name !== d.name) {
+      fail(`${cls}: the transition splits its clock (${dur.name} then ${d.name}); AppControls ports one duration`);
+    }
+    if (ease && ease.name !== e.name) {
+      fail(`${cls}: the transition splits its curve (${ease.name} then ${e.name}); AppControls ports one curve`);
+    }
+    dur = d;
+    ease = e;
+  }
+  return {
+    props,
+    dur,
+    ease,
+    ms: msOf(dur.raw, dur.name),
+    curve: cubicOf(ease.raw, ease.name),
+  };
+};
+
+/** CSS `padding` shorthand as far as a symmetric box needs it. */
+const probePadding = (p, cls) => {
+  const raw = probeRaw(p, 'padding', cls);
+  const n = raw.split(/\s+/).map((s) => lengthPx(s, `${cls} padding`));
+  const [top, right = top, bottom = top, left = right] = n;
+  if (n.length > 4) fail(`${cls}: padding shorthand "${raw}" has too many values`);
+  if (top !== bottom || left !== right) {
+    fail(`${cls}: padding "${raw}" is asymmetric; port it as EdgeInsets.fromLTRB, not a v/h pair`);
+  }
+  return { vertical: top, horizontal: left };
+};
+
+/** A `read()` row flattened to what `!==` can decide, so a pass comparison is a
+ *  scalar comparison. Colours enter as their measured hex; any other object field
+ *  fails generation rather than being skipped, because an unexamined field is a
+ *  property the phone could disagree about in silence. */
+const CONTROL_COLOUR_FIELDS = ['borderColor', 'fillColor', 'textColor'];
+const controlRow = (row, cls) => {
+  const out = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (CONTROL_COLOUR_FIELDS.includes(key)) {
+      out[key] = value.hex;
+    } else if (value === null || typeof value !== 'object') {
+      out[key] = value;
+    } else {
+      fail(`${cls}: the ${key} field is an object the pass check cannot compare`);
+    }
+  }
+  return out;
+};
+
+const controls = CONTROL_CLASSES.map((cls) => {
+  const read = (tag, theme) => {
+    const p = theme.probes[cls];
+    if (!p) fail(`${tag} theme has no ${cls} probe`);
+    if (probeRaw(p, 'boxShadow', cls) !== 'none') {
+      fail(`${cls}: carries a box-shadow (${probeRaw(p, 'boxShadow', cls)}); AppControlSpec has no shadow field yet`);
+    }
+    if (p.backdropFilter && p.backdropFilter.raw !== 'none') {
+      fail(`${cls}: carries a backdrop-filter (${p.backdropFilter.raw}); port it through AppSurfaceSpec instead`);
+    }
+    const pad = probePadding(p, cls);
+    const lineRaw = probeRaw(p, 'lineHeight', cls);
+    const spaceRaw = probeRaw(p, 'letterSpacing', cls);
+    return {
+      displayCss: probeRaw(p, 'display', cls),
+      radiusPx: probePx(p, 'borderRadius', cls),
+      borderWidthPx: probePx(p, 'borderTopWidth', cls),
+      borderColor: probeSrgb(p, 'borderTopColor', cls),
+      fillColor: probeSrgb(p, 'backgroundColor', cls),
+      textColor: probeSrgb(p, 'color', cls),
+      fontFamily: probeFamily(p, cls),
+      fontSizePx: probePx(p, 'fontSize', cls),
+      fontWeight: (() => {
+        const w = probeRaw(p, 'fontWeight', cls);
+        if (!/^([1-9]00)$/.test(w)) fail(`${cls}: fontWeight "${w}" is not a 100-900 step`);
+        return parseInt(w, 10);
+      })(),
+      lineHeightPx: lineRaw === 'normal' ? null : lengthPx(lineRaw, `${cls} lineHeight`),
+      letterSpacingPx: spaceRaw === 'normal' ? 0.0 : lengthPx(spaceRaw, `${cls} letterSpacing`),
+      letterSpacingRaw: spaceRaw,
+      paddingVerticalPx: pad.vertical,
+      paddingHorizontalPx: pad.horizontal,
+    };
+  };
+  const l = read('light-desktop', LIGHT);
+  const d = read('dark-desktop', DARK);
+  // The phone passes must not move anything the port carries: `AppControls` keys
+  // one row per brightness and the measurement says each phone row equals its own
+  // desktop row, so a difference here is a viewport rule to model, not to average.
+  for (const [tag, theme, want] of [
+    ['light-phone', LIGHT_PHONE, l],
+    ['dark-phone', DARK_PHONE, d],
+  ]) {
+    const rowP = controlRow(read(tag, theme), cls);
+    const rowW = controlRow(want, cls);
+    for (const [key, value] of Object.entries(rowP)) {
+      if (rowW[key] !== value) {
+        fail(`${cls}: ${key} is "${value}" on ${tag} but "${rowW[key]}" on its desktop pass`);
+      }
+    }
+  }
+  // Box and type do not depend on the colour scheme; the fills do, so only these
+  // are compared across brightness. A themed weight or family would be a §6 fact
+  // to review, which is why the check is on the fields rather than on a hunch.
+  const brightnessStable = [
+    'displayCss',
+    'radiusPx',
+    'borderWidthPx',
+    'fontFamily',
+    'fontSizePx',
+    'fontWeight',
+    'lineHeightPx',
+    'letterSpacingPx',
+    'paddingVerticalPx',
+    'paddingHorizontalPx',
+  ];
+  for (const key of brightnessStable) {
+    if (l[key] !== d[key]) {
+      fail(`${cls}: ${key} is "${l[key]}" in light and "${d[key]}" in dark; §6 prints one row`);
+    }
+  }
+
+  const off = cssRule(new RegExp(`^\\${cls}:disabled,$`), cls);
+  const act = cssRule(new RegExp(`^\\${cls}:active \\{$`), cls);
+  const hov = CSS_LINES.findIndex((x) => new RegExp(`^\\${cls}:hover \\{$`).test(x));
+  const disabledOpacity = parseFloat(cssDecl(off, 'opacity', cls));
+  if (!Number.isFinite(disabledOpacity) || disabledOpacity <= 0 || disabledOpacity > 1) {
+    fail(`${cls}: disabled opacity "${cssDecl(off, 'opacity', cls)}" is not a fraction`);
+  }
+  if (cssDecl(off, 'transform', cls) !== 'none') {
+    fail(`${cls}: the disabled rule must reset transform, or the press offset survives disabling`);
+  }
+  const tr = cssDecl(act, 'transform', cls);
+  const tm = /^translateY\(([-\d.]+)px\)$/.exec(tr);
+  if (!tm) fail(`${cls}: active transform "${tr}" is not a plain translateY(Npx)`);
+  checkStateProps(ruleProps(off, cls), ['opacity', 'cursor', 'transform'], ':disabled', cls, off.line);
+  const activeProps = ruleProps(act, cls);
+  checkStateProps(activeProps, ['transform', 'background'], ':active', cls, act.line);
+  const activeBg = activeProps.find(([prop]) => prop === 'background');
+  l.pressFill = activeBg ? authoredColour(activeBg[1], LIGHT, 'light-desktop', ':active background', cls) : null;
+  d.pressFill = activeBg ? authoredColour(activeBg[1], DARK, 'dark-desktop', ':active background', cls) : null;
+  if (activeBg) {
+    if (l.pressFill.token !== d.pressFill.token) {
+      fail(`${cls}: the :active background token differs between the light and dark passes`);
+    }
+    for (const [pass, themeTag] of [
+      [l, 'light-desktop'],
+      [d, 'dark-desktop'],
+    ]) {
+      if (pass.pressFill.srgb.hex === pass.fillColor.hex) {
+        fail(
+          `${cls}: ${themeTag} :active repaints the resting fill — the rule is a no-op and the port should say so out loud`,
+        );
+      }
+    }
+  }
+  const rest = cssRule(new RegExp(`^\\${cls} \\{$`), cls);
+  const trans = controlTransition(rest, cls);
+  // The port runs every state change of the box on this one clock, so the rule has
+  // to name each property it actually changes: a fill the web snaps while the phone
+  // eases — or the reverse — is a button that disagrees with the browser in motion.
+  if (parseFloat(tm[1]) !== 0 && !trans.props.includes('transform')) {
+    fail(`${cls}: :active moves the box but its transition omits transform (src/index.css:${rest.line})`);
+  }
+  if (activeBg && !trans.props.includes('background-color')) {
+    fail(`${cls}: :active repaints the fill but its transition omits background-color (src/index.css:${rest.line})`);
+  }
+  return {
+    cls,
+    l,
+    d,
+    disabledOpacity,
+    pressDyPx: parseFloat(tm[1]),
+    pressToken: activeBg ? l.pressFill.token : null,
+    transitionMs: trans.ms,
+    transitionEase: trans.curve,
+    transitionDurToken: trans.dur.name,
+    transitionEaseToken: trans.ease.name,
+    transitionProps: trans.props.join(', '),
+    transitionSrc: `src/index.css:${rest.line}`,
+    disabledSrc: `src/index.css:${off.line}`,
+    activeSrc: `src/index.css:${act.line}`,
+    hoverSrc: hov < 0 ? 'none' : `src/index.css:${hov + 1}`,
+  };
+});
+
+const controlExpr = (c, pass) =>
+  [
+    `      cssClass: ${dartStr(c.cls)},`,
+    `      displayCss: ${dartStr(pass.displayCss)},`,
+    `      radiusPx: ${fmt(pass.radiusPx)},`,
+    `      borderWidthPx: ${fmt(pass.borderWidthPx)},`,
+    `      borderColor: ${dartSurfaceColour(pass.borderColor)},`,
+    `      fillColor: ${dartSurfaceColour(pass.fillColor)},`,
+    `      textColor: ${dartSurfaceColour(pass.textColor)},`,
+    `      fontFamily: ${dartStr(pass.fontFamily)},`,
+    `      fontSizePx: ${fmt(pass.fontSizePx)},`,
+    `      fontWeight: ${pass.fontWeight},`,
+    `      lineHeightPx: ${pass.lineHeightPx === null ? 'null' : fmt(pass.lineHeightPx)},`,
+    `      letterSpacingPx: ${fmt(pass.letterSpacingPx)},`,
+    `      paddingVerticalPx: ${fmt(pass.paddingVerticalPx)},`,
+    `      paddingHorizontalPx: ${fmt(pass.paddingHorizontalPx)},`,
+    `      disabledOpacity: ${fmt(c.disabledOpacity)},`,
+    `      pressDyPx: ${fmt(c.pressDyPx)},`,
+    `      pressFillColor: ${pass.pressFill === null ? 'null' : dartSurfaceColour(pass.pressFill.srgb)},`,
+    `      transitionMs: ${c.transitionMs},`,
+    `      easeX1: ${fmt(c.transitionEase[0])},`,
+    `      easeY1: ${fmt(c.transitionEase[1])},`,
+    `      easeX2: ${fmt(c.transitionEase[2])},`,
+    `      easeY2: ${fmt(c.transitionEase[3])},`,
+  ].join('\n');
+
+// ================================================================ app_controls.dart
+banner();
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  '/// One §6 control class, measured in its resting state and read out of',
+  '/// `src/index.css` in its pressed and disabled states. A widget under',
+  '/// `lib/presentation/` restates none of it.',
+  'class AppControlSpec {',
+  '  const AppControlSpec({',
+  '    required this.cssClass,',
+  '    required this.displayCss,',
+  '    required this.radiusPx,',
+  '    required this.borderWidthPx,',
+  '    required this.borderColor,',
+  '    required this.fillColor,',
+  '    required this.textColor,',
+  '    required this.fontFamily,',
+  '    required this.fontSizePx,',
+  '    required this.fontWeight,',
+  '    required this.lineHeightPx,',
+  '    required this.letterSpacingPx,',
+  '    required this.paddingVerticalPx,',
+  '    required this.paddingHorizontalPx,',
+  '    required this.disabledOpacity,',
+  '    required this.pressDyPx,',
+  '    required this.pressFillColor,',
+  '    required this.transitionMs,',
+  '    required this.easeX1,',
+  '    required this.easeY1,',
+  '    required this.easeX2,',
+  '    required this.easeY2,',
+  '  });',
+  '',
+  '  /// The CSS class this row was measured from.',
+  '  final String cssClass;',
+  '',
+  '  /// The computed `display`. Carried as data, not applied: on the web these',
+  '  /// classes are flex items and size to their content, which in Flutter is the',
+  '  /// caller’s layout, not the widget’s paint.',
+  '  final String displayCss;',
+  '  final double radiusPx;',
+  '',
+  '  /// Measured on one side; the classes author `border: 1px solid …`, i.e.',
+  '  /// uniform, and [border] reproduces that box.',
+  '  final double borderWidthPx;',
+  '  final Color borderColor;',
+  '  final Color fillColor;',
+  '  final Color textColor;',
+  '  /// The class’s own `font-family` — its measured stack’s first family, so a',
+  '  /// button label is `--font-display` and not the theme’s body font.',
+  '  final String fontFamily;',
+  '',
+  '',
+  '  /// §6.3 type: the class sets `font-size`/`font-weight` itself, so the label',
+  '  /// cannot inherit the theme ladder and stay faithful.',
+  '  final double fontSizePx;',
+  '  final int fontWeight;',
+  '  final double? lineHeightPx;',
+  '',
+  '  /// CSS `letter-spacing: normal` computes to 0; the measurement prints',
+  '  /// `normal`, and that is what `ui_tokens_test.dart` re-checks.',
+  '  final double letterSpacingPx;',
+  '',
+  '  /// The `padding` shorthand as one vertical / horizontal pair. The generator',
+  '  /// fails rather than flattening an asymmetric box.',
+  '  final double paddingVerticalPx;',
+  '  final double paddingHorizontalPx;',
+  '',
+  '  /// Authored `:disabled { opacity: … }`, which Chrome’s probe cannot see. See',
+  '  /// `src/index.css` for the class; UI_SPEC D-U1 drops `:hover` on purpose.',
+  '  final double disabledOpacity;',
+  '',
+  '  /// Authored `:active { transform: translateY(…)px }`.',
+  '  final double pressDyPx;',
+  '  /// Authored `:active { background: … }`, substituted from the same pass’s',
+  '  /// measured `:root` — Chrome’s probe only ever sees the resting state. Null',
+  '  /// where the pressed state leaves the fill alone, so [activeFill] is then',
+  '  /// [fillColor], which is what the browser keeps painting.',
+  '  final Color? pressFillColor;',
+  '  /// The class’s own authored `transition`: the measured milliseconds of the',
+  '  /// duration token it names, and the four numbers of the easing token’s',
+  '  /// `cubic-bezier(…)`. A widget reads its clock from this row and picks none;',
+  '  /// `AppTokens` holds the same measurement keyed by token name.',
+  '  final int transitionMs;',
+  '',
+  '  /// The four numbers of the class’s `cubic-bezier(…)`, kept verbatim:',
+  '  /// `Curves.*` names are not parity targets.',
+  '  final double easeX1;',
+  '  final double easeY1;',
+  '  final double easeX2;',
+  '  final double easeY2;',
+  '',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '',
+  '  Border get border => Border.all(color: borderColor, width: borderWidthPx);',
+  '',
+  '  /// The fill to paint while pressed. `.btn-primary` does not move its fill on',
+  '  /// `:active`; `.btn-ghost` repaints it. See [pressFillColor].',
+  '  Color get activeFill => pressFillColor ?? fillColor;',
+  '',
+  '  Duration get transitionDuration => Duration(milliseconds: transitionMs);',
+  '',
+  '  Cubic get transitionCurve =>',
+  '      Cubic(easeX1, easeY1, easeX2, easeY2);',
+  '',
+  '  EdgeInsetsGeometry get padding => EdgeInsets.symmetric(',
+  '    vertical: paddingVerticalPx,',
+  '    horizontal: paddingHorizontalPx,',
+  '  );',
+  '',
+  '  /// The 100-900 CSS step indexes the Dart enum directly; no weight is retyped.',
+  '  FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];',
+  '',
+  '  /// Flutter’s line-height is a multiple of the font size, CSS’s is a length,',
+  '  /// so this is the measured pair divided — not a number anyone chose.',
+  '  double? get heightRatio =>',
+  '      lineHeightPx == null ? null : lineHeightPx! / fontSizePx;',
+  '}',
+  '',
+  '/// The §6 controls, keyed by CSS class — one map per measured brightness pass.',
+  'abstract final class AppControls {',
+);
+for (const [passName, pass, themeTag] of [
+  ['light', 'l', 'light-desktop'],
+  ['dark', 'd', 'dark-desktop'],
+]) {
+  L.push(
+    `  /// ${passName} pass (UI_SPEC §6.1–§6.3, \`${themeTag}\`; states from \`src/index.css\`).`,
+    `  static const Map<String, AppControlSpec> ${passName} =`,
+    '      <String, AppControlSpec>{',
+  );
+  for (const c of controls) {
+    L.push(`    ${dartStr(c.cls)}: AppControlSpec(`, controlExpr(c, c[pass]), '    ),');
+  }
+  L.push('  };', '');
+}
+L.push(
+  '  /// The state rules, printed once because both passes author them identically:',
+  ...controls.flatMap((c) => [`  /// \`${c.cls}\` — disabled ${c.disabledSrc}, active ${c.activeSrc},`]),
+  '  /// and the `:hover` rules the port drops (UI_SPEC D-U1):',
+  ...controls.map((c) => `  /// \`${c.cls}:hover\` at ${c.hoverSrc}.`),
+  '  /// The fill each pressed state paints, straight from the authored rules:',
+  ...controls.map((c) => `  /// \`${c.cls}:active\` → ${c.pressToken ?? 'its resting fill'}`),
+  '',
+  '  /// The clock each class runs its state changes on, from its own rule:',
+  ...controls.flatMap((c) => [
+    `  /// \`${c.cls}\` transitions ${c.transitionProps} on`,
+    `  /// \`${c.transitionDurToken}\` / \`${c.transitionEaseToken}\` (${c.transitionSrc}).`,
+  ]),
+  '',
+  '  /// The measured control for a class and brightness. An unknown class is a',
+  '  /// programming error, not a fallback: nothing in this layer may quietly',
+  '  /// become a Material default.',
+  '  static AppControlSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppControlSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppControlSpec? spec = table[cssClass];',
+  "    if (spec == null) throw ArgumentError('$cssClass is not a §6 control');",
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+);
+finish('app_controls.dart');
 // ---------------------------------------------------------------- write + summary
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
@@ -1259,6 +1777,7 @@ console.log(
     `  §3 probe classes (phone):      ${typeClasses.length}`,
     `  ThemeSlots pinned:             ${schemeMap.length}`,
     `  §6 card surfaces emitted:    ${surfaces.length} classes x 2 passes  -> AppSurfaces`,
+    `  §6 controls emitted:         ${controls.length} classes x 2 passes  -> AppControls`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );

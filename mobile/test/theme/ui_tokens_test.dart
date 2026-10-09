@@ -7,14 +7,16 @@
 // files are a projection of it, and UI_SPEC 5 is deliberately not used because
 // its machine "Dart" column mis-parses --blur-* / --container-* names as radii.
 //
-// Every expectation below is parsed out of the CSS raw/substituted string in this
-// file, never copied from the generated output, so the two can only agree by
-// both being right.
+// Every expectation below is parsed out of the JSON, or out of src/index.css for
+// the two states a probe cannot see (the file is byte-identical to the tag the
+// measurement was taken at), never copied from the generated output, so the two
+// can only agree by both being right.
 
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:em_budget/core/theme/app_controls.dart';
 import 'package:em_budget/core/theme/app_colors.dart';
 import 'package:em_budget/core/theme/app_radii.dart';
 import 'package:em_budget/core/theme/app_shadows.dart';
@@ -1061,6 +1063,464 @@ void main() {
         );
       },
     );
+  });
+
+  final List<String> cssLines = webSource('src/index.css')
+      .split(RegExp(r'\r?\n'));
+
+  group('UI_SPEC 6 controls', () {
+    /// The classes `AppButton` can be. `.icon-btn` is absent on purpose: it is a
+    /// sized (38x38, and 34x34 inside `.glass-pill`) icon target whose paint comes
+    /// from `width`/`height` the probe does not measure, so it is its own increment.
+    const List<String> controlClasses = <String>['.btn-primary', '.btn-ghost'];
+
+    double pxOf(String value, String label) {
+      final RegExpMatch? m = RegExp(r'^(-?[\d.]+)px$').firstMatch(value);
+      if (m == null) throw StateError('$label: "$value" is not a px length');
+      return double.parse(m.group(1)!);
+    }
+
+    /// Declarations of the CSS rule that starts at `headLine`. `src/index.css` is
+    /// byte-identical to the tag the probe measurement was taken at (measured:
+    /// `git diff --stat pre-flutter HEAD -- src/index.css` prints nothing), so this
+    /// is the same pinned source, read for the two states a probe cannot see.
+    Map<String, String> cssDecls(
+      List<String> lines,
+      String headLine,
+      String cls,
+    ) {
+      final int start = lines.indexOf(headLine);
+      if (start < 0) {
+        throw StateError('$cls: no rule head "$headLine" in src/index.css');
+      }
+      final Map<String, String> decls = <String, String>{};
+      for (int j = start + 1; j < lines.length; j++) {
+        for (final String part in lines[j].split(';')) {
+          final int colon = part.indexOf(':');
+          if (colon < 0) {
+            continue;
+          }
+          decls[part.substring(0, colon).trim()] = part
+              .substring(colon + 1)
+              .trim();
+        }
+        if (lines[j].contains('}')) return decls;
+      }
+      throw StateError('$cls: rule at "$headLine" never closes');
+    }
+
+    /// The text of a rule, joined. `cssDecls` splits line by line on `;`, so a
+    /// shorthand authored one item per line arrives from it as an empty value:
+    /// the `transition` of every §6 control is written that way.
+    String cssRuleText(List<String> lines, String headLine, String cls) {
+      final int start = lines.indexOf(headLine);
+      if (start < 0) {
+        throw StateError('$cls: no rule head "$headLine" in src/index.css');
+      }
+      final List<String> body = <String>[];
+      for (int j = start; j < lines.length; j++) {
+        body.add(lines[j]);
+        if (lines[j].contains('}')) return body.join(' ');
+      }
+      throw StateError('$cls: rule at "$headLine" never closes');
+    }
+
+    test(
+      'AppControls holds exactly the measured control classes, per pass',
+      () {
+        final List<String> expected = controlClasses.toList()..sort();
+        expect(AppControls.light.keys.toList()..sort(), expected);
+        expect(AppControls.dark.keys.toList()..sort(), expected);
+      },
+    );
+
+    for (final String cls in controlClasses) {
+      for (final Brightness brightness in Brightness.values) {
+        final String pass = brightness == Brightness.light
+            ? 'light-desktop'
+            : 'dark-desktop';
+        test('$cls $pass matches its probe row', () {
+          final Map<String, dynamic> p = _probe(
+            brightness == Brightness.light ? lightProbes : darkProbes,
+            cls,
+            pass,
+          );
+          final AppControlSpec spec = AppControls.resolve(cls, brightness);
+          expect(spec.cssClass, cls);
+          expect(spec.displayCss, _probeValue(p, 'display', cls));
+          expect(
+            spec.radiusPx,
+            pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
+          );
+          expect(
+            spec.borderWidthPx,
+            pxOf(_probeValue(p, 'borderTopWidth', cls), '$cls border width'),
+          );
+          expect(spec.borderColor, _probeColour(p, 'borderTopColor', cls));
+          expect(spec.fillColor, _probeColour(p, 'backgroundColor', cls));
+          expect(spec.textColor, _probeColour(p, 'color', cls));
+          expect(
+            spec.fontFamily,
+            _probeValue(
+              p,
+              'fontFamily',
+              cls,
+            ).split(',').first.replaceAll(RegExp("[\"']"), '').trim(),
+            reason:
+                'Flutter takes one family name where CSS takes a fallback stack, '
+                'so the port keeps the first family — the rule app_typography.dart '
+                'was generated with. These classes author --font-display, so a label '
+                'that inherits the theme body font is not the measured control.',
+          );
+          expect(
+            spec.fontSizePx,
+            pxOf(_probeValue(p, 'fontSize', cls), '$cls font-size'),
+          );
+          expect(spec.fontWeight, int.parse(_probeValue(p, 'fontWeight', cls)));
+          expect(
+            spec.lineHeightPx,
+            pxOf(_probeValue(p, 'lineHeight', cls), '$cls line-height'),
+          );
+          final String spacing = _probeValue(p, 'letterSpacing', cls);
+          expect(
+            spec.letterSpacingPx,
+            spacing == 'normal' ? 0.0 : pxOf(spacing, '$cls letter-spacing'),
+            reason: 'CSS prints `normal` where the used value is zero',
+          );
+          final List<double> pad = _probeValue(p, 'padding', cls)
+              .split(RegExp(r'\s+'))
+              .map((String s) => pxOf(s, '$cls padding'))
+              .toList();
+          expect(spec.paddingVerticalPx, pad.first);
+          expect(spec.paddingHorizontalPx, pad[1]);
+          expect(
+            _probeValue(p, 'boxShadow', cls),
+            'none',
+            reason: 'AppControlSpec carries no shadow field, so a shadowed control must not silently lose it',
+          );
+        });
+      }
+
+      test('$cls keeps its box and padding on the phone', () {
+        for (final String pass in <String>['light-phone', 'dark-phone']) {
+          final Map<String, dynamic> p = _probe(
+            pass.startsWith('light') ? lightPhoneProbes : darkPhoneProbes,
+            cls,
+            pass,
+          );
+          final Brightness brightness = pass.startsWith('light')
+              ? Brightness.light
+              : Brightness.dark;
+          final AppControlSpec spec = AppControls.resolve(cls, brightness);
+          expect(
+            spec.radiusPx,
+            pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
+            reason: '$pass must not move the box',
+          );
+          expect(
+            _probeValue(p, 'padding', cls),
+            _probeValue(
+              _probe(lightProbes, cls, 'light-desktop'),
+              'padding',
+              cls,
+            ),
+            reason: '$pass pads it the same way',
+          );
+        }
+      });
+
+      test('$cls carries the same row on the phone as on the desktop', () {
+        const List<String> fields = <String>[
+          'display',
+          'fontFamily',
+          'fontSize',
+          'fontWeight',
+          'lineHeight',
+          'letterSpacing',
+          'padding',
+          'borderRadius',
+          'borderTopWidth',
+          'borderTopColor',
+          'backgroundColor',
+          'color',
+          'boxShadow',
+        ];
+        final Map<String, List<Map<String, dynamic>>> pairs =
+            <String, List<Map<String, dynamic>>>{
+              'light-phone': <Map<String, dynamic>>[
+                lightPhoneProbes,
+                lightProbes,
+              ],
+              'dark-phone': <Map<String, dynamic>>[darkPhoneProbes, darkProbes],
+            };
+        for (final MapEntry<String, List<Map<String, dynamic>>> entry
+            in pairs.entries) {
+          final String phonePass = entry.key;
+          final String desktopPass = phonePass.replaceAll('-phone', '-desktop');
+          for (final String field in fields) {
+            expect(
+              _probeValue(_probe(entry.value[0], cls, phonePass), field, cls),
+              _probeValue(_probe(entry.value[1], cls, desktopPass), field, cls),
+              reason:
+                  '$phonePass moves $field for $cls and AppControls ports '
+                  'one row per brightness to paint it from',
+            );
+          }
+        }
+      });
+
+      test('$cls states come from the authored rule, not from a guess', () {
+        final Map<String, String> off = cssDecls(
+          cssLines,
+          '$cls:disabled,',
+          cls,
+        );
+        final Map<String, String> act = cssDecls(
+          cssLines,
+          '$cls:active {',
+          cls,
+        );
+        // The exact property set, not a subset: a state rule the web widens is a
+        // phone that disagrees the moment it is pressed or disabled, and the only
+        // way to hear about it is to compare against the whole authored rule.
+        expect(off.keys.toList()..sort(), <String>[
+          'cursor',
+          'opacity',
+          'transform',
+        ], reason: '$cls :disabled must set exactly what AppButton can port');
+        expect(
+          act.keys.toSet().difference(<String>{'transform', 'background'}),
+          isEmpty,
+          reason: '$cls :active sets something AppControlSpec cannot hold',
+        );
+        final AppControlSpec lightSpec = AppControls.resolve(
+          cls,
+          Brightness.light,
+        );
+        final AppControlSpec darkSpec = AppControls.resolve(
+          cls,
+          Brightness.dark,
+        );
+        expect(lightSpec.disabledOpacity, double.parse(off['opacity']!));
+        expect(
+          darkSpec.disabledOpacity,
+          lightSpec.disabledOpacity,
+          reason:
+              'the rule is unlayered, so both passes compute the same opacity',
+        );
+        expect(
+          off['transform'],
+          'none',
+          reason: 'the disabled rule clears the offset, which is why AppButton must not press while disabled',
+        );
+        // The parens are part of the CSS function and have to be escaped: the
+        // unescaped pattern below parses them as groups and would only match a
+        // hypothetical `translateY1px`.
+        final RegExpMatch? m = RegExp(r'^translateY\((-?[\d.]+)px\)$')
+            .firstMatch(act['transform']!);
+        expect(m, isNotNull, reason: '$cls :active must be a plain translateY');
+        expect(lightSpec.pressDyPx, double.parse(m!.group(1)!));
+        expect(
+          darkSpec.pressDyPx,
+          lightSpec.pressDyPx,
+          reason: 'the offset is not themed',
+        );
+        final String? bg = act['background'];
+        if (bg == null) {
+          expect(
+            lightSpec.pressFillColor,
+            isNull,
+            reason:
+                '$cls authors no pressed fill; AppButton must not invent one',
+          );
+          expect(darkSpec.pressFillColor, isNull);
+          expect(lightSpec.activeFill, lightSpec.fillColor);
+        } else {
+          final RegExpMatch? varRef = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+              .firstMatch(bg);
+          expect(
+            varRef,
+            isNotNull,
+            reason: '$cls :active background "$bg" is not a bare var(--token)',
+          );
+          final String token = varRef!.group(1)!;
+          expect(
+            lightSpec.pressFillColor,
+            _measuredColour(light, token),
+            reason: '$cls pressed fill is $token as the light pass measures it',
+          );
+          expect(
+            darkSpec.pressFillColor,
+            _measuredColour(dark, token),
+            reason: '$cls pressed fill is $token as the dark pass measures it',
+          );
+          expect(
+            lightSpec.pressFillColor,
+            isNot(lightSpec.fillColor),
+            reason: 'a pressed fill equal to the resting one is a no-op rule',
+          );
+        }
+        expect(
+          darkSpec.activeFill,
+          darkSpec.pressFillColor ?? darkSpec.fillColor,
+        );
+        // How long a state change runs is authored by the class itself, out of two
+        // §4 tokens. `AnimatedContainer` drives the whole box on one clock, so the
+        // port needs every item of the shorthand to name the same pair, and needs
+        // the pair to be the measurement `AppTokens` already holds for those names.
+        final RegExpMatch? tRaw = RegExp(r'transition:\s*([^;]+);')
+            .firstMatch(cssRuleText(cssLines, '$cls {', cls));
+        expect(
+          tRaw,
+          isNotNull,
+          reason:
+              '$cls authors no transition, so AppButton would ease a change the web snaps',
+        );
+        final List<String> items = tRaw!
+            .group(1)!
+            .trim()
+            .split(',')
+            .map((String s) => s.trim())
+            .where((String s) => s.isNotEmpty)
+            .toList();
+        final Set<String> props = <String>{};
+        final Set<String> durTokens = <String>{};
+        final Set<String> easeTokens = <String>{};
+        for (final String item in items) {
+          final List<String> parts = item
+              .split(RegExp(r'\s+'))
+              .where((String s) => s.isNotEmpty)
+              .toList();
+          expect(
+            parts,
+            hasLength(3),
+            reason: '"$item" is not `property var(--dur) var(--ease)`',
+          );
+          props.add(parts[0]);
+          final RegExpMatch? d = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+              .firstMatch(parts[1]);
+          final RegExpMatch? e = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+              .firstMatch(parts[2]);
+          expect(
+            d,
+            isNotNull,
+            reason: '${parts[1]} is not a bare duration token',
+          );
+          expect(
+            e,
+            isNotNull,
+            reason: '${parts[2]} is not a bare easing token',
+          );
+          durTokens.add(d!.group(1)!);
+          easeTokens.add(e!.group(1)!);
+        }
+        expect(
+          props,
+          <String>{'background-color', 'border-color', 'transform'},
+          reason:
+              'exactly the properties one AnimatedContainer carries: a state '
+              'change the web animates and the phone snaps — or the reverse — is a '
+              'button that disagrees with the browser in motion',
+        );
+        expect(durTokens, hasLength(1), reason: 'one box runs one clock');
+        expect(easeTokens, hasLength(1), reason: 'one box runs one curve');
+        final String durToken = durTokens.single;
+        final String easeToken = easeTokens.single;
+        expect(
+          lightSpec.transitionDuration,
+          _duration(_raw(light, durToken)),
+          reason: '$cls transitions on $durToken as the light pass measures it',
+        );
+        expect(
+          darkSpec.transitionDuration,
+          _duration(_raw(dark, durToken)),
+          reason: 'and on the dark pass’s own copy of the same token',
+        );
+        final Cubic authored = _cubic(_raw(light, easeToken));
+        expect(
+          <double>[
+            lightSpec.easeX1,
+            lightSpec.easeY1,
+            lightSpec.easeX2,
+            lightSpec.easeY2,
+          ],
+          <double>[authored.a, authored.b, authored.c, authored.d],
+          reason: '$cls runs on $easeToken as the light pass measures it',
+        );
+        expect(
+          lightSpec.easeX1,
+          darkSpec.easeX1,
+          reason: 'the curve is one authored rule, not a per-pass row',
+        );
+        expect(
+          AppTokens.durationsByToken[durToken],
+          lightSpec.transitionDuration,
+          reason: 'the control row and the §4 token table are one measurement',
+        );
+        final Cubic tableCurve = AppTokens.curvesByToken[easeToken]! as Cubic;
+        expect(
+          <double>[tableCurve.a, tableCurve.b, tableCurve.c, tableCurve.d],
+          <double>[
+            lightSpec.easeX1,
+            lightSpec.easeY1,
+            lightSpec.easeX2,
+            lightSpec.easeY2,
+          ],
+          reason: 'Cubic has no value equality, so the four numbers are what compare',
+        );
+      });
+    }
+
+    test('the derived getters divide measured numbers, never invent one', () {
+      for (final String cls in controlClasses) {
+        for (final Brightness brightness in Brightness.values) {
+          final AppControlSpec spec = AppControls.resolve(cls, brightness);
+          expect(spec.borderRadius, BorderRadius.circular(spec.radiusPx));
+          expect(
+            spec.padding,
+            EdgeInsets.symmetric(
+              vertical: spec.paddingVerticalPx,
+              horizontal: spec.paddingHorizontalPx,
+            ),
+          );
+          expect(
+            spec.weight,
+            FontWeight.values[spec.fontWeight ~/ 100 - 1],
+            reason: 'the 100-900 step indexes the Dart enum; out of range would throw',
+          );
+          expect(
+            spec.heightRatio,
+            spec.lineHeightPx! / spec.fontSizePx,
+            reason:
+                'Flutter line-height is a multiple, CSS line-height a length',
+          );
+          expect(
+            spec.transitionDuration,
+            Duration(milliseconds: spec.transitionMs),
+            reason: 'the getter is the measured milliseconds, unchanged',
+          );
+          expect(
+            <double>[
+              spec.transitionCurve.a,
+              spec.transitionCurve.b,
+              spec.transitionCurve.c,
+              spec.transitionCurve.d,
+            ],
+            <double>[spec.easeX1, spec.easeY1, spec.easeX2, spec.easeY2],
+            reason: 'the four numbers reach Cubic in the order the function writes them',
+          );
+        }
+      }
+    });
+
+    test('an unknown control class is an error, not a Material default', () {
+      for (final Brightness brightness in Brightness.values) {
+        expect(
+          () => AppControls.resolve('.btn-imaginary', brightness),
+          throwsArgumentError,
+        );
+      }
+    });
   });
 
   group('the no-hard-coded-style rule (playbook 2.4)', () {
