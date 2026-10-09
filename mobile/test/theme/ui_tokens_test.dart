@@ -18,6 +18,7 @@ import 'dart:math' as math;
 
 import 'package:em_budget/core/theme/app_controls.dart';
 import 'package:em_budget/core/theme/app_colors.dart';
+import 'package:em_budget/core/theme/app_fields.dart';
 import 'package:em_budget/core/theme/app_radii.dart';
 import 'package:em_budget/core/theme/app_shadows.dart';
 import 'package:em_budget/core/theme/app_spacing.dart';
@@ -455,6 +456,52 @@ void _expectSurface(
       reason: '$pass $cls sigma is the CSS blur halved',
     );
   }
+}
+
+/// A `px` length as the number the row carries.
+double _pxOf(String value, String label) {
+  final RegExpMatch? m = RegExp(r'^(-?[\d.]+)px$').firstMatch(value);
+  if (m == null) throw StateError('$label: "$value" is not a px length');
+  return double.parse(m.group(1)!);
+}
+
+/// Declarations of the CSS rule that starts at `headLine`. `src/index.css` is
+/// byte-identical to the tag the probe measurement was taken at (measured:
+/// `git diff --stat pre-flutter HEAD -- src/index.css` prints nothing), so this
+/// is the same pinned source, read for the states a probe cannot see.
+Map<String, String> _cssDecls(List<String> lines, String headLine, String cls) {
+  final int start = lines.indexOf(headLine);
+  if (start < 0) {
+    throw StateError('$cls: no rule head "$headLine" in src/index.css');
+  }
+  final Map<String, String> decls = <String, String>{};
+  for (int j = start + 1; j < lines.length; j++) {
+    for (final String part in lines[j].split(';')) {
+      final int colon = part.indexOf(':');
+      if (colon < 0) {
+        continue;
+      }
+      decls[part.substring(0, colon).trim()] = part.substring(colon + 1).trim();
+    }
+    if (lines[j].contains('}')) return decls;
+  }
+  throw StateError('$cls: rule at "$headLine" never closes');
+}
+
+/// The text of a rule, joined. [_cssDecls] splits line by line on `;`, so a
+/// shorthand authored one item per line arrives from it as an empty value: the
+/// `transition` of every §6 control is written that way.
+String _cssRuleText(List<String> lines, String headLine, String cls) {
+  final int start = lines.indexOf(headLine);
+  if (start < 0) {
+    throw StateError('$cls: no rule head "$headLine" in src/index.css');
+  }
+  final List<String> body = <String>[];
+  for (int j = start; j < lines.length; j++) {
+    body.add(lines[j]);
+    if (lines[j].contains('}')) return body.join(' ');
+  }
+  throw StateError('$cls: rule at "$headLine" never closes');
 }
 
 void main() {
@@ -1074,57 +1121,6 @@ void main() {
     /// from `width`/`height` the probe does not measure, so it is its own increment.
     const List<String> controlClasses = <String>['.btn-primary', '.btn-ghost'];
 
-    double pxOf(String value, String label) {
-      final RegExpMatch? m = RegExp(r'^(-?[\d.]+)px$').firstMatch(value);
-      if (m == null) throw StateError('$label: "$value" is not a px length');
-      return double.parse(m.group(1)!);
-    }
-
-    /// Declarations of the CSS rule that starts at `headLine`. `src/index.css` is
-    /// byte-identical to the tag the probe measurement was taken at (measured:
-    /// `git diff --stat pre-flutter HEAD -- src/index.css` prints nothing), so this
-    /// is the same pinned source, read for the two states a probe cannot see.
-    Map<String, String> cssDecls(
-      List<String> lines,
-      String headLine,
-      String cls,
-    ) {
-      final int start = lines.indexOf(headLine);
-      if (start < 0) {
-        throw StateError('$cls: no rule head "$headLine" in src/index.css');
-      }
-      final Map<String, String> decls = <String, String>{};
-      for (int j = start + 1; j < lines.length; j++) {
-        for (final String part in lines[j].split(';')) {
-          final int colon = part.indexOf(':');
-          if (colon < 0) {
-            continue;
-          }
-          decls[part.substring(0, colon).trim()] = part
-              .substring(colon + 1)
-              .trim();
-        }
-        if (lines[j].contains('}')) return decls;
-      }
-      throw StateError('$cls: rule at "$headLine" never closes');
-    }
-
-    /// The text of a rule, joined. `cssDecls` splits line by line on `;`, so a
-    /// shorthand authored one item per line arrives from it as an empty value:
-    /// the `transition` of every §6 control is written that way.
-    String cssRuleText(List<String> lines, String headLine, String cls) {
-      final int start = lines.indexOf(headLine);
-      if (start < 0) {
-        throw StateError('$cls: no rule head "$headLine" in src/index.css');
-      }
-      final List<String> body = <String>[];
-      for (int j = start; j < lines.length; j++) {
-        body.add(lines[j]);
-        if (lines[j].contains('}')) return body.join(' ');
-      }
-      throw StateError('$cls: rule at "$headLine" never closes');
-    }
-
     test(
       'AppControls holds exactly the measured control classes, per pass',
       () {
@@ -1150,11 +1146,11 @@ void main() {
           expect(spec.displayCss, _probeValue(p, 'display', cls));
           expect(
             spec.radiusPx,
-            pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
+            _pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
           );
           expect(
             spec.borderWidthPx,
-            pxOf(_probeValue(p, 'borderTopWidth', cls), '$cls border width'),
+            _pxOf(_probeValue(p, 'borderTopWidth', cls), '$cls border width'),
           );
           expect(spec.borderColor, _probeColour(p, 'borderTopColor', cls));
           expect(spec.fillColor, _probeColour(p, 'backgroundColor', cls));
@@ -1174,22 +1170,22 @@ void main() {
           );
           expect(
             spec.fontSizePx,
-            pxOf(_probeValue(p, 'fontSize', cls), '$cls font-size'),
+            _pxOf(_probeValue(p, 'fontSize', cls), '$cls font-size'),
           );
           expect(spec.fontWeight, int.parse(_probeValue(p, 'fontWeight', cls)));
           expect(
             spec.lineHeightPx,
-            pxOf(_probeValue(p, 'lineHeight', cls), '$cls line-height'),
+            _pxOf(_probeValue(p, 'lineHeight', cls), '$cls line-height'),
           );
           final String spacing = _probeValue(p, 'letterSpacing', cls);
           expect(
             spec.letterSpacingPx,
-            spacing == 'normal' ? 0.0 : pxOf(spacing, '$cls letter-spacing'),
+            spacing == 'normal' ? 0.0 : _pxOf(spacing, '$cls letter-spacing'),
             reason: 'CSS prints `normal` where the used value is zero',
           );
           final List<double> pad = _probeValue(p, 'padding', cls)
               .split(RegExp(r'\s+'))
-              .map((String s) => pxOf(s, '$cls padding'))
+              .map((String s) => _pxOf(s, '$cls padding'))
               .toList();
           expect(spec.paddingVerticalPx, pad.first);
           expect(spec.paddingHorizontalPx, pad[1]);
@@ -1214,7 +1210,7 @@ void main() {
           final AppControlSpec spec = AppControls.resolve(cls, brightness);
           expect(
             spec.radiusPx,
-            pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
+            _pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
             reason: '$pass must not move the box',
           );
           expect(
@@ -1270,12 +1266,12 @@ void main() {
       });
 
       test('$cls states come from the authored rule, not from a guess', () {
-        final Map<String, String> off = cssDecls(
+        final Map<String, String> off = _cssDecls(
           cssLines,
           '$cls:disabled,',
           cls,
         );
-        final Map<String, String> act = cssDecls(
+        final Map<String, String> act = _cssDecls(
           cssLines,
           '$cls:active {',
           cls,
@@ -1369,7 +1365,7 @@ void main() {
         // port needs every item of the shorthand to name the same pair, and needs
         // the pair to be the measurement `AppTokens` already holds for those names.
         final RegExpMatch? tRaw = RegExp(r'transition:\s*([^;]+);')
-            .firstMatch(cssRuleText(cssLines, '$cls {', cls));
+            .firstMatch(_cssRuleText(cssLines, '$cls {', cls));
         expect(
           tRaw,
           isNotNull,
@@ -1521,6 +1517,733 @@ void main() {
         );
       }
     });
+  });
+
+  group('UI_SPEC 6 fields and labels', () {
+    /// `AppFormField`'s two classes: the measured box, and the `.eyebrow` label
+    /// `src/components/ui/Input.tsx` puts above it. `.input` has no `:active` and
+    /// no `:disabled` rule — its interesting state is focus — and the label has no
+    /// states at all, which is what the two tests at the end of this group prove.
+    const List<String> fieldClasses = <String>['.input'];
+    const List<String> labelClasses = <String>['.eyebrow'];
+
+    Map<String, dynamic> probesFor(Brightness brightness) =>
+        brightness == Brightness.light ? lightProbes : darkProbes;
+    Map<String, dynamic> rootFor(Brightness brightness) =>
+        brightness == Brightness.light ? light : dark;
+
+    test(
+      'AppFields and AppLabels hold exactly the measured classes, per pass',
+      () {
+        expect(AppFields.light.keys.toList(), fieldClasses);
+        expect(AppFields.dark.keys.toList(), fieldClasses);
+        expect(AppLabels.light.keys.toList(), labelClasses);
+        expect(AppLabels.dark.keys.toList(), labelClasses);
+      },
+    );
+
+    for (final String cls in fieldClasses) {
+      for (final Brightness brightness in Brightness.values) {
+        final String pass = brightness == Brightness.light
+            ? 'light-desktop'
+            : 'dark-desktop';
+        test('$cls $pass matches its probe row', () {
+          final Map<String, dynamic> p = _probe(
+            probesFor(brightness),
+            cls,
+            pass,
+          );
+          final AppFieldSpec spec = AppFields.resolve(cls, brightness);
+          expect(spec.cssClass, cls);
+          expect(spec.displayCss, _probeValue(p, 'display', cls));
+          expect(
+            spec.widthCss,
+            '100%',
+            reason:
+                'the authored rule is the only source of `width`; the port gives '
+                'the box its caller’s width, and the widget test proves it does',
+          );
+          expect(
+            spec.radiusPx,
+            _pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
+          );
+          expect(
+            spec.borderWidthPx,
+            _pxOf(_probeValue(p, 'borderTopWidth', cls), '$cls border width'),
+          );
+          expect(spec.borderColor, _probeColour(p, 'borderTopColor', cls));
+          expect(spec.fillColor, _probeColour(p, 'backgroundColor', cls));
+          expect(spec.textColor, _probeColour(p, 'color', cls));
+          expect(
+            spec.fontFamily,
+            _probeValue(
+              p,
+              'fontFamily',
+              cls,
+            ).split(',').first.replaceAll(RegExp('["\']'), '').trim(),
+            reason:
+                'a field carries the body stack it measured; only the .btn-* '
+                'classes author --font-display, and this one does not',
+          );
+          expect(
+            spec.fontSizePx,
+            _pxOf(_probeValue(p, 'fontSize', cls), '$cls font-size'),
+          );
+          expect(spec.fontWeight, int.parse(_probeValue(p, 'fontWeight', cls)));
+          expect(
+            spec.lineHeightPx,
+            _pxOf(_probeValue(p, 'lineHeight', cls), '$cls line-height'),
+          );
+          final String spacing = _probeValue(p, 'letterSpacing', cls);
+          expect(
+            spec.letterSpacingPx,
+            spacing == 'normal' ? 0.0 : _pxOf(spacing, '$cls letter-spacing'),
+            reason: 'CSS prints `normal` where the used value is zero',
+          );
+          final List<double> pad = _probeValue(p, 'padding', cls)
+              .split(RegExp(r'\s+'))
+              .map((String s) => _pxOf(s, '$cls padding'))
+              .toList();
+          expect(spec.paddingVerticalPx, pad.first);
+          expect(spec.paddingHorizontalPx, pad[1]);
+          expect(
+            _probeValue(p, 'boxShadow', cls),
+            'none',
+            reason:
+                'the probe must rest with nothing painted behind the box: the '
+                'ring AppFieldSpec carries is the :focus rule’s, not a resting shadow',
+          );
+        });
+      }
+
+      test('$cls keeps one row between the desktop and phone passes', () {
+        const List<String> fields = <String>[
+          'display',
+          'fontFamily',
+          'fontSize',
+          'fontWeight',
+          'lineHeight',
+          'letterSpacing',
+          'padding',
+          'borderRadius',
+          'borderTopWidth',
+          'borderTopColor',
+          'backgroundColor',
+          'color',
+          'boxShadow',
+        ];
+        final Map<String, List<Map<String, dynamic>>> pairs =
+            <String, List<Map<String, dynamic>>>{
+              'light-phone': <Map<String, dynamic>>[
+                lightPhoneProbes,
+                lightProbes,
+              ],
+              'dark-phone': <Map<String, dynamic>>[darkPhoneProbes, darkProbes],
+            };
+        for (final MapEntry<String, List<Map<String, dynamic>>> entry
+            in pairs.entries) {
+          final String phonePass = entry.key;
+          final String desktopPass = phonePass.replaceAll('-phone', '-desktop');
+          for (final String field in fields) {
+            expect(
+              _probeValue(_probe(entry.value[0], cls, phonePass), field, cls),
+              _probeValue(_probe(entry.value[1], cls, desktopPass), field, cls),
+              reason:
+                  '$phonePass moves $field for $cls and AppFields ports one row '
+                  'per brightness to paint it from',
+            );
+          }
+        }
+      });
+
+      test('$cls focus and placeholder come from the authored rule, not a guess', () {
+        final Map<String, String> rest = _cssDecls(cssLines, '$cls {', cls);
+        expect(
+          rest.keys.toSet().difference(<String>{
+            'background',
+            'border',
+            'border-radius',
+            'padding',
+            'font-size',
+            'color',
+            'width',
+            'transition',
+          }),
+          isEmpty,
+          reason: '$cls rests with a property AppFieldSpec cannot hold',
+        );
+        // The resting text and the probe are two readings of one stylesheet.
+        // If they ever disagree, the measurement is stale and every colour in
+        // this file is a guess, so the disagreement has to stop the run.
+        final RegExpMatch? bgVar = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+            .firstMatch(rest['background']!);
+        final RegExpMatch? colourVar = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+            .firstMatch(rest['color']!);
+        expect(
+          bgVar,
+          isNotNull,
+          reason: '${rest['background']} is not a bare token',
+        );
+        expect(
+          colourVar,
+          isNotNull,
+          reason: '${rest['color']} is not a bare token',
+        );
+        final RegExpMatch? border = RegExp(
+          r'^([\d.]+)px solid var\((--[a-z0-9-]+)\)$',
+        ).firstMatch(rest['border']!);
+        expect(
+          border,
+          isNotNull,
+          reason:
+              '${rest['border']} is not `Npx solid var(--token)` — AppFieldSpec ports a uniform solid border only',
+        );
+        for (final Brightness brightness in Brightness.values) {
+          final Map<String, dynamic> root = rootFor(brightness);
+          final AppFieldSpec spec = AppFields.resolve(cls, brightness);
+          expect(
+            spec.fillColor,
+            _measuredColour(root, bgVar!.group(1)!),
+            reason: 'the authored fill and the probe are one declaration',
+          );
+          expect(
+            spec.textColor,
+            _measuredColour(root, colourVar!.group(1)!),
+            reason:
+                'the authored text colour and the probe are one declaration',
+          );
+          expect(
+            spec.borderColor,
+            _measuredColour(root, border!.group(2)!),
+            reason: 'the authored border and the probe are one declaration',
+          );
+          expect(
+            spec.borderWidthPx,
+            double.parse(border.group(1)!),
+            reason:
+                'the authored border width and the probe are one declaration',
+          );
+        }
+
+        final Map<String, String> focus = _cssDecls(
+          cssLines,
+          '$cls:focus {',
+          cls,
+        );
+        expect(
+          focus.keys.toSet().difference(<String>{
+            'outline',
+            'border-color',
+            'box-shadow',
+          }),
+          isEmpty,
+          reason:
+              '$cls:focus sets something AppFieldSpec cannot hold — a focused '
+              'field the phone paints differently',
+        );
+        expect(
+          focus['outline'],
+          'none',
+          reason:
+              'the rule clears the browser’s own focus outline; Flutter paints '
+              'no UA outline, and AppFormField sets every Material border to '
+              'none so the decorator cannot add one either',
+        );
+        final Map<String, String> placeholder = _cssDecls(
+          cssLines,
+          '$cls::placeholder {',
+          cls,
+        );
+        expect(placeholder.keys.toList(), <String>[
+          'color',
+        ], reason: '$cls::placeholder ports a colour and nothing else');
+        // :focus and ::placeholder are the two states AppFormField ports. A third
+        // would be a field the phone paints differently, and the only way to hear
+        // about it is to look for it in the pinned stylesheet.
+        for (final String state in <String>[
+          ':hover',
+          ':focus-visible',
+          ':active',
+          ':disabled',
+          '[disabled]',
+          '::selection',
+        ]) {
+          expect(
+            cssLines.any((String line) => line.startsWith('$cls$state')),
+            isFalse,
+            reason:
+                '$cls$state exists in src/index.css; AppFieldSpec carries a '
+                'resting row and a focused one, and a field with more states is a '
+                'phone that disagrees in a state nobody measured',
+          );
+        }
+        final AppFieldSpec lightSpec = AppFields.resolve(cls, Brightness.light);
+        final AppFieldSpec darkSpec = AppFields.resolve(cls, Brightness.dark);
+
+        final RegExpMatch? hintRef = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+            .firstMatch(placeholder['color']!);
+        expect(hintRef, isNotNull, reason: 'the hint is not a bare token');
+        expect(
+          lightSpec.hintColor,
+          _measuredColour(light, hintRef!.group(1)!),
+          reason:
+              'the hint is ${hintRef.group(1)} as the light pass measures it',
+        );
+        expect(
+          darkSpec.hintColor,
+          _measuredColour(dark, hintRef.group(1)!),
+          reason: 'and as the dark pass measures the same token',
+        );
+        expect(
+          lightSpec.hintColor,
+          isNot(lightSpec.textColor),
+          reason: 'a hint in the text colour is not a hint',
+        );
+
+        final RegExpMatch? focusRef = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+            .firstMatch(focus['border-color']!);
+        expect(
+          focusRef,
+          isNotNull,
+          reason: 'the focused border is not a bare token',
+        );
+        expect(
+          lightSpec.focusBorderColor,
+          _measuredColour(light, focusRef!.group(1)!),
+          reason:
+              'the focused border is ${focusRef.group(1)} in the light pass',
+        );
+        expect(
+          darkSpec.focusBorderColor,
+          _measuredColour(dark, focusRef.group(1)!),
+          reason: 'and in the dark pass’s own copy of the token',
+        );
+        expect(
+          lightSpec.focusBorderColor,
+          isNot(lightSpec.borderColor),
+          reason: 'a focused border equal to the resting one is a no-op rule',
+        );
+
+        // `box-shadow: 0 0 0 3px color-mix(in srgb, var(--glow) 30%, transparent)`
+        // — the mix against `transparent` scales the measured token’s alpha, so
+        // the ring is that token at that percentage. Anything else in this
+        // position (a blur, an offset, a two-colour mix) is arithmetic the port
+        // would have to invent, so the shape is matched before the numbers are.
+        final RegExpMatch? ring = RegExp(
+          r'^0 0 0 ([\d.]+)px color-mix\(in srgb,\s*var\((--[a-z0-9-]+)\)\s+([\d.]+)%,\s*transparent\)$',
+        ).firstMatch(focus['box-shadow']!);
+        expect(
+          ring,
+          isNotNull,
+          reason:
+              '${focus['box-shadow']} is not the hard spread ring of one token '
+              'against transparent that AppFieldSpec can port',
+        );
+        expect(lightSpec.ringSpreadPx, double.parse(ring!.group(1)!));
+        expect(
+          darkSpec.ringSpreadPx,
+          lightSpec.ringSpreadPx,
+          reason: 'the ring is sized by the rule, not by the colour scheme',
+        );
+        final String ringToken = ring.group(2)!;
+        final double ringAlpha = double.parse(ring.group(3)!) / 100;
+        expect(
+          lightSpec.ringColor,
+          _measuredColour(light, ringToken).withValues(alpha: ringAlpha),
+          reason: 'the light ring is $ringToken at ${ring.group(3)}%',
+        );
+        expect(
+          darkSpec.ringColor,
+          _measuredColour(dark, ringToken).withValues(alpha: ringAlpha),
+          reason:
+              'the dark ring is the same percentage of the dark pass’s token',
+        );
+      });
+    }
+
+    test('a field rests with nothing painted, and the resting shadow is the computed form of `none`', () {
+      for (final Brightness brightness in Brightness.values) {
+        final AppFieldSpec spec = AppFields.resolve('.input', brightness);
+        expect(
+          _probeValue(
+            _probe(
+              probesFor(brightness),
+              '.input',
+              brightness == Brightness.light ? 'light-desktop' : 'dark-desktop',
+            ),
+            'boxShadow',
+            '.input',
+          ),
+          'none',
+        );
+        expect(
+          spec.restRing.color,
+          const Color(0x00000000),
+          reason: 'CSS `box-shadow: none` is a zero-everything shadow',
+        );
+        expect(spec.restRing.spreadRadius, 0.0);
+        expect(spec.restRing.blurRadius, 0.0);
+        expect(spec.restRing.offset, Offset.zero);
+        expect(
+          spec.ring.blurRadius,
+          0.0,
+          reason: 'the authored ring has no blur',
+        );
+        expect(spec.ring.offset, Offset.zero, reason: 'and no offset');
+      }
+    });
+
+    test('the field runs focus on its own authored transition', () {
+      const String cls = '.input';
+      final RegExpMatch? tRaw = RegExp(r'transition:\s*([^;]+);')
+          .firstMatch(_cssRuleText(cssLines, '$cls {', cls));
+      expect(tRaw, isNotNull, reason: '$cls authors no transition');
+      final List<String> items = tRaw!
+          .group(1)!
+          .trim()
+          .split(',')
+          .map((String s) => s.trim())
+          .where((String s) => s.isNotEmpty)
+          .toList();
+      final Set<String> props = <String>{};
+      final Set<String> durTokens = <String>{};
+      final Set<String> easeTokens = <String>{};
+      for (final String item in items) {
+        final List<String> parts = item
+            .split(RegExp(r'\s+'))
+            .where((String s) => s.isNotEmpty)
+            .toList();
+        expect(
+          parts,
+          hasLength(3),
+          reason: '"$item" is not `property var(--dur) var(--ease)`',
+        );
+        props.add(parts[0]);
+        durTokens.add(
+          RegExp(r'^var\((--[a-z0-9-]+)\)$').firstMatch(parts[1])!.group(1)!,
+        );
+        easeTokens.add(
+          RegExp(r'^var\((--[a-z0-9-]+)\)$').firstMatch(parts[2])!.group(1)!,
+        );
+      }
+      expect(
+        props,
+        <String>{'border-color', 'box-shadow'},
+        reason:
+            'the field animates exactly what :focus changes; a property the web '
+            'starts transitioning without a row for it lands here as a phone that '
+            'snaps while the browser eases',
+      );
+      expect(durTokens, hasLength(1), reason: 'one box runs one clock');
+      expect(easeTokens, hasLength(1), reason: 'one box runs one curve');
+      final String durToken = durTokens.single;
+      final String easeToken = easeTokens.single;
+      final AppFieldSpec lightSpec = AppFields.resolve(
+        '.input',
+        Brightness.light,
+      );
+      final AppFieldSpec darkSpec = AppFields.resolve(
+        '.input',
+        Brightness.dark,
+      );
+      expect(
+        lightSpec.transitionDuration,
+        _duration(_raw(light, durToken)),
+        reason: '.input transitions on $durToken as the light pass measures it',
+      );
+      expect(
+        darkSpec.transitionDuration,
+        _duration(_raw(dark, durToken)),
+        reason: 'and on the dark pass’s own copy of the same token',
+      );
+      expect(
+        darkSpec.transitionMs,
+        lightSpec.transitionMs,
+        reason: 'the rule is unlayered, so both passes run the same clock',
+      );
+      final Cubic authored = _cubic(_raw(light, easeToken));
+      expect(
+        <double>[
+          lightSpec.easeX1,
+          lightSpec.easeY1,
+          lightSpec.easeX2,
+          lightSpec.easeY2,
+        ],
+        <double>[authored.a, authored.b, authored.c, authored.d],
+        reason: '.input transitions on $easeToken as the pass measures it',
+      );
+      expect(
+        AppTokens.durationsByToken[durToken],
+        lightSpec.transitionDuration,
+        reason: 'the field row and the §4 token table are one measurement',
+      );
+      final Cubic tableCurve = AppTokens.curvesByToken[easeToken]! as Cubic;
+      expect(
+        <double>[tableCurve.a, tableCurve.b, tableCurve.c, tableCurve.d],
+        <double>[
+          lightSpec.easeX1,
+          lightSpec.easeY1,
+          lightSpec.easeX2,
+          lightSpec.easeY2,
+        ],
+        reason:
+            'Cubic has no value equality, so the four numbers are what compare',
+      );
+    });
+
+    for (final String cls in labelClasses) {
+      for (final Brightness brightness in Brightness.values) {
+        final String pass = brightness == Brightness.light
+            ? 'light-desktop'
+            : 'dark-desktop';
+        test('$cls $pass is the label the probe measured', () {
+          final Map<String, dynamic> p = _probe(
+            probesFor(brightness),
+            cls,
+            pass,
+          );
+          final AppLabelSpec spec = AppLabels.resolve(cls, brightness);
+          expect(spec.cssClass, cls);
+          expect(spec.displayCss, _probeValue(p, 'display', cls));
+          expect(spec.textColor, _probeColour(p, 'color', cls));
+          expect(
+            spec.fontFamily,
+            _probeValue(
+              p,
+              'fontFamily',
+              cls,
+            ).split(',').first.replaceAll(RegExp('["\']'), '').trim(),
+          );
+          expect(
+            spec.fontSizePx,
+            _pxOf(_probeValue(p, 'fontSize', cls), '$cls font-size'),
+          );
+          expect(spec.fontWeight, int.parse(_probeValue(p, 'fontWeight', cls)));
+          expect(
+            spec.lineHeightPx,
+            _pxOf(_probeValue(p, 'lineHeight', cls), '$cls line-height'),
+          );
+          expect(
+            spec.letterSpacingPx,
+            _pxOf(_probeValue(p, 'letterSpacing', cls), '$cls letter-spacing'),
+          );
+          expect(
+            _probeValue(p, 'borderTopWidth', cls),
+            '0px',
+            reason:
+                'AppLabelSpec has no box fields, and that is only honest while the '
+                'probe measures no box — a bordered label is a different row',
+          );
+          expect(_probeValue(p, 'borderRadius', cls), '0px');
+          expect(_probeValue(p, 'padding', cls), '0px');
+        });
+      }
+
+      test('$cls is a resting-only class, and its case is authored', () {
+        final Map<String, String> rest = _cssDecls(cssLines, '$cls {', cls);
+        expect(
+          rest.keys.toSet().difference(<String>{
+            'font-size',
+            'font-weight',
+            'letter-spacing',
+            'text-transform',
+            'color',
+          }),
+          isEmpty,
+          reason:
+              '$cls grew a property AppLabelSpec does not hold — a label that '
+              'became a box, or gained a state the phone would not repaint',
+        );
+        for (final String state in <String>[
+          ':hover',
+          ':focus',
+          ':focus-visible',
+          ':active',
+          ':disabled',
+          '::placeholder',
+          '::selection',
+        ]) {
+          expect(
+            cssLines.any((String line) => line.startsWith('$cls$state')),
+            isFalse,
+            reason:
+                '$cls$state exists in src/index.css; AppLabelSpec ports a '
+                'resting-only row and a label with states is a different control',
+          );
+        }
+        // `letter-spacing: 0.12em` is authored in the font size and measured in
+        // px: 0.12 × 10px = 1.2px. The two readings have to be the same number.
+        final RegExpMatch? em = RegExp(r'^([\d.]+)em$')
+            .firstMatch(rest['letter-spacing']!);
+        expect(
+          em,
+          isNotNull,
+          reason:
+              '${rest['letter-spacing']} is not the `em` tracking the class authors',
+        );
+        for (final Brightness brightness in Brightness.values) {
+          final AppLabelSpec spec = AppLabels.resolve(cls, brightness);
+          expect(
+            spec.letterSpacingPx,
+            double.parse(em!.group(1)!) * spec.fontSizePx,
+            reason:
+                'the measured px tracking is the authored em times the measured '
+                'font size — one declaration, two readings',
+          );
+        }
+        expect(
+          AppLabels.resolve(cls, Brightness.light).uppercase,
+          rest['text-transform'] == 'uppercase',
+          reason:
+              'CSS applies text-transform after layout, so the string never '
+              'changes on the web; in Flutter the label has to say so',
+        );
+        expect(
+          AppLabels.resolve(cls, Brightness.dark).uppercase,
+          AppLabels.resolve(cls, Brightness.light).uppercase,
+          reason: 'case is not themed',
+        );
+        final RegExpMatch? colourVar = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+            .firstMatch(rest['color']!);
+        expect(
+          colourVar,
+          isNotNull,
+          reason: 'the label colour is not a bare token',
+        );
+        expect(
+          AppLabels.resolve(cls, Brightness.light).textColor,
+          _measuredColour(light, colourVar!.group(1)!),
+          reason:
+              'the label is ${colourVar.group(1)} as the light pass measures it',
+        );
+        expect(
+          AppLabels.resolve(cls, Brightness.dark).textColor,
+          _measuredColour(dark, colourVar.group(1)!),
+          reason: 'and as the dark pass measures it',
+        );
+      });
+    }
+
+    test('AppFields.labelGap is the gap the Input composition authors', () {
+      // `src/components/ui/Input.tsx` is the label-plus-field wrapper the phone
+      // reproduces. Like the stylesheet it is byte-identical to the tag the
+      // measurement was taken at, so its `gap-*` utility is a ported fact and the
+      // multiplier below is re-derived from it rather than trusted from the row.
+      final String composition = webSource('src/components/ui/Input.tsx');
+      final RegExpMatch? wrapper = RegExp(
+        r'<div className="flex flex-col gap-([\d.]+) w-full text-left">',
+      ).firstMatch(composition);
+      expect(
+        wrapper,
+        isNotNull,
+        reason:
+            'Input.tsx no longer opens with the wrapper AppFormField ports, so the '
+            'gap it authors has to be re-read before it is painted',
+      );
+      expect(AppFields.labelGapScale, double.parse(wrapper!.group(1)!));
+      expect(
+        AppFields.labelGap,
+        double.parse(wrapper.group(1)!) * _lengthToPx(_raw(light, '--spacing')),
+        reason:
+            'Tailwind composes the utility as calc(n * --spacing), and the unit is '
+            'the measurement AppSpacing already carries — not a number the port chose',
+      );
+      expect(
+        AppFields.labelGap,
+        AppSpacing.scale(AppFields.labelGapScale),
+        reason: 'the getter is that multiplication and nothing else',
+      );
+    });
+
+    test('the field and label getters derive from their own row', () {
+      for (final Brightness brightness in Brightness.values) {
+        final AppFieldSpec field = AppFields.resolve('.input', brightness);
+        expect(field.borderRadius, BorderRadius.circular(field.radiusPx));
+        expect(
+          field.padding,
+          EdgeInsets.symmetric(
+            vertical: field.paddingVerticalPx,
+            horizontal: field.paddingHorizontalPx,
+          ),
+        );
+        expect(
+          field.border,
+          Border.all(color: field.borderColor, width: field.borderWidthPx),
+        );
+        expect(
+          field.focusedBorder,
+          Border.all(color: field.focusBorderColor, width: field.borderWidthPx),
+          reason:
+              'focus repaints the colour only — the rule never moves the width',
+        );
+        expect(field.weight, FontWeight.values[field.fontWeight ~/ 100 - 1]);
+        expect(field.heightRatio, field.lineHeightPx! / field.fontSizePx);
+        expect(
+          field.transitionDuration,
+          Duration(milliseconds: field.transitionMs),
+        );
+        expect(
+          <double>[
+            field.transitionCurve.a,
+            field.transitionCurve.b,
+            field.transitionCurve.c,
+            field.transitionCurve.d,
+          ],
+          <double>[field.easeX1, field.easeY1, field.easeX2, field.easeY2],
+        );
+        expect(
+          field.ring,
+          BoxShadow(
+            color: field.ringColor,
+            offset: Offset.zero,
+            blurRadius: 0.0,
+            spreadRadius: field.ringSpreadPx,
+          ),
+          reason:
+              'BoxShadow has value equality, so the ring is compared outright',
+        );
+        expect(field.textStyle.color, field.textColor);
+        expect(field.textStyle.fontSize, field.fontSizePx);
+        expect(field.textStyle.fontFamily, field.fontFamily);
+        expect(field.textStyle.letterSpacing, field.letterSpacingPx);
+        expect(field.textStyle.height, field.heightRatio);
+        expect(field.hintStyle.color, field.hintColor);
+        expect(
+          field.hintStyle.fontSize,
+          field.textStyle.fontSize,
+          reason: 'a hint in another size would be another measurement',
+        );
+
+        final AppLabelSpec label = AppLabels.resolve('.eyebrow', brightness);
+        expect(label.weight, FontWeight.values[label.fontWeight ~/ 100 - 1]);
+        expect(label.heightRatio, label.lineHeightPx! / label.fontSizePx);
+        expect(label.textStyle.color, label.textColor);
+        expect(label.textStyle.letterSpacing, label.letterSpacingPx);
+        expect(
+          label.transform('Amount'),
+          label.uppercase ? 'AMOUNT' : 'Amount',
+        );
+      }
+    });
+
+    test(
+      'an unknown field or label class is an error, not a Material default',
+      () {
+        for (final Brightness brightness in Brightness.values) {
+          expect(
+            () => AppFields.resolve('.btn-primary', brightness),
+            throwsArgumentError,
+            reason:
+                'a button is a measured class but not a field: AppFields refusing it '
+                'is what keeps AppFormField from painting a pill with a caret in it',
+          );
+          expect(
+            () => AppLabels.resolve('.no-such-label', brightness),
+            throwsArgumentError,
+          );
+        }
+      },
+    );
   });
 
   group('the no-hard-coded-style rule (playbook 2.4)', () {

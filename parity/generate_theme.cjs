@@ -1227,6 +1227,18 @@ finish('app_surfaces.dart');
 // deliberately NOT ported — UI_SPEC D-U1 rules hover "decoration, not contract"
 // for a touch screen.
 const CONTROL_CLASSES = ['.btn-primary', '.btn-ghost'];
+// The §6 text field is a control of the same kind — probed at rest, read out of
+// the pinned stylesheet for its states — but the states it authors are `:focus`
+// and `::placeholder`, not `:active`/`:disabled`. Its rows go into `AppFields`
+// rather than `AppControls` so a spec holds only what its own class authors:
+// a field with a press offset and a button with a focus ring would both be
+// carrying numbers no browser ever painted for them.
+const FIELD_CLASSES = ['.input'];
+// `.eyebrow` is the label `src/components/ui/Input.tsx` puts above the field. It
+// is a resting-only §6 class: no transition, no state rule, and one declaration
+// (`text-transform: uppercase`) that changes what the user sees without changing
+// the string — Flutter has no CSS case mapping, so the widget has to do it.
+const LABEL_CLASSES = ['.eyebrow'];
 const CSS_LINES = fs.readFileSync(path.join(ROOT, 'src', 'index.css'), 'utf8').split(/\r?\n/);
 
 /** The text of the rule whose head line matches `headRe`, with its line number. */
@@ -1313,8 +1325,11 @@ const probeFamily = (p, cls) => {
 
 /** The four §6 control properties a single `AnimatedContainer` can carry: the
  *  box's fill and border colour, and its transform. Anything else in a
- *  `transition` shorthand is a property the port has no field for. */
+ *  `transition` shorthand is a property the port has no field for. A text field
+ *  animates its border and its focus ring instead of its fill and offset, so the
+ *  vocabulary is per family rather than one list for every §6 class. */
 const CONTROL_TRANSITION_PROPS = ['background-color', 'border-color', 'transform'];
+const FIELD_TRANSITION_PROPS = ['border-color', 'box-shadow'];
 
 /** A `var(--token)` reference on its own, as a state or motion rule authors it. */
 const tokenRef = (value, label, cls) => {
@@ -1335,7 +1350,7 @@ const motionToken = (list, name, label, cls) => {
  *  shorthand whose items all name the same pair; a rule that splits the clock per
  *  property would need a controller per property, which is a §6 fact the port does
  *  not have. The values are the measured tokens', never a widget's choice. */
-const controlTransition = (rule, cls) => {
+const controlTransition = (rule, cls, allowed = CONTROL_TRANSITION_PROPS) => {
   const raw = cssDecl(rule, 'transition', cls).replace(/\s+/g, ' ').trim();
   const items = raw
     .split(',')
@@ -1351,8 +1366,8 @@ const controlTransition = (rule, cls) => {
       fail(`${cls}: transition item "${item}" is not \`property var(--dur) var(--ease)\``);
     }
     const [prop, durRef, easeRef] = parts;
-    if (!CONTROL_TRANSITION_PROPS.includes(prop)) {
-      fail(`${cls}: transition animates \`${prop}\`, which AppControlSpec cannot port`);
+    if (!allowed.includes(prop)) {
+      fail(`${cls}: transition animates \`${prop}\`, which the row for ${cls} cannot port`);
     }
     if (props.includes(prop)) fail(`${cls}: transition lists \`${prop}\` twice`);
     props.push(prop);
@@ -1407,50 +1422,74 @@ const controlRow = (row, cls) => {
   return out;
 };
 
-const controls = CONTROL_CLASSES.map((cls) => {
-  const read = (tag, theme) => {
-    const p = theme.probes[cls];
-    if (!p) fail(`${tag} theme has no ${cls} probe`);
-    if (probeRaw(p, 'boxShadow', cls) !== 'none') {
-      fail(`${cls}: carries a box-shadow (${probeRaw(p, 'boxShadow', cls)}); AppControlSpec has no shadow field yet`);
-    }
-    if (p.backdropFilter && p.backdropFilter.raw !== 'none') {
-      fail(`${cls}: carries a backdrop-filter (${p.backdropFilter.raw}); port it through AppSurfaceSpec instead`);
-    }
-    const pad = probePadding(p, cls);
-    const lineRaw = probeRaw(p, 'lineHeight', cls);
-    const spaceRaw = probeRaw(p, 'letterSpacing', cls);
-    return {
-      displayCss: probeRaw(p, 'display', cls),
-      radiusPx: probePx(p, 'borderRadius', cls),
-      borderWidthPx: probePx(p, 'borderTopWidth', cls),
-      borderColor: probeSrgb(p, 'borderTopColor', cls),
-      fillColor: probeSrgb(p, 'backgroundColor', cls),
-      textColor: probeSrgb(p, 'color', cls),
-      fontFamily: probeFamily(p, cls),
-      fontSizePx: probePx(p, 'fontSize', cls),
-      fontWeight: (() => {
-        const w = probeRaw(p, 'fontWeight', cls);
-        if (!/^([1-9]00)$/.test(w)) fail(`${cls}: fontWeight "${w}" is not a 100-900 step`);
-        return parseInt(w, 10);
-      })(),
-      lineHeightPx: lineRaw === 'normal' ? null : lengthPx(lineRaw, `${cls} lineHeight`),
-      letterSpacingPx: spaceRaw === 'normal' ? 0.0 : lengthPx(spaceRaw, `${cls} letterSpacing`),
-      letterSpacingRaw: spaceRaw,
-      paddingVerticalPx: pad.vertical,
-      paddingHorizontalPx: pad.horizontal,
-    };
+/** The resting box and type of a §6 class, straight from its probe: the computed
+ *  properties Chrome reads for every §6 class. State appearances are not here —
+ *  a static probe cannot see a pressed, focused or disabled element, so each map
+ *  below reads those out of `src/index.css` instead. */
+const probeRestRow = (cls, tag, theme) => {
+  const p = theme.probes[cls];
+  if (!p) fail(`${tag} theme has no ${cls} probe`);
+  if (probeRaw(p, 'boxShadow', cls) !== 'none') {
+    fail(
+      `${cls}: the resting probe carries a box-shadow (${probeRaw(p, 'boxShadow', cls)}); no §6 row ports a resting shadow`,
+    );
+  }
+  if (p.backdropFilter && p.backdropFilter.raw !== 'none') {
+    fail(`${cls}: carries a backdrop-filter (${p.backdropFilter.raw}); port it through AppSurfaceSpec instead`);
+  }
+  const pad = probePadding(p, cls);
+  const lineRaw = probeRaw(p, 'lineHeight', cls);
+  const spaceRaw = probeRaw(p, 'letterSpacing', cls);
+  return {
+    displayCss: probeRaw(p, 'display', cls),
+    radiusPx: probePx(p, 'borderRadius', cls),
+    borderWidthPx: probePx(p, 'borderTopWidth', cls),
+    borderColor: probeSrgb(p, 'borderTopColor', cls),
+    fillColor: probeSrgb(p, 'backgroundColor', cls),
+    textColor: probeSrgb(p, 'color', cls),
+    fontFamily: probeFamily(p, cls),
+    fontSizePx: probePx(p, 'fontSize', cls),
+    fontWeight: (() => {
+      const w = probeRaw(p, 'fontWeight', cls);
+      if (!/^([1-9]00)$/.test(w)) fail(`${cls}: fontWeight "${w}" is not a 100-900 step`);
+      return parseInt(w, 10);
+    })(),
+    lineHeightPx: lineRaw === 'normal' ? null : lengthPx(lineRaw, `${cls} lineHeight`),
+    letterSpacingPx: spaceRaw === 'normal' ? 0.0 : lengthPx(spaceRaw, `${cls} letterSpacing`),
+    letterSpacingRaw: spaceRaw,
+    paddingVerticalPx: pad.vertical,
+    paddingHorizontalPx: pad.horizontal,
   };
-  const l = read('light-desktop', LIGHT);
-  const d = read('dark-desktop', DARK);
-  // The phone passes must not move anything the port carries: `AppControls` keys
-  // one row per brightness and the measurement says each phone row equals its own
-  // desktop row, so a difference here is a viewport rule to model, not to average.
+};
+
+/** The fields a box's geometry and type are made of. They are compared between
+ *  the two brightness passes: a weight or a radius that moved with the colour
+ *  scheme would be a §6 fact to review, so the check runs on the fields rather
+ *  than on a hunch, and §6 prints one row for each. */
+const BRIGHTNESS_STABLE_FIELDS = [
+  'displayCss',
+  'radiusPx',
+  'borderWidthPx',
+  'fontFamily',
+  'fontSizePx',
+  'fontWeight',
+  'lineHeightPx',
+  'letterSpacingPx',
+  'paddingVerticalPx',
+  'paddingHorizontalPx',
+];
+
+/** Neither the phone viewport nor the other colour scheme may move anything the
+ *  port carries: `AppControls` and `AppFields` key one row per brightness, so a
+ *  value that differs on the phone pass is a media rule to model, not to
+ *  average, and a value that differs between schemes is a split the §6 table
+ *  does not print. */
+const comparePassRows = (cls, l, d) => {
   for (const [tag, theme, want] of [
     ['light-phone', LIGHT_PHONE, l],
     ['dark-phone', DARK_PHONE, d],
   ]) {
-    const rowP = controlRow(read(tag, theme), cls);
+    const rowP = controlRow(probeRestRow(cls, tag, theme), cls);
     const rowW = controlRow(want, cls);
     for (const [key, value] of Object.entries(rowP)) {
       if (rowW[key] !== value) {
@@ -1458,26 +1497,17 @@ const controls = CONTROL_CLASSES.map((cls) => {
       }
     }
   }
-  // Box and type do not depend on the colour scheme; the fills do, so only these
-  // are compared across brightness. A themed weight or family would be a §6 fact
-  // to review, which is why the check is on the fields rather than on a hunch.
-  const brightnessStable = [
-    'displayCss',
-    'radiusPx',
-    'borderWidthPx',
-    'fontFamily',
-    'fontSizePx',
-    'fontWeight',
-    'lineHeightPx',
-    'letterSpacingPx',
-    'paddingVerticalPx',
-    'paddingHorizontalPx',
-  ];
-  for (const key of brightnessStable) {
+  for (const key of BRIGHTNESS_STABLE_FIELDS) {
     if (l[key] !== d[key]) {
       fail(`${cls}: ${key} is "${l[key]}" in light and "${d[key]}" in dark; §6 prints one row`);
     }
   }
+};
+
+const controls = CONTROL_CLASSES.map((cls) => {
+  const l = probeRestRow(cls, 'light-desktop', LIGHT);
+  const d = probeRestRow(cls, 'dark-desktop', DARK);
+  comparePassRows(cls, l, d);
 
   const off = cssRule(new RegExp(`^\\${cls}:disabled,$`), cls);
   const act = cssRule(new RegExp(`^\\${cls}:active \\{$`), cls);
@@ -1735,6 +1765,585 @@ L.push(
   '',
 );
 finish('app_controls.dart');
+// ------------------------------------------------------- §6 fields and labels (text input)
+// A field is a §6 control whose interesting state is FOCUS, not press. `.input`
+// authors `:focus` (border colour plus a spread ring) and `::placeholder`, and no
+// `:active` or `:disabled` rule at all — a disabled field keeps the resting paint,
+// because the author’s own `background` and `color` outrank the browser’s disabled
+// defaults. Its label is `.eyebrow`, a resting-only class. Neither row borrows a
+// field from the button table: a text box with a press offset and a button with a
+// focus ring would each carry a number no browser ever painted for them.
+// `src/components/ui/Input.tsx` is read too — it is the composition, and it is
+// byte-identical to the tag the measurement was taken at, exactly like
+// `src/index.css` (`git diff --stat pre-flutter HEAD -- src/` prints nothing).
+
+/** The declarations a field’s resting rule may author. Each has a row on
+ *  `AppFieldSpec`; `width` is the one the box inherits from its caller, and the
+ *  check below pins it to the single value that means the same in Flutter. */
+const FIELD_REST_PROPS = [
+  'background',
+  'border',
+  'border-radius',
+  'padding',
+  'font-size',
+  'color',
+  'width',
+  'transition',
+];
+
+/** A label authors type and nothing else. A border or padding on `.eyebrow` would
+ *  make it a box, and a box is a different row. */
+const LABEL_REST_PROPS = ['font-size', 'font-weight', 'letter-spacing', 'text-transform', 'color'];
+
+/** The whole property set of a resting rule, against what the family can hold —
+ *  the same gate `checkStateProps` runs on a state rule, one step earlier. */
+const checkRestProps = (props, allowed, cls, line) => {
+  for (const [prop] of props) {
+    if (!allowed.includes(prop)) {
+      fail(`${cls}: the resting rule sets \`${prop}\` (src/index.css:${line}); no §6 row for ${cls} ports it`);
+    }
+  }
+};
+
+/** `color-mix(in srgb, var(--token) N%, transparent)`: mixing in sRGB against
+ *  `transparent` premultiplies, so the channels of the token survive and only its
+ *  alpha is scaled to N%. The port takes the measured token and puts N% on it;
+ *  any other mix (two colours, a different space) is arithmetic this file would
+ *  have to invent, so it fails instead. */
+const authoredMix = (value, theme, themeTag, label, cls) => {
+  const m = /^color-mix\(in srgb,\s*var\((--[a-z0-9-]+)\)\s+([\d.]+)%,\s*transparent\)$/.exec(value);
+  if (!m) fail(`${cls}: ${label} "${value}" is not \`color-mix(in srgb, var(--token) N%, transparent)\``);
+  const t = theme.root[m[1]];
+  if (!t || !t.srgb) fail(`${cls}: ${label} references ${m[1]}, which is not a measured colour in ${themeTag}`);
+  const pct = parseFloat(m[2]);
+  if (!(pct > 0 && pct < 100)) {
+    fail(
+      `${cls}: ${label} mixes ${m[2]}% with transparent; that is no ring at all, or a full one — not a rule to port quietly`,
+    );
+  }
+  return { token: m[1], pct, srgb: { ...t.srgb, alpha: pct / 100, a255: Math.round((pct / 100) * 255) } };
+};
+
+/** The authored resting colours against the same pass’s probe. The pinned text and
+ *  the browser are supposed to describe one stylesheet; when they disagree, the
+ *  measurement is stale and every row derived from it is a guess, so generation
+ *  stops rather than emitting a theme that matches neither. */
+const assertRestColours = (cls, restProps, rows) => {
+  for (const [pass, themeTag] of rows) {
+    for (const [prop, value] of restProps) {
+      let want = null;
+      let token = null;
+      if (prop === 'color' || prop === 'background') {
+        const m = /^var\((--[a-z0-9-]+)\)$/.exec(value);
+        if (!m)
+          fail(`${cls}: resting \`${prop}: ${value}\` is not a bare var(--token) (src/index.css:${pass.srcLine})`);
+        token = m[1];
+        want = prop === 'color' ? pass.textColor : pass.fillColor;
+      } else if (prop === 'border') {
+        const m = /^([\d.]+)px solid var\((--[a-z0-9-]+)\)$/.exec(value);
+        if (!m) {
+          fail(
+            `${cls}: resting \`${prop}: ${value}\` is not \`Npx solid var(--token)\`; AppFieldSpec ports a uniform solid border only`,
+          );
+        }
+        if (parseFloat(m[1]) !== pass.borderWidthPx) {
+          fail(
+            `${cls}: the resting rule authors a ${m[1]}px border and the ${themeTag} probe measures ${pass.borderWidthPx}px`,
+          );
+        }
+        token = m[2];
+        want = pass.borderColor;
+      } else {
+        continue;
+      }
+      const t = themeTag === 'light-desktop' ? LIGHT : DARK;
+      const got = t.root[token];
+      if (!got || !got.srgb) {
+        fail(`${cls}: resting \`${prop}\` names ${token}, which ${themeTag} never measured as a colour`);
+      }
+      if (got.srgb.hex !== want.hex) {
+        fail(
+          `${cls}: the resting rule says ${prop} is ${token} (${got.srgb.hex}) but the ${themeTag} probe measured ${want.hex} — the pinned stylesheet and the measurement disagree`,
+        );
+      }
+    }
+  }
+};
+
+const fields = FIELD_CLASSES.map((cls) => {
+  const l = probeRestRow(cls, 'light-desktop', LIGHT);
+  const d = probeRestRow(cls, 'dark-desktop', DARK);
+  comparePassRows(cls, l, d);
+
+  const rest = cssRule(new RegExp(`^\\${cls} \\{$`), cls);
+  l.srcLine = rest.line;
+  d.srcLine = rest.line;
+  const restProps = ruleProps(rest, cls);
+  checkRestProps(restProps, FIELD_REST_PROPS, cls, rest.line);
+  assertRestColours(cls, restProps, [
+    [l, 'light-desktop'],
+    [d, 'dark-desktop'],
+  ]);
+  const width = cssDecl(rest, 'width', cls);
+  if (width !== '100%') {
+    fail(`${cls}: \`width: ${width}\` (src/index.css:${rest.line}); the port gives the box its caller’s width`);
+  }
+  const trans = controlTransition(rest, cls, FIELD_TRANSITION_PROPS);
+
+  // `:focus` and `::placeholder` are the two states AppFormField ports. A third
+  // is a §6 change to review, not a row to widen: a field that dims on a touch
+  // screen, or changes on hover, needs a phone answer before it can be painted.
+  for (const state of [':hover', ':focus-visible', ':active', ':disabled', '[disabled]', '::selection']) {
+    const head = new RegExp(`^\\${cls}${state.replace(/[[\]]/g, '\\$&')}[\\s,{]`);
+    const at = CSS_LINES.findIndex((line) => head.test(line));
+    if (at >= 0) {
+      fail(`${cls}${state} exists at src/index.css:${at + 1}; AppFieldSpec ports :focus and ::placeholder only`);
+    }
+  }
+
+  const ph = cssRule(new RegExp(`^\\${cls}::placeholder \\{$`), cls);
+  const fo = cssRule(new RegExp(`^\\${cls}:focus \\{$`), cls);
+  checkStateProps(ruleProps(ph, cls), ['color'], '::placeholder', cls, ph.line);
+  const focusProps = ruleProps(fo, cls);
+  checkStateProps(focusProps, ['outline', 'border-color', 'box-shadow'], ':focus', cls, fo.line);
+  const outline = focusProps.find(([prop]) => prop === 'outline');
+  if (!outline || outline[1] !== 'none') {
+    fail(
+      `${cls}: :focus must carry \`outline: none\` (src/index.css:${fo.line}); the port has no UA outline to style away`,
+    );
+  }
+  const fb = focusProps.find(([prop]) => prop === 'border-color');
+  if (!fb) fail(`${cls}: :focus changes no border colour (src/index.css:${fo.line})`);
+  const ring = focusProps.find(([prop]) => prop === 'box-shadow');
+  if (!ring) fail(`${cls}: :focus paints no ring (src/index.css:${fo.line})`);
+  const rm = /^0 0 0 ([\d.]+)px (.+)$/.exec(ring[1]);
+  if (!rm) {
+    fail(
+      `${cls}: :focus box-shadow "${ring[1]}" is not \`0 0 0 Npx <colour>\`; the port has no blur or offset to paint`,
+    );
+  }
+  l.focusBorder = authoredColour(fb[1], LIGHT, 'light-desktop', ':focus border-color', cls);
+  d.focusBorder = authoredColour(fb[1], DARK, 'dark-desktop', ':focus border-color', cls);
+  l.ring = authoredMix(rm[2], LIGHT, 'light-desktop', ':focus ring', cls);
+  d.ring = authoredMix(rm[2], DARK, 'dark-desktop', ':focus ring', cls);
+  const hint = cssDecl(ph, 'color', cls);
+  l.hint = authoredColour(hint, LIGHT, 'light-desktop', '::placeholder colour', cls);
+  d.hint = authoredColour(hint, DARK, 'dark-desktop', '::placeholder colour', cls);
+  for (const [key, label] of [
+    ['focusBorder', ':focus border-color'],
+    ['ring', ':focus ring'],
+    ['hint', '::placeholder colour'],
+  ]) {
+    if (l[key].token !== d[key].token) {
+      fail(`${cls}: the ${label} token differs between the light and dark passes`);
+    }
+  }
+  // A state rule that changes nothing is not a state: either the pass paints a
+  // focused field that looks idle, or the port carries a field that pretends to.
+  for (const [pass, themeTag] of [
+    [l, 'light-desktop'],
+    [d, 'dark-desktop'],
+  ]) {
+    if (pass.focusBorder.srgb.hex === pass.borderColor.hex) {
+      fail(
+        `${cls}: ${themeTag} :focus repaints the resting border — the rule is a no-op and the port should say so out loud`,
+      );
+    }
+    if (pass.hint.srgb.hex === pass.textColor.hex) {
+      fail(`${cls}: ${themeTag} ::placeholder paints the resting text colour — a hint nobody can tell from the value`);
+    }
+  }
+  if (!trans.props.includes('border-color')) {
+    fail(`${cls}: :focus repaints the border but its transition omits border-color (src/index.css:${rest.line})`);
+  }
+  if (!trans.props.includes('box-shadow')) {
+    fail(`${cls}: :focus paints the ring but its transition omits box-shadow (src/index.css:${rest.line})`);
+  }
+  return {
+    cls,
+    l,
+    d,
+    widthCss: width,
+    ringSpreadPx: parseFloat(rm[1]),
+    focusToken: l.focusBorder.token,
+    ringToken: l.ring.token,
+    ringPct: l.ring.pct,
+    hintToken: l.hint.token,
+    transitionMs: trans.ms,
+    transitionEase: trans.curve,
+    transitionDurToken: trans.dur.name,
+    transitionEaseToken: trans.ease.name,
+    transitionProps: trans.props.join(', '),
+    transitionSrc: `src/index.css:${rest.line}`,
+    focusSrc: `src/index.css:${fo.line}`,
+    placeholderSrc: `src/index.css:${ph.line}`,
+  };
+});
+
+/** `src/components/ui/Input.tsx` composes label and field in one wrapper element.
+ *  The wrapper is the field’s layout, so the port reads the gap it authors instead
+ *  of choosing one: `gap-<n>` is Tailwind’s `calc(n * --spacing)`, which
+ *  `AppSpacing.scale` already implements from the measured unit. */
+const INPUT_TSX = fs.readFileSync(path.join(ROOT, 'src', 'components', 'ui', 'Input.tsx'), 'utf8').split(/\r?\n/);
+const WRAPPER_RE = /^<div className="flex flex-col gap-([\d.]+) w-full text-left">$/;
+const wrapper = INPUT_TSX.map((line) => line.trim()).find((line) => WRAPPER_RE.test(line));
+if (!wrapper) {
+  fail(
+    'src/components/ui/Input.tsx no longer opens with `flex flex-col gap-<n> w-full text-left`; AppFormField ports that exact wrapper and needs its gap re-read',
+  );
+}
+const labelGapScale = parseFloat(WRAPPER_RE.exec(wrapper)[1]);
+if (!(labelGapScale > 0)) fail(`the Input wrapper gap "gap-${labelGapScale}" is not a positive multiple of --spacing`);
+if (!INPUT_TSX.some((line) => /className="eyebrow"/.test(line))) {
+  fail('src/components/ui/Input.tsx no longer labels its field with the measured `.eyebrow` class');
+}
+
+const labels = LABEL_CLASSES.map((cls) => {
+  const l = probeRestRow(cls, 'light-desktop', LIGHT);
+  const d = probeRestRow(cls, 'dark-desktop', DARK);
+  comparePassRows(cls, l, d);
+  const rest = cssRule(new RegExp(`^\\${cls} \\{$`), cls);
+  const props = ruleProps(rest, cls);
+  checkRestProps(props, LABEL_REST_PROPS, cls, rest.line);
+  assertRestColours(cls, props, [
+    [l, 'light-desktop'],
+    [d, 'dark-desktop'],
+  ]);
+  // A resting-only row is only resting while the class has no states and no
+  // clock; either one appearing is a §6 change to review, not a row to widen.
+  for (const [prop] of props) {
+    if (prop === 'transition') fail(`${cls}: the label grew a transition; AppLabelSpec holds a resting-only row`);
+  }
+  for (const state of [':hover', ':focus', ':focus-visible', ':active', ':disabled', '::placeholder', '::selection']) {
+    const head = new RegExp(`^\\${cls}${state}[\\s,{]`);
+    const at = CSS_LINES.findIndex((line) => head.test(line));
+    if (at >= 0) {
+      fail(
+        `${cls}${state} exists at src/index.css:${at + 1}; AppLabelSpec ports a resting-only class and cannot hold it`,
+      );
+    }
+  }
+  const transform = cssDecl(rest, 'text-transform', cls);
+  if (!/^(uppercase|none|capitalize|lowercase)$/.test(transform)) {
+    fail(`${cls}: text-transform "${transform}" is not a case this port knows how to apply`);
+  }
+  l.srcLine = rest.line;
+  d.srcLine = rest.line;
+  return {
+    cls,
+    l,
+    d,
+    textTransform: transform,
+    uppercase: transform === 'uppercase',
+    restSrc: `src/index.css:${rest.line}`,
+  };
+});
+
+const fieldExpr = (c, pass) =>
+  [
+    `      cssClass: ${dartStr(c.cls)},`,
+    `      displayCss: ${dartStr(pass.displayCss)},`,
+    `      widthCss: ${dartStr(c.widthCss)},`,
+    `      radiusPx: ${fmt(pass.radiusPx)},`,
+    `      borderWidthPx: ${fmt(pass.borderWidthPx)},`,
+    `      borderColor: ${dartSurfaceColour(pass.borderColor)},`,
+    `      fillColor: ${dartSurfaceColour(pass.fillColor)},`,
+    `      textColor: ${dartSurfaceColour(pass.textColor)},`,
+    `      fontFamily: ${dartStr(pass.fontFamily)},`,
+    `      fontSizePx: ${fmt(pass.fontSizePx)},`,
+    `      fontWeight: ${pass.fontWeight},`,
+    `      lineHeightPx: ${pass.lineHeightPx === null ? 'null' : fmt(pass.lineHeightPx)},`,
+    `      letterSpacingPx: ${fmt(pass.letterSpacingPx)},`,
+    `      paddingVerticalPx: ${fmt(pass.paddingVerticalPx)},`,
+    `      paddingHorizontalPx: ${fmt(pass.paddingHorizontalPx)},`,
+    `      hintColor: ${dartSurfaceColour(pass.hint.srgb)},`,
+    `      focusBorderColor: ${dartSurfaceColour(pass.focusBorder.srgb)},`,
+    `      ringColor: ${dartSurfaceColour(pass.ring.srgb)},`,
+    `      ringSpreadPx: ${fmt(c.ringSpreadPx)},`,
+    `      transitionMs: ${c.transitionMs},`,
+    `      easeX1: ${fmt(c.transitionEase[0])},`,
+    `      easeY1: ${fmt(c.transitionEase[1])},`,
+    `      easeX2: ${fmt(c.transitionEase[2])},`,
+    `      easeY2: ${fmt(c.transitionEase[3])},`,
+  ].join('\n');
+
+const labelExpr = (x, pass) =>
+  [
+    `      cssClass: ${dartStr(x.cls)},`,
+    `      displayCss: ${dartStr(pass.displayCss)},`,
+    `      textColor: ${dartSurfaceColour(pass.textColor)},`,
+    `      fontFamily: ${dartStr(pass.fontFamily)},`,
+    `      fontSizePx: ${fmt(pass.fontSizePx)},`,
+    `      fontWeight: ${pass.fontWeight},`,
+    `      lineHeightPx: ${pass.lineHeightPx === null ? 'null' : fmt(pass.lineHeightPx)},`,
+    `      letterSpacingPx: ${fmt(pass.letterSpacingPx)},`,
+  ].join('\n');
+
+// ================================================================ app_fields.dart
+banner();
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  "import 'app_spacing.dart';",
+  '',
+  '/// One §6 text field: box and type measured at rest, placeholder and focus',
+  '/// appearance read out of `src/index.css`. A widget under `lib/presentation/`',
+  '/// restates none of it.',
+  'class AppFieldSpec {',
+  '  const AppFieldSpec({',
+  '    required this.cssClass,',
+  '    required this.displayCss,',
+  '    required this.widthCss,',
+  '    required this.radiusPx,',
+  '    required this.borderWidthPx,',
+  '    required this.borderColor,',
+  '    required this.fillColor,',
+  '    required this.textColor,',
+  '    required this.fontFamily,',
+  '    required this.fontSizePx,',
+  '    required this.fontWeight,',
+  '    required this.lineHeightPx,',
+  '    required this.letterSpacingPx,',
+  '    required this.paddingVerticalPx,',
+  '    required this.paddingHorizontalPx,',
+  '    required this.hintColor,',
+  '    required this.focusBorderColor,',
+  '    required this.ringColor,',
+  '    required this.ringSpreadPx,',
+  '    required this.transitionMs,',
+  '    required this.easeX1,',
+  '    required this.easeY1,',
+  '    required this.easeX2,',
+  '    required this.easeY2,',
+  '  });',
+  '',
+  '  /// The CSS class this row was measured from.',
+  '  final String cssClass;',
+  '',
+  '  /// The computed `display` and `width`, carried as data. On the web the box is',
+  '  /// `block` and `width: 100%`, which in Flutter is “as wide as the caller gives',
+  '  /// me” — the layout, not the paint.',
+  '  final String displayCss;',
+  '  final String widthCss;',
+  '',
+  '  final double radiusPx;',
+  '  final double borderWidthPx;',
+  '  final Color borderColor;',
+  '  final Color fillColor;',
+  '  final Color textColor;',
+  '  /// The class’s own measured `font-family` first family: `Inter`, the body',
+  '  /// stack — a field is not a `.btn-*` and does not switch to `--font-display`.',
+  '  final String fontFamily;',
+  '  final double fontSizePx;',
+  '  final int fontWeight;',
+  '  final double? lineHeightPx;',
+  '  final double letterSpacingPx;',
+  '  final double paddingVerticalPx;',
+  '  final double paddingHorizontalPx;',
+  '',
+  '  /// Authored `::placeholder { color: … }`, substituted from the same pass’s',
+  '  /// measured `:root`. A probe cannot see a pseudo-element while the field holds',
+  '  /// a value, so this comes from the pinned stylesheet.',
+  '  final Color hintColor;',
+  '',
+  '  /// Authored `:focus { border-color: … }` and `:focus { box-shadow: … }`, same',
+  '  /// substitution. `:focus { outline: none }` is the third declaration of that',
+  '  /// rule and the port drops it on purpose: Flutter paints no UA outline to',
+  '  /// suppress, and the generator fails if the rule authors anything else there.',
+  '  final Color focusBorderColor;',
+  '  final Color ringColor;',
+  '  final double ringSpreadPx;',
+  '',
+  '  /// The class’s own authored `transition`, exactly as `AppControlSpec` carries',
+  '  /// it: the field runs its focus change on this clock and picks none.',
+  '  final int transitionMs;',
+  '  final double easeX1;',
+  '  final double easeY1;',
+  '  final double easeX2;',
+  '  final double easeY2;',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '',
+  '  Border get border => Border.all(color: borderColor, width: borderWidthPx);',
+  '',
+  '  Border get focusedBorder => Border.all(color: focusBorderColor, width: borderWidthPx);',
+  '',
+  '  Duration get transitionDuration => Duration(milliseconds: transitionMs);',
+  '',
+  '  Cubic get transitionCurve => Cubic(easeX1, easeY1, easeX2, easeY2);',
+  '',
+  '  EdgeInsetsGeometry get padding => EdgeInsets.symmetric(',
+  '    vertical: paddingVerticalPx,',
+  '    horizontal: paddingHorizontalPx,',
+  '  );',
+  '',
+  '  FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];',
+  '',
+  '  double? get heightRatio =>',
+  '      lineHeightPx == null ? null : lineHeightPx! / fontSizePx;',
+  '',
+  '  /// The ring the focused field paints: no offset, no blur, the authored',
+  '  /// spread. CSS `box-shadow: none` at rest is the zero-everything shadow',
+  '  /// [restRing] returns, so the transition runs between two shadows and the',
+  '  /// spread eases with the colour instead of appearing on the first frame.',
+  '  BoxShadow get ring => BoxShadow(',
+  '    color: ringColor,',
+  '    offset: Offset.zero,',
+  '    blurRadius: 0.0,',
+  '    spreadRadius: ringSpreadPx,',
+  '  );',
+  '',
+  '  BoxShadow get restRing => const BoxShadow(',
+  '    color: Color(0x00000000),',
+  '    offset: Offset.zero,',
+  '    blurRadius: 0.0,',
+  '    spreadRadius: 0.0,',
+  '  );',
+  '',
+  '  /// The text the field paints, from the class’s own type declarations — never',
+  '  /// from the theme’s body style.',
+  '  TextStyle get textStyle => TextStyle(',
+  '    fontFamily: fontFamily,',
+  '    color: textColor,',
+  '    fontSize: fontSizePx,',
+  '    fontWeight: weight,',
+  '    height: heightRatio,',
+  '    letterSpacing: letterSpacingPx,',
+  '  );',
+  '',
+  '  TextStyle get hintStyle => textStyle.copyWith(color: hintColor);',
+  '}',
+  '',
+  '/// One §6 label class, measured at rest. It has no box of its own and no',
+  '/// states: `text-transform` is the one declaration that changes what the',
+  '/// browser shows without changing the string, so it is ported as a flag.',
+  'class AppLabelSpec {',
+  '  const AppLabelSpec({',
+  '    required this.cssClass,',
+  '    required this.displayCss,',
+  '    required this.textColor,',
+  '    required this.fontFamily,',
+  '    required this.fontSizePx,',
+  '    required this.fontWeight,',
+  '    required this.lineHeightPx,',
+  '    required this.letterSpacingPx,',
+  '    required this.uppercase,',
+  '  });',
+  '',
+  '  final String cssClass;',
+  '  final String displayCss;',
+  '  final Color textColor;',
+  '  final String fontFamily;',
+  '  final double fontSizePx;',
+  '  final int fontWeight;',
+  '  final double? lineHeightPx;',
+  '  final double letterSpacingPx;',
+  '',
+  '  /// Authored `text-transform`. CSS applies this after layout, so the element’s',
+  '  /// own text never changes; a port that leaves the string alone prints a label',
+  '  /// in the wrong case.',
+  '  final bool uppercase;',
+  '',
+  '  FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];',
+  '',
+  '  double? get heightRatio =>',
+  '      lineHeightPx == null ? null : lineHeightPx! / fontSizePx;',
+  '',
+  '  TextStyle get textStyle => TextStyle(',
+  '    fontFamily: fontFamily,',
+  '    color: textColor,',
+  '    fontSize: fontSizePx,',
+  '    fontWeight: weight,',
+  '    height: heightRatio,',
+  '    letterSpacing: letterSpacingPx,',
+  '  );',
+  '',
+  '  String transform(String text) => uppercase ? text.toUpperCase() : text;',
+  '}',
+  '',
+  '/// The §6 fields, keyed by CSS class — one map per measured brightness pass.',
+  'abstract final class AppFields {',
+);
+for (const [passName, pass, themeTag] of [
+  ['light', 'l', 'light-desktop'],
+  ['dark', 'd', 'dark-desktop'],
+]) {
+  L.push(
+    `  /// ${passName} pass (UI_SPEC §6.1–§6.2, \`${themeTag}\`; states from \`src/index.css\`).`,
+    `  static const Map<String, AppFieldSpec> ${passName} =`,
+    '      <String, AppFieldSpec>{',
+  );
+  for (const c of fields) {
+    L.push(`    ${dartStr(c.cls)}: AppFieldSpec(`, fieldExpr(c, c[pass]), '    ),');
+  }
+  L.push('  };', '');
+}
+L.push(
+  '  /// The state rules and the clock, printed once because both passes author',
+  '  /// them identically:',
+  ...fields.flatMap((c) => [
+    `  /// \`${c.cls}:focus\` (${c.focusSrc}) sets the border to \`${c.focusToken}\``,
+    `  /// and paints a \`${c.ringSpreadPx}px\` ring of \`${c.ringToken} ${c.ringPct}%\`;`,
+    `  /// \`${c.cls}::placeholder\` (${c.placeholderSrc}) sets \`${c.hintToken}\`.`,
+  ]),
+  ...fields.flatMap((c) => [
+    `  /// \`${c.cls}\` transitions ${c.transitionProps} on`,
+    `  /// \`${c.transitionDurToken}\` / \`${c.transitionEaseToken}\` (${c.transitionSrc}).`,
+  ]),
+  '',
+  '  /// The label-to-field gap the web’s Input composition authors: the wrapper’s',
+  `  /// \`gap-${labelGapScale}\`, which is Tailwind’s`,
+  `  /// \`calc(${labelGapScale} * --spacing)\` — [AppSpacing.scale] on the measured`,
+  '  /// unit, not a number the port chose.',
+  `  static const double labelGapScale = ${fmt(labelGapScale)};`,
+  '',
+  '  static double get labelGap => AppSpacing.scale(labelGapScale);',
+  '',
+  '  /// The measured field for a class and brightness. An unknown class is a',
+  '  /// programming error, not a fallback: nothing in this layer may quietly',
+  '  /// become a Material default.',
+  '  static AppFieldSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppFieldSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppFieldSpec? spec = table[cssClass];',
+  "    if (spec == null) throw ArgumentError('$cssClass is not a §6 field');",
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+  '/// The §6 label classes, keyed the same way.',
+  'abstract final class AppLabels {',
+);
+for (const [passName, pass, themeTag] of [
+  ['light', 'l', 'light-desktop'],
+  ['dark', 'd', 'dark-desktop'],
+]) {
+  L.push(
+    `  /// ${passName} pass (UI_SPEC §6.1–§6.2, \`${themeTag}\`).`,
+    `  static const Map<String, AppLabelSpec> ${passName} =`,
+    '      <String, AppLabelSpec>{',
+  );
+  for (const x of labels) {
+    L.push(`    ${dartStr(x.cls)}: AppLabelSpec(`, labelExpr(x, x[pass]), `      uppercase: ${x.uppercase},`, '    ),');
+  }
+  L.push('  };', '');
+}
+L.push(
+  '  /// The resting rule each label was read from — a label has no state rules,',
+  '  /// and the generator fails if one appears:',
+  ...labels.map((x) => `  /// \`${x.cls}\` at ${x.restSrc}, with \`text-transform: ${x.textTransform}\`.`),
+  '',
+  '  static AppLabelSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppLabelSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppLabelSpec? spec = table[cssClass];',
+  "    if (spec == null) throw ArgumentError('$cssClass is not a §6 label');",
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+);
+finish('app_fields.dart');
 // ---------------------------------------------------------------- write + summary
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
@@ -1778,6 +2387,8 @@ console.log(
     `  ThemeSlots pinned:             ${schemeMap.length}`,
     `  §6 card surfaces emitted:    ${surfaces.length} classes x 2 passes  -> AppSurfaces`,
     `  §6 controls emitted:         ${controls.length} classes x 2 passes  -> AppControls`,
+    `  §6 fields emitted:           ${fields.length} classes x 2 passes  -> AppFields`,
+    `  §6 labels emitted:           ${labels.length} classes x 2 passes  -> AppLabels`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );
