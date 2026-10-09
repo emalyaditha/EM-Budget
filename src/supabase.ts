@@ -1147,6 +1147,15 @@ export async function syncStateFromSupabase(
                 : DEFAULT_APP_STATE.savingsGoals,
         creditCardInstallments: getListField(installments, jsonState?.creditCardInstallments),
         creditCardInstallmentPayments: getListField(instPayments, jsonState?.creditCardInstallmentPayments),
+        // B-23: `credit_card_purchases` has no relational table and is not a
+        // `sync_complete_ledger` parameter, so the snapshot in `ledger_states` is its
+        // only cloud copy — every push rewrites it from the merged state. Reading it
+        // back here is what stops a re-hydration from returning `[]` and the next
+        // debounced push from persisting that emptiness over the only copy.
+        creditCardPurchases:
+          jsonState && Array.isArray(jsonState.creditCardPurchases)
+            ? jsonState.creditCardPurchases
+            : DEFAULT_APP_STATE.creditCardPurchases,
         pinCode: jsonState && typeof jsonState.pinCode === 'string' ? jsonState.pinCode : DEFAULT_APP_STATE.pinCode,
         pinEnabled:
           jsonState && typeof jsonState.pinEnabled === 'boolean' ? jsonState.pinEnabled : DEFAULT_APP_STATE.pinEnabled,
