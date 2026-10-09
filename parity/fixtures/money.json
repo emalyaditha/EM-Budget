@@ -5,11 +5,11 @@
     "unitFile": "src/lib/money.ts",
     "gitBlob": "c1407ccba7794ba543ec4631a5a9aaa14e3ed97b",
     "sha256": "265f021a49a00b0b73fa57e1494bb4aa566f3b9da2c8f8be4ffe5d1230a5f04e",
+    "srcTree": "9921f3a476af55b8a7c452d27ed29e6a84336c10eb729cdcf51bac6a5e34db3d",
     "tz": "Asia/Colombo",
     "locale": "en-US",
     "node": "v24.19.0",
     "pinnedNow": "2026-10-04T04:30:00.000Z",
-    "generatedAt": "2026-10-06T20:07:59.454Z",
     "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
   },
   "cases": [

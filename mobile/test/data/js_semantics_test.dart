@@ -157,4 +157,58 @@ void main() {
       );
     });
   });
+
+  group('jsNumberToString — `String(num)`', () {
+    test('an integral double loses the `.0` Dart would write', () {
+      expect(jsNumberToString(20000.0), '20000');
+      expect(jsNumberToString(-1.0), '-1');
+      expect(jsNumberToString(0.0), '0');
+      expect(jsNumberToString(-0.0), '0', reason: 'String(-0) is "0"');
+    });
+
+    test('a whole double above 2^63 still expands, never wraps', () {
+      // `toInt()` on a value with no 64-bit representation silently wrapped negative,
+      // and the CSV export then quoted the result as a formula cell.
+      expect(jsNumberToString(1e20), '100000000000000000000');
+      expect(jsNumberToString(-1e20), '-100000000000000000000');
+      expect(
+        jsNumberToString(9007199254740993.0),
+        '9007199254740992',
+        reason: 'the double rounds to 2^53+0; JS prints the double, not the literal',
+      );
+    });
+
+    test('1e21 and above go exponential on both sides', () {
+      expect(jsNumberToString(1e21), '1e+21');
+      expect(jsNumberToString(-1e21), '-1e+21');
+      expect(jsNumberToString(1.5e22), '1.5e+22');
+    });
+
+    test('a non-integral double keeps the shortest round-trip digits', () {
+      expect(jsNumberToString(0.5), '0.5');
+      expect(jsNumberToString(0.1 + 0.2), '0.30000000000000004');
+      expect(jsNumberToString(1e-7), '1e-7');
+      expect(jsNumberToString(1e-6), '0.000001');
+    });
+
+    test('non-finite values are the three JS words', () {
+      expect(jsNumberToString(double.nan), 'NaN');
+      expect(jsNumberToString(double.infinity), 'Infinity');
+      expect(jsNumberToString(double.negativeInfinity), '-Infinity');
+    });
+
+    test('an `int` is passed straight through', () {
+      expect(jsNumberToString(1234567890123456789), '1234567890123456789');
+    });
+  });
+
+  group('jsToString — `String(value)` for a CSV cell', () {
+    test('null is the word, numbers go through the number rule', () {
+      expect(jsToString(null), 'null');
+      expect(jsToString('a'), 'a');
+      expect(jsToString(100.0), '100');
+      expect(jsToString(true), 'true');
+      expect(jsToString(false), 'false');
+    });
+  });
 }

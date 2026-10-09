@@ -11,6 +11,22 @@ Phase 3 gate — 9 lines in `src/supabase.ts` on `bugfix/b23-credit-card-purchas
 `savings_goals` / `credit_card_purchases` table, the `server/` collision, 457 passing vitest tests, 24
 passing e2e tests, dependency list. Everything else is cited to `file:line` and is agent-reported.
 
+## Resume guide (read in this order, then stop)
+
+A new session does not need the whole file. Read:
+
+1. `parity/STATUS.md` — the live state, open decisions, exact next step. Start there.
+2. §13 gate rulings **in order** (13 → 13h): every D1–D35 is binding; the tables are short.
+3. The newest two "delivered" sections only (currently §13k, §13l) — they state what each batch did
+   and deliberately did _not_ do; anything later lives in `STATUS.md`, not here.
+4. `BUGS_FOUND.md` Summary table + any row the current task cites — not the whole file.
+5. §1–§12 are the Phase 0 audit: consult by section when a specific unit or risk is in scope
+   (the JS→Dart landmines in §5 are cited per-port; §6 is the sync contract). The §13 rulings
+   supersede anything in §1–§12 that a later gate changed.
+
+Never trust prose here over the tree: re-run `git status`, `parity/fixtures/validate.ts` and
+`flutter test` before reporting state.
+
 ---
 
 ## 1. BLOCKERS — decide before Phase 1
@@ -204,7 +220,8 @@ authoritative in prod before any fresh DB is built.
    YYYY-MM-DD with string `>=`/`<=` (tz-immune, inclusive due date). `utils.ts dayStartMs` and
    `alerts.ts parseDay` use **local midnight** and explicitly reject `Date.parse` as off-by-one for
    non-UTC users. Dart months are 1-indexed and parsing is stricter. **Every date unit needs fixtures on
-   both sides of local midnight and on leap days.**
+   both sides of local midnight and on leap days.** _This one was hit for real: the first `daysBetween` port
+   subtracted 1 from the month as `Date.UTC` requires, and `credit-cycles.json` failed it by one day. §13j._
 2. **`addMonthsClamped` forgets the anniversary.** 2026-01-31 → 02-28; 2028 → 02-29. A 31st due date
    drifts back only by luck of later months. Replicate verbatim or historical due dates diverge.
 3. **Rollover runs in the browser** (mount + 60s interval, `App.tsx:800-883`). **A closed Flutter app stops
@@ -501,7 +518,8 @@ not in the code.
 
 Auth-session representation (B-06/B-07 — three sources of "who is authenticated"), duplicate migration
 filenames (B-10), and WebAuthn/CSRF native origin checks (§7, §12 items 6-8). Re-surface each at the gate
-where it first bites (Phase 3 for auth, before any fresh DB is built for B-10).
+where it first bites. B-10 is the only one still open and is now pending your `schema_migrations` query; it must
+be answered before any fresh DB is built, including the separate e2e test project proposed in `STATUS.md`.
 
 ## 13b. Phase 1 gate rulings (D5-D8)
 
@@ -535,12 +553,12 @@ a logic spec with goldens, a UI spec with numbers, and pixel baselines.
 
 ### Logic side
 
-| artefact                            | produced by                           | what it is                                                                                                                                                                                                                                                                                                       |
-| ----------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parity/LOGIC_SPEC.md`              | hand-written against the tagged code  | 13 units, **510 named cases** the Dart port must satisfy, each with the exact input and the reason the case exists.                                                                                                                                                                                              |
-| `parity/fixtures/*.json` (13 files) | `npx tsx parity/fixtures/generate.ts` | **963 measured goldens** — the `expected` value is what the real TypeScript produced, never what it was expected to produce. Each carries `_provenance`. `--only money,alerts` regenerates named units only, because each file stamps its own `generatedAt` and a full run churns thirteen files for one change. |
-| `parity/fixtures/validate.ts`       | `npx tsx parity/fixtures/validate.ts` | The D8 gate: non-empty, ≥ the spec's case count, every object schema-checked, provenance re-verified. Currently **PASS, 963 / 510**.                                                                                                                                                                             |
-| `parity/fixtures/tz-proof.ts`       | `npx tsx parity/fixtures/tz-proof.ts` | Re-runs every golden in `Asia/Colombo` (the committed zone), `America/New_York` and `Pacific/Kiritimati` — always the full set, since it regenerates rather than reads `--only`. **5 cases differ**, all in the two units §5 warned about.                                                                       |
+| artefact                            | produced by                           | what it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parity/LOGIC_SPEC.md`              | hand-written against the tagged code  | 13 units, **613 named cases** the Dart port must satisfy, each with the exact input and the reason the case exists.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `parity/fixtures/*.json` (13 files) | `npx tsx parity/fixtures/generate.ts` | **1066 measured goldens** — the `expected` value is what the real TypeScript produced, never what it was expected to produce. Each carries `_provenance`. Nothing in a golden is machine-volatile: the clock inside every case is the pinned `pinnedNow`, and the wall-clock stamp the generator used to write is gone, so a full re-run on unchanged code leaves all thirteen files byte-identical. `--only money,alerts` remains for the other reason — it skips re-measuring the twelve units you did not touch. |
+| `parity/fixtures/validate.ts`       | `npx tsx parity/fixtures/validate.ts` | The D8 gate: non-empty, ≥ the spec's case count, every object schema-checked, provenance re-verified. Currently **PASS, 1066 / 613**.                                                                                                                                                                                                                                                                                                                                                                               |
+| `parity/fixtures/tz-proof.ts`       | `npx tsx parity/fixtures/tz-proof.ts` | Re-runs every golden in `Asia/Colombo` (the committed zone), `America/New_York` and `Pacific/Kiritimati` — always the full set, since it regenerates rather than reads `--only`. **5 cases differ**, all in the two units §5 warned about.                                                                                                                                                                                                                                                                          |
 
 ### Data side (Phase 3)
 
@@ -559,11 +577,11 @@ Total at the Phase 3 gate: **443 Dart tests, 0 failures**, `flutter analyze` cle
 | ----------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `mobile/lib/domain/money.dart`                  | the `src/lib/money.ts` port          | Integer-cent core, 8 functions, bug-compatible (`Infinity` survives `toMinorUnits`, `-0` too). `test/domain/money_test.dart` — **11** tests replaying all **200** cases of `money.json`, each case name consumed exactly once.                                                                                         |
 | `mobile/lib/data/js_semantics.dart`             | the JS number→text rules             | `jsParseFloat`, `jsMathRound`, `jsToFixed`, `jsToLocaleStringFixed` — four rounding rules that disagree with each other and with Dart, kept four ways round. `test/domain/js_semantics_format_test.dart` — **17** tests, every divergence named and each function swept against Node over tens of thousands of values. |
-| `mobile/lib/data/number_locale.dart` (§13h D25) | `intl`'s CLDR metadata, nothing else | Separators, grouping runs, zero digit and sign affixes for a locale tag; the digits never come from `intl`. `test/domain/number_locale_test.dart` — **10** tests replaying all **232** cases of `number-locale.json`, each in the locale its case names.                                                               |
+| `mobile/lib/data/number_locale.dart` (§13h D25) | `intl`'s CLDR metadata, nothing else | Separators, grouping runs, zero digit and sign affixes for a locale tag; the digits never come from `intl`. `test/domain/number_locale_test.dart` — **14** tests replaying all **335** cases of `number-locale.json`, each in the locale its case names.                                                               |
 
-Total at this gate: **481 Dart tests, 0 failures** (443 + 38), `dart format --set-exit-if-changed` and
-`flutter analyze --fatal-infos --fatal-warnings` clean, `validate.ts` **PASS 963 / 510**, `tz-proof.ts`
-**5 of 963 differ across three zones** — the same five the Phase 1 gate named, and `number-locale` is
+Total at this gate: **485 Dart tests, 0 failures** (443 + 42), `dart format --set-exit-if-changed` and
+`flutter analyze --fatal-infos --fatal-warnings` clean, `validate.ts` **PASS 1066 / 613**, `tz-proof.ts`
+**5 of 1066 differ across three zones** — the same five the Phase 1 gate named, and `number-locale` is
 zone-stable. On the web side `npm run lint` (eslint `--max-warnings 0` + `tsc --noEmit`) is clean and
 `npx vitest run` is **456 / 457**: the one failure is `auth.integration.test.ts`'s PIN lockout case, which
 exceeded vitest's default 5 s against the live server on this host. It is a network timeout, not an
@@ -894,18 +912,52 @@ so the serialized jar never exists as plaintext on disk. Scope is the `app_lock_
 
 ---
 
-## 13h. Phase 4 gate rulings (D25-D30)
+## 13h. Phase 4 gate rulings (D25-D33)
 
 Given when the first logic port (`src/lib/money.ts`) was put up for approval. Binding from here.
 
-| #       | Ruling                                                                                                                                                                                           | Consequence                                                                                                                                                                                                                                                                          |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **D25** | **`DATA_SPEC.md` §11 D-12 is rejected as a divergence.** Number formatting uses the **device locale** in the app; `en-US` is named only by a test, through an injected locale.                   | `formatMoney(currency, amount, options, [locale])` defaults to `JsNumberLocale.device()`; `money_test.dart` injects `en-US` to replay `money.json`, and `number-locale.json` (232 goldens, 8 locales) is the proof. Rule 3 is untouched — the web passes `undefined` and still does. |
-| **D26** | **D-13 (`-0` leaving the add-family) and `asJsonSafeNumber` are approved** as written.                                                                                                           | The register keeps D-13; `test/domain/money_test.dart` asserts the surviving `-0` of `toMinorUnits` by sign bit.                                                                                                                                                                     |
-| **D27** | The money port is **one commit, by explicit path**, only after the full gate set passes. `.qa_*` scripts are not committed.                                                                      | Same convention as D11 and the §13g `parity/.qa_*` row.                                                                                                                                                                                                                              |
-| **D28** | `freeOcrParser.ts` stays **out of the Dart port list** (confirming D4): the mobile side calls `/api/ocr/free-scan`, so the artefact is a **server contract test**, not a 387-LOC heuristic port. | Its parse rules and category lists are the fifth copy of a set already hand-synced across four places (§5 landmine 11). A contract fixture pins the response shape instead.                                                                                                          |
-| **D29** | `download.ts` is ported as **pure logic only** — CSV content, escaping, sanitisation, filenames. The save/share step is Phase 7.                                                                 | The `csv` golden unit (§10) is unchanged; the difference between an anchor download and a share sheet goes to `UI_SPEC.md` as a deviation, not into the fixture.                                                                                                                     |
-| **D30** | `alerts.ts` and `installments.ts` are ported against an **injected fixed clock**, and each unit must pass the **three-zone check**. Goldens come from code at the `pre-flutter` tag only (D7).   | No test reads `DateTime.now()` or the device's zone; `today` is a parameter, so the same case fails identically in `Asia/Colombo`, `America/New_York` and `Pacific/Kiritimati`.                                                                                                      |
+| #       | Ruling                                                                                                                                                                                                                                                                                                                                                          | Consequence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **D25** | **`DATA_SPEC.md` §11 D-12 is rejected as a divergence.** Number formatting uses the **device locale** in the app; `en-US` is named only by a test, through an injected locale.                                                                                                                                                                                  | `formatMoney(currency, amount, options, [locale])` defaults to `JsNumberLocale.device()`; `money_test.dart` injects `en-US` to replay `money.json`, and `number-locale.json` (335 goldens: ten locales — `en-LK` and `si-LK` among them — plus a 45-case LKR baseline block) is the proof. Rule 3 is untouched — the web passes `undefined` and still does.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **D26** | **D-13 (`-0` leaving the add-family) and `asJsonSafeNumber` are approved** as written.                                                                                                                                                                                                                                                                          | The register keeps D-13; `test/domain/money_test.dart` asserts the surviving `-0` of `toMinorUnits` by sign bit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **D27** | The money port is **one commit, by explicit path**, only after the full gate set passes. `.qa_*` scripts are not committed.                                                                                                                                                                                                                                     | Same convention as D11 and the §13g `parity/.qa_*` row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **D28** | `freeOcrParser.ts` stays **out of the Dart port list** (confirming D4): the mobile side calls `/api/ocr/free-scan`, so the artefact is a **server contract test**, not a 387-LOC heuristic port.                                                                                                                                                                | Its parse rules and category lists are the fifth copy of a set already hand-synced across four places (§5 landmine 11). A contract fixture pins the response shape instead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **D29** | `download.ts` is ported as **pure logic only** — CSV content, escaping, sanitisation, filenames. The save/share step is Phase 7.                                                                                                                                                                                                                                | The `csv` golden unit (§10) is unchanged; the difference between an anchor download and a share sheet goes to `UI_SPEC.md` as a deviation, not into the fixture.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **D30** | `alerts.ts` and `installments.ts` are ported against an **injected fixed clock**, and each unit must pass the **three-zone check**. Goldens come from code at the `pre-flutter` tag only (D7).                                                                                                                                                                  | No test reads `DateTime.now()` or the device's zone; `today` is a parameter, so the same case fails identically in `Asia/Colombo`, `America/New_York` and `Pacific/Kiritimati`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **D31** | The locale matrix must contain **the product's own two locales**, and the phone's LKR rendering must be checked against **the web's own baseline screenshots** — not against a locale the golden generator happened to run in.                                                                                                                                  | `NUMBER_LOCALES` is ten: `en-LK` and `si-LK` measured in V8 rather than assumed (both comma-grouping, ASCII digits, 3/3, plain `-`; V8 collapses `en-LK` to `en`, and `intl` has real CLDR data for both, so neither reaches the `zzy-ZZ` fallback). `number-locale.json` adds a **45-case baseline block**: 15 LKR amounts — four read off `parity/screenshots/web/light/390/overviewhub.png` — at the `{ maxFractionDigits: 0 }` shape `DashboardHero` passes, under `en-US` (the harness's Chromium default), `en-LK` and `si-LK`. All three agree on all fifteen.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **D32** | Extends D28: the OCR contract test runs the **same sample receipts through both renderers and compares them** — the web's own `tesseract.js` path and `/api/ocr/free-scan` — rather than pinning the server endpoint alone.                                                                                                                                     | A fixture is a triple (image, web text, server text). If the two differ the finding is about the endpoint, not about a port, and rule 3 forbids fixing the web to match; the divergence register decides which side is authoritative per case.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **D33** | **Fixtures are byte-stable.** `.gitattributes` carries exactly one rule, `parity/fixtures/*.json text eol=lf`, and the generator no longer stamps a wall clock into `_provenance`.                                                                                                                                                                              | Re-running `generate.ts` on unchanged code is a zero-content diff, and `tz-proof.ts` restoring the canonical zone leaves the tree clean instead of dirtying thirteen files. No web file is listed, so nothing about the web checkout changes. `validate.ts` drops the `generatedAt` requirement; `tz` and `locale` stay, because those two are attributable facts about a measurement, not a timestamp.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **D34** | The `app-handlers` goldens are **measured from the running web app**, never written by hand: `parity/live/handlers.spec.ts` boots the real `App.tsx` in Chromium, drives each handler through its real form, and records the whole ledger before and after. Extends D30's fixed clock to a **browser** clock and D22's per-test tenant to a per-**run** tenant. | Fourteen `generate.ts` units call a pure function, so a hand-written case is a measurement. A handler is not: it closes over React state, `updateState`, the storage mirror and the toast/alert side channels, so only the app itself can say what it does. The harness blocks the Supabase REST routes and seeds the `cashflow_manager_state_v1` mirror — a returning user's boot path, not a stub — then clicks. `clock.setFixedTime` pins `Date.now()` while leaving timers running, minted ids alias to `gen-1..gen-n`, ISO stamps become `<now>`, the pinned day becomes `<today>`, and two runs on different real dates produce the same bytes. Teardown is `test.afterAll` plus `--leftover qa-handlers`, because a worker killed by a timeout does not reach a `finally`.                                                                                                                                                                                                                                                                                        |
+| **D35** | Every fixture carries `_provenance.srcTree` — a digest of the whole `src/` tree it was measured against — and `validate.ts` fails on a mismatch. **B-23 and B-26 are the only web fixes before Phase 8**; when each lands, regenerate only the affected fixtures and record why.                                                                                | A per-unit blob hash proves only the file under measurement. `net-worth.json` imports `money.ts` through `utils.ts`, so changing that arithmetic left thirteen goldens passing against code that no longer exists anywhere in the tree. The stamp covers every file under `src/` except `*.test.*` / `*.spec.*` (a test cannot be imported, so it cannot move a golden), with no extension allowlist — `src/index.css` counts, because a covered set with a hand-picked exception quietly ages. Consequence, accepted: **any** edit under `src/` re-stamps all fourteen. Content is hashed with CRLF folded to LF, because `core.autocrlf` is `true` and only the fixture JSONs are pinned; a raw-byte digest called the tree stale after a `git checkout --` that git itself reported as a no-op, and would disagree between the Windows box and Linux CI without a line of code changing. Proven both ways: a tampered stamp fails the gate alone, one appended comment line in `src/lib/money.ts` fails all fourteen, and flipping that file to CRLF leaves it green. |
+
+### D35 in detail — what a web fix costs the fixture set
+
+The stamp is deliberately coarser than the drift checks it sits beside. `gitBlob` and `sha256` say "the
+file this golden measured has not moved"; `srcTree` says "nothing anywhere in `src/`` has moved". After any
+web fix the expected state is therefore **fourteen stale stamps and, usually, zero changed cases** — those
+two facts must be reported separately, not collapsed into "the fixtures were regenerated".
+
+The procedure when one of the two authorised fixes lands:
+
+1. Merge or rebase it onto the migration branch, then `npx tsx parity/fixtures/generate.ts`. That is
+   deterministic and measures nothing new for the thirteen generated units: it re-derives provenance from
+   `pre-flutter`, re-measures every case, and re-stamps. A `cases` diff here is a finding about the fix, not
+   about the tooling, and must be read before being accepted.
+2. Re-run `parity/live/handlers.spec.ts` **only** if the fix touches `src/App.tsx`, the seeded ledger in
+   `parity/live/seed-state.json`, or anything a handler can observe through them. The harness refuses to emit
+   unless `src/App.tsx` matches the tag, so a fix there makes the stale fixture unprovable rather than wrong.
+3. Record it in `BUGS_FOUND.md` on the bug's own row: which units' _cases_ changed, which merely re-stamped,
+   and why. Without that line the next reader cannot tell a re-measurement from a re-label.
+
+Worked example, already true of B-23: it changes `src/supabase.ts` (+9) and `src/supabase.test.ts` (+50).
+`supabase.ts` is not one of the thirteen sampled unit files and a test file is outside the covered set, so
+landing it re-stamps all fourteen fixtures and changes **no case in any of them**. That is the whole cost of
+the fix, and it is the shape the stamp is designed to make visible rather than hide.
+
+Two things this ruling forbids. `SRC_TREE_LABEL` must never be bumped to clear a failure: the label changes
+what the stamp _means_, not what was measured, and every fixture would then claim a provenance it does not
+have. And no third web fix joins B-23 and B-26 before Phase 8 — rule 3 stands, and B-26 in particular stays
+read-only until the count-query answer arrives.
 
 ### D25 in detail — why the locale is ambient, and why `intl` does not produce the digits
 
@@ -913,8 +965,10 @@ The web calls `toLocaleString(undefined, …)`. "Ambient locale, whatever the ru
 _not_ sloppiness to be pinned away — it is the behaviour, and a phone that always printed `Rs.125,000`
 while its owner's browser printed `Rs.1,25,000` would be the change. So the port takes the platform
 locale, and the golden machinery does what goldens are for: `money.json` was measured under `en-US`, so
-`money_test.dart` injects `en-US`; `number-locale.json` measures eight locales and
-`test/domain/number_locale_test.dart` replays each case **in the locale its name names**.
+`money_test.dart` injects `en-US`; `number-locale.json` measures ten locales and
+`test/domain/number_locale_test.dart` replays each case **in the locale its name names**. D31 then closed the
+loop on the two locales this product actually ships in, and on what the phone's LKR output is measured
+against: the web's own screenshots (§13 of `LOGIC_SPEC.md` carries the baseline block and its limits).
 
 What the ruling settled empirically, not by argument:
 
@@ -931,3 +985,465 @@ What the ruling settled empirically, not by argument:
 every fixture stamps blob `c1407ccba7794ba543ec4631a5a9aaa14e3ed97b`. `money.json` grew from 130 to 200
 cases for this port; **no existing `expected` value changed** (re-checked case-by-case), and the surplus
 exists because the two formatters round differently and a case must exist for each rule.
+
+---
+
+## 13i. Phase 4 delivered — the five mid-size logic units (#61)
+
+`money` (§13h) was the first port. This batch is the five units D28–D30 scoped: `installments`, `alerts`,
+`csv`, `validators`, `display-interest`. Nothing here changes a ruling; it is where D29 and D30 become
+artefacts.
+
+| unit               | Dart                                                                                        | golden                  | cases | tests | what the suite is really guarding                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------- | ----------------------- | ----- | ----- | ---------------------------------------------------------------------------------------- |
+| `installments`     | `lib/domain/installments.dart`                                                              | `installments.json`     | 61    | 22    | the injected clock, and the 0% fee that is indistinguishable from a typo                 |
+| `alerts`           | `lib/domain/alerts.dart`                                                                    | `alerts.json`           | 40    | 11    | the injected clock, and the shadow `formatMoney` replayed under a **named** locale (D25) |
+| `csv`              | `lib/domain/csv.dart`                                                                       | `csv.json`              | 16    | 22    | the formula prefix **before** quote-escaping, and `String(num)` on whole doubles         |
+| `validators`       | `lib/domain/validators.dart`                                                                | `validators.json`       | 49    | 68    | the whole joined error string, in schema key order, including Zod's own default text     |
+| `display-interest` | `lib/domain/display_interest.dart` (+ `interestForCycle` in `lib/domain/credit_cards.dart`) | `display-interest.json` | 24    | 32    | B-03: the UI figure stays unrounded and unguarded, and `differs` is JS `!==`             |
+
+Totals at this gate: **13 units, 1086 cases, 613 required minimum — `validate.ts` PASS**, byte-stability
+re-proved by generating twice and comparing (`cmp`, 13 files identical). **No existing `expected` value
+changed anywhere in the batch** — checked case-by-case against `HEAD`: the differences are 1 new `csv` case,
+19 new `validators` cases, 103 new `number-locale` cases (D31), and 56 cases whose `input` became
+self-describing (the clock and the reference day moved _into_ the input, so a replay cannot read a fixture's
+provenance by accident).
+
+The full mobile suite is **648 tests, all passing**; `flutter analyze --fatal-infos --fatal-warnings` clean;
+`dart format --set-exit-if-changed lib test` clean. The five units account for 155 of those 648:
+`installments` 22, `alerts` 11, `csv` 22, `validators` 68, `display-interest` 32.
+
+`npx prettier --check .` — the web job's own Format check — still warns on **five files, every one of them
+unclean before this migration touched anything**: `src/supabase.ts` and `src/supabase.test.ts` (web sources,
+left alone by rule 3) and `parity/BUGS_FOUND.md`, `parity/UI_SPEC.md`, `parity/render_ui_spec.cjs` (Phase 1
+artefacts). `parity/fixtures/generate.ts` was in that set and is now formatted; re-running it reproduced all
+thirteen fixture files byte-for-byte, so the whitespace moved in the generator and nowhere else. The step is
+currently unreachable in CI anyway — `npm audit --audit-level=high` fails first and the job never gets here.
+
+_**Corrected in §13j:** those five warnings are not five unformatted files. All five are LF in git; four of_
+_the working copies were CRLF because this box checks text out with `core.autocrlf=true`. Formatting them was_
+_a working-copy cleanup, not a commit — see §13j's line-ending note._
+
+### D30 is now executable, not a promise
+
+`.github/workflows/mobile-verify.yml` gained a `timezone` job: the clock-dependent suites — `installments`
+and `alerts` at first, five after the next section — re-run
+under `Asia/Colombo`, `America/New_York` and `Pacific/Kiritimati` (+14, the furthest ahead there is), with a
+pre-flight step that fails the job if the runner's ambient offset is `+0000` — a silently ignored `TZ` would
+otherwise replay the same zone three times and report three passes. It can only live in CI: the Dart VM on
+Windows ignores `TZ`, which is measured rather than assumed here (printing `timeZoneOffset` under an exported
+`TZ` on this workstation leaves it unchanged). The web-side half is `parity/fixtures/tz-proof.ts`.
+
+### The first thing CI found: a replay that read the runner's zone, not the fixture's
+
+`Mobile Parity CI` ran 645/647 green on `ubuntu-latest` and failed two cases, both in
+`test/data/dates_local_test.dart`: `localDayKey(2026-10-04T18:30:00Z)` returned `2026-10-04` where the
+golden says `2026-10-05`, and `localDayKey(2026-12-31T23:59:59Z)` returned `2026-12-31` against
+`2027-01-01`. Nothing about the port was wrong — `localDayKey` reads the device zone because that is the
+unit, and the goldens are the `Asia/Colombo` (+05:30) readings of absolute instants. The runner is UTC, so
+the replay compared a Colombo day key against a UTC one. Both cases straddle midnight only for a reader
+ahead of Greenwich by six hours or more, which is why this host passed it and CI did not.
+
+Fixed on the replay side, not in the port (rule 3 forbids moving the unit, and the app must keep reading the
+device zone): `replayMs` shifts each host-independent instant — date-only, or carrying a `Z` or an explicit
+offset — by `measured − host`, so the host displays the wall clock the measurement saw. Naive date-times are
+left alone, because V8 resolves those on the host and their fields are the literal everywhere.
+`_shiftToMeasuredZone` throws if the host offset differs between the instant and the shifted one (a DST
+boundary inside the fixture window), and a new test re-derives every shifted answer as `UTC + 05:30`, so the
+replay cannot be made to pass by moving both halves together. `kMeasuredZone` is a constant because Dart
+ships no tz database and `package:timezone` does not belong in a parity seam; `_assertMeasuredZone` reads
+`_provenance.tz` and refuses the replay if the fixture is ever measured in another zone.
+
+Proved before pushing, on a Node twin of the port across ten host zones: **78/78 with the shift in every
+one**, and 75–76/78 without it in `UTC`, `America/New_York`, `America/Santiago`, `America/Sao_Paulo`,
+`Europe/Dublin` and `Asia/Tehran`. `Pacific/Kiritimati` and `Pacific/Apia` pass unshifted — a zone far
+enough ahead never loses a day — which is the reason the UTC leg (the `validate` job) is load-bearing and a
++14 matrix leg is not sufficient. The `timezone` job now runs the five clock-touching suites
+(`installments`, `alerts`, `dates_local`, `transaction_service`, `state_storage`) instead of two, giving four
+legs per suite: `Asia/Colombo`, `America/New_York`, `Pacific/Kiritimati` and UTC. Suite total 647 → 648.
+
+### Two findings this batch produced, and where they went
+
+- **`jsNumberToString` was wrong for whole doubles above 2^63.** It converted through `toInt()`, which wraps
+  silently, so a CSV cell holding `1e20` printed a negative number — and the formula guard then quoted it as
+  though the cell began with `-`. A hand-written property assertion in `csv_test.dart` caught it; the fix
+  reuses the shortest-decimal decomposition `jsToFixed` already has. The behaviour is **now a golden too**
+  (`escapeCsvRow(whole doubles either side of the exponent threshold)`), because a property the port asserts
+  about the _web_ is an opinion until the web has answered it.
+- **Zod 4's `_missingMessage` has three shapes**, and the port encoded all three before any case exercised two
+  of them. Probing the tag showed a missing required literal produces the _same_ text as a wrong literal, and
+  a missing required array says `received undefined` where a wrong-typed one says `received string`. Both are
+  now cases (`validators` 47 → 49), and the Dart engine passes them unchanged — the port was right, but it
+  had no proof until this minute.
+
+Adopted practice for the remaining ports, from those two: a property test that states a fact about the web
+gets promoted into `generate.ts` in the same sitting, or it is deleted. The suite keeps the right to assert
+the _port's_ invariants — key order, per-parse defaults, `null` vs absent — those stay as properties.
+
+### What #61 deliberately did not do
+
+- `freeOcrParser.ts` — not ported, per D28/D32; it becomes the three-way contract fixture (#65).
+- `download.ts`'s `downloadBlob` — not ported, per D29; the save/share difference is a `UI_SPEC.md` row.
+- The rest of `src/lib/creditCards.ts` — `credit_cards.dart` currently holds only `interestForCycle`, because
+  the display pair needs exactly that half (#63 adds the engine and must extend this file, not fork it).
+  _Superseded: #63 landed it in that file, §13j._
+- `src/utils.ts` net worth and the `dates-local` helpers are separate units (#62) and are not touched here.
+
+## 13j. Phase 4 delivered — the credit-card cycle engine (#63)
+
+`src/lib/creditCards.ts` in full: the pure-UTC arithmetic of §2, the payment window of §3 and
+`runCycleRollover` of §4. It went into the same file the display pair already used, per §13i's last bullet.
+
+| unit              | Dart                           | golden                 | cases | tests | what the suite is really guarding                                                                 |
+| ----------------- | ------------------------------ | ---------------------- | ----- | ----- | ------------------------------------------------------------------------------------------------- |
+| `credit-cycles`   | `lib/domain/credit_cards.dart` | `credit-cycles.json`   | 139   | 20    | the two-day asymmetry (cycle ends the 15th, deadline advances from the 7th) and the one-way clamp |
+| `credit-payments` | `lib/domain/credit_cards.dart` | `credit-payments.json` | 34    | 10    | dates compared **as strings**, so `'2026-9-20'` silently leaves every window                      |
+| `cycle-rollover`  | `lib/domain/credit_cards.dart` | `cycle-rollover.json`  | 19    | 6     | the whole stored charge payload — amounts, `appliedDate` and the exact `description` text         |
+
+Totals at this gate: **13 units, 1086 cases, 613 required minimum — `validate.ts` PASS**; the mobile suite is
+**684 tests, all passing** (648 + 36); `flutter analyze --fatal-infos --fatal-warnings` and
+`dart format --set-exit-if-changed lib test` clean; `tz-proof.ts` reports the same five zone-sensitive cases
+it always did (`dates-local` ×3, `transaction-service` ×2) and **none** from these three units, which is the
+point of the pure-UTC half. The three-zone leg itself runs in CI only: the Dart VM on Windows ignores `TZ`
+and follows the OS zone, so this workstation can only ever replay one zone (`mobile-verify.yml:59-60`).
+
+### The fixture-integrity gate this batch was actually about
+
+The audit that opened #63 found that three of the cycle cases recorded a **scenario digest** as their `input`
+while the generator rebuilt the real arguments in scaffolding — `isMinimumSatisfied`'s three "minimum paid /
+unpaid" cases all wrote `[{"minPayment":1921}, "2026-10-15"]`, so no replay could tell them apart and a Dart
+suite could only pass by looking the answer up by name. That is not a test of the port; it is a second copy of
+the generator. Fixed in `generate.ts` (the recorded input is now the call's argument list, built once and
+passed to `measure`) and made permanent in `validate.ts` as **check 5 — determinism**: cases grouped by callee
+then by canonical input, and same input + different expected fails. `LOGIC_SPEC.md` §0 states the rule.
+
+Proof that the fix moved nothing but the recording: regenerating against `pre-flutter` gave
+**`cases=1086 expected-changed=0 input-changed=35 structural=0`**, and a second generation produced 13
+byte-identical files. Where a projection still exists it is named, dated and task-numbered in
+`PROJECTION_DEBT` (`net-worth` → #62, `transaction-service` → #64), reported as `KNOWN DEBT — 4`, never as a
+pass; a **stale** exemption is itself an error, so the debt cannot outlive the task that clears it.
+
+### What the goldens caught
+
+- **A real port bug, in the first minute.** `daysBetween` was written as `DateTime.utc(y, month - 1, d)`
+  because `Date.UTC` is 0-based — and `DateTime.utc` is 1-based. Every cycle length came out up to a month
+  short; `credit-cycles.json` says `daysBetween('2026-09-15', '2026-10-07')` is **22** and the port said 23,
+  which is a day of revolving interest on every card, every cycle. §5.1 predicted this trap in the abstract;
+  the fixture is what made it a failing test instead of a paragraph. Recorded in `LOGIC_SPEC.md` §2.
+- **Two hand-written "facts" in my own new tests were wrong**, not the port: `deductionDate('2026-02-31')`
+  is `2026-02-15` (the day is range-checked against 31, never against the month, so Feb 31 _parses_), and
+  `computeMinimumPayment(-260000, 250000)` is **22,500** — 5% of the limit **plus the whole 10,000 excess**,
+  not 5% of the outstanding. Both are now asserted as goldens are asserted: measured, with the wrong guess
+  deleted. It is the same lesson §13i learned twice — a property that states a fact about the web is an
+  opinion until the web has answered it.
+
+### Three port-boundary decisions, and why each is not a simplification
+
+- `interestForCycle(num balance, num? aprPercent, num days)` — **widened**. The web types `number`, but its
+  guard is `!(aprPercent > 0)`, which is the exact thing `credit-cycles.json` measures for `undefined` and
+  `NaN`. Collapsing `undefined` into `NaN` before the call would test the collapse instead of the guard. The
+  app's own call site is `card.apr ?? 0` and can never supply it (`LOGIC_SPEC.md` §12).
+- `RollCardPatch.none() / .cleared()` — the web returns `{}` or `{ dueDate: undefined, minPayment:
+undefined }` and the caller spreads it, so the two payloads mean _leave the dates_ and _erase them_. A
+  `null` would lose one of the two; the suite asserts the golden's **key set**, not a truthy shape.
+- A string payment amount is coerced **at the test boundary**, via `toMinorUnits`, because that is the
+  function the web coerces it in — `money.dart:37` already takes `Object?` and is golden-proven. Inventing a
+  second `addMoney` signature for a value no typed caller can produce would widen the port for the fixture's
+  benefit rather than the app's.
+
+### The prettier warnings were never formatting
+
+Asked whether `src/supabase.ts` and its test warn because of CRLF: **yes, and so do the three parity files** —
+but the stronger finding is that no file in this repo is mis-formatted in git. Measured two ways:
+
+- `git ls-files --eol` reports `i/lf` for every one of the five — `parity/BUGS_FOUND.md`, `parity/UI_SPEC.md`,
+  `parity/render_ui_spec.cjs`, `src/supabase.ts`, `src/supabase.test.ts` — i.e. the **committed** content is
+  LF. Four working copies carry `w/crlf` because this box has `core.autocrlf=true` and git smudges text on
+  checkout. (`git show HEAD:<file>` prints those blobs _with_ the checkout conversion applied, which is what
+  made §13i read them as five unformatted files.)
+- `npx prettier <file>` equals `tr -d '\r' <file>` for **all five**, so the only difference prettier can see
+  here is the line ending, not one space or break of style.
+
+Normalising the three parity working copies to LF (`prettier --write`) produced **no git diff at all** — there
+was nothing to commit — and `npx prettier --check .` on this box now names only the two `src/` files, which
+stay exactly as they are by rule 3 and by your instruction. CI on Linux has no `autocrlf`, so its checkout is
+LF and the Format step cannot trip on this; it remains unreachable behind `npm audit --audit-level=high`.
+
+### What #63 deliberately did not do
+
+- **No rollover trigger.** `today` is the third argument, so the suite has no clock and the fixture's
+  `pinnedNow` is unused here. _When_ the phone closes a cycle is ruled (**D3 / B-11: on-open catch-up in the
+  client, no server cron**), and the port does not quietly implement it. What #63's measured double charge
+  (`-40406.29 → -42433.24`) turned up is the reason the trigger is not a detail: the engine has **no**
+  idempotence guard, and the web's protection lives entirely in the caller's `seen` set, which is built from
+  **one device's** state (`src/App.tsx:805-809`, `:820`, `:861-869`). That is now **B-26**, with the three
+  paths on which a cycle can be charged twice and the phone-side ordering that closes the one needing no
+  second device.
+- **No persistence.** `runCycleRollover` returns a `CycleRolloverResult` of drafts; writing a `Charge` and a
+  `credit_card_charge` transaction is the caller's job, and the caller is `App.tsx` (#64).
+- The `undefined` APR description (`"undefined% p.a. …"`, §4 step 7) is ported for exactness even though the
+  `interest > 0` guard means it is unreachable — a stored, user-visible string is not a place to diverge.
+- `net-worth` (#62), the `App.tsx` handler goldens (#64) and the OCR contract (#65) are untouched.
+
+## 13k. Phase 4 delivered — the net-worth aggregates and the second coercion (#62)
+
+`src/utils.ts`'s money helpers: `calculateNetWorth`, `ledgerBalanceEffect`, `applyGoalAllocation`,
+`applyRepayment`, on top of the `budgetSpendingForMonth`/`isSpendingRow` pair #61 already ported.
+
+| unit        | Dart                         | golden           | cases | tests  | what the suite is really guarding                                                           |
+| ----------- | ---------------------------- | ---------------- | ----- | ------ | ------------------------------------------------------------------------------------------- |
+| `net-worth` | `lib/domain/net_worth.dart`  | `net-worth.json` | 58    | 66     | aggregates that read amounts with **`Number`**, not `parseFloat`, and keep the sign of `-0` |
+| primitives  | `lib/data/js_semantics.dart` | —                | —     | 22 + 5 | `Number`'s whole-string grammar, measured against V8 as `parseFloat`'s was in §13i          |
+
+Totals at this gate: **13 units, 1092 cases, 613 required minimum — `validate.ts` PASS**; the mobile suite
+is **755 tests, all passing** (684 + 66 + 5); `flutter analyze --fatal-infos --fatal-warnings`,
+`dart format --set-exit-if-changed lib test`, `npm run lint` (eslint `--max-warnings 0` + `tsc --noEmit`) and
+`tz-proof.ts` all clean; `npx prettier --check .` names only the two `src/` files, per §13j.
+
+### The projection debt cleared itself, which is the proof the check works
+
+#63 left `net-worth` in `PROJECTION_DEBT`: six `calculateNetWorth` cases recorded a scenario **name** as
+their `input`, so the same recorded argument list had to cover several different states. `validate.ts` treats
+an exemption with **no live collision** as an error, so finishing the recording did not just clear the debt —
+it deleted the entry, and the run that did it is the first time the stale-exemption rule fired for real.
+Regenerating against `pre-flutter` gave **`cases 52 → 58, expected-changed=0, input-changed=16,
+structural=0`**: every golden kept its answer while sixteen inputs became the call's real argument list. The
+remaining three exemptions are all `transaction-service` and are #64's, because those rows are built inside
+the Dart suite rather than recorded.
+
+### The finding this unit exists for: the app has two number grammars
+
+`money.ts` reads a user-typed amount with **`parseFloat`** (prefix reader, no radix); `utils.ts` reads the
+same field with **`Number`** (whole-string reader, takes `0x`/`0b`/`0o`). #60's port therefore could not
+reuse its own parse, and the split is now a rule with goldens on both sides — `parity/LOGIC_SPEC.md` §7
+carries the table. The measured consequences, all of them asserted rather than argued:
+
+- `ledgerBalanceEffect('expense', undefined, "0x10")` is **`-16`** while `toMinorUnits("0x10")` is **`0`**;
+- `ledgerBalanceEffect('expense', undefined, "1,250")` is **`-0`** — `Math.abs(NaN || 0)` is `+0` and the
+  debit leg is a unary minus, so a value that is not a number still gets the sign of a subtraction. Three
+  of the fifty-eight goldens are the `-0` sentinel, and Dart's `-0.0 == 0.0` is `true`, so the test asserts
+  `isNegative` rather than equality;
+- `applyRepayment(1000, "1,250")` → `{applied: 0, remaining: 1000}`: a comma-formatted repayment settles
+  nothing, while the same string through `money.ts` is Rs 1;
+- `calculateNetWorth` drops a `lockedAmount: "1,250"` lock entirely (the full balance counts) and zeroes a
+  card whose `currentBalance: "74,250"` it cannot read. The web's `_ || 0` idiom is why both fail quietly.
+
+The 38-case `Number` truth table was run in V8 on this box before any Dart assertion was written, and the
+two guesses it killed — `"-0x10"` is `NaN` (a radix literal takes no sign) and `"123n"` is `NaN` rather than
+a `BigInt` throw — are in the test as measured lines, not as commentary.
+
+### The input boundary is JSON, and the harness has to preserve absence
+
+`calculateNetWorth` is replayed against a decoded-JSON map, where a Dart value cannot distinguish JS `null`
+from JS `undefined`. `Number(null)` is `0` and `Number(undefined)` is `NaN`, and `src/utils.ts:673`'s loan
+fallback tests `!== undefined`, so the difference is load-bearing in one case and invisible in the data.
+Two things follow, both in the suite rather than in a comment: the port tests **key presence**
+(`containsKey`) at that one site, and the harness **drops** an explicit `undefined` from a map instead of
+converting it to `null`, so a case measured without the key replays without it. The same harness asserts
+`unitFile`, `generatedFrom`, the exact recorded case count before any case runs, that every fixture name is
+consumed, and each golden object's key set against the Dart result.
+
+### What #62 deliberately did not do
+
+- **No `Number` support for lists and maps.** `Number([])` is `0` and `Number(["5"])` is `5` in V8; neither
+  is reachable from a `num | string | null` field, so `jsToNumber` answers `NaN` and fails loudly instead of
+  inventing a zero. The Dart test names the exclusion rather than pretending the case passes.
+- **No change to the aggregates' shape.** `NetWorthBreakdown` has the web's eight fields and every value
+  leaves `toJson()` through `asJsonSafeNumber` (`mobile/lib/domain/money.dart:177`) — the normaliser #60
+  established for amounts that land in app state, which writes an integral double as an `int` and leaves a
+  non-finite one alone. A cleaner breakdown would change the spelling of a number inside the
+  `ledger_states` snapshot, and that snapshot is a second source of truth (§6).
+- `transaction-service` (#64) and the OCR contract (#65) are untouched, and nothing under `src/` changed:
+  `git diff pre-flutter -- src/` is empty at this gate.
+
+## 13l. Phase 4 delivered — the fixture records its own arguments; the register is empty (#64, part a)
+
+`parity/fixtures/generate.ts`'s `transaction-service` block, the `PROJECTION_DEBT` map in `validate.ts`, and
+`mobile/test/data/transaction_service_test.dart`. No golden answer moved and no web file changed.
+
+### What the unit was actually recording
+
+Every one of the 39 cases in `HEAD:parity/fixtures/transaction-service.json` recorded **`input: []`** — not a
+digest of the scenario, _nothing at all_. The rows, the query, the category, the type and the account were
+rebuilt in scaffolding on both sides of the measurement, and `validate.ts` collapsed them into exactly **three
+collision groups** (2 + 4 + 2 cases) across `getFilteredTransactions`, `sortTransactionsByDate` and
+`getMonthlyTotals`: three argument lists, each with several different answers. That is the whole of the
+register §13j reported as `KNOWN DEBT — 4` and §13k as "the remaining three exemptions".
+
+The block now passes the call's own argument list to `measure` — `[rows, q]`,
+`[rows, '', 'all', 'all', 'cc-1']`, `[sortRows, 'asc']`, `[pair]` per type — so `input` is what the web
+received. Regenerated against `pre-flutter`: **`cases 39 → 39, expected-changed=0, input-changed=37,
+structural=0`**, names and order identical. The two inputs that did not change are the two
+`getMonthlyTotals`/`sortTransactionsByDate` empty-list cases, which were already honest. A second generation
+is **byte-identical** to the first (D33), and the stale-exemption rule fired again to prove it: after the
+recording was fixed, `validate.ts` failed with _"PROJECTION_DEBT exempts \"transaction-service\" but no
+collision remains"_, and the third deletion is what emptied the map.
+
+### The Dart suite is now a replay, not a second generator
+
+`filterRows()`, `sortRows()` and the hand-written row list are gone. Each test reads the case's recorded
+`input` and calls through one of three helpers (`transaction_service_test.dart:111-146`) that walk the
+positional list and fall back to **the function's own defaults** for trailing arguments — so a case measured
+without a category filter is replayed without one, and `'all'` is never invented by the port. Rows go through
+`Transaction.fromJson` after the `undefined` sentinels are stripped, which is the first time this unit
+exercises the model's real reader instead of a literal constructor.
+
+That matters more than the tidiness: a suite that builds its own rows can agree with a stale golden, and
+`generate.ts` no longer has a Dart-side twin to drift from.
+
+- **The test count went down (755 → 748) while coverage went up.** The eight date-bucket cases are now one
+  loop whose case names are taken from the fixture (`startsWith('getMonthlyTotals(date ')`, asserted at 8),
+  so adding a date to `generate.ts` reaches this suite without editing a list here. The guard that keeps the
+  consolidation honest is unchanged: the file asserts the recorded case count before any case runs and that
+  **every** fixture name was consumed.
+- **The two `-> throws` cases are asserted field by field.** They record a returned row, not an error (the
+  web's `searchQuery === ''` short-circuits before `title` is touched), and the golden keeps the missing field
+  as a sentinel while the typed model substitutes `''` (`lib/models/json_reader.dart:24-32`). The test
+  compares every other key, then asserts the sentinel on the web side and `''` on the Dart side — the
+  deviation is named, not smoothed over.
+- `PROJECTION_DEBT` stays in `validate.ts` as an empty map. Check 5 is what enforces the rule; with nothing to
+  exempt, the next digest-recorded case is a hard failure rather than a warning.
+
+### Gates at this point
+
+**13 units, 1092 cases, 613 required minimum — `validate.ts` PASS with no `KNOWN DEBT` line at all**; the
+mobile suite is **748 tests, all passing**; `flutter analyze --fatal-infos --fatal-warnings`,
+`dart format --set-exit-if-changed lib test` and `npm run lint` (eslint `--max-warnings 0` + `tsc --noEmit`)
+clean; `tz-proof.ts` still reports the same five zone-sensitive cases (`dates-local` ×3, `transaction-service`
+×2) and nothing new; `npx prettier --check .` names only the two `src/` files, per §13j.
+Mobile Parity CI is green on `5485b7f` (run 37615661830: `validate` plus all three timezone legs);
+`Enterprise Production Quality CI` still fails at its `npm audit` step, which predates this branch.
+
+### What #64 part a deliberately did not do
+
+- **No `App.tsx` handler goldens yet.** That is #64 part b and it needs a live tenant: the handlers are
+  reached through the real UI (`R7`), so the run is against a fresh tenant created and deleted in a `finally`
+  (D22), not against fixtures invented here.
+- **B-26 is not touched.** The double-rollover guard stays exactly as the web has it; the phone-side ordering
+  is a design note, not a commit on this branch.
+- The OCR contract (#65) is untouched, and `git diff pre-flutter -- src/` remains empty.
+
+## 13m. Phase 4 delivered — the live handler harness and the nine-handler port (#64, part b)
+
+`parity/live/handlers.spec.ts` + `tenant.ts` + `seed-state.json` + `playwright.config.ts`,
+`parity/fixtures/app-handlers.json` (16 cases), `parity/fixtures/src-tree.ts`, and
+`mobile/lib/domain/handlers.dart` with `mobile/test/domain/app_handlers_test.dart`. No web file changed;
+`git diff pre-flutter -- src/ server.ts server/ api-src/ supabase/` is still empty — B-23 stays confined to
+its own branch, pending your MERGE.
+
+### How the golden was made, and why this one cannot be hand-written
+
+Per D34: the nine `App.tsx` handlers are closures inside the component body, so `generate.ts`'s
+import-and-call method cannot reach them. The harness boots the real app in Chromium against a **fresh
+tenant per run** (`qa-handlers-<stamp>@example.com`, created through the app's own register routes, destroyed
+in `test.afterAll` and proved gone table by table — D22), seeds the localStorage mirror so the boot path is a
+returning user's, holds the cloud off with `context.route`, and drives each handler through its real form.
+`expected` is the whole ledger the app left behind, over thirteen collections; `userProfile`, the PIN fields
+and the collections no handler writes are excluded on purpose, and the PIN never reaches a fixture.
+`clock.setFixedTime` pins the instant (`2026-10-04T04:30Z`) while timers keep running; minted ids alias to
+`gen-N` in first-seen traversal order and stamps become `<now>`/`<today>`, so two runs emit the same bytes
+(D33). The emitter **refuses to write unless `src/App.tsx` matches the tag** — after B-23 or B-26 lands,
+this fixture is re-measured, never patched (D35 procedure step 2).
+
+### D35 landed with it
+
+Every fixture now carries `_provenance.srcTree`, a CRLF-folded digest of the whole `src/` tree, written by
+`generate.ts` and by the harness, and re-verified by `validate.ts` from the working copy. All fourteen files
+re-stamped; the thirteen generated units' **cases did not move** (transaction-service kept 39; totals
+1092 → 1108 with the 16 new). The stale B-23 row in `BUGS_FOUND.md` was corrected in the same sitting: the
+branch is pushed and open as PR #3, not unpushed.
+
+### The port, and the seams it needed
+
+`handlers.dart` ports `updateState` plus the nine handlers — `handleAddIncome`, `handleAddExpense`,
+`handlePayCreditCard`, `handleEditTransaction`, `handleDeleteTransaction`, `handleTransferFunds`,
+`handleMakeDebtPayment`, `handleMakeLoanSettlement`, `handlePaySubscription` — at the **JSON-map state
+boundary**, because the observable thing (what the mirror holds, what syncs, what the golden records) is
+`state` as JSON: absent-vs-`null` and `3.0`-vs-`3` are asserted, not approximated. The closures' outer world
+becomes `HandlerDeps`: an injected clock pinned to `_provenance.pinnedNow`, a toast callback (the web's
+`addToast` side channel), and the locale the harness recorded — `en-US` is named by the fixture's
+provenance, never inherited from the machine (D25's rule, applied at the browser seam). `today` derives from
+the injected instant through the same local-zone call the normaliser used, so the replay is zone-independent
+by construction.
+
+The test replays all 16 cases in fixture order (the `gen-N` alias map is shared across cases exactly as the
+harness shared it), asserts which cases read the clock against whether the ledger moved, and refuses if any
+case goes unconsumed — the same guard style as §13l. **B-28** is the case that could only come from
+measuring: the pay-dialog refuses the credit card it itself offers, `have Rs-40,406.29`, ledger unmoved; the
+Dart port reproduces the refusal, and the golden pins it (`BUGS_FOUND.md` B-28, ruled replicate-both-sides).
+
+### Gates at this point
+
+`validate.ts` **PASS — 14 units, 1108 cases, no KNOWN DEBT**; `flutter test` **769/769** (748 + 21);
+`flutter analyze --fatal-infos --fatal-warnings` and `dart format` clean; `qa-handlers` leftover tenants: 0,
+proven by `--leftover` after the crash; no dev server left on `:3000`. `--destroy` in `tenant.ts` now
+refuses any address that is not harness-minted (`<prefix>-<millis>@example.com`), so the un-stamped
+`qa-harness`/`qa-icons`-style names from before D22 cannot be deleted through this tool — they belong to the
+D18 decision, which is still awaiting your GO and an address-by-address re-match against the export.
+`.gitattributes` gained `parity/** text eol=lf` (CRLF-checkout noise on `UI_SPEC.md`/`render_ui_spec.cjs` was
+working-copy only; the web-file rules are unchanged).
+
+### What #64 part b deliberately did not do
+
+- **B-26 untouched** — engine replicated, trigger not built, count query still owed for the Phase 4 gate.
+- **#65 not started** — `parity/live/ocr/` and the `.qa_ocr_*` probes stay untracked and excluded from this
+  commit; the OCR contract goes on its own branch after this one lands, synthetic receipts only.
+- **PR #3 and PR #5 were not merged by this work**, and nothing on `src/`, `server.ts`, `server/`,
+  `api-src/` or `supabase/` moved.
+
+## 13n. Phase 4 gate rulings, second batch (D36-D39)
+
+Given at the Phase 4 gate on 2026-10-08, together with the B-26 count query and the read-only audit
+report. Standing default for logic bugs remains **replicate**; these four say where that default holds
+and where you overrode it. B-10 is deliberately absent — it is the one decision still open, awaiting
+your `schema_migrations` query.
+
+| #        | Ruling                                                                                                                                                                                                                                                                                                         | Consequence                                                                                                                                                                                                                 |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D36**  | **B-08 — leave the `tsconfig` exclude open.** No web change.                                                                                                                                                                                                                                                   | `tsc --noEmit` keeps not seeing tests and the fixture generator, so D8's `validate.ts` plus reading emitted `expected` values remain the defence. P-02 can recur and the family accepts that.                               |
+| **D37**  | **B-19 — option (a): Bearer stays on the phone.** Accepted deviation, not a replication.                                                                                                                                                                                                                       | `/api/app-lock/*` carries `Authorization: Bearer …` where the web never can (its token source is the dead `src/lib/authSession.ts`). Same session either way (`server.ts:1342-1348`), measured 6/6 in §13f.                 |
+| **D38**  | **B-20 — replicate; do not send `instance_type`.** Web fix → post-parity joint list with B-03/B-28.                                                                                                                                                                                                            | What is already built (`schema_columns.dart:112` omits the column, `record_builders.dart:352-353` lets the allow-list drop it), so no Dart change. The boot wipe is reproduced too. No golden carries the field.            |
+| **D39**  | **B-25 — approved as a deliberate deviation: re-enable the control on timeout and show the error.** Web fix → post-parity joint list. Recorded in `UI_SPEC.md` §9 via `parity/render_ui_spec.cjs`.                                                                                                             | The phone catches, sets `error ?? 'No backup found.'`, keeps both buttons enabled. Message text unchanged (`JsError` carries the web's timeout string verbatim). Repository contract unchanged. No golden, no D35 re-stamp. |
+| **Docs** | Inconsistencies fixed with these rulings: `BUGS_FOUND.md` said four DECISIONs while STATUS owed five (B-19 was classified separately); B-20's "before the Phase 3 models are generated" was stale (Phase 3 shipped); `UI_SPEC.md` §9 put overlay baselining in Phase 4 while B-25 put this control in Phase 5. | The baselining phase is corrected to **Phase 5** — `mobile/lib/presentation/` is empty, so nothing has a screen to baseline yet.                                                                                            |
+
+## 13o. Phase 4 gate ruling, third batch (D40) — OCR deferred out of mobile v1
+
+Given 2026-10-08 at the same gate, after the #65 capture was attempted, hung, and was ruled **parked**
+rather than left blocking Phase 4. D28 and D32 are not reversed; they are deferred with the feature.
+
+| #       | Ruling                                                                                                                                                        | Consequence                                                                                                                                                                                                                                                                                           |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D40** | **OCR deferred out of mobile v1; the plan to route scanning through `/api/ocr/free-scan` stands for when it is added; `freeOcrParser.ts` stays server-side.** | Nothing on the phone opens a camera sheet or an image drop for scanning, so every receipt-scan entry point is hidden — listed one by one as `UI_SPEC.md` §7 **D-U16**. No golden, no divergence register, and the D28/D32 three-way measurement has to be _taken_, not written, whenever OCR returns. |
+
+### What this removes from the gate
+
+#65 was the last open item on the Phase 4 gate checklist. It is struck, not completed: `STATUS.md` now
+closes the gate with nothing outstanding. D28/D32 stay in the ruling list as the shape OCR work takes
+when it is re-opened, so a later session does not mistake the park for a decision to port the parser.
+
+### What was left behind, and where it is
+
+The recorder scaffold is committed on `feature/ocr-three-way-contract` as a **local** commit only — no
+push, no PR, and no fixture. `parity/live/ocr/` holds `record.ts` (the three-way runner), `samples.ts`
+(synthetic receipt generation), `browser-entry.ts` (the in-browser `tesseract.js` leg) and
+`app-privates.ts` (the vite plugin that slices `prepareForOcr`, `loadImage`, `isUsableOcrText`,
+`OCR_MAX_EDGE` and `OCR_MIN_EDGE` out of `ReceiptScanner.tsx` rather than copying them). The synthetic
+PNGs under `parity/live/ocr/samples/` are generated, never authored.
+
+### The one real finding the attempt produced
+
+The capture did not hang in the web app. It hung in the harness's own source slicer: the brace walker
+in `app-privates.ts` incremented its depth on `{` without advancing the cursor, so it re-read the same
+brace forever — 100% CPU, no output, no fixture. Two consequences worth keeping:
+
+- **A synchronous CPU-bound loop starves `setTimeout`.** An in-process `Promise.race` budget cannot
+  interrupt one; only an external supervisor with a hard kill can. Proven, not inferred: a probe
+  guarded by a 25 s timer burned 259 CPU-seconds and never printed. Any future retry needs a
+  supervisor, not a bigger timeout.
+- **Slicing a declaration by scanning for the next `{` is wrong.** `prepareForOcr` returns
+  `Promise<{ image: string; mimeType: string }>`, so the first brace is inside the _type_, and the
+  slice cut the declaration in half. `bodyBrace` now walks the signature over comments and strings and
+  takes the first depth-zero `{`.
+
+`parity/live/ocr/` is deliberately excluded from nothing: it is outside `src/`, so it never enters the
+D35 `srcTree` digest, and it stays out of `npm run lint`'s four paths.

@@ -51,3 +51,62 @@ jobs:
       # plugin that requires native configuration pass silently.
       - name: Android debug build
         run: flutter build apk --debug
+
+  # `LOGIC_SPEC.md` §5/§8: `installments.ts` and `alerts.ts` both reach for `Date.now()`
+  # when no reference instant is passed, and the web's own schedule math mixes local
+  # midnight with UTC arithmetic. The Dart ports take an injected clock instead, so the
+  # suites must be able to run anywhere and produce the same goldens. Ubuntu's ICU and
+  # glibc both honour `TZ`, which is what makes this check possible — the Dart VM on
+  # **Windows ignores `TZ`** and follows the OS zone, so it can never be run here
+  # (`parity/fixtures/tz-proof.ts` is the web-side half of the same argument, run under Node).
+  timezone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # A single zone drifting must not hide the other two.
+      fail-fast: false
+      matrix:
+        # The app's own zone, a zone behind UTC whose DST boundary lands near the pinned
+        # instant, and the furthest ahead of UTC there is (+14, which crosses the
+        # international date line). ±14h spans every offset a phone can report.
+        zone: ['Asia/Colombo', 'America/New_York', 'Pacific/Kiritimati']
+    env:
+      TZ: ${{ matrix.zone }}
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.6'
+          channel: 'stable'
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Prove the zone was actually applied
+        run: |
+          set -eu
+          offset="$(date +%z)"
+          echo "TZ=$TZ  ambient offset=$offset"
+          # None of the three matrix zones is ever UTC, so a `+0000` here means the
+          # runner ignored `TZ` and this job would be replaying the same zone three
+          # times while reporting success.
+          if [ "$offset" = "+0000" ]; then
+            echo "::error::ambient zone is UTC; TZ=$TZ was not applied"
+            exit 1
+          fi
+      - name: Clock-dependent units under ${{ matrix.zone }}
+        # The five suites that touch a wall clock at all. `installments`/`alerts` take an
+        # injected instant and must be zone-blind; `dates_local` reads the *host* zone on
+        # purpose (that is the unit) and so replays its `Asia/Colombo` goldens through a
+        # shift to the measurement zone — the fourth leg of that proof is the `validate`
+        # job, which runs the same suite on a UTC runner and is where the unshifted replay
+        # first failed.
+        run: |
+          flutter test \
+            test/domain/installments_test.dart \
+            test/domain/alerts_test.dart \
+            test/data/dates_local_test.dart \
+            test/data/transaction_service_test.dart \
+            test/data/state_storage_test.dart
