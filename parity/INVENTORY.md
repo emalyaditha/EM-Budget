@@ -1356,6 +1356,41 @@ re-stamped; the thirteen generated units' **cases did not move** (transaction-se
 1092 → 1108 with the 16 new). The stale B-23 row in `BUGS_FOUND.md` was corrected in the same sitting: the
 branch is pushed and open as PR #3, not unpushed.
 
+### The B-23 re-stamp, measured 2026-10-09
+
+The worked example above was written as a prediction. B-23 has since landed — PR #3 merged into `main` as
+`96a200f` — and it came out exactly that way: **fourteen stamps moved and no case in any of them did.**
+`src/` between `pre-flutter` and `main` gained three files' worth of changes and one behaviour: `supabase.ts`
++9 (`1d1efe8`), `supabase.test.ts` +50 (`1d1efe8`), `components/AuditPanel.test.tsx` +453 (arrived through
+`307b5df` on PR #6, merged into the branch at `283a1b3`). Two of those three are tests, which the covered set
+excludes because a test cannot be imported and so cannot move a golden; the digest therefore moved on the
+nine sync lines alone — `9921f3a4…` → `b5e5bcc8…`.
+
+What was measured, rather than argued:
+
+- **The thirteen generated fixtures are what `generate.ts` emits, not a hand edit.** Re-running the generator
+  at the new tree rewrote all thirteen to the bytes already on disk — zero files changed by the re-run — and
+  `validate.ts` passes: **14 units, 1108 cases** (D33: a fixture is reproducible or it is not a measurement).
+  Every one of the fourteen files now differs from `main` by exactly two lines, one `-srcTree` and one
+  `+srcTree`, and nothing else in the whole `parity/fixtures/` diff is not a `srcTree` line.
+- **`app-handlers.json` was re-measured, not patched.** Step 2 makes the handler run conditional on a fix
+  reaching "anything a handler can observe", and B-23 edits `syncStateFromSupabase` — the hydration path — so
+  the condition was genuinely arguable. Arguing it would have left the file asserting a provenance nobody had
+  actually run the harness at. So the dev server was started from a worktree whose `src/` is `main`'s,
+  `srcTreeDigest` read back `b5e5bcc8…` before the browser opened and the emitted provenance recorded the same
+  digest after it, and the run used a fresh `qa-handlers-1791538814586@example.com` tenant destroyed in
+  `afterAll` (`ledger_states=1, auth_accounts=1, login_attempts=1, auth_device_tokens=2` seen, then every
+  table back to zero). The tenant pool was **16 `qa-*` / 466 `e2e-*`** before the run and the same two numbers
+  after it, and the server was stopped afterwards.
+- **All 16 `expected` ledgers hashed identical to the pre-run file** — the concatenation of the sixteen in
+  fixture order is `12449458e6981a91…` before and after. So the fix provably does not change what the handlers
+  do, which is the claim D35 exists to make checkable instead of assumed.
+
+The blocked-cloud detail is why that outcome was expected: the harness holds Supabase off with
+`context.route`, so `syncStateFromSupabase` never hands a handler a snapshot to merge. What the run adds is a
+measurement at that seam rather than another argument — and it is silent on the mixed-client path B-23 was
+about, which stays where it was pinned, in the two `ledger_repository_test.dart` cases named under B-23.
+
 ### The port, and the seams it needed
 
 `handlers.dart` ports `updateState` plus the nine handlers — `handleAddIncome`, `handleAddExpense`,
