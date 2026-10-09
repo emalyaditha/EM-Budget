@@ -42,7 +42,15 @@ if (tagBlob !== workBlob) {
   );
 }
 const commitSha = git(['rev-parse', `${TAG}^{commit}`]);
-const cssSha256 = crypto.createHash('sha256').update(CSS_TEXT).digest('hex');
+// The tagged blob, not the bytes on disk. `core.autocrlf` leaves a Windows checkout of
+// `src/index.css` in CRLF while the blob is LF, so a sha256 taken from the working file
+// changes with the platform it was rendered on — and a provenance number that moves
+// between machines is not provenance. The drift check above is what proves the working
+// tree carries this content; the hash says which content it is.
+const cssSha256 = crypto
+  .createHash('sha256')
+  .update(execFileSync('git', ['cat-file', 'blob', tagBlob], { cwd: ROOT }))
+  .digest('hex');
 
 // ---------------------------------------------------------------- small helpers
 const esc = (s) => String(s).replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
@@ -858,6 +866,10 @@ put('### 6.5 The `dark:` variant answers the operating system, not the app theme
     'neither is fixed here; the phone must choose one reading of “dark”. See D-U13 in §7 — binding these',
     'tokens to `platformBrightness` is the bug-compatible reading, binding them to the app theme is what the',
     'markup appears to intend, and the difference is visible on an OS-dark phone showing the light theme.',
+    // No blank line before this line: as committed at `82eed70`, the ruling continues the paragraph above.
+    '**That choice is now made:** D-U13 was ruled **D16** at the Phase 2 gate (`INVENTORY.md` §13e) in favour',
+    'of reproducing the split, so §6.5 is a specification, not a question, and the two readings must stay two',
+    'sources in Dart.',
     '',
   );
 }
@@ -868,6 +880,11 @@ put(
   'Playbook rule: list every adaptation the phone forces. These are not porting choices I have made; they',
   'are places where the web behaviour has no faithful phone equivalent, so the Dart side must differ or',
   'the difference must be accepted. Nothing here has been changed on the web side.',
+  '',
+);
+put(
+  '**Status: D-U13 is ruled** — **D16** at the Phase 2 gate, recorded in `INVENTORY.md` §13e: reproduce the',
+  'split, bug-compatible. Every other row in this table still awaits your approval.',
   '',
 );
 {
@@ -955,10 +972,10 @@ put(
     ['D-U12', 'Service worker / PWA', 'none exists', 'Nothing to port, nothing to add.', 'No action.'],
     [
       'D-U13',
-      '`dark:` utility variants',
+      '`dark:` utility variants — **ruled, D16**',
       `§6.5 matrix: ${TOKENS.darkVariantMatrix.combos[1].painted.length} tokens paint when only the OS is dark; ${TOKENS.darkVariantMatrix.combos[2].painted.length} paint from the app toggle`,
       'On the web the OS preference drives them. Flutter has one theme of its own and no separate “OS scheme” signal unless the app chooses to read `platformBrightness`.',
-      '**Ruled at the Phase 2 gate (`INVENTORY.md` §13e): reproduce the split bug-compatible.** Variables freeze at first seed, `dark:` utilities read `platformBrightness` live. Four golden combinations, plus a fourth web baseline set (app light + OS dark) before Phase 5.',
+      '**Ruled at the Phase 2 gate (`INVENTORY.md` §13e): reproduce the split bug-compatible.** Variables freeze at first seed, `dark:` utilities read `platformBrightness` live. Four golden combinations, plus a fourth web baseline set (app light + OS dark) before Phase 5 — that set is now measured, as `app-light-os-dark` in §9; the app-dark-on-OS-light pair is still unbaselined.',
     ],
     [
       'D-U14',
@@ -1019,11 +1036,13 @@ if (!fs.existsSync(MAN_PATH)) {
     );
   }
   put(
-    'Everything above is a number; a golden test also needs pixels. `parity/run_baselines.cjs` drives the',
-    'untouched `qa-shot.cjs` against the running app — once per theme — and files what it produces under',
-    '`parity/screenshots/web/<theme>/<width>/<tab>.png`. The wrapper decides nothing the harness could not',
-    'have decided itself: a theme, a width list, a throwaway mailbox per run (D6), and a freshly generated',
-    'password handed to the child through its environment only, never written down (D9). Every PNG is',
+    'Everything above is a number; a golden test also needs pixels. `parity/run_baselines.cjs` drives',
+    '`qa-shot.cjs` against the running app — one pass per width, so that the seed accumulates the way a real',
+    'session’s does — and files what it produces under `parity/screenshots/web/<set>/<width>/<tab>.png`. The',
+    'wrapper decides nothing the harness could not decide itself: a theme, a width list, a throwaway mailbox per',
+    'run (D6), and a freshly generated password handed to the child through its environment only, never written',
+    'down (D9). Its only additions to the harness are the two flags G5.0 ruled in, `--now` and `--app-theme`, and',
+    'both default to not being passed. Every PNG is',
     'hashed in `parity/screenshots/MANIFEST.json`, which is also where the harness’s own report for each',
     'run is kept verbatim. They came from `' +
       commitSha.slice(0, 12) +
@@ -1034,9 +1053,9 @@ if (!fs.existsSync(MAN_PATH)) {
     '',
   );
   table(
-    ['theme', 'tenant', 'tabs', 'console errors', 'overflowing views', 'shots', 'bytes'],
+    ['set', 'tenant', 'tabs', 'console errors', 'overflowing views', 'shots', 'bytes'],
     MAN.runs.map((r) => [
-      r.theme,
+      '`' + (r.set || r.theme) + '`',
       '`' + r.email + '`',
       r.reported.tabs,
       String(r.reported.consoleErrors.count),
@@ -1053,6 +1072,52 @@ if (!fs.existsSync(MAN_PATH)) {
     '',
   );
   put(
+    'Each set is a different golden, and the difference is not only the theme. `appTheme` is the value the app',
+    'had stored for itself (`em-budget-theme`) and the OS signal is what `qa-shot.cjs` set through Playwright’s',
+    '`colorScheme`; the two are independent sources of truth, which is why D16 counts four combinations and not',
+    'two. `seed instant` is when that run’s tenant was seeded — pinned by `--now` where it could be, otherwise',
+    'recovered from the base36 stamp the pass left in every row id.',
+    '',
+  );
+  table(
+    ['set', 'OS signal', 'appTheme', 'seed instant', 'pass cadence'],
+    MAN.runs.map((r) => [
+      '`' + (r.set || r.theme) + '`',
+      r.theme,
+      r.appTheme ? '`' + r.appTheme + '`' : 'unset (follows the OS)',
+      r.fixedAt ? '`' + r.fixedAt + '`' : 'recovered: ' + r.passes.map((p) => p.seededAt).join(', '),
+      r.fixedAt
+        ? '`--now` + `passStepMs` ' + r.passStepMs + ' ms'
+        : 'not pinned; passes ' + r.passes.map((p) => p.width + 'px').join(' → '),
+    ]),
+  );
+  put(
+    '',
+    'Every baseline also carries `passIndex`, `seedMultiplicity`, `seededAt` and `seedAtSource` in',
+    '`MANIFEST.json`. `seedMultiplicity` is the one that stops a 430px baseline looking like a data bug: the app',
+    '*merges* cloud rows into the local ledger on hydration, so the third width pass of a run renders three',
+    'copies of the seeded totals where the first pass renders one. A baseline is therefore a position in a',
+    'sequence, and only comparable with a render at the same position.',
+    '',
+  );
+  put(
+    '**Are the sets comparable with each other?** ' + MAN.comparability.verdict + ' ' + MAN.comparability.dateContent,
+    '',
+  );
+  put(
+    '**How a re-capture is judged.** ' +
+      MAN.tolerance.appliesTo +
+      ' The comparison is on ' +
+      MAN.tolerance.compared +
+      ':',
+    '',
+  );
+  table(
+    ['clause', 'rule'],
+    MAN.tolerance.clauses.map((c) => ['`' + c.id + '`', c.rule]),
+  );
+  put('', MAN.tolerance.evidence, '');
+  put(
     'Two facts come out of the runs themselves and both belong to the web app, not to the port: every',
     'width in both themes reported **0 console errors** and **0 horizontally overflowing views**. The',
     'Flutter side has to match those two numbers rather than inherit them, because they are properties of',
@@ -1060,13 +1125,14 @@ if (!fs.existsSync(MAN_PATH)) {
     '',
   );
   put(
-    '- **What these baselines do not cover.** `qa-shot.cjs` sets the theme through Playwright’s',
-    '  `colorScheme`, i.e. the *operating system* preference, and each context starts with empty storage.',
-    '  So every shot is the fresh-install state, where the app theme and the `dark:` utilities agree',
-    '  because both follow the OS. The divergent state of §6.5 — app light while the OS is dark — is',
-    '  measured there as numbers, but it cannot be screenshotted through this harness, which has no way to',
-    '  pre-set `em-budget-theme` before the app boots. A fourth set would need a harness flag or a storage',
-    '  seed, and both are your call, not mine.',
+    '- **What these baselines do not cover.** `qa-shot.cjs` sets the *operating system* preference through',
+    '  Playwright’s `colorScheme`, and — since the G5.0 ruling — the app’s own stored theme through `--app-theme`,',
+    '  which pre-sets `em-budget-theme` before the app boots. D16 counts the four combinations of those two',
+    '  sources, and three are now measured: `light` and `dark` were captured before the flag existed, so the',
+    '  stored theme followed the OS in both, and `app-light-os-dark` fixes the divergent pair that §6.5 measures',
+    '  as numbers. **The fourth combination — app dark on an OS-light system — is still unbaselined.** So is',
+    '  every fresh-install state: each context starts with empty storage, so nothing here shows a returning',
+    '  user’s cached theme decision.',
     '- Overlays, modals and the gates (`LockScreen`, `EmailLogin`, `SettingsModal`) are absent for a',
     '  simpler reason: the harness walks the eight tabs as the page loads them, and nothing opens those',
     '  surfaces. Each is baselined with its own screen in Phase 5, where the interaction that opens it and',
