@@ -21,6 +21,7 @@ import 'package:em_budget/core/theme/app_colors.dart';
 import 'package:em_budget/core/theme/app_fields.dart';
 import 'package:em_budget/core/theme/app_radii.dart';
 import 'package:em_budget/core/theme/app_shadows.dart';
+import 'package:em_budget/core/theme/app_skeletons.dart';
 import 'package:em_budget/core/theme/app_spacing.dart';
 import 'package:em_budget/core/theme/app_surfaces.dart';
 import 'package:em_budget/core/theme/app_theme.dart';
@@ -2244,6 +2245,769 @@ void main() {
         }
       },
     );
+  });
+
+  group('UI_SPEC 6 skeletons', () {
+    /// `.skeleton` is the only class `src/components/ui/Skeleton.tsx` composes its
+    /// variants over, and the sweep that makes it a loading placeholder lives on
+    /// `.skeleton::after` — a pseudo-element a detached probe cannot carry. So the
+    /// resting box below is Chrome's measurement, and everything that moves is the
+    /// pinned stylesheet's own words.
+    const List<String> skeletonClasses = <String>['.skeleton'];
+
+    /// The five curves css-easing-1 gives the CSS keywords. `.skeleton::after`
+    /// names the keyword `ease-in-out` and no `var(--ease-*)`, and the two are not
+    /// one number: the design system's own `--ease-in-out` token is
+    /// `cubic-bezier(0.4, 0, 0.2, 1)`.
+    const Map<String, List<double>> keywordCurves = <String, List<double>>{
+      'linear': <double>[0, 0, 1, 1],
+      'ease': <double>[0.25, 0.1, 0.25, 1],
+      'ease-in': <double>[0.42, 0, 1, 1],
+      'ease-out': <double>[0, 0, 0.58, 1],
+      'ease-in-out': <double>[0.42, 0, 0.58, 1],
+    };
+
+    Map<String, dynamic> probesFor(Brightness brightness) =>
+        brightness == Brightness.light ? lightProbes : darkProbes;
+    Map<String, dynamic> rootFor(Brightness brightness) =>
+        brightness == Brightness.light ? light : dark;
+
+    /// `headLine` to the line that closes it, brace-matched and joined.
+    /// [_cssRuleText] stops at the first `}`, which inside `@keyframes` and
+    /// `@media` is a nested rule's, not the block's.
+    String blockOf(String headLine) {
+      final int start = cssLines.indexOf(headLine);
+      if (start < 0) {
+        throw StateError('no block head "$headLine" in src/index.css');
+      }
+      final List<String> body = <String>[];
+      int depth = 0;
+      for (int j = start; j < cssLines.length; j++) {
+        body.add(cssLines[j]);
+        depth +=
+            '{'.allMatches(cssLines[j]).length -
+            '}'.allMatches(cssLines[j]).length;
+        if (depth == 0) return body.join(' ');
+      }
+      throw StateError('"$headLine" never closes in src/index.css');
+    }
+
+    /// Whitespace run together, so a selector authored over three lines
+    /// (`*`, `*::before`, `*::after`) compares as one string.
+    String flat(String text) => text.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    /// The declarations of `… { … }` body text, as the shorthand the rule was
+    /// written in rather than the line it was written on.
+    Map<String, String> declsOf(String body) {
+      final Map<String, String> decls = <String, String>{};
+      for (final String part in body.split(';')) {
+        final int colon = part.indexOf(':');
+        if (colon < 0) continue;
+        decls[part.substring(0, colon).trim()] = part
+            .substring(colon + 1)
+            .trim();
+      }
+      return decls;
+    }
+
+    test(
+      'AppSkeletons holds exactly the measured skeleton classes, per pass',
+      () {
+        expect(AppSkeletons.light.keys.toList(), skeletonClasses);
+        expect(AppSkeletons.dark.keys.toList(), skeletonClasses);
+      },
+    );
+
+    for (final String cls in skeletonClasses) {
+      for (final Brightness brightness in Brightness.values) {
+        final String pass = brightness == Brightness.light
+            ? 'light-desktop'
+            : 'dark-desktop';
+
+        test('$cls $pass matches the box Chrome measured', () {
+          final Map<String, dynamic> p = _probe(
+            probesFor(brightness),
+            cls,
+            pass,
+          );
+          final AppSkeletonSpec spec = AppSkeletons.resolve(cls, brightness);
+          expect(spec.cssClass, cls);
+          expect(spec.displayCss, _probeValue(p, 'display', cls));
+          expect(spec.fillColor, _probeColour(p, 'backgroundColor', cls));
+          expect(
+            spec.radiusPx,
+            _pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
+          );
+          expect(
+            _probeValue(p, 'position', cls),
+            'relative',
+            reason:
+                'the box is the sweep’s containing block: `inset: 0` on the '
+                'pseudo-element resolves against it and nothing else',
+          );
+          expect(
+            _pxOf(_probeValue(p, 'borderTopWidth', cls), '$cls border width'),
+            0.0,
+            reason:
+                'the class alone has no frame. The 1px AppSkeletonSpec carries is '
+                'Skeleton.tsx’s utility to add, which is what the frame test below '
+                'accounts for — and if this ever measures non-zero, the row would '
+                'be painting two',
+          );
+          expect(
+            _probeValue(p, 'boxShadow', cls),
+            'none',
+            reason: 'a skeleton at rest has nothing painted behind its fill',
+          );
+        });
+      }
+
+      test('$cls keeps one row between the desktop and phone passes', () {
+        const List<String> fields = <String>[
+          'display',
+          'position',
+          'backgroundColor',
+          'backgroundImage',
+          'borderRadius',
+          'borderTopWidth',
+          'boxShadow',
+          'opacity',
+        ];
+        const List<List<String>> pairs = <List<String>>[
+          <String>['light-phone', 'light-desktop'],
+          <String>['dark-phone', 'dark-desktop'],
+        ];
+        for (final List<String> pair in pairs) {
+          final Map<String, dynamic> phone = _probe(
+            pair[0].startsWith('light') ? lightPhoneProbes : darkPhoneProbes,
+            cls,
+            pair[0],
+          );
+          final Map<String, dynamic> desktop = _probe(
+            pair[0].startsWith('light') ? lightProbes : darkProbes,
+            cls,
+            pair[1],
+          );
+          for (final String field in fields) {
+            expect(
+              _probeValue(phone, field, cls),
+              _probeValue(desktop, field, cls),
+              reason:
+                  '${pair[0]} moves $field for $cls and AppSkeletons ports one '
+                  'row per brightness to paint it from',
+            );
+          }
+        }
+      });
+
+      test('$cls rests as the authored rule writes it', () {
+        final Map<String, String> rest = _cssDecls(cssLines, '$cls {', cls);
+        expect(
+          rest.keys.toSet(),
+          <String>{'position', 'overflow', 'background', 'border-radius'},
+          reason:
+              '$cls rests with a property AppSkeletonSpec cannot hold — a phone '
+              'that ignores it is a phone that disagrees with the browser',
+        );
+        expect(rest['position'], 'relative');
+        expect(
+          rest['overflow'],
+          'hidden',
+          reason:
+              'the sweep travels one box width past the box on both sides, so '
+              'without the clip it paints over whatever sits next to the skeleton',
+        );
+        final RegExpMatch? fill = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+            .firstMatch(rest['background']!);
+        expect(
+          fill,
+          isNotNull,
+          reason: '${rest['background']} is not a bare token',
+        );
+        final RegExpMatch? radius = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+            .firstMatch(rest['border-radius']!);
+        expect(
+          radius,
+          isNotNull,
+          reason: '${rest['border-radius']} is not a bare token',
+        );
+        for (final Brightness brightness in Brightness.values) {
+          final Map<String, dynamic> root = rootFor(brightness);
+          final AppSkeletonSpec spec = AppSkeletons.resolve(cls, brightness);
+          expect(
+            spec.fillColor,
+            _measuredColour(root, fill!.group(1)!),
+            reason: 'the authored fill and the probe are one declaration',
+          );
+          expect(
+            spec.radiusPx,
+            _lengthToPx(_raw(root, radius!.group(1)!)),
+            reason:
+                'the authored `border-radius: ${radius.group(1)}` and the probe '
+                'corner are one declaration',
+          );
+        }
+        expect(
+          cssLines.where((String line) => line.startsWith(cls)).toList(),
+          <String>['$cls {', '$cls::after {'],
+          reason:
+              '$cls now has a rule head AppSkeletons does not read — a state the '
+              'phone would paint without anyone measuring it',
+        );
+      });
+
+      test('$cls sweeps exactly what its pseudo-element authors', () {
+        final Map<String, String> after = _cssDecls(
+          cssLines,
+          '$cls::after {',
+          cls,
+        );
+        expect(
+          after.keys.toSet(),
+          <String>{
+            'content',
+            'position',
+            'inset',
+            'background',
+            'animation',
+            'transform',
+          },
+          reason:
+              '$cls::after sets something AppSkeletonSpec cannot port — the row '
+              'carries a fill, a sweep and a clock, and no other paint',
+        );
+        expect(
+          after['content'],
+          anyOf("''", '""'),
+          reason: 'a pseudo-element with text in it is not this sweep',
+        );
+        expect(after['position'], 'absolute');
+        expect(
+          after['inset'],
+          '0',
+          reason:
+              'the band is one box wide, which is what makes translateX(±100%) '
+              'mean ±one box width and the port’s percentages exact',
+        );
+        final RegExpMatch? from = RegExp(r'^translateX\(([-\d.]+)%\)$')
+            .firstMatch(after['transform']!);
+        expect(
+          from,
+          isNotNull,
+          reason:
+              'the sweep starts at `${after['transform']}`, which is not a '
+              'percentage of the box the port can interpolate from',
+        );
+        final String rule = _cssRuleText(cssLines, '$cls::after {', cls);
+        final RegExpMatch? gradient = RegExp(
+          r'background:\s*linear-gradient\((.*?)\)\s*;',
+        ).firstMatch(rule);
+        expect(
+          gradient,
+          isNotNull,
+          reason: '$cls::after has no linear-gradient to sweep',
+        );
+        final List<String> parts = _splitTopLevel(gradient!.group(1)!);
+        expect(
+          parts,
+          hasLength(4),
+          reason:
+              '${parts.join(' | ')} is not an angle and three stops: the port '
+              'reads one band, not a multi-stop ramp',
+        );
+        final RegExpMatch? angle = RegExp(r'^([\d.]+)deg$')
+            .firstMatch(parts[0]);
+        expect(
+          angle,
+          isNotNull,
+          reason: '${parts[0]} is not a plain authored angle',
+        );
+        expect(
+          double.parse(angle!.group(1)!),
+          90.0,
+          reason:
+              'the begin/end Alignment pair AppSkeletonSpec emits is the 90deg '
+              'one — the box crossed left to right — and a different angle needs '
+              'its own mapping, not this one',
+        );
+        expect(
+          parts[1],
+          'transparent 0%',
+          reason: 'the ramp’s leading end is the keyword, not a colour',
+        );
+        expect(
+          parts[3],
+          'transparent 100%',
+          reason: 'and so is its trailing end',
+        );
+        final RegExpMatch? mid = RegExp(
+          r'^color-mix\(in srgb,\s*var\((--[a-z0-9-]+)\)\s+([\d.]+)%,\s*transparent\)\s+([\d.]+)%$',
+        ).firstMatch(parts[2]);
+        expect(
+          mid,
+          isNotNull,
+          reason:
+              '${parts[2]} is not one token mixed against transparent at one '
+              'stop — the arithmetic AppSkeletonSpec can carry',
+        );
+        final String sweepToken = mid!.group(1)!;
+        final double sweepAlpha = double.parse(mid.group(2)!) / 100.0;
+        expect(
+          double.parse(mid.group(3)!),
+          50.0,
+          reason:
+              'the band is authored to peak at the middle of the box, which is '
+              'what puts it there at half the period',
+        );
+        for (final Brightness brightness in Brightness.values) {
+          final Map<String, dynamic> root = rootFor(brightness);
+          final AppSkeletonSpec spec = AppSkeletons.resolve(cls, brightness);
+          expect(spec.sweepFromPercent, double.parse(from!.group(1)!));
+          expect(
+            spec.sweepColor,
+            _measuredColour(root, sweepToken).withValues(alpha: sweepAlpha),
+            reason:
+                'the band is $sweepToken at ${mid.group(2)}% as this pass measures it',
+          );
+          expect(
+            spec.sweepClearColor,
+            _measuredColour(root, sweepToken).withValues(alpha: 0.0),
+            reason:
+                'CSS writes the ends as `transparent`, whose channels a '
+                'premultiplied interpolation never reads. Flutter reads them, so '
+                'the port hands the transparent stop the sweep’s own channels and '
+                'leaves the ramp constant-hue — which is what Chrome paints, in '
+                'either interpolation space',
+          );
+          expect(spec.sweepMidStop, double.parse(mid.group(3)!) / 100.0);
+          expect(
+            <Alignment>[spec.sweepBegin, spec.sweepEnd],
+            <Alignment>[const Alignment(-1.0, 0.0), const Alignment(1.0, 0.0)],
+          );
+          expect(
+            spec.fillColor,
+            isNot(spec.sweepColor),
+            reason:
+                'a band in the resting fill’s own colour is a skeleton that '
+                'never shimmers',
+          );
+        }
+      });
+
+      test('$cls runs the clock its animation shorthand authors', () {
+        final String animation = _cssDecls(
+          cssLines,
+          '$cls::after {',
+          cls,
+        )['animation']!;
+        expect(
+          animation,
+          isNot(contains('var(')),
+          reason:
+              'the shimmer is authored off the §4 token scale, and the port keeps '
+              'it there: the row carries the numbers this shorthand spells',
+        );
+        final RegExpMatch? m = RegExp(
+          r'^([a-z][a-z0-9-]+)\s+([\d.]+)(ms|s)\s+([a-z-]+)\s+(infinite)$',
+        ).firstMatch(animation.trim());
+        expect(
+          m,
+          isNotNull,
+          reason:
+              '"$animation" is not `name duration ease infinite` — one band, one '
+              'clock, forever',
+        );
+        final Duration period = _duration('${m!.group(2)}${m.group(3)}');
+        final Cubic tokenCurve =
+            AppTokens.curvesByToken['--ease-in-out']! as Cubic;
+        for (final Brightness brightness in Brightness.values) {
+          final AppSkeletonSpec spec = AppSkeletons.resolve(cls, brightness);
+          expect(spec.animationName, m.group(1)!);
+          expect(spec.sweepEaseKeyword, m.group(4)!);
+          expect(
+            spec.iterationCss,
+            m.group(5)!,
+            reason:
+                'a finite shimmer ends, and a placeholder that stops moving '
+                'while the work it stands for is still running is worse than a '
+                'static one',
+          );
+          expect(spec.sweepPeriod, period);
+          expect(spec.sweepMs, period.inMilliseconds);
+          expect(
+            <double>[spec.easeX1, spec.easeY1, spec.easeX2, spec.easeY2],
+            keywordCurves[m.group(4)!],
+            reason:
+                '${m.group(4)} is a CSS keyword, and css-easing-1 says what it is',
+          );
+          expect(
+            <double>[spec.easeX1, spec.easeY1, spec.easeX2, spec.easeY2],
+            isNot(<double>[
+              tokenCurve.a,
+              tokenCurve.b,
+              tokenCurve.c,
+              tokenCurve.d,
+            ]),
+            reason:
+                'the class named the keyword, not var(--ease-in-out). Swapping '
+                'the design system’s curve in would be the port inventing a '
+                'preference the web never stated — and the two are measurably '
+                'different numbers',
+          );
+        }
+        expect(
+          AppTokens.durationsByToken.values,
+          isNot(contains(period)),
+          reason:
+              '$period is on no §4 token today. If a token ever measures this '
+              'same period the two need reconciling, and this is where the run '
+              'stops to ask',
+        );
+      });
+
+      test('$cls ends its run one box width off the right edge', () {
+        final String frames = blockOf(
+          '@keyframes ${AppSkeletons.resolve(cls, Brightness.light).animationName} {',
+        );
+        final String body = frames.substring(frames.indexOf('{') + 1);
+        expect(
+          RegExp(r'\b(from|to|[\d.]+%)\s*\{')
+              .allMatches(body)
+              .map((RegExpMatch s) => s.group(1)!)
+              .toList(),
+          <String>['100%'],
+          reason:
+              'the port takes the element’s own authored transform as the start '
+              'of the ramp; a `from` or `0%` frame here would give it two '
+              'starting positions and no way to choose',
+        );
+        final RegExpMatch? end = RegExp(r'100%\s*\{([^}]*)\}')
+            .firstMatch(frames);
+        expect(end, isNotNull, reason: 'the 100% frame has no body');
+        final Map<String, String> endDecls = declsOf(end!.group(1)!);
+        expect(
+          endDecls.keys.toList(),
+          <String>['transform'],
+          reason:
+              'the keyframe animates ${endDecls.keys.toList()}; AppSkeletonSpec '
+              'ports one position and nothing else, so anything more is paint the '
+              'phone never learned',
+        );
+        final RegExpMatch? to = RegExp(r'^translateX\(([-\d.]+)%\)$')
+            .firstMatch(endDecls['transform']!);
+        expect(
+          to,
+          isNotNull,
+          reason:
+              'the run ends at `${endDecls['transform']}`. CSS interpolates two '
+              'functions of the same name; a px translate or a `translate()` '
+              'would not share the port’s one-box-width percentage',
+        );
+        for (final Brightness brightness in Brightness.values) {
+          final AppSkeletonSpec spec = AppSkeletons.resolve(cls, brightness);
+          expect(spec.sweepToPercent, double.parse(to!.group(1)!));
+        }
+      });
+
+      test('$cls frame is the utility Skeleton.tsx adds, not the class’s', () {
+        final String component = webSource('src/components/ui/Skeleton.tsx');
+        final RegExpMatch? base = RegExp(
+          r"""^\s*const base = '(skeleton border border-\[var\(--[a-z0-9-]+\)\] motion-reduce:animate-none)';$""",
+          multiLine: true,
+        ).firstMatch(component);
+        expect(
+          base,
+          isNotNull,
+          reason:
+              'src/components/ui/Skeleton.tsx no longer opens every skeleton with '
+              'the class list AppSkeleton ports',
+        );
+        expect(AppSkeletons.baseClasses, base!.group(1));
+        final RegExpMatch? frameToken = RegExp(
+          r'border-\[var\((--[a-z0-9-]+)\)\]',
+        ).firstMatch(base.group(1)!);
+        expect(
+          frameToken,
+          isNotNull,
+          reason: 'the frame the component adds names no token',
+        );
+        expect(
+          base.group(1),
+          contains('motion-reduce:animate-none'),
+          reason:
+              'the component does ask for a reduced-motion off — but the utility '
+              'sets `animation: none` on the element, while the animation lives on '
+              '`.skeleton::after`, which the element’s own class cannot reach. The '
+              'stylesheet block the test above reads is what actually stops it',
+        );
+        for (final Brightness brightness in Brightness.values) {
+          final AppSkeletonSpec spec = AppSkeletons.resolve(cls, brightness);
+          expect(
+            spec.borderColor,
+            _measuredColour(rootFor(brightness), frameToken!.group(1)!),
+            reason:
+                'the frame is ${frameToken.group(1)} as this pass measures it — '
+                'the probe reads a 0px border on the class alone, so this colour '
+                'can only have come from the utility’s own bracket',
+          );
+          expect(
+            spec.borderWidthPx,
+            1.0,
+            reason:
+                'Tailwind’s `border` utility is `border-width: 1px` with '
+                '`border-style: var(--tw-border-style)`, which its theme layer '
+                'sets to `solid`. That is a fact of the generated stylesheet, which '
+                'is a build product this checkout does not carry, so it is the one '
+                'number in the row that is named rather than measured — and the '
+                'probe keeps it honest, because the class it measured has none',
+          );
+          expect(
+            spec.sweepClipRadiusPx,
+            spec.radiusPx - spec.borderWidthPx,
+            reason:
+                'CSS `overflow: hidden` clips a box’s descendants to its padding '
+                'box, whose corner is the authored radius minus the border width',
+          );
+        }
+      });
+
+      test('$cls reduced motion parks the band instead of slowing it', () {
+        final String media = flat(
+          blockOf('@media (prefers-reduced-motion: reduce) {'),
+        );
+        expect(
+          media,
+          contains('*, *::before, *::after {'),
+          reason: 'the clamp no longer covers pseudo-elements',
+        );
+        expect(media, contains('animation-duration: 0.01ms !important;'));
+        expect(media, contains('animation-iteration-count: 1 !important;'));
+        expect(
+          media,
+          isNot(contains('$cls { animation: none')),
+          reason:
+              '$cls is now taken off its animation outright, so there is no run '
+              'left to park one box width off the edge and the resting-only paint '
+              'AppSkeleton documents is no longer the answer — it is the question',
+        );
+        expect(
+          media,
+          contains('.rise { animation: none;'),
+          reason:
+              'the block does single some classes out, which is what makes the '
+              'skeleton’s silence a clamp it shares with everything else rather '
+              'than a rule written for it',
+        );
+        for (final Brightness brightness in Brightness.values) {
+          final AppSkeletonSpec spec = AppSkeletons.resolve(cls, brightness);
+          expect(
+            spec.sweepShiftPx(100.0, 1.0),
+            100.0,
+            reason:
+                'at the end of the run the band sits one box width right of the '
+                'box, which is off it — that is the position a reduced-motion '
+                'preference leaves it in, and the port paints the fill and frame '
+                'and nothing else',
+          );
+        }
+      });
+    }
+
+    test('the variants Skeleton.tsx composes are the ones AppSkeletons carries', () {
+      final String component = webSource('src/components/ui/Skeleton.tsx');
+      final Map<String, String> authored = <String, String>{};
+      for (final String name in <String>['text', 'circular', 'rectangular']) {
+        final RegExpMatch? variant = RegExp(
+          """^\\s*$name: '([^']+)',\$""",
+          multiLine: true,
+        ).firstMatch(component);
+        expect(
+          variant,
+          isNotNull,
+          reason:
+              'src/components/ui/Skeleton.tsx no longer writes a $name variant as '
+              'one class list, so AppSkeletons.variantClasses is a paraphrase',
+        );
+        authored[name] = variant!.group(1)!;
+      }
+      expect(
+        AppSkeletons.variantClasses,
+        authored,
+        reason:
+            'the ported variants are the component’s own strings, word for word — '
+            'a screen that asks for `rectangular` must be asking for what the web '
+            'asks for',
+      );
+
+      final RegExpMatch? fallback = RegExp(r"variant = '([a-z]+)'")
+          .firstMatch(component);
+      expect(
+        fallback,
+        isNotNull,
+        reason: 'the component no longer defaults to a variant by name',
+      );
+      expect(AppSkeletons.defaultVariant, fallback!.group(1));
+      expect(
+        AppSkeletons.variantClasses.keys,
+        contains(AppSkeletons.defaultVariant),
+      );
+
+      final double spacing = _lengthToPx(_raw(light, '--spacing'));
+      expect(
+        spacing,
+        AppSpacing.spacing,
+        reason: 'the unit the utilities compose against is the measured one',
+      );
+      for (final String name in <String>['text', 'rectangular']) {
+        final RegExpMatch? height = RegExp(r'\bh-([\d.]+)\b')
+            .firstMatch(authored[name]!);
+        expect(
+          height,
+          isNotNull,
+          reason: 'the $name variant no longer authors an h-<n> utility',
+        );
+        expect(
+          authored[name],
+          contains('w-full'),
+          reason:
+              'the $name variant no longer asks for the containing block’s width, '
+              'which is the only width rule AppSkeleton can honour',
+        );
+        final double scale = double.parse(height!.group(1)!);
+        if (name == AppSkeletons.defaultVariant) {
+          expect(AppSkeletons.textHeightScale, scale);
+          expect(
+            AppSkeletons.textHeightPx,
+            scale * spacing,
+            reason:
+                'h-<n> is calc(n * --spacing): $scale of $spacing px, not a '
+                'height someone typed here',
+          );
+          expect(
+            AppSkeletons.textHeightPx,
+            AppSpacing.scale(AppSkeletons.textHeightScale),
+          );
+        } else {
+          expect(AppSkeletons.rectangularHeightScale, scale);
+          expect(AppSkeletons.rectangularHeightPx, scale * spacing);
+          expect(
+            AppSkeletons.rectangularHeightPx,
+            AppSpacing.scale(AppSkeletons.rectangularHeightScale),
+          );
+        }
+      }
+      expect(
+        RegExp(r'\bh-([\d.]+)\b').hasMatch(authored['circular']!),
+        isFalse,
+        reason:
+            'the circular variant now authors a height, and the port expects its '
+            'caller for both dimensions',
+      );
+      expect(
+        authored['circular'],
+        contains('shrink-0'),
+        reason:
+            'without it the flex row the web drops a circular skeleton into '
+            'squashes it, and the caller’s dimensions stop being its own',
+      );
+    });
+
+    test('the radius every variant asks for is the class’s — circular included', () {
+      for (final String classes in AppSkeletons.variantClasses.values) {
+        expect(
+          RegExp(r'\brounded\b').hasMatch(classes),
+          isTrue,
+          reason:
+              '"$classes" no longer asks for a radius, so the note below is stale',
+        );
+      }
+      for (final Brightness brightness in Brightness.values) {
+        final Map<String, dynamic> root = rootFor(brightness);
+        final AppSkeletonSpec spec = AppSkeletons.resolve(
+          '.skeleton',
+          brightness,
+        );
+        expect(
+          spec.radiusPx,
+          _lengthToPx(_raw(root, '--r-sm')),
+          reason: 'the class authors --r-sm and the probe measures it',
+        );
+        expect(
+          spec.radiusPx,
+          isNot(_lengthToPx(_raw(root, '--r-md'))),
+          reason:
+              'rectangular asks for rounded-[var(--r-md)] and does not get it: '
+              'src/index.css authors .skeleton unlayered, and an unlayered '
+              'declaration outranks every layer, including the utilities layer '
+              'Tailwind emits the rounded-* rules into',
+        );
+        expect(
+          spec.radiusPx,
+          isNot(greaterThan(100.0)),
+          reason:
+              'circular asks for rounded-full and does not get it either. A phone '
+              'that painted a circle here would be porting the component’s intent '
+              'instead of the browser’s result — and the two differ measurably',
+        );
+      }
+    });
+
+    test('.skeleton getters are its own row, re-expressed', () {
+      for (final Brightness brightness in Brightness.values) {
+        final AppSkeletonSpec spec = AppSkeletons.resolve(
+          '.skeleton',
+          brightness,
+        );
+        expect(spec.borderRadius, BorderRadius.circular(spec.radiusPx));
+        expect(
+          spec.border,
+          Border.all(color: spec.borderColor, width: spec.borderWidthPx),
+        );
+        expect(
+          spec.sweepClipRadius,
+          BorderRadius.circular(spec.sweepClipRadiusPx),
+        );
+        expect(spec.sweepPeriod, Duration(milliseconds: spec.sweepMs));
+        expect(
+          <double>[
+            spec.sweepCurve.a,
+            spec.sweepCurve.b,
+            spec.sweepCurve.c,
+            spec.sweepCurve.d,
+          ],
+          <double>[spec.easeX1, spec.easeY1, spec.easeX2, spec.easeY2],
+          reason: 'Cubic has no value equality, so the four numbers are what compare',
+        );
+        expect(spec.sweepGradient.colors, <Color>[
+          spec.sweepClearColor,
+          spec.sweepColor,
+          spec.sweepClearColor,
+        ]);
+        expect(spec.sweepGradient.stops, <double>[0.0, spec.sweepMidStop, 1.0]);
+        expect(spec.sweepGradient.begin, spec.sweepBegin);
+        expect(spec.sweepGradient.end, spec.sweepEnd);
+        const double width = 240.0;
+        expect(spec.sweepShiftPx(width, 0.0), -width);
+        expect(spec.sweepShiftPx(width, 0.5), 0.0);
+        expect(spec.sweepShiftPx(width, 1.0), width);
+      }
+    });
+
+    test('an unknown skeleton class is an error, not a Material default', () {
+      for (final Brightness brightness in Brightness.values) {
+        expect(
+          () => AppSkeletons.resolve('.card', brightness),
+          throwsArgumentError,
+          reason:
+              'a card is a measured §6 class but not a placeholder: AppSkeletons '
+              'refusing it is what keeps a skeleton from painting a surface',
+        );
+        expect(
+          () => AppSkeletons.resolve('.no-such-skeleton', brightness),
+          throwsArgumentError,
+        );
+      }
+    });
   });
 
   group('the no-hard-coded-style rule (playbook 2.4)', () {

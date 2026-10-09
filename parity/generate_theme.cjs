@@ -1239,6 +1239,12 @@ const FIELD_CLASSES = ['.input'];
 // (`text-transform: uppercase`) that changes what the user sees without changing
 // the string — Flutter has no CSS case mapping, so the widget has to do it.
 const LABEL_CLASSES = ['.eyebrow'];
+// The §6 loading placeholder. Its resting box is a probe like any other, but the
+// appearance the class is known for lives on `.skeleton::after`: a gradient the
+// element itself never carries, moved by a `@keyframes` block. A probe cannot see
+// a pseudo-element, so the sweep is read out of the pinned stylesheet and the
+// tokens it substitutes are read from the same pass's measured `:root`.
+const SKELETON_CLASSES = ['.skeleton'];
 const CSS_LINES = fs.readFileSync(path.join(ROOT, 'src', 'index.css'), 'utf8').split(/\r?\n/);
 
 /** The text of the rule whose head line matches `headRe`, with its line number. */
@@ -2344,6 +2350,605 @@ L.push(
   '',
 );
 finish('app_fields.dart');
+
+// ================================================================ app_skeletons.dart
+/** The declarations a resting skeleton may author: the fill and the corner, plus
+ *  the two that let a sweep ride inside the box — a `position: relative`
+ *  containing block for the pseudo-element and the `overflow: hidden` that clips
+ *  it. A `border` authored here would compete with the frame `Skeleton.tsx` adds
+ *  with a utility, so this rejects one rather than choose between them. */
+const SKELETON_REST_PROPS = ['position', 'overflow', 'background', 'border-radius'];
+
+/** The sweep is one pseudo-element: a box that fills the skeleton, a gradient to
+ *  paint in it, the clock that moves it, and where it starts. A sixth property
+ *  there is a second appearance the port has no place for. */
+const SKELETON_SWEEP_PROPS = ['content', 'position', 'inset', 'background', 'animation', 'transform'];
+
+/** CSS `animation-timing-function` keywords as css-easing-1 defines each one.
+ *  `.skeleton::after` names a keyword rather than a `var(--ease-*)`, so the curve
+ *  is the keyword's own — and only the curves the spec pins, never one this file
+ *  has to guess at. */
+const KEYWORD_CURVES = {
+  linear: [0, 0, 1, 1],
+  ease: [0.25, 0.1, 0.25, 1],
+  'ease-in': [0.42, 0, 1, 1],
+  'ease-out': [0, 0, 0.58, 1],
+  'ease-in-out': [0.42, 0, 0.58, 1],
+};
+
+/** `<name> <duration> <keyword> <iteration>` as one `animation` shorthand — the
+ *  form a looping overlay needs, where a transition does not. A rule that splits
+ *  the longhand, runs a finite number of times, or names a direction this file
+ *  would have to read is a clock the port cannot take as given. */
+const parseAnimation = (raw, cls) => {
+  const m = /^([a-z][a-z0-9-]*) ([\d.]+m?s) ([a-z-]+) (infinite|[\d.]+)$/.exec(collapse(raw));
+  if (!m) fail(`${cls}: animation "${raw}" is not \`<name> <duration> <keyword> <iteration>\``);
+  const unit = m[2].endsWith('ms') ? 1 : m[2].endsWith('s') ? 1000 : null;
+  if (unit === null) fail(`${cls}: animation duration "${m[2]}" is not a time this file can read`);
+  const ms = Math.round(parseFloat(m[2]) * unit);
+  if (!(ms > 0)) fail(`${cls}: animation duration "${m[2]}" is not a positive length of time`);
+  const curve = KEYWORD_CURVES[m[3]];
+  if (!curve) {
+    fail(`${cls}: animation-timing-function "${m[3]}" is not a keyword whose curve css-easing-1 pins`);
+  }
+  if (m[4] !== 'infinite') {
+    fail(`${cls}: animation runs ${m[4]} times; the port loops a shimmer that never ends`);
+  }
+  return { name: m[1], ms, easeKeyword: m[3], iterationText: m[4], curve };
+};
+
+/** The whole text of `@keyframes <name>`, brace-matched, with its line number. */
+const keyframesBlock = (name, cls) => {
+  const i = CSS_LINES.findIndex((line) => new RegExp(`^@keyframes ${name} \\{$`).test(line));
+  if (i < 0) fail(`${cls}: the animation names ${name}, which src/index.css has no @keyframes block for`);
+  let depth = 0;
+  for (let j = i; j < CSS_LINES.length; j++) {
+    depth += (CSS_LINES[j].match(/\{/g) || []).length - (CSS_LINES[j].match(/\}/g) || []).length;
+    if (depth === 0) return { line: i + 1, text: CSS_LINES.slice(i, j + 1).join('\n') };
+  }
+  return fail(`@keyframes ${name} at src/index.css:${i + 1} never closes`);
+};
+
+/** `@keyframes <name>` as far as a sweeping overlay needs it: one end frame, and
+ *  that frame authored `transform: translateX(N%)` and nothing else. A `from` or
+ *  `0%` frame would give the port two starting positions — the element's own
+ *  `transform` and the keyframe's — which the browser resolves by letting the
+ *  keyframe own 0%, a rule to re-implement rather than a number to port. */
+const keyframesEndFrame = (name, cls) => {
+  const block = keyframesBlock(name, cls);
+  const inner = block.text.slice(block.text.indexOf('{') + 1, block.text.lastIndexOf('}'));
+  const frames = [...inner.matchAll(/([0-9]+%|from|to)\s*\{/g)].map((m) => m[1]);
+  if (frames.length !== 1 || frames[0] !== '100%') {
+    fail(
+      `@keyframes ${name} (src/index.css:${block.line}) carries the frames ${JSON.stringify(frames)}; the port needs one 100% frame and takes the element's own transform as the start`,
+    );
+  }
+  const body = /100%\s*\{([\s\S]*?)\}/.exec(inner)[1];
+  const decls = body
+    .split(';')
+    .map(collapse)
+    .filter(Boolean)
+    .map((decl) => {
+      const i = decl.indexOf(':');
+      if (i < 0) fail(`@keyframes ${name}: "${decl}" is not a declaration (src/index.css:${block.line})`);
+      return [decl.slice(0, i).trim(), decl.slice(i + 1).trim()];
+    });
+  if (decls.length !== 1 || decls[0][0] !== 'transform') {
+    fail(`@keyframes ${name}: the end frame must author \`transform\` alone (src/index.css:${block.line})`);
+  }
+  const m = /^translateX\(([-\d.]+)%\)$/.exec(collapse(decls[0][1]));
+  if (!m) {
+    fail(
+      `@keyframes ${name}: the end frame is \`${decls[0][1]}\`, not \`translateX(N%)\` — the sweep moves on one axis only (src/index.css:${block.line})`,
+    );
+  }
+  return { line: block.line, toPercent: parseFloat(m[1]) };
+};
+
+/** `linear-gradient(<a>deg, transparent 0%, <colour> <p>%, transparent 100%)` —
+ *  a band that fades in and out of nothing as it crosses. Both ends must be the
+ *  bare keyword, the angle must be the one the port can name, and the middle is
+ *  the colour the sweep carries. */
+const sweepGradientCss = (raw, theme, themeTag, cls) => {
+  const g =
+    /^linear-gradient\(\s*([\d.]+)deg\s*,\s*transparent\s+0%\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*transparent\s+100%\s*\)$/s.exec(
+      collapse(raw),
+    );
+  if (!g) {
+    fail(
+      `${cls}::after: background "${collapse(raw)}" is not \`linear-gradient(<a>deg, transparent 0%, <colour> <p>%, transparent 100%)\``,
+    );
+  }
+  const angle = parseFloat(g[1]);
+  if (angle !== 90) {
+    fail(`${cls}::after: the sweep runs at ${angle}deg; the shimmer crosses horizontally and one axis is all it has`);
+  }
+  const mid = parseFloat(g[3]);
+  if (mid !== 50) fail(`${cls}::after: the sweep peaks at ${mid}% of the box, not at its middle`);
+  const mix = authoredMix(g[2], theme, themeTag, 'sweep colour', cls);
+  return { angle, midStop: mid / 100, mix };
+};
+
+/** The stylesheet's own answer to a reduced-motion preference. `.skeleton` is not
+ *  given `animation: none` there; what stops the shimmer is the clamp on every
+ *  element and pseudo-element, and a run of `0.01ms` in one pass ends one box
+ *  width off the right edge — indistinguishable from never having run. The port
+ *  takes that as "paint the resting box", so it fails if the clamp it is resting
+ *  on moves, or if the class gains a rule of its own in there. */
+const reducedMotionClamp = (cls) => {
+  const i = CSS_LINES.findIndex((line) => /^@media \(prefers-reduced-motion: reduce\) \{$/.test(line));
+  if (i < 0) {
+    return fail(
+      `${cls}: src/index.css no longer clamps animation for a reduced-motion preference; the port's no-sweep answer rests on that rule`,
+    );
+  }
+  let depth = 0;
+  for (let j = i; j < CSS_LINES.length; j++) {
+    depth += (CSS_LINES[j].match(/\{/g) || []).length - (CSS_LINES[j].match(/\}/g) || []).length;
+    if (depth === 0) {
+      const text = collapse(CSS_LINES.slice(i, j + 1).join('\n'));
+      if (!text.includes('* , *::before , *::after {') && !text.includes('*, *::before, *::after {')) {
+        fail(
+          `${cls}: the reduced-motion block no longer reaches every element and pseudo-element (src/index.css:${i + 1})`,
+        );
+      }
+      for (const want of ['animation-duration: 0.01ms !important', 'animation-iteration-count: 1 !important']) {
+        if (!text.includes(want)) {
+          return fail(`${cls}: the reduced-motion block no longer says \`${want}\` (src/index.css:${i + 1})`);
+        }
+      }
+      if (new RegExp(`\\${cls} \\{ animation: none`).test(text)) {
+        fail(
+          `${cls}: the reduced-motion block now takes the class off the animation entirely; the parked position the port documents is a different one`,
+        );
+      }
+      return { line: i + 1, text };
+    }
+  }
+  return fail(`the reduced-motion block at src/index.css:${i + 1} never closes`);
+};
+
+/** `src/components/ui/Skeleton.tsx` is every skeleton on the web. Its class list
+ *  is the composition the port reproduces — `.skeleton` for the fill and corner,
+ *  a utility frame, and a utility size per variant — so the file is read as
+ *  pinned text and not paraphrased. Tailwind utilities exist only in the
+ *  generated stylesheet, which is a build product, so the component is the source
+ *  that says what a skeleton is asked to look like. */
+const SKELETON_TSX = fs
+  .readFileSync(path.join(ROOT, 'src', 'components', 'ui', 'Skeleton.tsx'), 'utf8')
+  .split(/\r?\n/)
+  .map((line) => line.trim());
+const SKELETON_BASE_RE = /^const base = 'skeleton border border-\[var\(--line\)\] motion-reduce:animate-none';$/;
+const skeletonBase = SKELETON_TSX.find((line) => SKELETON_BASE_RE.test(line));
+if (!skeletonBase) {
+  fail(
+    'src/components/ui/Skeleton.tsx no longer opens every skeleton with `skeleton border border-[var(--line)] motion-reduce:animate-none`; AppSkeleton ports that exact class list',
+  );
+}
+/** The class list itself, out of the statement that carries it. */
+const skeletonBaseClasses = /'([^']+)'/.exec(skeletonBase)[1];
+const SKELETON_VARIANT_CLASSES = {
+  text: 'rounded-[var(--r-sm)] h-4 w-full',
+  circular: 'rounded-full shrink-0',
+  rectangular: 'rounded-[var(--r-md)] w-full h-24',
+};
+for (const [name, classes] of Object.entries(SKELETON_VARIANT_CLASSES)) {
+  if (!SKELETON_TSX.some((line) => line.startsWith(`${name}: '${classes}'`))) {
+    fail(`src/components/ui/Skeleton.tsx no longer writes the ${name} variant as \`${classes}\``);
+  }
+}
+/** The `h-<n>` utility behind each variant, as a multiple of `--spacing`, and the
+ *  `rounded-…` behind it. `circular` carries neither height nor width — it asks
+ *  its caller for both (`shrink-0`) — and the radius every variant asks for is a
+ *  utility the class outranks, which is what the note on
+ *  [AppSkeletons.variantClasses] records. */
+const SKELETON_VARIANT_HEIGHTS = {};
+for (const [name, classes] of Object.entries(SKELETON_VARIANT_CLASSES)) {
+  const h = /\bh-([\d.]+)\b/.exec(classes);
+  SKELETON_VARIANT_HEIGHTS[name] = h ? parseFloat(h[1]) : null;
+  const r = /\brounded(-\[[a-z0-9()-]+\]|-full)?\b/.exec(classes);
+  if (!r) fail(`the ${name} variant authors no radius; AppSkeletons expects each variant to ask for one`);
+}
+if (!SKELETON_VARIANT_HEIGHTS.text || !SKELETON_VARIANT_HEIGHTS.rectangular) {
+  fail('Skeleton.tsx variants no longer carry the h-<n> utilities AppSkeletons sizes itself by');
+}
+if (SKELETON_VARIANT_HEIGHTS.circular !== null) {
+  fail(
+    `the circular variant now authors h-${SKELETON_VARIANT_HEIGHTS.circular}; the port expects its caller to give it both dimensions`,
+  );
+}
+for (const name of ['text', 'rectangular']) {
+  if (!/\bw-full\b/.test(SKELETON_VARIANT_CLASSES[name])) {
+    fail(`the ${name} variant no longer asks for the caller's width`);
+  }
+}
+if (!/\bshrink-0\b/.test(SKELETON_VARIANT_CLASSES.circular)) {
+  fail('the circular variant no longer asks not to shrink in the flex row it is placed in');
+}
+const skeletonDefault = (() => {
+  const m = SKELETON_TSX.join('\n').match(/variant = '(text|circular|rectangular)'/);
+  if (!m) fail('src/components/ui/Skeleton.tsx no longer defaults to a variant this file knows');
+  return m[1];
+})();
+
+/** Tailwind's `border` utility is `border-width: 1px` with `border-style:
+ *  var(--tw-border-style)`, and the same stylesheet's theme layer sets that
+ *  variable to `solid` — the compiled form of both was read while this row was
+ *  written. It is a utility, not a number from `src/index.css`, so it is a named
+ *  fact of the composition rather than a measurement, and the probe is what keeps
+ *  it honest: `.skeleton` alone measures `border-top-width: 0px`, so the frame
+ *  this row carries can only have come from the class list. */
+const SKELETON_UTILITY_BORDER_PX = 1.0;
+
+const skeletons = SKELETON_CLASSES.map((cls) => {
+  const l = probeRestRow(cls, 'light-desktop', LIGHT);
+  const d = probeRestRow(cls, 'dark-desktop', DARK);
+  comparePassRows(cls, l, d);
+
+  const rest = cssRule(new RegExp(`^\\${cls} \\{$`), cls);
+  l.srcLine = rest.line;
+  d.srcLine = rest.line;
+  const restProps = ruleProps(rest, cls);
+  checkRestProps(restProps, SKELETON_REST_PROPS, cls, rest.line);
+  assertRestColours(cls, restProps, [
+    [l, 'light-desktop'],
+    [d, 'dark-desktop'],
+  ]);
+  if (l.borderWidthPx !== 0 || d.borderWidthPx !== 0) {
+    fail(
+      `${cls}: the resting probe measures a ${l.borderWidthPx}px border; the frame is Skeleton.tsx's utility to add and this row would be painting two`,
+    );
+  }
+  const radius = tokenRef(cssDecl(rest, 'border-radius', cls), 'resting border-radius', cls);
+  const radiusToken = (themeTag) => {
+    const t = (themeTag === 'light-desktop' ? LIGHT : DARK).root[radius];
+    if (!t || t.raw === undefined) fail(`${cls}: ${radius} is not a measured token in ${themeTag}`);
+    if (lengthPx(t.raw, `${cls} ${radius}`) !== l.radiusPx) {
+      fail(`${cls}: ${radius} is ${t.raw} and the probe measures ${l.radiusPx}px`);
+    }
+  };
+  radiusToken('light-desktop');
+  radiusToken('dark-desktop');
+  for (const [prop, want] of [
+    ['position', 'relative'],
+    ['overflow', 'hidden'],
+  ]) {
+    const got = cssDecl(rest, prop, cls);
+    if (got !== want) {
+      fail(
+        `${cls}: \`${prop}: ${got}\` (src/index.css:${rest.line}); the sweep rides inside the box, so the port needs \`${prop}: ${want}\``,
+      );
+    }
+  }
+
+  const after = cssRule(new RegExp(`^\\${cls}::after \\{$`), cls);
+  const sweepProps = ruleProps(after, cls);
+  for (const [prop] of sweepProps) {
+    if (!SKELETON_SWEEP_PROPS.includes(prop)) {
+      fail(
+        `${cls}::after sets \`${prop}\` (src/index.css:${after.line}); AppSkeletonSpec ports a fill, a sweep and a clock only`,
+      );
+    }
+  }
+  const content = cssDecl(after, 'content', cls);
+  if (content !== "''" && content !== '""') {
+    fail(
+      `${cls}::after: content ${content} (src/index.css:${after.line}); a pseudo-element with text is not this sweep`,
+    );
+  }
+  if (cssDecl(after, 'position', cls) !== 'absolute') {
+    fail(`${cls}::after: the sweep is not absolutely positioned (src/index.css:${after.line})`);
+  }
+  if (cssDecl(after, 'inset', cls) !== '0') {
+    fail(
+      `${cls}::after: inset is \`${cssDecl(after, 'inset', cls)}\`, not \`0\` (src/index.css:${after.line}); the band is one box wide`,
+    );
+  }
+  const fromM = /^translateX\(([-\d.]+)%\)$/.exec(collapse(cssDecl(after, 'transform', cls)));
+  if (!fromM) {
+    fail(`${cls}::after: transform "${cssDecl(after, 'transform', cls)}" is not \`translateX(N%)\``);
+  }
+  const anim = parseAnimation(cssDecl(after, 'animation', cls), cls);
+  const frames = keyframesEndFrame(anim.name, cls);
+  const media = reducedMotionClamp(cls);
+
+  const gl = sweepGradientCss(cssDecl(after, 'background', cls), LIGHT, 'light-desktop', cls);
+  const gd = sweepGradientCss(cssDecl(after, 'background', cls), DARK, 'dark-desktop', cls);
+  if (gl.mix.token !== gd.mix.token || gl.mix.pct !== gd.mix.pct) {
+    fail(`${cls}: the sweep mixes ${gl.mix.token} ${gl.mix.pct}% in light and ${gd.mix.token} ${gd.mix.pct}% in dark`);
+  }
+  l.sweep = gl.mix;
+  d.sweep = gd.mix;
+  l.clear = { r: gl.mix.srgb.r, g: gl.mix.srgb.g, b: gl.mix.srgb.b, alpha: 0, a255: 0 };
+  d.clear = { r: gd.mix.srgb.r, g: gd.mix.srgb.g, b: gd.mix.srgb.b, alpha: 0, a255: 0 };
+
+  l.frame = authoredColour('var(--line)', LIGHT, 'light-desktop', 'utility frame colour', cls);
+  d.frame = authoredColour('var(--line)', DARK, 'dark-desktop', 'utility frame colour', cls);
+  if (l.frame.token !== d.frame.token) {
+    fail(`${cls}: the utility frame names ${l.frame.token} in light and ${d.frame.token} in dark`);
+  }
+
+  const align = gradientAlignments(gl.angle);
+  return {
+    cls,
+    l,
+    d,
+    radiusToken: radius,
+    borderToken: l.frame.token,
+    borderWidthPx: SKELETON_UTILITY_BORDER_PX,
+    angleDeg: gl.angle,
+    midStop: gl.midStop,
+    sweepToken: gl.mix.token,
+    sweepPct: gl.mix.pct,
+    fromPercent: parseFloat(fromM[1]),
+    toPercent: frames.toPercent,
+    anim,
+    align,
+    restSrc: `src/index.css:${rest.line}`,
+    sweepSrc: `src/index.css:${after.line}`,
+    framesSrc: `src/index.css:${frames.line}`,
+    mediaSrc: `src/index.css:${media.line}`,
+    contentCss: content,
+  };
+});
+
+const skeletonExpr = (c, pass) =>
+  [
+    `      cssClass: ${dartStr(c.cls)},`,
+    `      displayCss: ${dartStr(pass.displayCss)},`,
+    `      fillColor: ${dartSurfaceColour(pass.fillColor)},`,
+    `      borderColor: ${dartSurfaceColour(pass.frame.srgb)},`,
+    `      borderWidthPx: ${fmt(c.borderWidthPx)},`,
+    `      radiusPx: ${fmt(pass.radiusPx)},`,
+    `      sweepColor: ${dartSurfaceColour(pass.sweep.srgb)},`,
+    `      sweepClearColor: ${dartSurfaceColour(pass.clear)},`,
+    `      sweepBegin: Alignment(${fmt(c.align.begin[0])}, ${fmt(c.align.begin[1])}),`,
+    `      sweepEnd: Alignment(${fmt(c.align.end[0])}, ${fmt(c.align.end[1])}),`,
+    `      sweepMidStop: ${fmt(c.midStop)},`,
+    `      sweepFromPercent: ${fmt(c.fromPercent)},`,
+    `      sweepToPercent: ${fmt(c.toPercent)},`,
+    `      sweepMs: ${c.anim.ms},`,
+    `      easeX1: ${fmt(c.anim.curve[0])},`,
+    `      easeY1: ${fmt(c.anim.curve[1])},`,
+    `      easeX2: ${fmt(c.anim.curve[2])},`,
+    `      easeY2: ${fmt(c.anim.curve[3])},`,
+    `      animationName: ${dartStr(c.anim.name)},`,
+    `      sweepEaseKeyword: ${dartStr(c.anim.easeKeyword)},`,
+    `      iterationCss: 'infinite',`,
+  ].join('\n');
+
+banner();
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  "import 'app_spacing.dart';",
+  '',
+  '/// One §6 loading placeholder: the box Chrome measured at rest, and the sweep',
+  '/// the class authors on a pseudo-element over it. A widget under',
+  '/// `lib/presentation/` restates none of it.',
+  'class AppSkeletonSpec {',
+  '  const AppSkeletonSpec({',
+  '    required this.cssClass,',
+  '    required this.displayCss,',
+  '    required this.fillColor,',
+  '    required this.borderColor,',
+  '    required this.borderWidthPx,',
+  '    required this.radiusPx,',
+  '    required this.sweepColor,',
+  '    required this.sweepClearColor,',
+  '    required this.sweepBegin,',
+  '    required this.sweepEnd,',
+  '    required this.sweepMidStop,',
+  '    required this.sweepFromPercent,',
+  '    required this.sweepToPercent,',
+  '    required this.sweepMs,',
+  '    required this.easeX1,',
+  '    required this.easeY1,',
+  '    required this.easeX2,',
+  '    required this.easeY2,',
+  '    required this.animationName,',
+  '    required this.sweepEaseKeyword,',
+  '    required this.iterationCss,',
+  '  });',
+  '',
+  '  /// The CSS class this row was measured from, and its computed `display`.',
+  '  final String cssClass;',
+  '  final String displayCss;',
+  '',
+  '  /// `background: var(--surface-2)`, as the same pass’s probe reads it.',
+  '  final Color fillColor;',
+  '',
+  '  /// The frame `src/components/ui/Skeleton.tsx` adds with the utilities',
+  '  /// `border border-[var(--line)]`. `.skeleton` itself authors no border — the',
+  '  /// probe measures `border-top-width: 0px` for the class alone — which is what',
+  '  /// makes this 1px frame the utility’s doing rather than the class’s, and',
+  '  /// [borderWidthPx] is the width Tailwind’s `border` declaration carries.',
+  '  final Color borderColor;',
+  '  final double borderWidthPx;',
+  '',
+  '  /// `.skeleton`’s own `border-radius: var(--r-sm)`. It is the radius every',
+  '  /// variant ends up with, including the one that asks for `rounded-full`:',
+  '  /// see the note on [AppSkeletons.variantClasses].',
+  '  final double radiusPx;',
+  '',
+  '  /// Authored `color-mix(in srgb, var(--surface) N%, transparent)` at the',
+  '  /// middle of the sweep, and the same colour at zero alpha at its two ends.',
+  '  ///',
+  '  /// CSS writes those ends as the keyword `transparent`, whose channels a',
+  '  /// premultiplied interpolation never reads. Flutter reads them: measured over',
+  '  /// a black ground, a `transparent` → white@0.7 ramp came back grey at the',
+  '  /// quarter point, so the port hands the transparent stop the sweep’s own',
+  '  /// channels. That leaves the ramp constant-hue, which is what Chrome paints —',
+  '  /// and it is the same in either interpolation space, so the pixel does not',
+  '  /// depend on which one a given engine uses.',
+  '  final Color sweepColor;',
+  '  final Color sweepClearColor;',
+  '',
+  '  /// The gradient line, from the authored angle: 90deg is',
+  '  /// `Alignment(-1, 0) → Alignment(1, 0)`, the box crossed left to right.',
+  '  final Alignment sweepBegin;',
+  '  final Alignment sweepEnd;',
+  '  final double sweepMidStop;',
+  '',
+  '  /// The band starts at the element’s own `transform: translateX(-100%)` and',
+  '  /// `@keyframes [animationName]` gives the frame at 100%; the element’s inset',
+  '  /// is the whole box, so one percent of it is one box width.',
+  '  final double sweepFromPercent;',
+  '  final double sweepToPercent;',
+  '',
+  '  /// The authored `animation` shorthand: one loop of [sweepPeriod] on',
+  '  /// [sweepCurve], taken from the keyword [sweepEaseKeyword] as css-easing-1',
+  '  /// defines it, running forever ([iterationCss]). The class names no',
+  '  /// `var(--dur-*)` or `var(--ease-*)` here, and the port takes that literally:',
+  '  /// the shimmer is not on the §4 motion scale.',
+  '  final int sweepMs;',
+  '  final double easeX1;',
+  '  final double easeY1;',
+  '  final double easeX2;',
+  '  final double easeY2;',
+  '  final String animationName;',
+  '  final String sweepEaseKeyword;',
+  '  final String iterationCss;',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '',
+  '  Border get border => Border.all(color: borderColor, width: borderWidthPx);',
+  '',
+  '  /// The clip the sweep rides in. CSS `overflow: hidden` clips a box’s',
+  '  /// descendants to its **padding** box, whose corner is the authored radius',
+  '  /// minus the border width — 13px of a 14px corner. Flutter draws the border',
+  '  /// inside the same outline, so reusing [radiusPx] here would let the sweep',
+  '  /// paint over the frame it is meant to sit behind.',
+  '  double get sweepClipRadiusPx {',
+  '    final double inner = radiusPx - borderWidthPx;',
+  '    return inner < 0.0 ? 0.0 : inner;',
+  '  }',
+  '',
+  '  BorderRadius get sweepClipRadius => BorderRadius.circular(sweepClipRadiusPx);',
+  '',
+  '  Duration get sweepPeriod => Duration(milliseconds: sweepMs);',
+  '',
+  '  Cubic get sweepCurve => Cubic(easeX1, easeY1, easeX2, easeY2);',
+  '',
+  '  LinearGradient get sweepGradient => LinearGradient(',
+  '    begin: sweepBegin,',
+  '    end: sweepEnd,',
+  '    colors: <Color>[sweepClearColor, sweepColor, sweepClearColor],',
+  '    stops: <double>[0.0, sweepMidStop, 1.0],',
+  '  );',
+  '',
+  '  /// The band’s x-shift at a point in its run. CSS interpolates the element’s',
+  '  /// authored `translateX(-100%)` and the keyframe’s `translateX(100%)`',
+  '  /// between them, so `t = 0` sits one width left of the box and `t = 1` one',
+  '  /// width right; at `t = 0.5` the gradient is where the rule put it.',
+  '  double sweepShiftPx(double width, double t) =>',
+  '      width *',
+  '      (sweepFromPercent + (sweepToPercent - sweepFromPercent) * t) /',
+  '      100.0;',
+  '}',
+  '',
+  '/// The §6 loading placeholders, keyed by CSS class — one map per measured',
+  '/// brightness pass.',
+  'abstract final class AppSkeletons {',
+);
+for (const [passName, pass, themeTag] of [
+  ['light', 'l', 'light-desktop'],
+  ['dark', 'd', 'dark-desktop'],
+]) {
+  L.push(
+    `  /// ${passName} pass (UI_SPEC §6.1–§6.2, \`${themeTag}\`; the sweep from \`src/index.css\`).`,
+    `  static const Map<String, AppSkeletonSpec> ${passName} =`,
+    '      <String, AppSkeletonSpec>{',
+  );
+  for (const c of skeletons) {
+    L.push(`    ${dartStr(c.cls)}: AppSkeletonSpec(`, skeletonExpr(c, c[pass]), '    ),');
+  }
+  L.push('  };', '');
+}
+L.push(
+  '  /// The rules the row was read from, printed once because both passes share',
+  '  /// them:',
+  ...skeletons.flatMap((c) => [
+    `  /// \`${c.cls}\` (${c.restSrc}) sets \`position: relative\`,`,
+    `  /// \`overflow: hidden\`, the fill and \`border-radius: ${c.radiusToken}\`.`,
+    `  /// \`${c.cls}::after\` (${c.sweepSrc}) fills the box (\`inset: 0\`,`,
+    `  /// \`content: ${c.contentCss}\`), sweeps a \`${c.angleDeg}deg\` gradient that`,
+    `  /// peaks at \`${c.sweepToken} ${c.sweepPct}%\` across \`${c.midStop * 100}%\` of`,
+    `  /// the box, starts at \`translateX(${c.fromPercent}%)\`, and runs`,
+    `  /// \`${c.anim.name} ${c.anim.ms}ms ${c.anim.easeKeyword} ${c.anim.iterationText}\`.`,
+    `  /// \`@keyframes ${c.anim.name}\` (${c.framesSrc}) ends at`,
+    `  /// \`translateX(${c.toPercent}%)\` and authors nothing else.`,
+  ]),
+  '  ///',
+  '  /// A reduced-motion preference stops the sweep rather than slowing it.',
+  '  /// ' + skeletons.map((c) => '`' + c.cls + '`').join(' and ') + ' is not taken off its',
+  '  /// animation there; what stops it is the block at',
+  `  /// ${skeletons.map((c) => c.mediaSrc).join(', ')}, which sets`,
+  '  /// `animation-duration: 0.01ms !important` and',
+  '  /// `animation-iteration-count: 1 !important` on `*`, `*::before` and',
+  '  /// `*::after`, so the run finishes in an instant parked one box width off the',
+  '  /// right edge — no band visible, only the resting fill and frame. That is the',
+  '  /// answer the port gives. Flutter names that preference',
+  '  /// `MediaQuery.disableAnimationsOf`: `MediaQueryData` carries no `reduceMotion`',
+  '  /// flag of its own (`dart:ui.AccessibilityFeatures.reduceMotion` is the closer',
+  '  /// primitive, but it is not routed through MediaQuery and a widget cannot',
+  '  /// rebuild on it), and `disableAnimations` is the channel the framework already',
+  '  /// treats as "stop animating this for me".',
+  '',
+  '  /// The variants `src/components/ui/Skeleton.tsx` composes over the class,',
+  '  /// as that file writes them. They are Tailwind utilities, so they exist in',
+  '  /// the generated stylesheet rather than in `src/index.css`, and the',
+  '  /// component is the source that says what a skeleton is asked to look like.',
+  '  static const Map<String, String> variantClasses = <String, String>{',
+  ...Object.entries(SKELETON_VARIANT_CLASSES).map(([name, classes]) => `    ${dartStr(name)}: ${dartStr(classes)},`),
+  '  };',
+  '',
+  `  /// The variant a skeleton gets when its caller asks for none — the default`,
+  `  /// the component’s own signature carries (\`variant = '${skeletonDefault}'\`).`,
+  `  static const String defaultVariant = ${dartStr(skeletonDefault)};`,
+  '',
+  '  /// Every variant asks for a radius and none of them gets it.',
+  '  /// `src/index.css` authors `.skeleton` *unlayered*, while Tailwind emits',
+  '  /// `rounded-*` inside `@layer utilities`, and in the cascade an unlayered',
+  '  /// declaration outranks every layer regardless of where either appears. The',
+  '  /// compiled stylesheet puts `@layer utilities{…}` before the component',
+  '  /// classes for exactly that reason. Measured in Chrome: `rounded-full`,',
+  '  /// `rounded-[var(--r-md)]` and `rounded-[var(--r-sm)]` all compute the',
+  '  /// class’s 14px corner. So [AppSkeletonSpec.radiusPx] is the whole story,',
+  '  /// and a phone that painted a circle here would be porting the component’s',
+  '  /// intent instead of the browser’s result.',
+  '',
+  '  /// `h-<n>` is `calc(n * --spacing)`, which [AppSpacing.scale] implements on',
+  '  /// the measured unit: the text row is 16px tall and the rectangular block',
+  '  /// 96px. `circular` sizes by neither — the component gives it no height and',
+  '  /// asks its caller for both dimensions (`shrink-0`).',
+  `  static const double textHeightScale = ${fmt(SKELETON_VARIANT_HEIGHTS.text)};`,
+  `  static const double rectangularHeightScale = ${fmt(SKELETON_VARIANT_HEIGHTS.rectangular)};`,
+  '',
+  '  static double get textHeightPx => AppSpacing.scale(textHeightScale);',
+  '',
+  '  static double get rectangularHeightPx =>',
+  '      AppSpacing.scale(rectangularHeightScale);',
+  '',
+  '  /// The class list every skeleton carries, including the frame',
+  '  /// [AppSkeletonSpec.borderColor] and [AppSkeletonSpec.borderWidthPx] come',
+  `  /// from, and the \`motion-reduce:animate-none\` that does not reach the sweep:`,
+  `  /// it applies \`animation: none\` to the element, and the animation lives on`,
+  `  /// \`.skeleton::after\`, which the element’s own class cannot set.`,
+  `  static const String baseClasses = ${dartStr(skeletonBaseClasses)};`,
+  '',
+  '  static AppSkeletonSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppSkeletonSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppSkeletonSpec? spec = table[cssClass];',
+  "    if (spec == null) throw ArgumentError('$cssClass is not a §6 skeleton');",
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+);
+finish('app_skeletons.dart');
+
 // ---------------------------------------------------------------- write + summary
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
@@ -2389,6 +2994,7 @@ console.log(
     `  §6 controls emitted:         ${controls.length} classes x 2 passes  -> AppControls`,
     `  §6 fields emitted:           ${fields.length} classes x 2 passes  -> AppFields`,
     `  §6 labels emitted:           ${labels.length} classes x 2 passes  -> AppLabels`,
+    `  §6 skeletons emitted:        ${skeletons.length} classes x 2 passes  -> AppSkeletons`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );
