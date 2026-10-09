@@ -3,12 +3,36 @@ name: Mobile Parity CI
 # Mirrors the gates in verify-build.yml for the Flutter client only. The two jobs are
 # independent: a mobile change must not block a web deploy, and vice versa. gitleaks
 # already runs over the whole tree in the web job, so mobile/ is secret-scanned there.
+#
+# Every action ref below is pinned to a full commit SHA, GitHub-first-party actions included,
+# with the release it names in a trailing comment. `v4` and `v2` are floating tags, so left alone
+# they let whatever the tag points at on the day decide what the gate proved. D10 pinned the
+# third-party action this way; this file now applies the same rule to every one of them.
 
 on:
   push:
     branches: [main, master, development]
   pull_request:
     branches: [main, master]
+  # D14's CI half. Phase 5 has to run this job on branches that are not ready to be pulled, and
+  # until now the only two ways in were a push to main/master/development or a pull request:
+  # dispatching against this file answered `HTTP 422: Workflow does not have workflow_dispatch
+  # trigger` — measured 2026-10-09 against `phase5-design-system`, which is why the gap is
+  # recorded here rather than guessed at.
+  #
+  # GitHub only honours the trigger for a workflow file that exists on the default branch —
+  # "To trigger the workflow_dispatch event, your workflow must be in the default branch",
+  # docs.github.com/actions/managing-workflow-runs/manually-running-a-workflow — and main's copy
+  # has none. That one fact decides the shape of this change: it has to reach `main`
+  # before any branch can dispatch, so it is its own PR off main and cannot be smuggled in on the
+  # Phase 5 branch. Once it has landed:
+  #
+  #   gh workflow run mobile-verify.yml --ref <branch>
+  #
+  # The ref you select is the ref that is checked out *and* the ref whose copy of this file runs,
+  # so a branch may carry its own version of these steps and still be dispatched. Nothing about
+  # the event widens what the job may do: `permissions: contents: read` still applies to both jobs.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,10 +47,11 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # Third-party action, pinned to the full commit SHA rather than the floating `v2`
       # tag. That commit is v2.23.0 as of 2026-10-06; bump it deliberately, never by
-      # tag drift.
+      # tag drift. Re-checked 2026-10-09: `v2` and `v2.23.0` both still resolve to
+      # `1a449444`, so the pin has not drifted from the release it names.
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           flutter-version: '3.47.6'
@@ -34,7 +59,7 @@ jobs:
           cache: true
       # mobile/android/build.gradle.kts compiles to Java 17; pinning the JDK keeps the
       # build from tracking whatever the runner image happens to ship.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: temurin
           java-version: '17'
@@ -76,7 +101,7 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           flutter-version: '3.47.6'
