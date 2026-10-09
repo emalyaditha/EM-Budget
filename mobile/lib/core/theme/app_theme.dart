@@ -263,9 +263,8 @@ ThemeData appThemeData({required bool isDark}) {
     cardColor: c('--surface'),
     dialogTheme: DialogThemeData(backgroundColor: c('--surface')),
     textTheme: appTextTheme(ink: ink, muted: ink2),
-    extensions: const <ThemeExtension<dynamic>>[
-      AppTokens.light,
-      AppTokens.dark,
+    extensions: <ThemeExtension<dynamic>>[
+      isDark ? AppTokens.dark : AppTokens.light,
     ],
   );
 }

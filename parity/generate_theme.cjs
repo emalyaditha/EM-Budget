@@ -855,7 +855,7 @@ L.push("    canvasColor: c('--bg'),");
 L.push("    cardColor: c('--surface'),");
 L.push("    dialogTheme: DialogThemeData(backgroundColor: c('--surface')),");
 L.push('    textTheme: appTextTheme(ink: ink, muted: ink2),');
-L.push('    extensions: const <ThemeExtension<dynamic>>[AppTokens.light, AppTokens.dark],');
+L.push('    extensions: <ThemeExtension<dynamic>>[isDark ? AppTokens.dark : AppTokens.light],');
 L.push('  );');
 L.push('}');
 L.push('');
