@@ -5,17 +5,21 @@
     "unitFile": "src/utils.ts",
     "gitBlob": "999d2a921bd7176cbd36dd634b24b6af010791ae",
     "sha256": "d7921139645e1c71d9f2dc8f8d43e501f95213c4a1aea0ee8d5e115ecce2b790",
+    "srcTree": "9921f3a476af55b8a7c452d27ed29e6a84336c10eb729cdcf51bac6a5e34db3d",
     "tz": "Asia/Colombo",
     "locale": "en-US",
     "node": "v24.19.0",
     "pinnedNow": "2026-10-04T04:30:00.000Z",
-    "generatedAt": "2026-10-06T09:18:10.508Z",
     "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
   },
   "cases": [
     {
       "name": "calculateNetWorth(empty state)",
-      "input": [{}],
+      "input": [
+        {
+          "currency": "Rs."
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 0,
@@ -43,7 +47,84 @@
     },
     {
       "name": "calculateNetWorth(happy path)",
-      "input": [],
+      "input": [
+        {
+          "currency": "Rs.",
+          "cashAccounts": [
+            {
+              "id": "a",
+              "name": "w",
+              "balance": 184500
+            },
+            {
+              "id": "b",
+              "name": "s",
+              "balance": 26000
+            }
+          ],
+          "cards": [
+            {
+              "id": "cd-1",
+              "cardName": "Everyday Debit",
+              "bankName": "Commercial Bank",
+              "cardType": "Debit",
+              "currentBalance": 74250,
+              "cardNumber": "4520 **** **** 3776",
+              "isCanceled": false,
+              "isFrozen": false,
+              "lockedAmount": 5000
+            },
+            {
+              "id": "cc-1",
+              "cardName": "Travel Credit",
+              "bankName": "National Savings",
+              "cardType": "Credit",
+              "currentBalance": -38420,
+              "limit": 250000,
+              "dueDate": "2026-10-07",
+              "minPayment": 1921,
+              "apr": 24.9,
+              "isCanceled": false,
+              "isFrozen": false
+            },
+            {
+              "id": "cc-2",
+              "cardName": "Travel Credit",
+              "bankName": "National Savings",
+              "cardType": "Credit",
+              "currentBalance": 12000,
+              "limit": 250000,
+              "dueDate": "2026-10-07",
+              "minPayment": 1921,
+              "apr": 24.9,
+              "isCanceled": false,
+              "isFrozen": false
+            }
+          ],
+          "debts": [
+            {
+              "id": "d1",
+              "remainingAmount": 100000
+            }
+          ],
+          "loansGiven": [
+            {
+              "id": "l1",
+              "remainingAmount": 40000
+            },
+            {
+              "id": "l2",
+              "totalAmount": 15000
+            }
+          ],
+          "savingsGoals": [
+            {
+              "id": "g1",
+              "current": 312000
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 210500,
         "debitCards": 69250,
@@ -57,7 +138,24 @@
     },
     {
       "name": "calculateNetWorth(lockedAmount as numeric string)",
-      "input": ["lockedAmount as numeric string"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "cards": [
+            {
+              "id": "cd-1",
+              "cardName": "Everyday Debit",
+              "bankName": "Commercial Bank",
+              "cardType": "Debit",
+              "currentBalance": 74250,
+              "cardNumber": "4520 **** **** 3776",
+              "isCanceled": false,
+              "isFrozen": false,
+              "lockedAmount": "5000"
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 69250,
@@ -71,7 +169,24 @@
     },
     {
       "name": "calculateNetWorth(lockedAmount null)",
-      "input": ["lockedAmount null"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "cards": [
+            {
+              "id": "cd-1",
+              "cardName": "Everyday Debit",
+              "bankName": "Commercial Bank",
+              "cardType": "Debit",
+              "currentBalance": 74250,
+              "cardNumber": "4520 **** **** 3776",
+              "isCanceled": false,
+              "isFrozen": false,
+              "lockedAmount": null
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 74250,
@@ -85,7 +200,24 @@
     },
     {
       "name": "calculateNetWorth(lockedAmount NaN string)",
-      "input": ["lockedAmount NaN string"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "cards": [
+            {
+              "id": "cd-1",
+              "cardName": "Everyday Debit",
+              "bankName": "Commercial Bank",
+              "cardType": "Debit",
+              "currentBalance": 74250,
+              "cardNumber": "4520 **** **** 3776",
+              "isCanceled": false,
+              "isFrozen": false,
+              "lockedAmount": "abc"
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 74250,
@@ -98,8 +230,88 @@
       }
     },
     {
+      "name": "calculateNetWorth(lockedAmount with a comma)",
+      "input": [
+        {
+          "currency": "Rs.",
+          "cards": [
+            {
+              "id": "cd-1",
+              "cardName": "Everyday Debit",
+              "bankName": "Commercial Bank",
+              "cardType": "Debit",
+              "currentBalance": 74250,
+              "cardNumber": "4520 **** **** 3776",
+              "isCanceled": false,
+              "isFrozen": false,
+              "lockedAmount": "1,250"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "cash": 0,
+        "debitCards": 74250,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 74250
+      }
+    },
+    {
+      "name": "calculateNetWorth(currentBalance is not a number)",
+      "input": [
+        {
+          "currency": "Rs.",
+          "cards": [
+            {
+              "id": "cd-1",
+              "cardName": "Everyday Debit",
+              "bankName": "Commercial Bank",
+              "cardType": "Debit",
+              "currentBalance": "74,250",
+              "cardNumber": "4520 **** **** 3776",
+              "isCanceled": false,
+              "isFrozen": false
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "cash": 0,
+        "debitCards": 0,
+        "creditCardAssets": 0,
+        "creditCardLiabilities": 0,
+        "savings": 0,
+        "debts": 0,
+        "loansGiven": 0,
+        "netWorth": 0
+      }
+    },
+    {
       "name": "calculateNetWorth(credit card at exactly zero)",
-      "input": ["credit card at exactly zero"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "cards": [
+            {
+              "id": "cc-1",
+              "cardName": "Travel Credit",
+              "bankName": "National Savings",
+              "cardType": "Credit",
+              "currentBalance": 0,
+              "limit": 250000,
+              "dueDate": "2026-10-07",
+              "minPayment": 1921,
+              "apr": 24.9,
+              "isCanceled": false,
+              "isFrozen": false
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 0,
@@ -113,7 +325,26 @@
     },
     {
       "name": "calculateNetWorth(cancelled credit card with debt)",
-      "input": ["cancelled credit card with debt"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "cards": [
+            {
+              "id": "cc-1",
+              "cardName": "Travel Credit",
+              "bankName": "National Savings",
+              "cardType": "Credit",
+              "currentBalance": -38420,
+              "limit": 250000,
+              "dueDate": "2026-10-07",
+              "minPayment": 1921,
+              "apr": 24.9,
+              "isCanceled": true,
+              "isFrozen": false
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 0,
@@ -127,7 +358,23 @@
     },
     {
       "name": "calculateNetWorth(cancelled debit card)",
-      "input": ["cancelled debit card"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "cards": [
+            {
+              "id": "cd-1",
+              "cardName": "Everyday Debit",
+              "bankName": "Commercial Bank",
+              "cardType": "Debit",
+              "currentBalance": 74250,
+              "cardNumber": "4520 **** **** 3776",
+              "isCanceled": true,
+              "isFrozen": false
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 0,
@@ -141,7 +388,20 @@
     },
     {
       "name": "calculateNetWorth(jar at 0 vs jar undefined)",
-      "input": ["jar at 0 vs jar undefined"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "savingsGoals": [
+            {
+              "id": "g",
+              "current": 0
+            },
+            {
+              "id": "h"
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 0,
@@ -155,7 +415,18 @@
     },
     {
       "name": "calculateNetWorth(loan remainingAmount null (no fallback))",
-      "input": ["loan remainingAmount null (no fallback)"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "loansGiven": [
+            {
+              "id": "l",
+              "remainingAmount": null,
+              "totalAmount": 500
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 0,
@@ -169,7 +440,18 @@
     },
     {
       "name": "calculateNetWorth(loan remainingAmount 0)",
-      "input": ["loan remainingAmount 0"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "loansGiven": [
+            {
+              "id": "l",
+              "remainingAmount": 0,
+              "totalAmount": 500
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 0,
@@ -183,7 +465,19 @@
     },
     {
       "name": "calculateNetWorth(debt NaN)",
-      "input": ["debt NaN"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "debts": [
+            {
+              "id": "d",
+              "remainingAmount": {
+                "__sentinel__": "NaN"
+              }
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0,
         "debitCards": 0,
@@ -197,7 +491,21 @@
     },
     {
       "name": "calculateNetWorth(float residue absorbed by sumMoney)",
-      "input": ["float residue absorbed by sumMoney"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "cashAccounts": [
+            {
+              "id": "a",
+              "balance": 0.1
+            },
+            {
+              "id": "b",
+              "balance": 0.2
+            }
+          ]
+        }
+      ],
       "expected": {
         "cash": 0.3,
         "debitCards": 0,
@@ -346,6 +654,43 @@
         {
           "__sentinel__": "NaN"
         }
+      ],
+      "expected": {
+        "__sentinel__": "-0"
+      }
+    },
+    {
+      "name": "ledgerBalanceEffect(expense,undefined,\"1,250\")",
+      "input": [
+        "expense",
+        {
+          "__sentinel__": "undefined"
+        },
+        "1,250"
+      ],
+      "expected": {
+        "__sentinel__": "-0"
+      }
+    },
+    {
+      "name": "ledgerBalanceEffect(expense,undefined,\"0x10\")",
+      "input": [
+        "expense",
+        {
+          "__sentinel__": "undefined"
+        },
+        "0x10"
+      ],
+      "expected": -16
+    },
+    {
+      "name": "ledgerBalanceEffect(expense,undefined,\"  12abc  \")",
+      "input": [
+        "expense",
+        {
+          "__sentinel__": "undefined"
+        },
+        "  12abc  "
       ],
       "expected": {
         "__sentinel__": "-0"
@@ -502,6 +847,14 @@
       }
     },
     {
+      "name": "applyRepayment(comma string asked (Number, not parseFloat))",
+      "input": [1000, "1,250"],
+      "expected": {
+        "applied": 0,
+        "remaining": 1000
+      }
+    },
+    {
       "name": "isSpendingRow(positive expense)",
       "input": [
         {
@@ -563,7 +916,34 @@
     },
     {
       "name": "budgetSpendingForMonth(active subs count in full regardless of date)",
-      "input": [],
+      "input": [
+        "Entertainment",
+        [],
+        [
+          {
+            "id": "s1",
+            "name": "Netflix",
+            "category": "Entertainment",
+            "amount": 1500,
+            "status": "Active"
+          },
+          {
+            "id": "s2",
+            "name": "Old Sub",
+            "category": "Entertainment",
+            "amount": 900,
+            "status": "Paused"
+          },
+          {
+            "id": "s3",
+            "name": "Annual",
+            "category": "Entertainment",
+            "amount": 12000,
+            "status": "Active"
+          }
+        ],
+        1791088200000
+      ],
       "expected": {
         "spent": 13500,
         "items": [
@@ -580,7 +960,62 @@
     },
     {
       "name": "budgetSpendingForMonth(mixed-case category, this month)",
-      "input": [],
+      "input": [
+        " entertainment ",
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Entertainment",
+            "type": "expense",
+            "amount": 500,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "ENTERTAINMENT",
+            "type": "expense",
+            "amount": 300,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Entertainment",
+            "type": "expense",
+            "amount": 400,
+            "date": "2026-01-01",
+            "accountId": "ca-1"
+          }
+        ],
+        [
+          {
+            "id": "s1",
+            "name": "Netflix",
+            "category": "Entertainment",
+            "amount": 1500,
+            "status": "Active"
+          },
+          {
+            "id": "s2",
+            "name": "Old Sub",
+            "category": "Entertainment",
+            "amount": 900,
+            "status": "Paused"
+          },
+          {
+            "id": "s3",
+            "name": "Annual",
+            "category": "Entertainment",
+            "amount": 12000,
+            "status": "Active"
+          }
+        ],
+        1791088200000
+      ],
       "expected": {
         "spent": 14300,
         "items": [
@@ -605,7 +1040,22 @@
     },
     {
       "name": "budgetSpendingForMonth(no match)",
-      "input": [],
+      "input": [
+        "Groceries",
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          }
+        ],
+        [],
+        1791088200000
+      ],
       "expected": {
         "spent": 0,
         "items": []

@@ -1,0 +1,215 @@
+{
+  "userProfile": { "name": "Parity Harness", "email": "" },
+  "cashAccounts": [
+    { "id": "cash-a", "name": "City Cash", "balance": 100000.55 },
+    { "id": "cash-b", "name": "Home Float", "balance": 4000.45 }
+  ],
+  "cards": [
+    {
+      "id": "card-debit",
+      "cardName": "Everyday Debit",
+      "bankName": "Commercial",
+      "cardType": "Debit",
+      "currentBalance": 25000.75
+    },
+    {
+      "id": "card-credit",
+      "cardName": "Travel Credit",
+      "bankName": "NDB",
+      "cardType": "Credit",
+      "currentBalance": -40406.29,
+      "limit": 250000,
+      "dueDate": "2026-12-07",
+      "minPayment": 1921,
+      "apr": 24.9,
+      "isCanceled": false,
+      "isFrozen": false,
+      "statementCloseDate": "2026-11-15",
+      "charges": [
+        {
+          "id": "chg-1",
+          "name": "Annual Fee",
+          "amount": 750.5,
+          "type": "Annual Fee",
+          "appliedDate": "2026-09-15",
+          "description": "Seeded charge"
+        }
+      ]
+    }
+  ],
+  "creditCards": [],
+  "creditCardPurchases": [],
+  "creditCardInstallments": [],
+  "creditCardInstallmentPayments": [],
+  "incomes": [
+    {
+      "id": "inc-1",
+      "amount": 50000,
+      "date": "2026-09-05",
+      "source": "Consulting",
+      "category": "Freelance",
+      "targetAccountId": "cash-a",
+      "targetType": "cash"
+    }
+  ],
+  "expenses": [
+    {
+      "id": "exp-1",
+      "title": "Rent",
+      "description": "September rent",
+      "amount": 35000.5,
+      "date": "2026-09-01",
+      "category": "Rent",
+      "paymentMethodId": "cash-a",
+      "paymentMethodType": "cash"
+    }
+  ],
+  "debts": [
+    {
+      "id": "debt-1",
+      "debtSource": "Lanka Lease",
+      "totalAmount": 120000,
+      "remainingAmount": 80000.25,
+      "dueDate": "2026-11-30",
+      "notes": "Seeded debt",
+      "accountId": "cash-b",
+      "accountType": "cash",
+      "accountName": "Home Float",
+      "status": "Active",
+      "payments": [
+        {
+          "id": "dp-1",
+          "debtId": "debt-1",
+          "amount": 39999.75,
+          "date": "2026-08-10",
+          "paidFromId": "cash-b",
+          "paidFromType": "cash"
+        }
+      ]
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx-exp-1",
+      "type": "expense",
+      "title": "Rent",
+      "amount": 35000.5,
+      "date": "2026-09-01",
+      "category": "Rent",
+      "accountId": "cash-a",
+      "accountType": "cash",
+      "referenceId": "exp-1"
+    },
+    {
+      "id": "tx-inc-1",
+      "type": "income",
+      "title": "Consulting",
+      "amount": 50000,
+      "date": "2026-09-05",
+      "category": "Freelance",
+      "accountId": "cash-a",
+      "accountType": "cash",
+      "referenceId": "inc-1"
+    },
+    {
+      "id": "tx-dp-1",
+      "type": "debt_payment",
+      "title": "Lanka Lease repayment",
+      "amount": 39999.75,
+      "date": "2026-08-10",
+      "category": "Loan",
+      "accountId": "cash-b",
+      "accountType": "cash",
+      "referenceId": "dp-1"
+    },
+    {
+      "id": "tx-tr-1",
+      "type": "transfer",
+      "title": "Float top-up",
+      "amount": 10000,
+      "charge": 150.25,
+      "date": "2026-08-20",
+      "category": "Transfer",
+      "accountId": "cash-a",
+      "accountType": "cash",
+      "targetAccountId": "card-debit",
+      "targetAccountType": "card"
+    },
+    {
+      "id": "tx-cc-1",
+      "type": "credit_card_charge",
+      "title": "Annual Fee",
+      "amount": 750.5,
+      "date": "2026-09-15",
+      "category": "Bank Charges & Interest",
+      "accountId": "card-credit",
+      "accountType": "card",
+      "referenceId": "chg-1"
+    },
+    {
+      "id": "tx-wd-1",
+      "type": "withdrawal",
+      "title": "ATP withdrawal",
+      "amount": 2000,
+      "date": "2026-09-10",
+      "category": "Withdrawal",
+      "accountId": "cash-b",
+      "accountType": "cash"
+    }
+  ],
+  "notifications": [],
+  "subscriptions": [
+    {
+      "id": "sub-1",
+      "name": "Cloud Host",
+      "amount": 2450.5,
+      "billingCycle": "Monthly",
+      "dueDate": "2026-11-06",
+      "category": "Other",
+      "status": "Active",
+      "paymentMethodId": "cash-a",
+      "paymentMethodType": "cash"
+    }
+  ],
+  "loansGiven": [
+    {
+      "id": "loan-1",
+      "borrowerName": "Nimal",
+      "totalAmount": 60000,
+      "remainingAmount": 45000.5,
+      "dateGiven": "2026-07-01",
+      "sourceAccountId": "cash-a",
+      "sourceAccountType": "cash",
+      "sourceAccountName": "City Cash",
+      "status": "Partially Settled",
+      "notes": "Seeded loan",
+      "settlements": [
+        {
+          "id": "ls-1",
+          "loanId": "loan-1",
+          "amount": 14999.5,
+          "date": "2026-08-01",
+          "receivedInId": "cash-a",
+          "receivedInType": "cash",
+          "receivedInName": "City Cash"
+        }
+      ]
+    }
+  ],
+  "budgets": [
+    {
+      "id": "bud-1",
+      "category": "Food",
+      "limit": 20000,
+      "spent": 5000.5,
+      "icon": "utensils",
+      "subBreakdown": []
+    }
+  ],
+  "savingsGoals": [
+    { "id": "goal-1", "name": "Bike", "target": 500000, "current": 120000.5, "targetDate": "2027-03-31" }
+  ],
+  "pinCode": "",
+  "pinEnabled": false,
+  "currency": "Rs."
+}

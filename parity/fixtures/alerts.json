@@ -5,11 +5,11 @@
     "unitFile": "src/lib/alerts.ts",
     "gitBlob": "f25b43423f431a6537aa47f623177bd9f2aaf9e5",
     "sha256": "26e4860790fb74bc72b82b93acf43286db2bfb499165bca7dc5d8da9016b401c",
+    "srcTree": "9921f3a476af55b8a7c452d27ed29e6a84336c10eb729cdcf51bac6a5e34db3d",
     "tz": "Asia/Colombo",
     "locale": "en-US",
     "node": "v24.19.0",
     "pinnedNow": "2026-10-04T04:30:00.000Z",
-    "generatedAt": "2026-10-06T09:18:10.511Z",
     "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
   },
   "cases": [
@@ -20,80 +20,134 @@
     },
     {
       "name": "daysRemaining(2026-10-04)",
-      "input": ["2026-10-04"],
+      "input": ["2026-10-04", 1791088200000],
       "expected": {
         "__sentinel__": "-0"
       }
     },
     {
       "name": "daysRemaining(2026-10-05)",
-      "input": ["2026-10-05"],
+      "input": ["2026-10-05", 1791088200000],
       "expected": 1
     },
     {
       "name": "daysRemaining(2026-10-06)",
-      "input": ["2026-10-06"],
+      "input": ["2026-10-06", 1791088200000],
       "expected": 2
     },
     {
       "name": "daysRemaining(2026-10-11)",
-      "input": ["2026-10-11"],
+      "input": ["2026-10-11", 1791088200000],
       "expected": 7
     },
     {
       "name": "daysRemaining(2026-10-12)",
-      "input": ["2026-10-12"],
+      "input": ["2026-10-12", 1791088200000],
       "expected": 8
     },
     {
       "name": "daysRemaining(2026-10-03)",
-      "input": ["2026-10-03"],
+      "input": ["2026-10-03", 1791088200000],
       "expected": -1
     },
     {
       "name": "daysRemaining(2026-09-04)",
-      "input": ["2026-09-04"],
+      "input": ["2026-09-04", 1791088200000],
       "expected": -30
     },
     {
       "name": "daysRemaining()",
-      "input": [""],
+      "input": ["", 1791088200000],
       "expected": {
         "__sentinel__": "Infinity"
       }
     },
     {
       "name": "daysRemaining(2026-13-99)",
-      "input": ["2026-13-99"],
+      "input": ["2026-13-99", 1791088200000],
       "expected": 187
     },
     {
       "name": "daysRemaining(garbage)",
-      "input": ["garbage"],
+      "input": ["garbage", 1791088200000],
       "expected": {
         "__sentinel__": "Infinity"
       }
     },
     {
       "name": "daysRemaining(timestamp 2026-10-04T18:30:00Z)",
-      "input": ["2026-10-04T18:30:00Z"],
+      "input": ["2026-10-04T18:30:00Z", 1791088200000],
       "expected": 1
     },
     {
       "name": "daysRemaining(timestamp 2026-10-04T00:00:00)",
-      "input": ["2026-10-04T00:00:00"],
+      "input": ["2026-10-04T00:00:00", 1791088200000],
       "expected": {
         "__sentinel__": "-0"
       }
     },
     {
       "name": "computeAlerts(budget just under warn)",
-      "input": ["just under warn"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [
+            {
+              "id": "b1",
+              "category": "Shopping",
+              "limit": 1000,
+              "spent": 0
+            }
+          ],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": [
+            {
+              "id": "tx-1",
+              "title": "Groceries",
+              "category": "Shopping",
+              "type": "expense",
+              "amount": 799,
+              "date": "2026-10-02",
+              "accountId": "ca-1"
+            }
+          ]
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(budget exactly 0.8)",
-      "input": ["exactly 0.8"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [
+            {
+              "id": "b1",
+              "category": "Shopping",
+              "limit": 1000,
+              "spent": 0
+            }
+          ],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": [
+            {
+              "id": "tx-1",
+              "title": "Groceries",
+              "category": "Shopping",
+              "type": "expense",
+              "amount": 800,
+              "date": "2026-10-02",
+              "accountId": "ca-1"
+            }
+          ]
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "budget-close-b1",
@@ -106,7 +160,34 @@
     },
     {
       "name": "computeAlerts(budget just under critical)",
-      "input": ["just under critical"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [
+            {
+              "id": "b1",
+              "category": "Shopping",
+              "limit": 1000,
+              "spent": 0
+            }
+          ],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": [
+            {
+              "id": "tx-1",
+              "title": "Groceries",
+              "category": "Shopping",
+              "type": "expense",
+              "amount": 999,
+              "date": "2026-10-02",
+              "accountId": "ca-1"
+            }
+          ]
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "budget-close-b1",
@@ -119,7 +200,34 @@
     },
     {
       "name": "computeAlerts(budget exactly 1.0)",
-      "input": ["exactly 1.0"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [
+            {
+              "id": "b1",
+              "category": "Shopping",
+              "limit": 1000,
+              "spent": 0
+            }
+          ],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": [
+            {
+              "id": "tx-1",
+              "title": "Groceries",
+              "category": "Shopping",
+              "type": "expense",
+              "amount": 1000,
+              "date": "2026-10-02",
+              "accountId": "ca-1"
+            }
+          ]
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "budget-over-b1",
@@ -132,7 +240,34 @@
     },
     {
       "name": "computeAlerts(budget 150%)",
-      "input": ["150%"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [
+            {
+              "id": "b1",
+              "category": "Shopping",
+              "limit": 1000,
+              "spent": 0
+            }
+          ],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": [
+            {
+              "id": "tx-1",
+              "title": "Groceries",
+              "category": "Shopping",
+              "type": "expense",
+              "amount": 1500,
+              "date": "2026-10-02",
+              "accountId": "ca-1"
+            }
+          ]
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "budget-over-b1",
@@ -145,7 +280,34 @@
     },
     {
       "name": "computeAlerts(budget 1000%)",
-      "input": ["1000%"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [
+            {
+              "id": "b1",
+              "category": "Shopping",
+              "limit": 1000,
+              "spent": 0
+            }
+          ],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": [
+            {
+              "id": "tx-1",
+              "title": "Groceries",
+              "category": "Shopping",
+              "type": "expense",
+              "amount": 10000,
+              "date": "2026-10-02",
+              "accountId": "ca-1"
+            }
+          ]
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "budget-over-b1",
@@ -158,17 +320,71 @@
     },
     {
       "name": "computeAlerts(budget limit 0 -> skipped)",
-      "input": [],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [
+            {
+              "id": "b1",
+              "category": "Shopping",
+              "limit": 0,
+              "spent": 500
+            }
+          ],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(budget negative limit)",
-      "input": [],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [
+            {
+              "id": "b1",
+              "category": "Shopping",
+              "limit": -100,
+              "spent": 500
+            }
+          ],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(bill due today)",
-      "input": ["due today"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [
+            {
+              "id": "s1",
+              "name": "Netflix",
+              "amount": 1500,
+              "status": "Active",
+              "dueDate": "2026-10-04",
+              "billingCycle": "Monthly",
+              "category": "Entertainment"
+            }
+          ],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "bill-due-s1",
@@ -181,7 +397,27 @@
     },
     {
       "name": "computeAlerts(bill due in 1 day)",
-      "input": ["due in 1 day"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [
+            {
+              "id": "s1",
+              "name": "Netflix",
+              "amount": 1500,
+              "status": "Active",
+              "dueDate": "2026-10-05",
+              "billingCycle": "Monthly",
+              "category": "Entertainment"
+            }
+          ],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "bill-due-s1",
@@ -194,27 +430,125 @@
     },
     {
       "name": "computeAlerts(bill due in 2 days -> none)",
-      "input": ["due in 2 days -> none"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [
+            {
+              "id": "s1",
+              "name": "Netflix",
+              "amount": 1500,
+              "status": "Active",
+              "dueDate": "2026-10-06",
+              "billingCycle": "Monthly",
+              "category": "Entertainment"
+            }
+          ],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(bill overdue -> none)",
-      "input": ["overdue -> none"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [
+            {
+              "id": "s1",
+              "name": "Netflix",
+              "amount": 1500,
+              "status": "Active",
+              "dueDate": "2026-10-03",
+              "billingCycle": "Monthly",
+              "category": "Entertainment"
+            }
+          ],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(bill paused -> none)",
-      "input": ["paused -> none"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [
+            {
+              "id": "s1",
+              "name": "Netflix",
+              "amount": 1500,
+              "status": "Paused",
+              "dueDate": "2026-10-05",
+              "billingCycle": "Monthly",
+              "category": "Entertainment"
+            }
+          ],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(bill no dueDate -> none)",
-      "input": ["no dueDate -> none"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [
+            {
+              "id": "s1",
+              "name": "Netflix",
+              "amount": 1500,
+              "status": "Active",
+              "dueDate": "",
+              "billingCycle": "Monthly",
+              "category": "Entertainment"
+            }
+          ],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(debt due today)",
-      "input": ["debt due today"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [],
+          "debts": [
+            {
+              "id": "d1",
+              "debtSource": "Bank",
+              "dueDate": "2026-10-04",
+              "status": "Active",
+              "remainingAmount": 5000
+            }
+          ],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "debt-due-d1",
@@ -227,7 +561,25 @@
     },
     {
       "name": "computeAlerts(debt due tomorrow)",
-      "input": ["debt due tomorrow"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [],
+          "debts": [
+            {
+              "id": "d1",
+              "debtSource": "Bank",
+              "dueDate": "2026-10-05",
+              "status": "Active",
+              "remainingAmount": 5000
+            }
+          ],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "debt-due-d1",
@@ -240,17 +592,71 @@
     },
     {
       "name": "computeAlerts(fully repaid -> none)",
-      "input": ["fully repaid -> none"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [],
+          "debts": [
+            {
+              "id": "d1",
+              "debtSource": "Bank",
+              "dueDate": "2026-10-05",
+              "status": "Fully Repaid",
+              "remainingAmount": 5000
+            }
+          ],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(remaining 0 -> none)",
-      "input": ["remaining 0 -> none"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [],
+          "debts": [
+            {
+              "id": "d1",
+              "debtSource": "Bank",
+              "dueDate": "2026-10-05",
+              "status": "Active",
+              "remainingAmount": 0
+            }
+          ],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(goal 7 days left (boundary included))",
-      "input": ["7 days left (boundary included)"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [
+            {
+              "id": "g1",
+              "name": "Japan Trip",
+              "targetDate": "2026-10-11",
+              "current": 100,
+              "target": 1000
+            }
+          ],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "goal-soon-g1",
@@ -263,17 +669,71 @@
     },
     {
       "name": "computeAlerts(goal 8 days left -> none)",
-      "input": ["8 days left -> none"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [
+            {
+              "id": "g1",
+              "name": "Japan Trip",
+              "targetDate": "2026-10-12",
+              "current": 100,
+              "target": 1000
+            }
+          ],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(goal past target -> none)",
-      "input": ["past target -> none"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [
+            {
+              "id": "g1",
+              "name": "Japan Trip",
+              "targetDate": "2026-10-03",
+              "current": 100,
+              "target": 1000
+            }
+          ],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(goal today)",
-      "input": ["today"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [
+            {
+              "id": "g1",
+              "name": "Japan Trip",
+              "targetDate": "2026-10-04",
+              "current": 100,
+              "target": 1000
+            }
+          ],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "goal-soon-g1",
@@ -286,17 +746,106 @@
     },
     {
       "name": "computeAlerts(goal goal met -> none)",
-      "input": ["goal met -> none"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [
+            {
+              "id": "g1",
+              "name": "Japan Trip",
+              "targetDate": "2026-10-05",
+              "current": 1000,
+              "target": 1000
+            }
+          ],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(goal target 0 -> none)",
-      "input": ["target 0 -> none"],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [],
+          "debts": [],
+          "savingsGoals": [
+            {
+              "id": "g1",
+              "name": "Japan Trip",
+              "targetDate": "2026-10-05",
+              "current": 100,
+              "target": 0
+            }
+          ],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": []
     },
     {
       "name": "computeAlerts(all four types present -> emission order)",
-      "input": [],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [
+            {
+              "id": "b1",
+              "category": "Shopping",
+              "limit": 1000,
+              "spent": 0
+            }
+          ],
+          "subscriptions": [
+            {
+              "id": "s1",
+              "name": "Netflix",
+              "amount": 1500,
+              "status": "Active",
+              "dueDate": "2026-10-04",
+              "billingCycle": "Monthly",
+              "category": "Entertainment"
+            }
+          ],
+          "debts": [
+            {
+              "id": "d1",
+              "debtSource": "Bank",
+              "dueDate": "2026-10-05",
+              "status": "Active",
+              "remainingAmount": 5000
+            }
+          ],
+          "savingsGoals": [
+            {
+              "id": "g1",
+              "name": "Japan Trip",
+              "targetDate": "2026-10-06",
+              "current": 100,
+              "target": 1000
+            }
+          ],
+          "transactions": [
+            {
+              "id": "tx-1",
+              "title": "Groceries",
+              "category": "Shopping",
+              "type": "expense",
+              "amount": 1000,
+              "date": "2026-10-02",
+              "accountId": "ca-1"
+            }
+          ]
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "budget-over-b1",
@@ -330,7 +879,27 @@
     },
     {
       "name": "computeAlerts(currency spacing differs from lib/money formatMoney)",
-      "input": [],
+      "input": [
+        {
+          "currency": "Rs.",
+          "budgets": [],
+          "subscriptions": [
+            {
+              "id": "s1",
+              "name": "Netflix",
+              "amount": 1200,
+              "status": "Active",
+              "dueDate": "2026-10-04",
+              "billingCycle": "Monthly",
+              "category": "Entertainment"
+            }
+          ],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": {
         "alertsDetail": "Rs. 1,200 (Monthly).",
         "sharedFormatMoney": "Rs.1,200"
@@ -338,7 +907,27 @@
     },
     {
       "name": "computeAlerts(custom currency)",
-      "input": [],
+      "input": [
+        {
+          "currency": "$",
+          "budgets": [],
+          "subscriptions": [
+            {
+              "id": "s1",
+              "name": "Netflix",
+              "amount": 1200,
+              "status": "Active",
+              "dueDate": "2026-10-04",
+              "billingCycle": "Monthly",
+              "category": "Entertainment"
+            }
+          ],
+          "debts": [],
+          "savingsGoals": [],
+          "transactions": []
+        },
+        1791088200000
+      ],
       "expected": [
         {
           "id": "bill-due-s1",

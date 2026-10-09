@@ -5,17 +5,68 @@
     "unitFile": "src/services/transactionService.ts",
     "gitBlob": "455924faf315e1126544d1fad21c8354d3e627b0",
     "sha256": "86dc1b17a14677846bed8a5777e14966e68f51631b3340b397633b1c7c5aaa94",
+    "srcTree": "9921f3a476af55b8a7c452d27ed29e6a84336c10eb729cdcf51bac6a5e34db3d",
     "tz": "Asia/Colombo",
     "locale": "en-US",
     "node": "v24.19.0",
     "pinnedNow": "2026-10-04T04:30:00.000Z",
-    "generatedAt": "2026-10-06T09:18:10.513Z",
     "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
   },
   "cases": [
     {
       "name": "getFilteredTransactions(search=\"\")",
-      "input": [""],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        ""
+      ],
       "expected": [
         {
           "id": "t1",
@@ -68,7 +119,58 @@
     },
     {
       "name": "getFilteredTransactions(search=\"salar\")",
-      "input": ["salar"],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        "salar"
+      ],
       "expected": [
         {
           "id": "t2",
@@ -83,7 +185,58 @@
     },
     {
       "name": "getFilteredTransactions(search=\"SALARY\")",
-      "input": ["SALARY"],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        "SALARY"
+      ],
       "expected": [
         {
           "id": "t2",
@@ -98,7 +251,58 @@
     },
     {
       "name": "getFilteredTransactions(search=\"185\")",
-      "input": ["185"],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        "185"
+      ],
       "expected": [
         {
           "id": "t2",
@@ -113,17 +317,170 @@
     },
     {
       "name": "getFilteredTransactions(search=\"1E\")",
-      "input": ["1E"],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        "1E"
+      ],
       "expected": []
     },
     {
       "name": "getFilteredTransactions(search=\"zzz\")",
-      "input": ["zzz"],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        "zzz"
+      ],
       "expected": []
     },
     {
       "name": "getFilteredTransactions(search=\" \")",
-      "input": [" "],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        " "
+      ],
       "expected": [
         {
           "id": "t3",
@@ -149,12 +506,116 @@
     },
     {
       "name": "getFilteredTransactions(category exact case)",
-      "input": ["shopping"],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        "",
+        "shopping"
+      ],
       "expected": []
     },
     {
       "name": "getFilteredTransactions(category correct case)",
-      "input": ["Shopping"],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        "",
+        "Shopping"
+      ],
       "expected": [
         {
           "id": "t1",
@@ -169,7 +630,60 @@
     },
     {
       "name": "getFilteredTransactions(type=expense)",
-      "input": ["all", "expense"],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        "",
+        "all",
+        "expense"
+      ],
       "expected": [
         {
           "id": "t1",
@@ -184,7 +698,61 @@
     },
     {
       "name": "getFilteredTransactions(account=targetAccountId)",
-      "input": ["cc-1"],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        "",
+        "all",
+        "all",
+        "cc-1"
+      ],
       "expected": [
         {
           "id": "t3",
@@ -200,7 +768,61 @@
     },
     {
       "name": "getFilteredTransactions(account=targetAccountId of transfer)",
-      "input": ["ca-2"],
+      "input": [
+        [
+          {
+            "id": "t1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t2",
+            "title": "Salary",
+            "category": "Salary",
+            "type": "income",
+            "amount": 185000,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t3",
+            "title": "Card Bill",
+            "category": "Bills",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-10-03",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1"
+          },
+          {
+            "id": "t4",
+            "title": "ATM",
+            "category": "Cash",
+            "type": "withdrawal",
+            "amount": 20000,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "t5",
+            "title": "In",
+            "category": "Transfer In",
+            "type": "transfer",
+            "amount": 700,
+            "date": "2026-10-04",
+            "accountId": "ca-1",
+            "targetAccountId": "ca-2"
+          }
+        ],
+        "",
+        "all",
+        "all",
+        "ca-2"
+      ],
       "expected": [
         {
           "id": "t5",
@@ -216,7 +838,21 @@
     },
     {
       "name": "getFilteredTransactions(row missing title -> throws)",
-      "input": [],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": {
+              "__sentinel__": "undefined"
+            },
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": [
         {
           "id": "tx-1",
@@ -233,7 +869,21 @@
     },
     {
       "name": "getFilteredTransactions(row missing category -> throws)",
-      "input": [],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": {
+              "__sentinel__": "undefined"
+            },
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": [
         {
           "id": "tx-1",
@@ -250,12 +900,191 @@
     },
     {
       "name": "sortTransactionsByDate(desc) 4-level tiebreak",
-      "input": [],
+      "input": [
+        [
+          {
+            "id": "a1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "2026-10-02T10:00:00Z"
+          },
+          {
+            "id": "a2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "2026-10-02T10:00:00Z"
+          },
+          {
+            "id": "tx-1-2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "2026-10-02T10:00:00Z"
+          },
+          {
+            "id": "a9b",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "2026-10-02T10:00:00Z"
+          },
+          {
+            "id": "ab9",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "2026-10-02T10:00:00Z"
+          },
+          {
+            "id": "z1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "garbage"
+          },
+          {
+            "id": "z2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": {
+              "__sentinel__": "undefined"
+            },
+            "accountId": "ca-1",
+            "updated_at": {
+              "__sentinel__": "undefined"
+            },
+            "createdAt": {
+              "__sentinel__": "undefined"
+            }
+          },
+          {
+            "id": "b1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-05",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": ["b1", "tx-1-2", "ab9", "a9b", "a2", "a1", "z1", "z2"]
     },
     {
       "name": "sortTransactionsByDate(asc) 4-level tiebreak",
-      "input": [],
+      "input": [
+        [
+          {
+            "id": "a1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "2026-10-02T10:00:00Z"
+          },
+          {
+            "id": "a2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "2026-10-02T10:00:00Z"
+          },
+          {
+            "id": "tx-1-2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "2026-10-02T10:00:00Z"
+          },
+          {
+            "id": "a9b",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "2026-10-02T10:00:00Z"
+          },
+          {
+            "id": "ab9",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "2026-10-02T10:00:00Z"
+          },
+          {
+            "id": "z1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-02",
+            "accountId": "ca-1",
+            "updated_at": "garbage"
+          },
+          {
+            "id": "z2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": {
+              "__sentinel__": "undefined"
+            },
+            "accountId": "ca-1",
+            "updated_at": {
+              "__sentinel__": "undefined"
+            },
+            "createdAt": {
+              "__sentinel__": "undefined"
+            }
+          },
+          {
+            "id": "b1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-10-05",
+            "accountId": "ca-1"
+          }
+        ],
+        "asc"
+      ],
       "expected": ["z2", "z1", "a1", "a2", "a9b", "ab9", "tx-1-2", "b1"]
     },
     {
@@ -265,17 +1094,82 @@
     },
     {
       "name": "sortTransactionsByDate(prefers updated_at over date)",
-      "input": [],
+      "input": [
+        [
+          {
+            "id": "p1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-01-01",
+            "accountId": "ca-1",
+            "updated_at": "2026-12-01T00:00:00Z"
+          },
+          {
+            "id": "p2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-06-01",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": ["p1", "p2"]
     },
     {
       "name": "sortTransactionsByDate(camelCase keys honoured)",
-      "input": [],
+      "input": [
+        [
+          {
+            "id": "c1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-01-01",
+            "accountId": "ca-1",
+            "updatedAt": "2026-12-01T00:00:00Z"
+          },
+          {
+            "id": "c2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 1200,
+            "date": "2026-06-01",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": ["c1", "c2"]
     },
     {
       "name": "getMonthlyTotals(income)",
-      "input": ["income"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 0.1,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "m2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 0.2,
+            "date": "2026-10-03",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0.30000000000000004,
         "expense": 0,
@@ -284,7 +1178,28 @@
     },
     {
       "name": "getMonthlyTotals(deposit)",
-      "input": ["deposit"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "deposit",
+            "amount": 0.1,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "m2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "deposit",
+            "amount": 0.2,
+            "date": "2026-10-03",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0.30000000000000004,
         "expense": 0,
@@ -293,7 +1208,28 @@
     },
     {
       "name": "getMonthlyTotals(expense)",
-      "input": ["expense"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 0.1,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "m2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "expense",
+            "amount": 0.2,
+            "date": "2026-10-03",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0.30000000000000004,
@@ -302,7 +1238,28 @@
     },
     {
       "name": "getMonthlyTotals(credit_card_charge)",
-      "input": ["credit_card_charge"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "credit_card_charge",
+            "amount": 0.1,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "m2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "credit_card_charge",
+            "amount": 0.2,
+            "date": "2026-10-03",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0.30000000000000004,
@@ -311,7 +1268,28 @@
     },
     {
       "name": "getMonthlyTotals(withdrawal)",
-      "input": ["withdrawal"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "withdrawal",
+            "amount": 0.1,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "m2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "withdrawal",
+            "amount": 0.2,
+            "date": "2026-10-03",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0.30000000000000004,
@@ -320,7 +1298,28 @@
     },
     {
       "name": "getMonthlyTotals(debt_payment (excluded from both))",
-      "input": ["debt_payment"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 0.1,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "m2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 0.2,
+            "date": "2026-10-03",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0,
@@ -329,7 +1328,28 @@
     },
     {
       "name": "getMonthlyTotals(transfer (excluded from both))",
-      "input": ["transfer"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "transfer",
+            "amount": 0.1,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "m2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "transfer",
+            "amount": 0.2,
+            "date": "2026-10-03",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0,
@@ -338,7 +1358,28 @@
     },
     {
       "name": "getMonthlyTotals(financing (excluded from both))",
-      "input": ["financing"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "financing",
+            "amount": 0.1,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "m2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "financing",
+            "amount": 0.2,
+            "date": "2026-10-03",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0,
@@ -356,7 +1397,37 @@
     },
     {
       "name": "getMonthlyTotals(float residue survives (B-04))",
-      "input": [],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 0.1,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "f2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 0.2,
+            "date": "2026-10-03",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "f3",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 0.3,
+            "date": "2026-10-04",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0.6000000000000001,
         "expense": 0,
@@ -365,7 +1436,19 @@
     },
     {
       "name": "getMonthlyTotals(string amount concatenates)",
-      "input": [],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": "5",
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": "05",
         "expense": 0,
@@ -374,7 +1457,19 @@
     },
     {
       "name": "getMonthlyTotals(date 2026-10-01)",
-      "input": ["2026-10-01"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 100,
+            "date": "2026-10-01",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 100,
         "expense": 0,
@@ -383,7 +1478,19 @@
     },
     {
       "name": "getMonthlyTotals(date 2026-09-30)",
-      "input": ["2026-09-30"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 100,
+            "date": "2026-09-30",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0,
@@ -392,7 +1499,19 @@
     },
     {
       "name": "getMonthlyTotals(date 2026-10-31)",
-      "input": ["2026-10-31"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 100,
+            "date": "2026-10-31",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 100,
         "expense": 0,
@@ -401,7 +1520,19 @@
     },
     {
       "name": "getMonthlyTotals(date 2026-11-01)",
-      "input": ["2026-11-01"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 100,
+            "date": "2026-11-01",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0,
@@ -410,7 +1541,19 @@
     },
     {
       "name": "getMonthlyTotals(date 2026-01-01)",
-      "input": ["2026-01-01"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 100,
+            "date": "2026-01-01",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0,
@@ -419,7 +1562,19 @@
     },
     {
       "name": "getMonthlyTotals(date 2025-10-04)",
-      "input": ["2025-10-04"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 100,
+            "date": "2025-10-04",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0,
@@ -428,7 +1583,19 @@
     },
     {
       "name": "getMonthlyTotals(date garbage)",
-      "input": ["garbage"],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 100,
+            "date": "garbage",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0,
@@ -437,7 +1604,19 @@
     },
     {
       "name": "getMonthlyTotals(date empty)",
-      "input": [""],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 100,
+            "date": "",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "income": 0,
         "expense": 0,
@@ -446,7 +1625,28 @@
     },
     {
       "name": "getMonthlyTotals vs money.ts sumMoney of the same rows",
-      "input": [],
+      "input": [
+        [
+          {
+            "id": "tx-1",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 0.1,
+            "date": "2026-10-02",
+            "accountId": "ca-1"
+          },
+          {
+            "id": "x2",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "income",
+            "amount": 0.2,
+            "date": "2026-10-03",
+            "accountId": "ca-1"
+          }
+        ]
+      ],
       "expected": {
         "service": 0.30000000000000004,
         "viaMoney": 0.3

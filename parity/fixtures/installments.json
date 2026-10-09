@@ -5,11 +5,11 @@
     "unitFile": "src/lib/installments.ts",
     "gitBlob": "c656e037fb0842cace4a95c84f6167d09898d4bf",
     "sha256": "eb499ea65f59deb59aa37ad8f492e823af996c810f22a1df9acbd410fb060ab1",
+    "srcTree": "9921f3a476af55b8a7c452d27ed29e6a84336c10eb729cdcf51bac6a5e34db3d",
     "tz": "Asia/Colombo",
     "locale": "en-US",
     "node": "v24.19.0",
     "pinnedNow": "2026-10-04T04:30:00.000Z",
-    "generatedAt": "2026-10-06T09:18:10.505Z",
     "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
   },
   "cases": [
@@ -753,7 +753,19 @@
     },
     {
       "name": "isCardEligibleForInstallment(debit)",
-      "input": [50000],
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "Commercial Bank",
+          "cardType": "Debit",
+          "currentBalance": 74250,
+          "cardNumber": "4520 **** **** 3776",
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        50000
+      ],
       "expected": {
         "eligible": false,
         "reason": "Only credit cards support installment plans"
@@ -761,7 +773,22 @@
     },
     {
       "name": "isCardEligibleForInstallment(cancelled)",
-      "input": [50000],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": true,
+          "isFrozen": false
+        },
+        50000
+      ],
       "expected": {
         "eligible": false,
         "reason": "Card is cancelled"
@@ -769,7 +796,22 @@
     },
     {
       "name": "isCardEligibleForInstallment(frozen)",
-      "input": [50000],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": true
+        },
+        50000
+      ],
       "expected": {
         "eligible": false,
         "reason": "Card is frozen"
@@ -777,7 +819,22 @@
     },
     {
       "name": "isCardEligibleForInstallment(below minimum)",
-      "input": [4999],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        4999
+      ],
       "expected": {
         "eligible": false,
         "reason": "Minimum installment amount is Rs. 5,000"
@@ -785,21 +842,66 @@
     },
     {
       "name": "isCardEligibleForInstallment(at minimum)",
-      "input": [5000],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        5000
+      ],
       "expected": {
         "eligible": true
       }
     },
     {
       "name": "isCardEligibleForInstallment(above minimum)",
-      "input": [5001],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        5001
+      ],
       "expected": {
         "eligible": true
       }
     },
     {
       "name": "isCardEligibleForInstallment(over limit)",
-      "input": [6000],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -300000,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        6000
+      ],
       "expected": {
         "eligible": false,
         "reason": "Card is over limit by Rs. 50000.00. Pay down balance before creating installment plans."
@@ -807,7 +909,22 @@
     },
     {
       "name": "isCardEligibleForInstallment(exactly at limit)",
-      "input": [6000],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -250000,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        6000
+      ],
       "expected": {
         "eligible": false,
         "reason": "Purchase exceeds available credit of Rs. 0.00"
@@ -815,7 +932,22 @@
     },
     {
       "name": "isCardEligibleForInstallment(exceeds available)",
-      "input": [20000],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": 5000,
+          "limit": 10000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        20000
+      ],
       "expected": {
         "eligible": false,
         "reason": "Purchase exceeds available credit of Rs. 15000.00"
@@ -823,7 +955,24 @@
     },
     {
       "name": "isCardEligibleForInstallment(no limit set)",
-      "input": [6000],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": {
+            "__sentinel__": "undefined"
+          },
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        6000
+      ],
       "expected": {
         "eligible": false,
         "reason": "Card is over limit by Rs. 38420.00. Pay down balance before creating installment plans."
@@ -831,14 +980,59 @@
     },
     {
       "name": "isCardEligibleForInstallment(full available)",
-      "input": [250000],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": 0,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        250000
+      ],
       "expected": {
         "eligible": true
       }
     },
     {
       "name": "getInstallmentProgress(none paid)",
-      "input": ["none paid"],
+      "input": [
+        {
+          "id": "inst-1"
+        },
+        [
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 1,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-02-15",
+            "status": "pending"
+          },
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 2,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-03-15",
+            "status": "pending"
+          },
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 3,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-04-15",
+            "status": "pending"
+          }
+        ]
+      ],
       "expected": {
         "paid": 0,
         "total": 3,
@@ -848,7 +1042,37 @@
     },
     {
       "name": "getInstallmentProgress(first paid)",
-      "input": ["first paid"],
+      "input": [
+        {
+          "id": "inst-1"
+        },
+        [
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 1,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-02-15",
+            "status": "paid"
+          },
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 2,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-03-15",
+            "status": "pending"
+          },
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 3,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-04-15",
+            "status": "pending"
+          }
+        ]
+      ],
       "expected": {
         "paid": 1,
         "total": 3,
@@ -858,7 +1082,37 @@
     },
     {
       "name": "getInstallmentProgress(all paid)",
-      "input": ["all paid"],
+      "input": [
+        {
+          "id": "inst-1"
+        },
+        [
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 1,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-02-15",
+            "status": "paid"
+          },
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 2,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-03-15",
+            "status": "paid"
+          },
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 3,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-04-15",
+            "status": "paid"
+          }
+        ]
+      ],
       "expected": {
         "paid": 3,
         "total": 3,
@@ -868,7 +1122,12 @@
     },
     {
       "name": "getInstallmentProgress(no rows)",
-      "input": ["no rows"],
+      "input": [
+        {
+          "id": "inst-1"
+        },
+        []
+      ],
       "expected": {
         "paid": 0,
         "total": 0,
@@ -878,7 +1137,45 @@
     },
     {
       "name": "getInstallmentProgress(foreign installment row included)",
-      "input": ["foreign installment row included"],
+      "input": [
+        {
+          "id": "inst-1"
+        },
+        [
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 1,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-02-15",
+            "status": "pending"
+          },
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 2,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-03-15",
+            "status": "pending"
+          },
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 3,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-04-15",
+            "status": "pending"
+          },
+          {
+            "installmentId": "other",
+            "paymentNumber": 9,
+            "amountDue": 1,
+            "amountPaid": 1,
+            "dueDate": "2026-05-15",
+            "status": "paid"
+          }
+        ]
+      ],
       "expected": {
         "paid": 0,
         "total": 3,
@@ -888,7 +1185,37 @@
     },
     {
       "name": "getInstallmentProgress(partially paid mid-list)",
-      "input": [],
+      "input": [
+        {
+          "id": "inst-1"
+        },
+        [
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 2,
+            "amountDue": 1000,
+            "amountPaid": 1000,
+            "dueDate": "2026-03-15",
+            "status": "paid"
+          },
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 1,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-02-15",
+            "status": "pending"
+          },
+          {
+            "installmentId": "inst-1",
+            "paymentNumber": 3,
+            "amountDue": 1000,
+            "amountPaid": 0,
+            "dueDate": "2026-04-15",
+            "status": "pending"
+          }
+        ]
+      ],
       "expected": {
         "paid": 1,
         "total": 3,

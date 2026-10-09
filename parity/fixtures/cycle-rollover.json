@@ -5,24 +5,80 @@
     "unitFile": "src/lib/creditCards.ts",
     "gitBlob": "7b5cbee58e5c9478294e4d99287d987e0f52c92d",
     "sha256": "31719541f54b4aafa6870d9a602a229e09b30a0c9299f4b50865d3c23ce4efcf",
+    "srcTree": "9921f3a476af55b8a7c452d27ed29e6a84336c10eb729cdcf51bac6a5e34db3d",
     "tz": "Asia/Colombo",
     "locale": "en-US",
     "node": "v24.19.0",
     "pinnedNow": "2026-10-04T04:30:00.000Z",
-    "generatedAt": "2026-10-06T09:18:10.503Z",
     "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
   },
   "cases": [
     {
       "name": "runCycleRollover(cycle still open — day before deduction)",
-      "input": [{}, "2026-10-14"],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "a",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "2026-10-14"
+      ],
       "expected": {
         "__sentinel__": "undefined-result"
       }
     },
     {
       "name": "runCycleRollover(exactly on deduction day)",
-      "input": [{}, "2026-10-15"],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "a",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "2026-10-15"
+      ],
       "expected": {
         "currentBalance": -39206.29,
         "dueDate": "2026-11-07",
@@ -40,7 +96,35 @@
     },
     {
       "name": "runCycleRollover(day after deduction)",
-      "input": [{}, "2026-10-16"],
+      "input": [
+        {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
+        },
+        [
+          {
+            "id": "a",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
+        "2026-10-16"
+      ],
       "expected": {
         "currentBalance": -39206.29,
         "dueDate": "2026-11-07",
@@ -60,10 +144,21 @@
       "name": "runCycleRollover(no due date configured)",
       "input": [
         {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
           "dueDate": {
             "__sentinel__": "undefined"
-          }
+          },
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [],
         "2026-12-01"
       ],
       "expected": {
@@ -74,8 +169,31 @@
       "name": "runCycleRollover(minimum unpaid -> late fee + interest)",
       "input": [
         {
-          "minPayment": 1921
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [
+          {
+            "id": "outside",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 5000,
+            "date": "2026-08-01",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
         "2026-10-15"
       ],
       "expected": {
@@ -104,8 +222,31 @@
       "name": "runCycleRollover(minimum paid in window -> interest only)",
       "input": [
         {
-          "minPayment": 1921
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [
+          {
+            "id": "ok",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 1921,
+            "date": "2026-09-20",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
         "2026-10-15"
       ],
       "expected": {
@@ -127,8 +268,31 @@
       "name": "runCycleRollover(bank deduction on the 15th satisfies minimum)",
       "input": [
         {
-          "minPayment": 1921
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [
+          {
+            "id": "deduct",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 1921,
+            "date": "2026-10-15",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
         "2026-10-15"
       ],
       "expected": {
@@ -150,10 +314,21 @@
       "name": "runCycleRollover(minPayment unset -> never a late fee)",
       "input": [
         {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
           "minPayment": {
             "__sentinel__": "undefined"
-          }
+          },
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [],
         "2026-10-15"
       ],
       "expected": {
@@ -175,9 +350,19 @@
       "name": "runCycleRollover(no APR -> no interest charge)",
       "input": [
         {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
           "apr": 0,
-          "minPayment": 1921
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [],
         "2026-10-15"
       ],
       "expected": {
@@ -199,11 +384,21 @@
       "name": "runCycleRollover(NaN APR)",
       "input": [
         {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
           "apr": {
             "__sentinel__": "NaN"
           },
-          "minPayment": 1921
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [],
         "2026-10-15"
       ],
       "expected": {
@@ -225,9 +420,19 @@
       "name": "runCycleRollover(credit balance (no debt) -> clears dates)",
       "input": [
         {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
           "currentBalance": 5000,
-          "minPayment": 1921
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [],
         "2026-10-15"
       ],
       "expected": {
@@ -245,9 +450,19 @@
       "name": "runCycleRollover(zero balance with a due date)",
       "input": [
         {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
           "currentBalance": 0,
-          "minPayment": 1921
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [],
         "2026-10-15"
       ],
       "expected": {
@@ -265,10 +480,19 @@
       "name": "runCycleRollover(over-limit card recomputes minimum)",
       "input": [
         {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
           "currentBalance": -260000,
           "limit": 250000,
-          "minPayment": 13000
+          "dueDate": "2026-10-07",
+          "minPayment": 13000,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [],
         "2026-10-15"
       ],
       "expected": {
@@ -297,9 +521,32 @@
       "name": "runCycleRollover(statement close date anchors the window)",
       "input": [
         {
-          "statementCloseDate": "2026-09-28",
-          "minPayment": 1921
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false,
+          "statementCloseDate": "2026-09-28"
         },
+        [
+          {
+            "id": "anchor",
+            "title": "Groceries",
+            "category": "Shopping",
+            "type": "debt_payment",
+            "amount": 1921,
+            "date": "2026-09-28",
+            "accountId": "ca-1",
+            "targetAccountId": "cc-1",
+            "targetAccountType": "card"
+          }
+        ],
         "2026-10-15"
       ],
       "expected": {
@@ -321,10 +568,19 @@
       "name": "runCycleRollover(charges settle the balance to exactly zero)",
       "input": [
         {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
           "currentBalance": -100,
+          "limit": 250000,
+          "dueDate": "2026-10-07",
           "minPayment": 50,
-          "apr": 0
+          "apr": 0,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [],
         "2026-10-15"
       ],
       "expected": {
@@ -346,10 +602,20 @@
       "name": "runCycleRollover(leap February cycle)",
       "input": [
         {
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
           "dueDate": "2028-02-07",
-          "statementCloseDate": "2028-01-28",
-          "minPayment": 1000
+          "minPayment": 1000,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false,
+          "statementCloseDate": "2028-01-28"
         },
+        [],
         "2028-02-15"
       ],
       "expected": {
@@ -378,8 +644,19 @@
       "name": "runCycleRollover(December rollover advances across the year)",
       "input": [
         {
-          "dueDate": "2026-12-07"
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
+          "currentBalance": -38420,
+          "limit": 250000,
+          "dueDate": "2026-12-07",
+          "minPayment": 1921,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [],
         "2026-12-15"
       ],
       "expected": {
@@ -408,10 +685,19 @@
       "name": "runCycleRollover(Jan-31 due date drifts after clamping)",
       "input": [
         {
-          "dueDate": "2026-01-31",
+          "id": "cc-1",
+          "cardName": "Travel Credit",
+          "bankName": "National Savings",
+          "cardType": "Credit",
           "currentBalance": -5000,
-          "minPayment": 250
+          "limit": 250000,
+          "dueDate": "2026-01-31",
+          "minPayment": 250,
+          "apr": 24.9,
+          "isCanceled": false,
+          "isFrozen": false
         },
+        [],
         "2026-01-15"
       ],
       "expected": {
@@ -438,7 +724,42 @@
     },
     {
       "name": "runCycleRollover applied twice double-charges",
-      "input": ["same card, same cycle"],
+      "input": [
+        [
+          {
+            "id": "cc-1",
+            "cardName": "Travel Credit",
+            "bankName": "National Savings",
+            "cardType": "Credit",
+            "currentBalance": -38420,
+            "limit": 250000,
+            "dueDate": "2026-10-07",
+            "minPayment": 1921,
+            "apr": 24.9,
+            "isCanceled": false,
+            "isFrozen": false
+          },
+          [],
+          "2026-10-15"
+        ],
+        [
+          {
+            "id": "cc-1",
+            "cardName": "Travel Credit",
+            "bankName": "National Savings",
+            "cardType": "Credit",
+            "currentBalance": -40406.29,
+            "limit": 250000,
+            "dueDate": "2026-10-07",
+            "minPayment": 1921,
+            "apr": 24.9,
+            "isCanceled": false,
+            "isFrozen": false
+          },
+          [],
+          "2026-10-15"
+        ]
+      ],
       "expected": {
         "firstBalance": -40406.29,
         "secondBalance": -42433.24

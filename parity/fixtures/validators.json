@@ -5,11 +5,11 @@
     "unitFile": "src/validators/index.ts",
     "gitBlob": "06b2326a5023c8d88ef9e6b312ec783321f85a2f",
     "sha256": "8a7c428fbb69b595584d69b7df12e78bcef358bdd0d8e912e073727d49fb7061",
+    "srcTree": "9921f3a476af55b8a7c452d27ed29e6a84336c10eb729cdcf51bac6a5e34db3d",
     "tz": "Asia/Colombo",
     "locale": "en-US",
     "node": "v24.19.0",
     "pinnedNow": "2026-10-04T04:30:00.000Z",
-    "generatedAt": "2026-10-06T09:18:10.520Z",
     "sentinelAlphabet": ["NaN", "Infinity", "-Infinity", "-0", "undefined", "undefined-result"]
   },
   "cases": [
@@ -204,6 +204,26 @@
       }
     },
     {
+      "name": "validateData(BankCard missing cardType (required enum names its options))",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": {
+            "__sentinel__": "undefined"
+          },
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "cardType: Invalid option: expected one of \"Debit\"|\"Credit\""
+      }
+    },
+    {
       "name": "validateData(BankCard id empty string)",
       "input": [
         {
@@ -392,6 +412,44 @@
       "expected": {
         "ok": false,
         "error": "cardName: Card name contains illegal HTML characters"
+      }
+    },
+    {
+      "name": "validateData(BankCard Infinity currentBalance (the type check, not finite()))",
+      "input": [
+        {
+          "id": "cd-1",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Debit",
+          "currentBalance": {
+            "__sentinel__": "Infinity"
+          },
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "currentBalance: Invalid input: expected number, received number"
+      }
+    },
+    {
+      "name": "validateData(BankCard two failures joined in schema key order)",
+      "input": [
+        {
+          "id": "",
+          "cardName": "Everyday Debit",
+          "bankName": "CB",
+          "cardType": "Prepaid",
+          "currentBalance": 74250,
+          "cardNumber": "•••• •••• •••• 3776",
+          "isCanceled": false
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "id: ID is required; cardType: Invalid option: expected one of \"Debit\"|\"Credit\""
       }
     },
     {
@@ -640,6 +698,48 @@
       }
     },
     {
+      "name": "validateData(Subscription unknown category (closed enum, unlike Transaction))",
+      "input": [
+        {
+          "id": "s",
+          "name": "Netflix",
+          "amount": 1500,
+          "billingCycle": "Monthly",
+          "category": "Kryptokurrency",
+          "dueDate": "2026-10-04"
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "category: Invalid option: expected one of \"Food\"|\"Transport\"|\"Shopping\"|\"Utilities\"|\"Rent\"|\"Entertainment\"|\"Medical\"|\"Education\"|\"Insurance\"|\"Loan\"|\"Bank Charges & Interest\"|\"Other\""
+      }
+    },
+    {
+      "name": "validateData(Subscription status defaulted)",
+      "input": [
+        {
+          "id": "s",
+          "name": "Netflix",
+          "amount": 1500,
+          "billingCycle": "Monthly",
+          "category": "Entertainment",
+          "dueDate": "2026-10-04"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "id": "s",
+          "name": "Netflix",
+          "amount": 1500,
+          "billingCycle": "Monthly",
+          "dueDate": "2026-10-04",
+          "category": "Entertainment",
+          "status": "Active"
+        }
+      }
+    },
+    {
       "name": "validateData(LedgerRestorePayload union: v1 export branch)",
       "input": [
         {
@@ -667,6 +767,259 @@
       "expected": {
         "ok": false,
         "error": "Root: Invalid input"
+      }
+    },
+    {
+      "name": "validateData(LedgerRestorePayload union: bare state branch accepted)",
+      "input": [
+        {
+          "cashAccounts": [],
+          "cards": [],
+          "transactions": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "cashAccounts": [],
+          "cards": [],
+          "transactions": []
+        }
+      }
+    },
+    {
+      "name": "validateData(LedgerRestorePayload union: v1 envelope branch accepted)",
+      "input": [
+        {
+          "version": "EM_BUDGET_SECURE_EX_V1",
+          "data": {
+            "cashAccounts": [],
+            "cards": [],
+            "transactions": []
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "version": "EM_BUDGET_SECURE_EX_V1",
+          "data": {
+            "cashAccounts": [],
+            "cards": [],
+            "transactions": []
+          }
+        }
+      }
+    },
+    {
+      "name": "validateData(LedgerRestorePayload union: bare state branch missing transactions)",
+      "input": [
+        {
+          "cashAccounts": [],
+          "cards": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "Root: Invalid input"
+      }
+    },
+    {
+      "name": "validateData(LedgerRestorePayload union: bare state branch with a non-array collection)",
+      "input": [
+        {
+          "cashAccounts": "[]",
+          "cards": [],
+          "transactions": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "Root: Invalid input"
+      }
+    },
+    {
+      "name": "validateData(Debt payment fails two messageless checks (default min and regex, dotted path))",
+      "input": [
+        {
+          "id": "d",
+          "debtSource": "Bank",
+          "totalAmount": 1000,
+          "remainingAmount": 500,
+          "dueDate": "2026-10-07",
+          "payments": [
+            {
+              "id": "p",
+              "debtId": "",
+              "amount": 1,
+              "date": "bad",
+              "paidFromId": "a",
+              "paidFromType": "cash"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "payments.0.debtId: Too small: expected string to have >=1 characters; payments.0.date: Invalid string: must match pattern /^\\d{4}-\\d{2}-\\d{2}/"
+      }
+    },
+    {
+      "name": "validateData(Debt notes over the messageless max)",
+      "input": [
+        {
+          "id": "d",
+          "debtSource": "Bank",
+          "totalAmount": 1000,
+          "remainingAmount": 500,
+          "dueDate": "2026-10-07",
+          "notes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "notes: Too big: expected string to have <=500 characters"
+      }
+    },
+    {
+      "name": "validateData(Debt payments is not an array)",
+      "input": [
+        {
+          "id": "d",
+          "debtSource": "Bank",
+          "totalAmount": 1000,
+          "remainingAmount": 500,
+          "dueDate": "2026-10-07",
+          "payments": "x"
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "payments: Invalid input: expected array, received string"
+      }
+    },
+    {
+      "name": "validateData(Debt negative remainingAmount (the messageless nonnegative))",
+      "input": [
+        {
+          "id": "d",
+          "debtSource": "Bank",
+          "totalAmount": 1000,
+          "remainingAmount": -1,
+          "dueDate": "2026-10-07"
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "remainingAmount: Too small: expected number to be >=0"
+      }
+    },
+    {
+      "name": "validateData(Debt whole payload is null (the issue is at the Root))",
+      "input": [null],
+      "expected": {
+        "ok": false,
+        "error": "Root: Invalid input: expected object, received null"
+      }
+    },
+    {
+      "name": "validateData(Subscription name over the messageless max)",
+      "input": [
+        {
+          "id": "s",
+          "name": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+          "amount": 1500,
+          "billingCycle": "Monthly",
+          "category": "Entertainment",
+          "status": "Active",
+          "dueDate": "2026-10-04"
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "name: Too big: expected string to have <=60 characters"
+      }
+    },
+    {
+      "name": "validateData(LedgerExportV1 wrong literal)",
+      "input": [
+        {
+          "version": "OTHER",
+          "data": {
+            "cashAccounts": [],
+            "cards": [],
+            "transactions": []
+          }
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "version: Invalid input: expected \"EM_BUDGET_SECURE_EX_V1\""
+      }
+    },
+    {
+      "name": "validateData(LedgerExportV1 missing version (a required literal absent))",
+      "input": [
+        {
+          "data": {
+            "cashAccounts": [],
+            "cards": [],
+            "transactions": []
+          }
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "version: Invalid input: expected \"EM_BUDGET_SECURE_EX_V1\""
+      }
+    },
+    {
+      "name": "validateData(BareRestore missing cashAccounts (a required array absent))",
+      "input": [
+        {
+          "cards": [],
+          "transactions": []
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "error": "cashAccounts: Invalid input: expected array, received undefined"
+      }
+    },
+    {
+      "name": "validateData(BareRestore keeps unknown element values)",
+      "input": [
+        {
+          "cashAccounts": [
+            1,
+            "a",
+            null,
+            {
+              "z": 1
+            },
+            [2]
+          ],
+          "cards": [],
+          "transactions": [],
+          "budgets": []
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "parsed": {
+          "cashAccounts": [
+            1,
+            "a",
+            null,
+            {
+              "z": 1
+            },
+            [2]
+          ],
+          "cards": [],
+          "transactions": [],
+          "budgets": []
+        }
       }
     }
   ]

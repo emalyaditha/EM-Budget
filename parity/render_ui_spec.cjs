@@ -974,6 +974,13 @@ put(
       'On the web, revoking all devices removes the *cookie*, so the browser loses trust on next load. A phone holds the session token in secure storage and is not affected by any cookie deletion, and there is no token revocation list to consult. The asymmetry is inherent to the unchanged server, not a porting mistake.',
       'Report it, do not fix it. The phone reproduces the web’s *token* semantics exactly; only the cookie half has no native twin. Phase 7 must state this in the trust-device screen copy so a user is not told a phone was revoked when it was not.',
     ],
+    [
+      'D-U16',
+      'Receipt scanning / OCR — **hidden on mobile v1 (D40)**',
+      'Every scanning affordance sits behind one component with one mount: `src/components/ReceiptScanner.tsx` (drag-and-drop zone `:287`, click-to-pick `:288`, the hidden `<input type="file" accept="image/*">` `:295`, `Scan Issue` `:347`, the edit form and its post button `:430`), mounted only at `src/components/InflowsOutflows.tsx:296` (import `:5`), which `src/App.tsx:4456` renders in the `inflow_outflow` tab (lazy chunk `src/App.tsx:86`). Client-side parsing is `src/utils/freeOcrParser.ts` (tesseract.js), tested by `src/ocr-parser.test.ts`; the server path is `POST /api/ocr/free-scan`.',
+      'Deferred, not unbuildable. D40 at the Phase 4 gate moved OCR out of mobile v1, so no phone screen may open a camera sheet or accept an image drop for scanning, and the capture that was to measure the browser-OCR ↔ server-OCR ↔ parser contract (#65) is parked — there is no golden for any of it.',
+      '**No screen, no affordance, no OCR call in v1.** The plan stands for when OCR is added: scan through `POST /api/ocr/free-scan`, keep `freeOcrParser.ts` server-side, and measure the three-way contract (D28/D32) rather than write it. The recorder scaffold is committed on `feature/ocr-three-way-contract`, local only. Not to be confused with the web’s voucher controls — `LoansTracker.tsx:568` “Post receipt”, `DebtDetailModal.tsx:207` “Receipt account”, `DebtTracker.tsx:308` “Other / no receipt”, the `Receipt` icons at `CreditCardManagement.tsx:430` and `:649` and `ui/CategoryChip.tsx:36` and `:84`, and the avatar image picker at `ProfileSection.tsx:127-129`: none of them scan, and all of them are ported normally.',
+    ],
   ];
   table(['id', 'subject', 'evidence', 'why the phone differs', 'proposed handling'], rows);
 }
@@ -1062,8 +1069,19 @@ if (!fs.existsSync(MAN_PATH)) {
     '  seed, and both are your call, not mine.',
     '- Overlays, modals and the gates (`LockScreen`, `EmailLogin`, `SettingsModal`) are absent for a',
     '  simpler reason: the harness walks the eight tabs as the page loads them, and nothing opens those',
-    '  surfaces. Each is baselined with its own screen in Phase 4, where the interaction that opens it is',
-    '  ported too.',
+    '  surfaces. Each is baselined with its own screen in Phase 5, where the interaction that opens it and',
+    '  the control state itself are ported together. (This line said Phase 4 until the D39 ruling: Phase 4',
+    '  delivered logic units only, and `mobile/lib/presentation/` is still empty, so no overlay has a screen',
+    '  to baseline yet. Phase 5 is the design-system phase, and `BUGS_FOUND.md` B-25 already counted on that.)',
+    '- **B-25 is a deliberate, ruled deviation on this screen — D39, Phase 4 gate.** When a manual cloud pull',
+    '  times out, the web leaves the Settings sync panel dead for the rest of the session: the 15 s wall sits',
+    "  outside `doSync`'s `try/catch` (`src/supabase.ts:1167-1171`), so the expiry rejects; `handlePullSync`",
+    '  awaits without a `catch` (`src/components/SettingsModal.tsx:219`), so `syncStatus` never leaves',
+    "  `'loading'` and both buttons stay `disabled` (`:614`, `:626`). The phone must not inherit that: it",
+    "  catches, shows `error ?? 'No backup found.'`, and leaves both controls enabled. The wording is the web's",
+    '  own — `JsError.message` carries `syncStateFromSupabase timed out after 15000ms` verbatim — so the phone',
+    '  displays an error message the web never manages to show. The repository contract is unchanged and still',
+    '  rejects (`mobile/lib/data/ledger_repository.dart:260-270`); the web fix is on the post-parity list.',
     '',
   );
 }
@@ -1090,7 +1108,12 @@ put(
   '',
 );
 put('---', '');
-put(`Rendered by \`parity/render_ui_spec.cjs\` from \`parity/ui-tokens.json\` at ${new Date().toISOString()}.`);
+put(`Rendered by \`parity/render_ui_spec.cjs\` from \`parity/ui-tokens.json\` at tag \`${TAG}\` (${commitSha}).`, '');
+put(
+  'No render timestamp is stamped here: rendering the same measurement file twice must produce the ' +
+    'same bytes, so a dirty `UI_SPEC.md` always means the inputs changed (D33).',
+  '',
+);
 
 // Prettier formats the output on the way to disk. Its config is resolved from the
 // repo rather than hardcoded, so `npm run format:check` sees exactly these bytes.

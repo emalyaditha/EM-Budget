@@ -1,0 +1,21 @@
+# The measured goldens are compared byte-for-byte across machines (Windows dev box,
+# Linux CI) and read by both Node and Dart, so they are stored and checked out with LF
+# even though this repo's core.autocrlf is true. Since the #64 gate the whole parity/
+# tree shares that rule, because harness specs and live fixtures are re-run byte-wise
+# too; web-app source keeps the repo's existing autocrlf behaviour, deliberately
+# unchanged — the only exception below is the image rule added at the D41 gate.
+parity/fixtures/*.json text eol=lf
+parity/** text eol=lf
+
+# D41: the line above is a catch-all, and `text` is not "text=auto" — git applies it to
+# the screenshot baselines too, whose bytes include 0D 0A on purpose (a PNG signature is
+# 89 50 4E 47 0D 0A 1A 0A). Check-in under that rule strips every CRLF pair, so re-adding
+# a baseline stores a corrupt file, and `git status` reports all 48 as modified while they
+# are byte-identical to their blobs. Checkout is NOT lossy — measured, a `core.autocrlf=false`
+# clone writes the PNG back exactly as stored — so only a re-add can damage them. One line per
+# extension: git does not expand braces.
+# `binary` is the documented unset of `text`, so these paths are stored and restored as-is.
+parity/**/*.png binary
+parity/**/*.jpg binary
+parity/**/*.jpeg binary
+parity/**/*.webp binary
