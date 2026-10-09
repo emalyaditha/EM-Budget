@@ -274,6 +274,56 @@ describe('supabase.ts — sync functions', () => {
     });
   });
 
+  // ─── B-23 — the JSON-only collections ─────────────────────────────────────
+  describe('syncStateFromSupabase — creditCardPurchases round-trips', () => {
+    // `credit_card_purchases` has no relational table: it is written into the
+    // `ledger_states.state` snapshot by every push (`supabase.ts:761`, `:824-833`) and
+    // rendered from state by `CreditCardManagement.tsx:814`. Before the fix the pull
+    // never read it back, so a re-hydration emptied the list and the next push destroyed
+    // the only cloud copy. See parity/BUGS_FOUND.md B-23.
+    it('restores creditCardPurchases from the ledger_states snapshot', async () => {
+      markEmailAsLoadedFromCloud('test@example.com');
+
+      const purchases = [{ id: 'cp-1', installmentId: 'inst-1', amount: 4999, date: '2026-09-30', bankName: 'HNB' }];
+      mockCreateClient.mockImplementation(() => ({
+        from: vi.fn((table: string) => {
+          const chain = createChain();
+          if (table === 'ledger_states') {
+            chain.maybeSingle.mockResolvedValue({
+              data: { state: { creditCardPurchases: purchases } },
+              error: null,
+            });
+          }
+          return chain;
+        }) as unknown as Mock<() => MockChain>,
+        rpc: vi.fn().mockResolvedValue({ data: { success: true }, error: null }),
+      }));
+
+      const result = await syncStateFromSupabase('test@example.com');
+      expect(result.success).toBe(true);
+      expect(result.state?.creditCardPurchases).toEqual(purchases);
+    });
+
+    it('leaves the default when the snapshot holds no purchases', async () => {
+      markEmailAsLoadedFromCloud('test@example.com');
+
+      mockCreateClient.mockImplementation(() => ({
+        from: vi.fn((table: string) => {
+          const chain = createChain();
+          if (table === 'ledger_states') {
+            chain.maybeSingle.mockResolvedValue({ data: { state: {} }, error: null });
+          }
+          return chain;
+        }) as unknown as Mock<() => MockChain>,
+        rpc: vi.fn().mockResolvedValue({ data: { success: true }, error: null }),
+      }));
+
+      const result = await syncStateFromSupabase('test@example.com');
+      expect(result.success).toBe(true);
+      expect(result.state?.creditCardPurchases).toEqual([]);
+    });
+  });
+
   // ─── getSupabaseClient ───────────────────────────────────────────────────
   describe('getSupabaseClient', () => {
     it('returns a client when config is present', () => {
