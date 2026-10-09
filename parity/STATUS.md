@@ -1,9 +1,9 @@
 # STATUS.md — migration state at a glance
 
 **Repo:** `D:\Emcode\EM-Budget` · **Playbook:** `D:\Emcode\MIGRATION_PLAYBOOK.md`
-**Updated:** 2026-10-08 — Phase 4 **gate rulings D36–D41 recorded**; D40 defers OCR out of mobile v1
-and parks #65, D41 fixes the `.gitattributes` rule that would corrupt the screenshot baselines.
-Branch `phase4-logic-units`, PR #5 open.
+**Updated:** 2026-10-09 — Phase 4 **gate rulings D36–D41 recorded**; D40 defers OCR out of mobile v1
+and parks #65, D41 fixes the `.gitattributes` rule that would corrupt the screenshot baselines and its
+follow-up `7fac3fa` restores the seven samples already damaged by it. Branch `phase4-logic-units`, PR #5 open.
 
 ## Tasks
 
@@ -22,13 +22,13 @@ Branch `phase4-logic-units`, PR #5 open.
 
 ## Branches & PRs
 
-| Ref                                            | What                                                                                                                                                                       |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `main` @ `337bd4a` (local == origin)           | Phases 0–3 + money port. **Enterprise CI FAILS here** at `npm audit --audit-level=high` (28 adv: 25 moderate, 2 high, 1 critical)                                          |
-| `phase4-logic-units`                           | PR #5. Mobile Parity CI **green**; Enterprise still red on npm audit; Vercel green                                                                                         |
-| `bugfix/b23-credit-card-purchases` @ `1f6a1ce` | PR #3. **Already contains `origin/main`** (`524bbb4`), so re-testing against main cannot help — its Mobile Parity failure is the same dart lint only PR #5 fixes           |
-| `fix/audit-lockfile` @ `307b5df`               | Two commits: lockfile-only 9-line refresh `67dfdc9`, then `AuditPanel.test.tsx` `307b5df`. **Do not merge** — the user merges.                                             |
-| `feature/ocr-three-way-contract` @ `83aa220`   | Parked #65 recorder scaffold, **local only** (no push, no PR). Its 7 sample PNG blobs were committed under the pre-D41 rule and are corrupt; the working copies are intact |
+| Ref                                            | What                                                                                                                                                                                                                      |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main` @ `337bd4a` (local == origin)           | Phases 0–3 + money port. **Enterprise CI FAILS here** at `npm audit --audit-level=high` (28 adv: 25 moderate, 2 high, 1 critical)                                                                                         |
+| `phase4-logic-units`                           | PR #5. Mobile Parity CI **green**; Enterprise still red on npm audit; Vercel green                                                                                                                                        |
+| `bugfix/b23-credit-card-purchases` @ `1f6a1ce` | PR #3. **Already contains `origin/main`** (`524bbb4`), so re-testing against main cannot help — its Mobile Parity failure is the same dart lint only PR #5 fixes                                                          |
+| `fix/audit-lockfile` @ `307b5df`               | Two commits: lockfile-only 9-line refresh `67dfdc9`, then `AuditPanel.test.tsx` `307b5df`. **Do not merge** — the user merges.                                                                                            |
+| `feature/ocr-three-way-contract` @ `7fac3fa`   | Parked #65 recorder scaffold, **local only** (no push, no PR). `83aa220` committed its 7 sample PNGs under the pre-D41 rule and damaged them; `7fac3fa` carries the `binary` lines and restores them — no history rewrite |
 
 ## Open decisions waiting for the user
 
@@ -37,7 +37,7 @@ Branch `phase4-logic-units`, PR #5 open.
 3. **B-26 phone-side trigger design** — roll only after a completed pull, inside `syncChains`. Awaits ruling.
 4. **Tenants** — **no deletions, and no `e2e-*`/`qa-*` teardown work until Phase 4 closes.** 16 `qa-*@example.com` live, re-matched IDENTICAL to `D:\Emcode\backups\qa-export-20261006.json`. **466 `e2e-*@example.com`** (457 pre-existing + 9 from the audit-branch e2e run) are outside D18's scope; no spec destroys its tenant. The proposed `e2e/auth.ts` teardown and separate test Supabase project are **text only, not implemented**.
 5. **`fix/audit-lockfile`** — review only. Merging it makes `npm audit` pass but **does not turn Enterprise CI green on its own**: at `307b5df` the run clears audit, lint and unit-coverage and then fails at **Format check** on `parity/fixtures/generate.ts`, which is unformatted on `main` and identical in both blobs. The fix for that file, and the `parity/** text eol=lf` rule, arrive with PR #5 — so green needs the item-1 order (merge #5, then update #6 onto main), after which the gated `e2e` job runs for the first time.
-6. **The 7 corrupt sample PNGs on the parked OCR branch** — the repair is `git add` of the intact working copies once that branch carries the D41 `binary` lines, committed **on top** of `83aa220`. Local-only commit, still no push, no PR. Awaiting the word; no history rewrite.
+6. ~~**The 7 corrupt sample PNGs on the parked OCR branch**~~ — **DONE as `7fac3fa`, local only** (no push, no PR, no history rewrite): the four D41 `binary` lines plus the seven restored working copies, verified `staged OID == hash-object == hash-object --no-filters == file bytes` and a valid IHDR/IEND on each. It exposed the rule below.
 
 ## Ruled at this gate (D36–D41)
 
@@ -52,28 +52,42 @@ Branch `phase4-logic-units`, PR #5 open.
 
 ## The D41 measurement
 
-| Claim                            | Test                                                                                                                    | Result                                                                        |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| The rule rewrites PNG check-in   | `git hash-object --` (filters) vs `--no-filters` on `ledgerregistry.png`                                                | `352b5546…` (stored) vs `bc695095…` (would-be) — **the filter is lossy here** |
-| The 48 are content-unchanged     | `cmp` of each working file vs its blob                                                                                  | 48 byte-identical, 0 differing — the `M` entries were pure stat/filter noise  |
-| CI checks them out stripped      | `core.autocrlf=false` clone (Linux-shaped), re-checkout via `checkout-index`                                            | **False.** 339 CRs, 79,072 bytes, intact signature — checkout is not lossy    |
-| The fix resolves it              | `check-attr text binary` → `unset / set`; `hash-object --` == blob for all 48; `git status -- parity/screenshots` empty | all four hold, in both the working tree and the clone with the new lines      |
-| No baseline blob moves           | `git diff --stat -- parity/screenshots/`                                                                                | empty                                                                         |
-| Already-committed PNGs are valid | first 8 bytes of all 48 blobs, and of the 7 samples in `83aa220`                                                        | 48/48 valid; the 7 samples are **corrupt** (see below)                        |
+| Claim                            | Test                                                                                                                    | Result                                                                          |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| The rule rewrites PNG check-in   | `git hash-object --` (filters) vs `--no-filters` on `ledgerregistry.png`                                                | `352b5546…` (stored) vs `bc695095…` (would-be) — **the filter is lossy here**   |
+| The 48 are content-unchanged     | `cmp` of each working file vs its blob                                                                                  | 48 byte-identical, 0 differing — the `M` entries were pure stat/filter noise    |
+| CI checks them out stripped      | `core.autocrlf=false` clone (Linux-shaped), re-checkout via `checkout-index`                                            | **False.** 339 CRs, 79,072 bytes, intact signature — checkout is not lossy      |
+| The fix resolves it              | `check-attr text binary` → `unset / set`; `hash-object --` == blob for all 48; `git status -- parity/screenshots` empty | all four hold, in both the working tree and the clone with the new lines        |
+| No baseline blob moves           | `git diff --stat -- parity/screenshots/`                                                                                | empty                                                                           |
+| Already-committed PNGs are valid | first 8 bytes of all 48 blobs, and of the 7 samples in `83aa220`                                                        | 48/48 valid; the 7 samples were **corrupt** there and are restored in `7fac3fa` |
 
 **Correction to what I asserted at the previous gate:** I said CI "already checks them out in that
 form". It does not — only check-in strips. The baselines were never damaged on disk or in the object
 store; the exposure was a future `git add`, which is exactly what a Phase 5 re-record would have done.
 
-**On the parked branch (`feature/ocr-three-way-contract`, `83aa220`):** all seven sample PNGs were
-committed under the rule, so their blobs carry `89 50 4e 47 0a 1a 0a 00` — signature CR stripped, file
-short by 1–2 bytes each. The working copies on disk are intact (`89 50 4e 47 0d 0a 1a 0a`, valid IEND).
-Fix = re-add the working copies once that branch carries the `binary` lines, as a commit **on top**; no
-history rewrite. Not done — awaiting the word.
+**On the parked branch (`feature/ocr-three-way-contract`):** all seven sample PNGs were committed
+under the rule in `83aa220`, so their blobs carried `89 50 4e 47 0a 1a 0a 00` — signature CR
+stripped, file short by 1–2 bytes each — while the working copies stayed intact. Repaired on top by
+`7fac3fa`, which adds the four `binary` lines and re-stages those seven files; no history rewrite,
+still local only, no PR. That repair is also where the rule below came from: the first `git add`
+staged nothing, because git believed those blobs were current content.
+
+## Standing rule from D41
+
+**After any `.gitattributes` change, `git add` on files git thinks are clean needs
+`--renormalize`, and verification compares the staged OID to the file's own hash — never
+`git status`.** The index caches stat data, so removing the filter that damaged a file leaves git
+reporting it clean, and a plain add becomes a silent no-op. The check that catches it is
+`git ls-files -s -- <path>` == `git hash-object -- <path>` == `git hash-object --no-filters --
+<path>`, and after the commit the same comparison against `HEAD:<path>`.
 
 ## Exact next step
 
 Close the Phase 4 gate. Nothing on it is outstanding: #64 shipped, coverage passes on
 `fix/audit-lockfile`, and D40 took the last open item off the checklist. Then Phase 5 (design system),
 after the user merges PR #5 and the audit-lockfile PR lands the green `npm audit`.
+**One edit is deliberately uncommitted:** the D41-follow-up wording approved on 2026-10-09 (decision 6
+closed, `7fac3fa` in the branch table, the standing rule above) sits in the working tree and must be
+folded into the next commit that moves `phase4-logic-units`, never committed standalone. A dirty
+`parity/STATUS.md` here is expected, not drift.
 Nothing is committed, pushed, merged or deleted without the user's word.
