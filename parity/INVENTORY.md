@@ -477,16 +477,18 @@ available in this session, so the mandated `impact`/`detect_changes` steps canno
 7. Do native WebAuthn assertions pass the server's origin/RP checks?
 8. Are `SMTP_*` / `SESSION_TTL_HOURS` / `IDENTITY_ENV` dead, or consumed somewhere outside this repo?
 
-Items 1-5 were ruled at the Phase 0 gate and are recorded in §13. Phase 1 adds two more, both from the
-theme measurements in `UI_SPEC.md` §6.5:
+Items 1-5 were ruled at the Phase 0 gate and are recorded in §13. Phase 1 added two more, both from the
+theme measurements in `UI_SPEC.md` §6.5; of those, item 9 is ruled (D16, §13e) and item 10 is the one
+still open.
 
-9. **D-U13 / B-15 / B-16 — which "dark" does the phone mean?** `dark:` utilities follow the operating
-   system while the app's own variables follow a toggle that stops following the OS at first run. The
-   phone can reproduce the split (bind those tokens to `platformBrightness` and freeze the variable theme
-   at first run, exactly as the web does) or collapse it (one theme, driven by the toggle). The second is
-   what the markup looks like it wants and is a visible change from the web for OS-dark users. Nothing
-   can be golden-tested in dark mode until this is ruled, because the two readings disagree on the same
-   screen.
+9. **D-U13 / B-15 / B-16 — which "dark" does the phone mean?** **RULED — D16, §13e:** reproduce the
+   split, bug-compatible. `dark:` utilities follow the operating system while the app's own variables
+   follow a toggle that stops following the OS at first run. The two readings were: reproduce the split
+   (bind those tokens to `platformBrightness` and freeze the variable theme at first run, exactly as the
+   web does) or collapse it (one theme, driven by the toggle). The second is what the markup looks like
+   it wants and is a visible change from the web for OS-dark users, so the first was ruled. Its
+   consequences are in §13e "D16 in detail" — four golden combinations, and a fourth web baseline set to
+   capture first, which is Phase 5's G5.0.
 10. **Baselines for the divergent state.** The 48 screenshots are all the fresh-install state, where
     both mechanisms agree, because `qa-shot.cjs` sets the theme through Playwright's `colorScheme` and
     cannot pre-set `em-budget-theme`. Capturing "app light, OS dark" needs a new harness flag or a
@@ -612,8 +614,9 @@ migrations/` is empty and no web file is staged. Reported rather than hidden; CI
 - **`dark:` does not follow the app toggle.** B-15 (utilities track `prefers-color-scheme`; 0 of 17
   paint from `html.dark`) and B-16 (the provider's OS listener can never fire, because `applyTheme`
   writes the guard key on mount). Together they mean the web has a frozen app theme and a live OS
-  theme on the same page. This is **D-U13** and it needs your ruling before any screen is golden-tested
-  in dark mode.
+  theme on the same page. This is **D-U13**, **ruled as D16** (§13e): the phone reproduces the split,
+  so dark-mode goldens are keyed on the stored app theme _and_ `platformBrightness`, and the fourth
+  combination needs its own web baseline set — Phase 5's G5.0.
 
 ### Boundary after Phase 1
 
