@@ -19,6 +19,7 @@ import 'package:em_budget/core/theme/app_colors.dart';
 import 'package:em_budget/core/theme/app_radii.dart';
 import 'package:em_budget/core/theme/app_shadows.dart';
 import 'package:em_budget/core/theme/app_spacing.dart';
+import 'package:em_budget/core/theme/app_surfaces.dart';
 import 'package:em_budget/core/theme/app_theme.dart';
 import 'package:em_budget/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
@@ -232,8 +233,12 @@ class _GradientExpectation {
 /// two Alignments in a unit box. Scaling the unit direction by |sin| + |cos| is
 /// what lands the endpoints on the box corners for the diagonals, which is the
 /// behaviour index.css asks for (135deg -> topLeft to bottomRight).
-_GradientExpectation _gradient(Map<String, dynamic> root, String name) {
-  final String value = _substituted(root, name);
+/// The §2.2 tokens and a §6 probe gradient are the same CSS string, so they
+/// share one derivation.
+_GradientExpectation _gradient(Map<String, dynamic> root, String name) =>
+    _gradientValue(_substituted(root, name));
+
+_GradientExpectation _gradientValue(String value) {
   final RegExpMatch? angle = RegExp(r'^linear-gradient\(\s*(-?[\d.]+)deg\b')
       .firstMatch(value);
   if (angle == null) {
@@ -262,6 +267,194 @@ _GradientExpectation _gradient(Map<String, dynamic> root, String name) {
   );
 }
 
+/// One §6 probe row: the detached element that carried this CSS class.
+Map<String, dynamic> _probe(
+  Map<String, dynamic> probes,
+  String selector,
+  String pass,
+) {
+  final Object? measured = probes[selector];
+  if (measured == null) {
+    throw StateError('No $pass probe $selector in the measurement');
+  }
+  return measured as Map<String, dynamic>;
+}
+
+/// A probe colour field, read from the same `srgb` block UI_SPEC 1.1 documents.
+Color _probeColour(Map<String, dynamic> probe, String field, String cls) {
+  final Map<String, dynamic> value = probe[field]! as Map<String, dynamic>;
+  final Map<String, dynamic> srgb = value['srgb']! as Map<String, dynamic>;
+  return Color.fromRGBO(
+    (srgb['r']! as num).round(),
+    (srgb['g']! as num).round(),
+    (srgb['b']! as num).round(),
+    (srgb['alpha']! as num).toDouble(),
+  );
+}
+
+String _probeValue(Map<String, dynamic> probe, String field, String cls) {
+  final Object? value = probe[field];
+  if (value == null) throw StateError('$cls: no measured $field');
+  if (value is String) return value;
+  final Map<String, dynamic> object = value as Map<String, dynamic>;
+  return (object['substituted'] ?? object['raw'])! as String;
+}
+
+/// A §6 probe `box-shadow` is Chrome's COMPUTED value: colour first, and all
+/// four lengths even when the spread is zero. The authored §2.2 tokens are the
+/// opposite order, so this is a second reader by design, not a retry of the
+/// first with a looser pattern.
+List<BoxShadow> _probeShadowLayers(Map<String, dynamic> probe, String cls) {
+  final String raw = _probeValue(probe, 'boxShadow', cls);
+  if (raw == 'none') return const <BoxShadow>[];
+  final List<BoxShadow> out = <BoxShadow>[];
+  for (final String layer in _splitTopLevel(raw)) {
+    final RegExpMatch? m = RegExp(
+      r'^rgba\((\d+), (\d+), (\d+), ([\d.]+)\)'
+      r'\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px$',
+    ).firstMatch(layer);
+    if (m == null) {
+      throw StateError('$cls: not "rgba(…) x y blur spread": $layer');
+    }
+    out.add(
+      BoxShadow(
+        color: Color.fromRGBO(
+          int.parse(m.group(1)!),
+          int.parse(m.group(2)!),
+          int.parse(m.group(3)!),
+          double.parse(m.group(4)!),
+        ),
+        offset: Offset(double.parse(m.group(5)!), double.parse(m.group(6)!)),
+        blurRadius: double.parse(m.group(7)!),
+        spreadRadius: double.parse(m.group(8)!),
+      ),
+    );
+  }
+  return out;
+}
+
+/// `backdrop-filter` as measured. Flutter expresses the blur as a sigma of
+/// px / 2; CSS saturate() has no Flutter equivalent and stays unimplemented.
+class _BackdropExpectation {
+  const _BackdropExpectation(this.blurPx, this.saturate);
+
+  final double? blurPx;
+  final double? saturate;
+
+  static _BackdropExpectation measure(Map<String, dynamic> probe, String cls) {
+    final String raw = _probeValue(probe, 'backdropFilter', cls);
+    if (raw == 'none') return const _BackdropExpectation(null, null);
+    final RegExpMatch? blur = RegExp(r'blur\(([\d.]+)px\)').firstMatch(raw);
+    final RegExpMatch? sat = RegExp(r'saturate\(([\d.]+)\)').firstMatch(raw);
+    if (blur == null || sat == null) {
+      throw StateError('$cls: unportable backdrop-filter $raw');
+    }
+    return _BackdropExpectation(
+      double.parse(blur.group(1)!),
+      double.parse(sat.group(1)!),
+    );
+  }
+}
+
+/// Every field of one generated surface row against its probe. Nothing here is
+/// compared to another generated row: each assertion re-derives the value from
+/// the measurement string, which is the only way a generator edit that moves a
+/// number can be caught.
+void _expectSurface(
+  Map<String, dynamic> probes,
+  String pass,
+  String cls,
+  AppSurfaceSpec spec,
+) {
+  final Map<String, dynamic> probe = _probe(probes, cls, pass);
+  expect(spec.cssClass, cls, reason: '$pass $cls class name');
+  expect(
+    spec.radiusPx,
+    _lengthToPx(probe['borderRadius']! as String),
+    reason: '$pass $cls radius',
+  );
+  expect(
+    spec.borderWidthPx,
+    _lengthToPx(probe['borderTopWidth']! as String),
+    reason: '$pass $cls border width',
+  );
+  expect(
+    spec.borderColor,
+    _probeColour(probe, 'borderTopColor', cls),
+    reason: '$pass $cls border colour',
+  );
+  expect(
+    spec.fillColor,
+    _probeColour(probe, 'backgroundColor', cls),
+    reason: '$pass $cls fill',
+  );
+  expect(
+    spec.textColor,
+    _probeColour(probe, 'color', cls),
+    reason: '$pass $cls text colour',
+  );
+  expect(
+    spec.paddingPx,
+    _lengthToPx(probe['padding']! as String),
+    reason: '$pass $cls padding',
+  );
+
+  final String image = _probeValue(probe, 'backgroundImage', cls);
+  if (image == 'none') {
+    expect(spec.fillGradient, isNull, reason: '$pass $cls paints no gradient');
+  } else {
+    final _GradientExpectation gradient = _gradientValue(image);
+    final LinearGradient painted = spec.fillGradient!;
+    // Gradient.begin is an AlignmentGeometry; the measurement always lands on a
+    // concrete Alignment, which is what the §2.2 group already assumes.
+    final Alignment begin = painted.begin as Alignment;
+    final Alignment end = painted.end as Alignment;
+    expect(
+      begin.x,
+      closeTo(gradient.begin.x, 1e-9),
+      reason: '$pass $cls begin.x',
+    );
+    expect(
+      begin.y,
+      closeTo(gradient.begin.y, 1e-9),
+      reason: '$pass $cls begin.y',
+    );
+    expect(end.x, closeTo(gradient.end.x, 1e-9), reason: '$pass $cls end.x');
+    expect(end.y, closeTo(gradient.end.y, 1e-9), reason: '$pass $cls end.y');
+    expect(
+      painted.colors,
+      gradient.colors,
+      reason: '$pass $cls gradient stops',
+    );
+    expect(painted.stops, gradient.stops, reason: '$pass $cls stop positions');
+  }
+
+  final List<BoxShadow> layers = _probeShadowLayers(probe, cls);
+  if (layers.isEmpty) {
+    expect(spec.shadows, isNull, reason: '$pass $cls shadows: none measured');
+  } else {
+    expect(spec.boxShadowList, layers, reason: '$pass $cls box-shadow');
+  }
+
+  final _BackdropExpectation backdrop = _BackdropExpectation.measure(
+    probe,
+    cls,
+  );
+  expect(spec.blurPx, backdrop.blurPx, reason: '$pass $cls backdrop blur');
+  expect(
+    spec.saturate,
+    backdrop.saturate,
+    reason: '$pass $cls backdrop saturate',
+  );
+  if (backdrop.blurPx != null) {
+    expect(
+      spec.blurSigma,
+      backdrop.blurPx! / 2,
+      reason: '$pass $cls sigma is the CSS blur halved',
+    );
+  }
+}
+
 void main() {
   final Map<String, dynamic> measurement =
       jsonDecode(webSource('parity/ui-tokens.json'))! as Map<String, dynamic>;
@@ -276,6 +469,12 @@ void main() {
   );
   final Map<String, dynamic> darkProbes = _probesOf(
     _theme(measurement, 'dark-desktop'),
+  );
+  final Map<String, dynamic> lightPhoneProbes = _probesOf(
+    _theme(measurement, 'light-phone'),
+  );
+  final Map<String, dynamic> darkPhoneProbes = _probesOf(
+    _theme(measurement, 'dark-phone'),
   );
 
   final List<String> lightColours = _colourTokens(light);
@@ -616,6 +815,252 @@ void main() {
         closeTo(_probeRatio(lightProbes, '.money-display'), 1e-9),
       );
     });
+  });
+
+  group('UI_SPEC 6 card surfaces', () {
+    /// The classes `AppCard` can be. `.card-sm` is absent on purpose: it is
+    /// written nowhere under `src/` and measures as no paint at all.
+    const List<String> surfaceClasses = <String>[
+      '.card',
+      '.card-flat',
+      '.card-lg',
+      '.card-dark',
+      '.gradient-card',
+      '.glass-panel',
+      '.glass-pill',
+      '.card-face',
+    ];
+
+    test('AppSurfaces holds exactly the measured card classes, per pass', () {
+      final List<String> expected = surfaceClasses.toList()..sort();
+      expect(AppSurfaces.light.keys.toList()..sort(), expected);
+      expect(AppSurfaces.dark.keys.toList()..sort(), expected);
+    });
+
+    for (final String cls in surfaceClasses) {
+      test('$cls light row is the light-desktop probe', () {
+        _expectSurface(
+          lightProbes,
+          'light',
+          cls,
+          AppSurfaces.resolve(cls, Brightness.light),
+        );
+      });
+
+      test('$cls dark row is the dark-desktop probe', () {
+        _expectSurface(
+          darkProbes,
+          'dark',
+          cls,
+          AppSurfaces.resolve(cls, Brightness.dark),
+        );
+      });
+    }
+
+    test('no card box moves between the desktop and phone passes', () {
+      for (final String cls in surfaceClasses) {
+        for (final MapEntry<String, Map<String, dynamic>> pass
+            in <String, Map<String, dynamic>>{
+              'light': lightPhoneProbes,
+              'dark': darkPhoneProbes,
+            }.entries) {
+          final Map<String, dynamic> probe = _probe(
+            pass.value,
+            cls,
+            '${pass.key}-phone',
+          );
+          expect(
+            AppSurfaces.resolve(
+              cls,
+              pass.key == 'dark' ? Brightness.dark : Brightness.light,
+            ).radiusPx,
+            _lengthToPx(probe['borderRadius']! as String),
+            reason: '${pass.key}-phone $cls radius',
+          );
+        }
+      }
+    });
+
+    test('resolve() refuses a class the measurement does not carry', () {
+      expect(
+        () => AppSurfaces.resolve('.no-such-class', Brightness.light),
+        throwsArgumentError,
+      );
+    });
+
+    // The §6 classes are authored from the §2 tokens; the probe proves it and
+    // this pins it, so a token edit cannot silently leave a card behind.
+    test('the card paint is the tokens it was authored from', () {
+      final AppSurfaceSpec card = AppSurfaces.resolve(
+        '.card',
+        Brightness.light,
+      );
+      expect(
+        card.fillColor,
+        AppColors.lightByToken['--surface'],
+        reason: '.card background: var(--surface)',
+      );
+      expect(
+        card.borderColor,
+        AppColors.lightByToken['--line'],
+        reason: '.card border: var(--line)',
+      );
+      expect(
+        card.boxShadowList,
+        AppShadows.shadowsLight['--shadow'],
+        reason: '.card box-shadow: var(--shadow)',
+      );
+      expect(
+        card.radiusPx,
+        AppRadii.byToken['--r-md'],
+        reason: '.card border-radius: var(--r-md)',
+      );
+
+      final AppSurfaceSpec cardDarkMode = AppSurfaces.resolve(
+        '.card',
+        Brightness.dark,
+      );
+      expect(cardDarkMode.fillColor, AppColors.darkByToken['--surface']);
+      expect(cardDarkMode.borderColor, AppColors.darkByToken['--line']);
+      expect(cardDarkMode.boxShadowList, AppShadows.shadowsDark['--shadow']);
+
+      final AppSurfaceSpec flat = AppSurfaces.resolve(
+        '.card-flat',
+        Brightness.light,
+      );
+      expect(
+        flat.fillColor,
+        AppColors.lightByToken['--surface-2'],
+        reason: '.card-flat background: var(--surface-2)',
+      );
+      expect(
+        flat.radiusPx,
+        AppRadii.byToken['--r-sm'],
+        reason: '.card-flat border-radius: var(--r-sm)',
+      );
+      expect(
+        flat.borderWidthPx,
+        1.0,
+        reason: 'the transparent frame is still 1px',
+      );
+      expect(
+        flat.borderColor,
+        const Color(0x00000000),
+        reason: 'UI_SPEC prints a transparent border, not an absent one',
+      );
+      expect(flat.shadows, isNull, reason: '.card-flat has no box-shadow');
+
+      expect(
+        AppSurfaces.resolve('.card-lg', Brightness.light).radiusPx,
+        AppRadii.byToken['--r-lg'],
+        reason: '.card-lg border-radius: var(--r-lg)',
+      );
+      expect(
+        AppSurfaces.resolve('.card-face', Brightness.light).boxShadowList,
+        AppShadows.shadowsLight['--shadow-float'],
+        reason: '.card-face box-shadow: var(--shadow-float)',
+      );
+    });
+
+    test('the glass fills are their surface token at the measured 62%', () {
+      for (final MapEntry<String, String> entry in <String, String>{
+        '.glass-panel': '--surface',
+        '.glass-pill': '--surface-2',
+      }.entries) {
+        final Map<String, dynamic> srgb =
+            _token(light, entry.value)['srgb']! as Map<String, dynamic>;
+        final Color expected = Color.fromRGBO(
+          (srgb['r']! as num).round(),
+          (srgb['g']! as num).round(),
+          (srgb['b']! as num).round(),
+          0.62,
+        );
+        expect(
+          AppSurfaces.resolve(entry.key, Brightness.light).fillColor,
+          expected,
+          reason:
+              '${entry.key} is color-mix(in srgb, ${entry.value} 62%, transparent)',
+        );
+      }
+    });
+
+    test('the gradient cards carry the §2.2 gradient they were forced to', () {
+      final LinearGradient light = AppSurfaces.resolve(
+        '.card-dark',
+        Brightness.light,
+      ).fillGradient!;
+      expect(
+        light.colors,
+        AppColors.gradientsLight['--gradient-card-light']!.colors,
+      );
+      final LinearGradient dark = AppSurfaces.resolve(
+        '.card-dark',
+        Brightness.dark,
+      ).fillGradient!;
+      expect(
+        dark.colors,
+        AppColors.gradientsDark['--gradient-card-dark']!.colors,
+      );
+      // §6.3: the !important repaint forces the light gradient only, so the dark
+      // pass of .gradient-card measures as nothing. Ported as measured.
+      expect(
+        AppSurfaces.resolve('.gradient-card', Brightness.dark).paintsFill,
+        isFalse,
+        reason: '.gradient-card paints no fill in the dark pass',
+      );
+      expect(
+        AppSurfaces.resolve('.gradient-card', Brightness.light).fillGradient,
+        isNotNull,
+      );
+    });
+
+    test('a 0px measured border width never becomes a painted border', () {
+      for (final String cls in <String>['.card-lg', '.card-face']) {
+        for (final Brightness brightness in Brightness.values) {
+          final AppSurfaceSpec spec = AppSurfaces.resolve(cls, brightness);
+          expect(spec.borderWidthPx, 0.0, reason: '$cls declares no border');
+          expect(
+            spec.border.top.width,
+            0.0,
+            reason: 'and so draws none, whatever colour was inherited',
+          );
+        }
+      }
+    });
+
+    test(
+      'classes that force their own text colour are the ones that paint it',
+      () {
+        final Map<Brightness, Set<String>> forcing =
+            <Brightness, Set<String>>{};
+        for (final Brightness brightness in Brightness.values) {
+          final Map<String, Color> tokens = brightness == Brightness.light
+              ? AppColors.lightByToken
+              : AppColors.darkByToken;
+          final Color? ink = tokens['--ink'];
+          final Set<String> set = <String>{};
+          for (final String cls in surfaceClasses) {
+            if (AppSurfaces.resolve(cls, brightness).textColor != ink) {
+              set.add(cls);
+            }
+          }
+          forcing[brightness] = set;
+        }
+        expect(
+          forcing[Brightness.light],
+          <String>{'.card-face'},
+          reason:
+              'the light pass forces var(--ink) on .gradient-card and .card-dark, '
+              'which is what they inherit anyway; only .card-face stays white',
+        );
+        expect(
+          forcing[Brightness.dark],
+          <String>{'.card-face', '.card-dark', '.gradient-card'},
+          reason:
+              'in dark those three are the classes that paint white over ink',
+        );
+      },
+    );
   });
 
   group('the no-hard-coded-style rule (playbook 2.4)', () {

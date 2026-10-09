@@ -891,6 +891,332 @@ L.push('  );');
 L.push('}');
 finish('app_theme.dart');
 
+// ---------------------------------------------------------------- component classes (UI_SPEC §6)
+// The card surfaces of §6, emitted as data rather than re-derived inside widgets.
+// Every field is read from the §6 probe entries of the measurement — a detached
+// element carrying that class, measured inside the themed document — and never
+// from the prose tables that render them, and never from a Material default.
+// `.card-sm` is deliberately absent: it is used nowhere under `src/` and the
+// probe confirms it paints nothing (radius 0, transparent fill, no shadow).
+const SURFACE_CLASSES = [
+  '.card',
+  '.card-flat',
+  '.card-lg',
+  '.card-dark',
+  '.gradient-card',
+  '.glass-panel',
+  '.glass-pill',
+  '.card-face',
+];
+
+const SURFACE_FIELDS = [
+  'cssClass',
+  'radiusPx',
+  'borderWidthPx',
+  'borderColor',
+  'fillColor',
+  'fillGradient',
+  'shadows',
+  'blurPx',
+  'saturate',
+  'paddingPx',
+  'textColor',
+];
+
+const probeRaw = (entry, field, cls) => {
+  const v = entry[field];
+  if (v === undefined) fail(`${cls}: the probe did not measure ${field}`);
+  return typeof v === 'string' ? v : v.raw;
+};
+
+const probeSrgb = (entry, field, cls) => {
+  const v = entry[field];
+  if (!v || !v.srgb) fail(`${cls}: ${field} is not a measured colour`);
+  return v.srgb;
+};
+
+const probeGradient = (entry, cls) => {
+  const img = entry.backgroundImage;
+  if (!img) fail(`${cls}: no backgroundImage probe`);
+  if (img.raw === 'none') return null;
+  return parseGradient(img.substituted || img.raw, `${cls} background-image`);
+};
+
+const probeShadow = (entry, cls) => {
+  const bs = entry.boxShadow;
+  if (!bs) fail(`${cls}: no boxShadow probe`);
+  if (bs.raw === 'none') return null;
+  return probeShadowList(bs.substituted || bs.raw, cls);
+};
+
+/** `blur(22px) saturate(1.4)` -> {px, saturate}; `none` -> nulls. */
+const probeBackdrop = (entry, cls) => {
+  const bf = entry.backdropFilter;
+  if (!bf) fail(`${cls}: no backdropFilter probe`);
+  if (bf.raw === 'none') return { px: null, saturate: null };
+  const b = /blur\(([\d.]+)px\)/.exec(bf.raw);
+  const sat = /saturate\(([\d.]+)\)/.exec(bf.raw);
+  if (!b || !sat) fail(`${cls}: unportable backdrop-filter "${bf.raw}"`);
+  return { px: parseFloat(b[1]), saturate: parseFloat(sat[1]) };
+};
+
+/** Top-level comma split: a shadow list has commas inside `rgba(…)` never between layers. */
+const splitLayers = (raw, cls) => {
+  const out = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of raw) {
+    if (ch === '(') depth += 1;
+    else if (ch === ')') depth -= 1;
+    else if (depth === 0 && ch === ',') {
+      out.push(cur);
+      cur = '';
+      continue;
+    }
+    cur += ch;
+  }
+  out.push(cur);
+  if (depth !== 0) fail(`${cls}: unbalanced parentheses in "${raw}"`);
+  return out.map((s) => s.trim()).filter((s) => s.length > 0);
+};
+
+/**
+ * One box-shadow layer list of a §6 probe. The order is not the order of §2.2:
+ * the authored CSS the token table prints is layer-first
+ * (`0 1px 2px rgba(13, 22, 36, .05)`), which [parseShadow] reads, while a
+ * probed element's COMPUTED `boxShadow` comes back from Chrome colour-first
+ * with four lengths always (`rgba(13, 22, 36, 0.05) 0px 1px 2px 0px`). Same
+ * numbers, different order, so the two parsers are named for the two sources
+ * instead of one guessing.
+ */
+const probeShadowList = (raw, cls) =>
+  splitLayers(raw, cls).map((layer) => {
+    const m = /^rgba\((\d+), (\d+), (\d+), ([\d.]+)\)((?:\s+-?[\d.]+(?:px)?){4})$/.exec(layer);
+    if (!m) fail(`${cls}: not a "rgba(…) x y blur spread" shadow layer: "${layer}"`);
+    const n = m[5].trim().split(/\s+/).map(parseFloat);
+    return {
+      dx: n[0],
+      dy: n[1],
+      blur: n[2],
+      spread: n[3],
+      colour: { r: +m[1], g: +m[2], b: +m[3], a: parseFloat(m[4]) },
+    };
+  });
+
+const probePx = (entry, field, cls) => lengthPx(probeRaw(entry, field, cls), `${cls} ${field}`);
+
+const surfaces = SURFACE_CLASSES.map((cls) => {
+  const read = (tag, theme) => {
+    const p = theme.probes[cls];
+    if (!p) fail(`${tag} theme has no ${cls} probe`);
+    return {
+      radiusPx: probePx(p, 'borderRadius', cls),
+      borderWidthPx: probePx(p, 'borderTopWidth', cls),
+      borderColor: probeSrgb(p, 'borderTopColor', cls),
+      fillColor: probeSrgb(p, 'backgroundColor', cls),
+      gradient: probeGradient(p, cls),
+      shadows: probeShadow(p, cls),
+      backdrop: probeBackdrop(p, cls),
+      paddingPx: probePx(p, 'padding', cls),
+      textColor: probeSrgb(p, 'color', cls),
+    };
+  };
+  const l = read('light-desktop', LIGHT);
+  const d = read('dark-desktop', DARK);
+  // The phone pass must not move the box: §6.2 prints one radius column and the
+  // measurement agrees with it. If it ever stops agreeing that is a spec fact to
+  // review, not something to average away here.
+  for (const [tag, theme] of [
+    ['light-phone', LIGHT_PHONE],
+    ['dark-phone', DARK_PHONE],
+  ]) {
+    const p = theme.probes[cls];
+    if (!p) fail(`${tag} theme has no ${cls} probe`);
+    if (probePx(p, 'borderRadius', cls) !== l.radiusPx) {
+      fail(`${cls}: ${tag} radius ${p.borderRadius} != desktop ${l.radiusPx}`);
+    }
+  }
+  if (l.borderWidthPx !== d.borderWidthPx) fail(`${cls}: border width differs per pass`);
+  if (l.paddingPx !== d.paddingPx) fail(`${cls}: padding differs per pass`);
+  if (
+    l.gradient &&
+    d.gradient &&
+    (l.gradient.angle !== d.gradient.angle || l.gradient.stops.length !== d.gradient.stops.length)
+  ) {
+    fail(`${cls}: light and dark gradient geometry differ`);
+  }
+  if (JSON.stringify(l.backdrop) !== JSON.stringify(d.backdrop)) {
+    fail(`${cls}: backdrop-filter differs per pass`);
+  }
+  return { cls, l: { ...l, cssClass: cls }, d: { ...d, cssClass: cls } };
+});
+
+/**
+ * `dartColor` reads `alpha`, which the §2.1/§2.2 row objects carry, while the
+ * shadow and gradient parsers return `a`. This adapter names that mismatch
+ * instead of printing `undefined`, and formats an integer alpha the way Dart
+ * wants a double (`0` -> `0.0`) so a measured transparent colour reads as one.
+ */
+const dartSurfaceColour = (c) => `Color.fromRGBO(${c.r}, ${c.g}, ${c.b}, ${c.alpha === 1 ? '1.0' : fmt(c.alpha)})`;
+
+const gradientExpr = (g) => {
+  const a = gradientAlignments(g.angle);
+  return [
+    'LinearGradient(',
+    `    begin: Alignment(${fmt(a.begin[0])}, ${fmt(a.begin[1])}),`,
+    `    end: Alignment(${fmt(a.end[0])}, ${fmt(a.end[1])}),`,
+    '    colors: <Color>[',
+    ...g.stops.map(
+      (s) => `      ${dartSurfaceColour({ r: s.colour.r, g: s.colour.g, b: s.colour.b, alpha: s.colour.a })},`,
+    ),
+    '    ],',
+    `    stops: <double>[${g.stops.map((s) => fmt(s.at)).join(', ')}],`,
+    ')',
+  ].join('\n');
+};
+
+const shadowListExpr = (layers) =>
+  [
+    '<BoxShadow>[',
+    ...layers.flatMap((y) => [
+      '    BoxShadow(',
+      `      color: ${dartSurfaceColour({ r: y.colour.r, g: y.colour.g, b: y.colour.b, alpha: y.colour.a })},`,
+      `      offset: Offset(${fmt(y.dx)}, ${fmt(y.dy)}),`,
+      `      blurRadius: ${fmt(y.blur)},`,
+      ...(y.spread === 0 ? [] : [`      spreadRadius: ${fmt(y.spread)},`]),
+      '    ),',
+    ]),
+    ']',
+  ].join('\n');
+
+const surfaceFieldExpr = (spec, f) => {
+  switch (f) {
+    case 'cssClass':
+      return `cssClass: ${dartStr(spec.cssClass)}`;
+    case 'radiusPx':
+      return `radiusPx: ${fmt(spec.radiusPx)}`;
+    case 'borderWidthPx':
+      return `borderWidthPx: ${fmt(spec.borderWidthPx)}`;
+    case 'borderColor':
+      return `borderColor: ${dartSurfaceColour(spec.borderColor)}`;
+    case 'fillColor':
+      return `fillColor: ${dartSurfaceColour(spec.fillColor)}`;
+    case 'fillGradient':
+      return `fillGradient: ${spec.gradient ? gradientExpr(spec.gradient) : 'null'}`;
+    case 'shadows':
+      return `shadows: ${spec.shadows ? shadowListExpr(spec.shadows) : 'null'}`;
+    case 'blurPx':
+      return `blurPx: ${spec.backdrop.px === null ? 'null' : fmt(spec.backdrop.px)}`;
+    case 'saturate':
+      return `saturate: ${spec.backdrop.saturate === null ? 'null' : fmt(spec.backdrop.saturate)}`;
+    case 'paddingPx':
+      return `paddingPx: ${fmt(spec.paddingPx)}`;
+    case 'textColor':
+      return `textColor: ${dartSurfaceColour(spec.textColor)}`;
+    default:
+      fail(`surface field ${f} has no emitter`);
+  }
+};
+
+const surfaceExpr = (spec) => SURFACE_FIELDS.map((f) => `    ${surfaceFieldExpr(spec, f)}`).join(',\n');
+
+banner();
+L.push("import 'package:flutter/material.dart';", '');
+L.push(
+  '/// One UI_SPEC §6 component class resolved for one brightness: what a detached',
+  '/// element carrying that CSS class was measured to paint. `AppCard` renders these;',
+  '/// a screen widget must not restate any of it. Every value is a §6 probe row of',
+  '/// `parity/ui-tokens.json` — not UI_SPEC §5, and never a Material default.',
+  '///',
+  '/// Conventions the measurement forces:',
+  '/// * `fillGradient == null` with a zero-alpha `fillColor` is UI_SPEC `(none)`: the',
+  '///   class paints no background of its own and the surface behind shows through.',
+  '/// * A zero-alpha `borderColor` is a *transparent* border, not an absent one —',
+  '///   `.card-flat` carries a real 1px frame of `rgba(0,0,0,0)` that occupies layout.',
+  '///   Where the measured width is 0px the printed colour is whatever the element',
+  '///   inherited, which is why `.card-lg` and `.card-face` name an ink border they',
+  '///   never draw.',
+  '/// * `blurPx` is the measured CSS blur; Flutter renders it as',
+  '///   `ImageFilter.blur(sigmaX: blurPx / 2, sigmaY: blurPx / 2)`. The CSS',
+  '///   `saturate(1.4)` has no Flutter equivalent, so it travels here as data and is',
+  '///   unimplemented — recorded rather than silently dropped.',
+  '/// * `.gradient-card` measures transparent in the dark pass: the `!important`',
+  '///   repaint layer of §6.3 forces the gradient on the light theme only. That is',
+  '///   the web app’s behaviour, ported as measured on the D16 bug-compatible',
+  '///   precedent rather than “fixed”.',
+  'class AppSurfaceSpec {',
+  '  const AppSurfaceSpec({',
+  ...SURFACE_FIELDS.map((f) => `    required this.${f},`),
+  '  });',
+  '',
+  '  /// The CSS class this row was measured from.',
+  '  final String cssClass;',
+  '  final double radiusPx;',
+  '',
+  '  /// Measured on one side; `src/index.css` authors every one of these classes as',
+  '  /// `border: 1px solid …`, i.e. uniform, and [border] reproduces that box.',
+  '  final double borderWidthPx;',
+  '  final Color borderColor;',
+  '  final Color fillColor;',
+  '  final LinearGradient? fillGradient;',
+  '  final List<BoxShadow>? shadows;',
+  '',
+  '  /// `backdrop-filter` blur in measured CSS px; the sigma is `blurPx / 2`.',
+  '  final double? blurPx;',
+  '  final double? saturate;',
+  '',
+  '  /// The class’s own padding. `.card` measures `0px` because on the web the',
+  '  /// utilities (`p-4`, `p-5`, `p-6`) supply it, so `AppCard` takes padding as a',
+  '  /// parameter and `AppSpacing.scale(n)` is that same utility multiplication.',
+  '  final double paddingPx;',
+  '',
+  '  /// The text colour the class paints, which is not always the inherited one:',
+  '  /// `.card-face` and `.card-dark` force white.',
+  '  final Color textColor;',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '',
+  '  Border get border => Border.all(color: borderColor, width: borderWidthPx);',
+  '',
+  '  List<BoxShadow> get boxShadowList => shadows ?? const <BoxShadow>[];',
+  '',
+  '  /// UI_SPEC `(none)`: paints nothing of its own behind the content.',
+  '  bool get paintsFill => fillGradient != null || fillColor != const Color(0x00000000);',
+  '',
+  '  double? get blurSigma => blurPx == null ? null : blurPx! / 2;',
+  '}',
+  '',
+  '/// The §6 card surfaces, keyed by CSS class — one map per measured brightness pass.',
+  'abstract final class AppSurfaces {',
+  '  /// Light pass (UI_SPEC §6.1–§6.2, `light-desktop`).',
+  '  static const Map<String, AppSurfaceSpec> light =',
+  '      <String, AppSurfaceSpec>{',
+);
+for (const x of surfaces) {
+  L.push(`    ${dartStr(x.cls)}: AppSurfaceSpec(`, surfaceExpr(x.l), '    ),');
+}
+L.push('  };', '', '  /// Dark pass (UI_SPEC §6.1–§6.2, `dark-desktop`).');
+L.push('  static const Map<String, AppSurfaceSpec> dark =', '      <String, AppSurfaceSpec>{');
+for (const x of surfaces) {
+  L.push(`    ${dartStr(x.cls)}: AppSurfaceSpec(`, surfaceExpr(x.d), '    ),');
+}
+L.push(
+  '  };',
+  '',
+  '  /// The measured surface for a class and brightness. An unknown class is a',
+  '  /// programming error, not a fallback: nothing in this layer may quietly',
+  '  /// become a Material default.',
+  '  static AppSurfaceSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppSurfaceSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppSurfaceSpec? spec = table[cssClass];',
+  "    if (spec == null) throw ArgumentError('$cssClass is not a §6 surface');",
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+);
+finish('app_surfaces.dart');
 // ---------------------------------------------------------------- write + summary
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
@@ -932,6 +1258,7 @@ console.log(
     `  non-colour tokens (§2.3):      ${others.length}  (type ${byKind.type.length}, stacks ${byKind.stacks.length}, weights ${byKind.weights.length}, radii ${byKind.radii.length}, blur ${byKind.blurs.length}, spacing ${byKind.spacing.length}, containers ${byKind.containers.length}, motion ${byKind.motion.length}, animations ${byKind.animations.length})`,
     `  §3 probe classes (phone):      ${typeClasses.length}`,
     `  ThemeSlots pinned:             ${schemeMap.length}`,
+    `  §6 card surfaces emitted:    ${surfaces.length} classes x 2 passes  -> AppSurfaces`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );
