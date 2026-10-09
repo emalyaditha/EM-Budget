@@ -22,6 +22,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install dependencies
         run: npm ci
+      - name: Parity fixture gate (D8 / D35)
+        # The migration fixture gate ran only on a developer machine. Nothing on CI called
+        # validate.ts, so a branch could carry src/ edits against stale _provenance.srcTree
+        # stamps and every check still reported green — measured 2026-10-09, when
+        # phase5-design-system sat in exactly that state (14 fixtures stamped 9921f3a4 under
+        # a post-B-23 src/) while this job passed at 68b481f and 1996278. fetch-depth: 0 above
+        # is what makes the check possible: validate.ts re-derives provenance from git, so it
+        # needs the pre-flutter tag and the source blobs, not just the working tree. tsx and
+        # zod already come from npm ci, so the gate adds no dependency. A red run here means a
+        # re-stamp was forgotten (D35: any edit under src/ re-stamps all fourteen fixtures),
+        # not that a fixture is wrong.
+        run: npx tsx parity/fixtures/validate.ts
       - name: Dependency vulnerability audit
         run: npm audit --audit-level=high
       - name: Lint + typecheck (zero warnings)
