@@ -19,6 +19,7 @@ import 'dart:math' as math;
 import 'package:em_budget/core/theme/app_controls.dart';
 import 'package:em_budget/core/theme/app_colors.dart';
 import 'package:em_budget/core/theme/app_fields.dart';
+import 'package:em_budget/core/theme/app_icon_buttons.dart';
 import 'package:em_budget/core/theme/app_radii.dart';
 import 'package:em_budget/core/theme/app_shadows.dart';
 import 'package:em_budget/core/theme/app_skeletons.dart';
@@ -3004,6 +3005,385 @@ void main() {
         );
         expect(
           () => AppSkeletons.resolve('.no-such-skeleton', brightness),
+          throwsArgumentError,
+        );
+      }
+    });
+  });
+
+  group('UI_SPEC 6 icon buttons', () {
+    /// `.icon-btn` is the standalone header-chrome pill. Its resting box is a
+    /// §6 probe like every class above, but the generator reads it with its
+    /// own reader (generate_theme.cjs) rather than the controls or surfaces
+    /// table: it carries a `backdrop-filter` the control row rejects, and that
+    /// filter is a `blur(10px)` with no `saturate()`, the shape the shared
+    /// `probeBackdrop` calls unportable. Its `width`/`height` are not in the
+    /// probe either — the pill size is authored, so it is read from the same
+    /// pinned `src/index.css` rule the transition is, exactly as the skeleton
+    /// reads its heights from the `h-<n>` rule rather than a measured box.
+    const List<String> iconClasses = <String>['.icon-btn'];
+
+    Map<String, dynamic> probesFor(Brightness brightness) =>
+        brightness == Brightness.light ? lightProbes : darkProbes;
+    Map<String, dynamic> rootFor(Brightness brightness) =>
+        brightness == Brightness.light ? light : dark;
+
+    /// One root token's measured srgb as the four numbers that build a Color —
+    /// read straight off the JSON so a colour-mix check can rebuild the fill at
+    /// the mix's own alpha without pulling apart a generated `Color`'s float
+    /// components (which run through the colour space, not the authored bytes).
+    List<num> srgbInts(Map<String, dynamic> root, String name) {
+      final Map<String, dynamic> srgb =
+          _token(root, name)['srgb']! as Map<String, dynamic>;
+      return <num>[
+        srgb['r']! as num,
+        srgb['g']! as num,
+        srgb['b']! as num,
+        srgb['alpha']! as num,
+      ];
+    }
+
+    test(
+      'AppIconButtons holds exactly the measured icon classes, per pass',
+      () {
+        expect(AppIconButtons.light.keys.toList(), iconClasses);
+        expect(AppIconButtons.dark.keys.toList(), iconClasses);
+      },
+    );
+
+    for (final String cls in iconClasses) {
+      for (final Brightness brightness in Brightness.values) {
+        final String pass = brightness == Brightness.light
+            ? 'light-desktop'
+            : 'dark-desktop';
+
+        test('$cls $pass matches the pill Chrome measured', () {
+          final Map<String, dynamic> p = _probe(
+            probesFor(brightness),
+            cls,
+            pass,
+          );
+          final AppIconButtonSpec spec = AppIconButtons.resolve(
+            cls,
+            brightness,
+          );
+          expect(spec.cssClass, cls);
+          expect(spec.displayCss, _probeValue(p, 'display', cls));
+          expect(
+            spec.radiusPx,
+            _pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
+          );
+          expect(
+            spec.borderWidthPx,
+            _pxOf(_probeValue(p, 'borderTopWidth', cls), '$cls border width'),
+          );
+          expect(spec.borderColor, _probeColour(p, 'borderTopColor', cls));
+          expect(spec.fillColor, _probeColour(p, 'backgroundColor', cls));
+          expect(spec.iconColor, _probeColour(p, 'color', cls));
+          expect(
+            spec.paddingPx,
+            _pxOf(_probeValue(p, 'padding', cls), '$cls padding'),
+          );
+          // The pill blurs without saturating, so the shared
+          // `_BackdropExpectation` — which demands both together — is the wrong
+          // reader here; the blur is matched alone and the absence of a
+          // saturate is itself an assertion.
+          final RegExpMatch? blur = RegExp(r'^blur\(([\d.]+)px\)$')
+              .firstMatch(_probeValue(p, 'backdropFilter', cls));
+          expect(
+            blur,
+            isNotNull,
+            reason:
+                '$cls backdrop-filter must be a bare blur(): the port carries '
+                'a blur-only filter and a saturate() would be a different shape',
+          );
+          expect(spec.blurPx, double.parse(blur!.group(1)!));
+          expect(
+            spec.blurSaturate,
+            isNull,
+            reason: '$cls blurs without saturating',
+          );
+          expect(
+            spec.blurSigmaPx,
+            spec.blurPx / 2,
+            reason: 'CSS blur radius → Flutter sigma: halved, not chosen',
+          );
+          expect(
+            _probeValue(p, 'boxShadow', cls),
+            'none',
+            reason:
+                '$cls rests with nothing painted behind it; no §6 row ports a resting shadow',
+          );
+          expect(
+            _probeValue(p, 'backgroundImage', cls),
+            'none',
+            reason: '$cls has a flat color-mix fill, not a gradient',
+          );
+        });
+      }
+
+      test('$cls keeps one row between the desktop and phone passes', () {
+        const List<String> fields = <String>[
+          'display',
+          'padding',
+          'borderRadius',
+          'borderTopWidth',
+          'borderTopColor',
+          'backgroundColor',
+          'color',
+          'boxShadow',
+          'backgroundImage',
+          'backdropFilter',
+        ];
+        const List<List<String>> pairs = <List<String>>[
+          <String>['light-phone', 'light-desktop'],
+          <String>['dark-phone', 'dark-desktop'],
+        ];
+        for (final List<String> pair in pairs) {
+          final Map<String, dynamic> phone = pair[0] == 'light-phone'
+              ? lightPhoneProbes
+              : darkPhoneProbes;
+          final Map<String, dynamic> desktop = pair[0] == 'light-phone'
+              ? lightProbes
+              : darkProbes;
+          for (final String field in fields) {
+            expect(
+              _probeValue(_probe(phone, cls, pair[0]), field, cls),
+              _probeValue(_probe(desktop, cls, pair[1]), field, cls),
+              reason:
+                  '${pair[0]} moves $field for $cls and AppIconButtons ports '
+                  'one row per brightness to paint it from',
+            );
+          }
+        }
+      });
+
+      test('$cls geometry is one row across the light and dark passes', () {
+        final AppIconButtonSpec lightSpec = AppIconButtons.resolve(
+          cls,
+          Brightness.light,
+        );
+        final AppIconButtonSpec darkSpec = AppIconButtons.resolve(
+          cls,
+          Brightness.dark,
+        );
+        for (final Object? Function(AppIconButtonSpec) read
+            in <Object? Function(AppIconButtonSpec)>[
+              (AppIconButtonSpec s) => s.displayCss,
+              (AppIconButtonSpec s) => s.sizePx,
+              (AppIconButtonSpec s) => s.radiusPx,
+              (AppIconButtonSpec s) => s.borderWidthPx,
+              (AppIconButtonSpec s) => s.paddingPx,
+              (AppIconButtonSpec s) => s.blurPx,
+              (AppIconButtonSpec s) => s.blurSaturate,
+            ]) {
+          expect(
+            read(lightSpec),
+            read(darkSpec),
+            reason:
+                '$cls: only the colours change between the schemes; §6 prints '
+                'one geometry row, so anything else must not move either',
+          );
+        }
+      });
+
+      test('$cls size and colours come from the pinned rule, not a guess', () {
+        final Map<String, String> rest = _cssDecls(cssLines, '$cls {', cls);
+        // Every property `.icon-btn` authors is either carried by
+        // AppIconButtonSpec or consciously dropped (the centring pair, cursor,
+        // flex-shrink and the -webkit- alias). This line catches a NEW property
+        // slipping into the rule unaccounted for.
+        expect(
+          rest.keys.toSet().difference(<String>{
+            'display',
+            'align-items',
+            'justify-content',
+            'width',
+            'height',
+            'border-radius',
+            'background',
+            'border',
+            'color',
+            'cursor',
+            'flex-shrink',
+            'backdrop-filter',
+            '-webkit-backdrop-filter',
+            'transition',
+          }),
+          isEmpty,
+          reason:
+              '$cls authors a property AppIconButtons can neither hold nor account for',
+        );
+        // The size is authored, not measured: the probe carries no width.
+        expect(
+          rest['width'],
+          rest['height'],
+          reason: '$cls draws one square pill, so width and height must agree',
+        );
+        for (final Brightness brightness in Brightness.values) {
+          final AppIconButtonSpec spec = AppIconButtons.resolve(
+            cls,
+            brightness,
+          );
+          final Map<String, dynamic> root = rootFor(brightness);
+          expect(
+            spec.sizePx,
+            _pxOf(rest['width']!, '$cls width'),
+            reason:
+                '$cls width is an authored length and the port squares the box to it',
+          );
+          expect(
+            spec.size,
+            Size(spec.sizePx, spec.sizePx),
+            reason: 'the pill is square',
+          );
+          expect(spec.radiusPx, _pxOf(rest['border-radius']!, '$cls radius'));
+          // radius ≥ half the box is a full circle — which is why every border
+          // pixel is anti-aliased and the widget test samples the ring on-axis.
+          expect(
+            spec.radiusPx >= spec.sizePx / 2,
+            isTrue,
+            reason: '$cls is drawn as a full circle',
+          );
+
+          final RegExpMatch? border = RegExp(
+            r'^([\d.]+)px solid var\((--[a-z0-9-]+)\)$',
+          ).firstMatch(rest['border']!);
+          expect(
+            border,
+            isNotNull,
+            reason:
+                '${rest['border']} is not `Npx solid var(--token)`; the port '
+                'paints a uniform solid ring',
+          );
+          expect(spec.borderWidthPx, double.parse(border!.group(1)!));
+          expect(
+            spec.borderColor,
+            _measuredColour(root, border.group(2)!),
+            reason:
+                '$cls: the authored border token and the probe are one colour',
+          );
+
+          final RegExpMatch? inkVar = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+              .firstMatch(rest['color']!);
+          expect(
+            inkVar,
+            isNotNull,
+            reason: '${rest['color']} is not a bare token',
+          );
+          expect(
+            spec.iconColor,
+            _measuredColour(root, inkVar!.group(1)!),
+            reason:
+                '$cls: the authored icon token and the probe are one colour',
+          );
+
+          // The fill is a translucent color-mix, so the token it mixes, the
+          // mix percentage and the measured alpha must agree with each other —
+          // this is what proves the port kept the pill translucent rather than
+          // flattening it to an opaque surface.
+          final RegExpMatch? mix = RegExp(
+            r'^color-mix\(in srgb, var\((--[a-z0-9-]+)\) ([\d.]+)%, transparent\)$',
+          ).firstMatch(rest['background']!);
+          expect(
+            mix,
+            isNotNull,
+            reason:
+                '${rest['background']} is not '
+                '`color-mix(in srgb, var(--token) N%, transparent)`',
+          );
+          final List<num> base = srgbInts(root, mix!.group(1)!);
+          final double mixAlpha = double.parse(mix.group(2)!) / 100.0;
+          expect(
+            mixAlpha,
+            lessThan(1.0),
+            reason:
+                '$cls fill is a partial mix with transparent, so it is translucent',
+          );
+          expect(
+            spec.fillColor,
+            Color.fromRGBO(
+              base[0].round(),
+              base[1].round(),
+              base[2].round(),
+              mixAlpha,
+            ),
+            reason:
+                '$cls: the fill is the mix token’s colour at the mix percentage '
+                'as alpha, and that alpha is the whole point of the translucent pill',
+          );
+
+          final RegExpMatch? bd = RegExp(r'^blur\(([\d.]+)px\)$')
+              .firstMatch(rest['backdrop-filter']!);
+          expect(
+            bd,
+            isNotNull,
+            reason: '${rest['backdrop-filter']} is not a bare blur()',
+          );
+          expect(
+            spec.blurPx,
+            double.parse(bd!.group(1)!),
+            reason: '$cls: the authored blur and the probe are one radius',
+          );
+        }
+      });
+
+      test('$cls hover is decoration only, which is why D-U1 drops it', () {
+        final Map<String, String> hover = _cssDecls(
+          cssLines,
+          '$cls:hover {',
+          cls,
+        );
+        // Hover touches colour and paint only — no size, radius or blur — so on
+        // a touch screen (no pointer to hover) dropping it is safe. If this rule
+        // ever authors a geometry property, that assumption is no longer true
+        // and the drop needs re-justifying.
+        expect(
+          hover.keys.toSet().difference(<String>{
+            'color',
+            'border-color',
+            'background',
+          }),
+          isEmpty,
+          reason:
+              '$cls:hover authors a non-decorative property; UI_SPEC D-U1 '
+              'dropped it on the assumption hover was paint-only',
+        );
+      });
+    }
+
+    test('the unmeasured .glass-pill context is a finding, not a number', () {
+      // `.glass-pill .icon-btn` shrinks the pill and drops its fill/border
+      // inside the header glass pill. The §6 probe measured the standalone
+      // `.icon-btn` element, not that descendant, so AppIconButtons can only
+      // carry the standalone pill. This test pins the descendant’s existence so
+      // the gap is visible in the suite rather than silently omitted.
+      final Map<String, String> pill = _cssDecls(
+        cssLines,
+        '.glass-pill .icon-btn {',
+        '.icon-btn',
+      );
+      expect(
+        _pxOf(pill['width']!, 'glass-pill icon width'),
+        lessThan(AppIconButtons.resolve('.icon-btn', Brightness.light).sizePx),
+        reason:
+            'the glass-pill context makes a smaller pill than the measured '
+            'standalone; being unmeasured it is recorded as a finding, not ported',
+      );
+    });
+
+    test('an unknown icon class is an error, not a Material default', () {
+      for (final Brightness brightness in Brightness.values) {
+        expect(
+          () => AppIconButtons.resolve('.btn-primary', brightness),
+          throwsArgumentError,
+          reason:
+              'a button is a measured §6 class but not an icon pill: '
+              'AppIconButtons refusing it keeps the header chrome from quietly '
+              'becoming a filled button',
+        );
+        expect(
+          () => AppIconButtons.resolve('.no-such-icon', brightness),
           throwsArgumentError,
         );
       }

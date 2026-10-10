@@ -1247,13 +1247,18 @@ const LABEL_CLASSES = ['.eyebrow'];
 const SKELETON_CLASSES = ['.skeleton'];
 const CSS_LINES = fs.readFileSync(path.join(ROOT, 'src', 'index.css'), 'utf8').split(/\r?\n/);
 
-/** The text of the rule whose head line matches `headRe`, with its line number. */
-const cssRule = (headRe, cls) => {
+/** The text of the rule whose head line matches `headRe`, with its line number.
+ *  `window` caps how many lines past the head to scan for the closing brace; the
+ *  default suits the short resting rules, and a caller whose rule wraps a
+ *  multi-line declaration (e.g. `.icon-btn`'s transition) widens it. The scan
+ *  still stops at the first `}`-terminated line, so a larger window only ever
+ *  lets a longer-but-honest rule be read, never over-captures a short one. */
+const cssRule = (headRe, cls, window = 16) => {
   const i = CSS_LINES.findIndex((l) => headRe.test(l));
   if (i < 0) fail(`${cls}: no rule head matching ${headRe} in src/index.css`);
   const body = [];
   let closed = false;
-  for (let j = i; j < CSS_LINES.length && j - i <= 16; j++) {
+  for (let j = i; j < CSS_LINES.length && j - i <= window; j++) {
     body.push(CSS_LINES[j]);
     if (/\}\s*$/.test(CSS_LINES[j])) {
       closed = true;
@@ -2949,6 +2954,268 @@ L.push(
 );
 finish('app_skeletons.dart');
 
+// ---------------------------------------------------------------- §6 icon buttons (UI_SPEC header chrome)
+// `.icon-btn` is the hairline pill the header hangs its chrome on (bell, theme,
+// avatar). Its resting box is a §6 probe like every class above, but two facts put
+// it outside both the controls table and the surfaces table: it carries a
+// `backdrop-filter` the controls row rejects (generate_theme.cjs:1443), and that
+// filter is `blur(10px)` with NO `saturate()`, the shape the shared `probeBackdrop`
+// calls unportable. So it gets its own reader. Its `width`/`height` are not in the
+// probe — the pill size is read from the same pinned `src/index.css` rule the
+// transition is, and cross-checked to a square, exactly as the skeleton sizes
+// itself by its `h-<n>` rule rather than a measured box.
+// `:hover` exists and is dropped for the reason AppControls drops it — UI_SPEC D-U1,
+// "decoration, not contract" on a touch screen. There is no `:active`/`:disabled`
+// rule for `.icon-btn`, so there is no press state and no clock to port either.
+const ICON_BUTTON_CLASSES = ['.icon-btn'];
+
+/** A `backdrop-filter` as far as the icon pill needs it. The shared `probeBackdrop`
+ *  insists on `blur() saturate()` together because every surface that reached for
+ *  it authored both; `.icon-btn` blurs alone, so this accepts `blur(Npx)` with the
+ *  saturate left genuinely absent, and only a saturate-without-a-blur (which no
+ *  Flutter filter models) still fails the run. */
+const iconBackdrop = (p, cls) => {
+  const bf = p.backdropFilter;
+  if (!bf) fail(`${cls}: no backdropFilter probe`);
+  const raw = bf.raw.trim();
+  if (raw === 'none') return { px: 0, saturate: null };
+  const blur = /^blur\(([\d.]+)px\)$/.exec(raw);
+  if (blur) return { px: parseFloat(blur[1]), saturate: null };
+  const both = /^blur\(([\d.]+)px\) saturate\(([\d.]+)\)$/.exec(raw);
+  if (both) return { px: parseFloat(both[1]), saturate: parseFloat(both[2]) };
+  fail(`${cls}: unportable backdrop-filter "${bf.raw}"`);
+};
+
+/** The resting pill, straight from the probe: fill, border, the icon's colour, the
+ *  corner and the blur. Not the size — that is the rule, added after the passes
+ *  agree — and no type: the pill holds an SVG that inherits `color`, not text. */
+const iconProbeRow = (cls, theme) => {
+  const p = theme.probes[cls];
+  if (!p) fail(`${theme.tag} theme has no ${cls} probe`);
+  if (probeRaw(p, 'boxShadow', cls) !== 'none') {
+    fail(
+      `${cls}: the resting probe carries a box-shadow (${probeRaw(p, 'boxShadow', cls)}); no §6 row ports a resting shadow`,
+    );
+  }
+  const bi = p.backgroundImage;
+  if (bi && bi.raw !== 'none') {
+    fail(`${cls}: the resting probe carries a background-image (${bi.raw}); the port paints a flat color-mix fill`);
+  }
+  const bd = iconBackdrop(p, cls);
+  return {
+    displayCss: probeRaw(p, 'display', cls),
+    radiusPx: probePx(p, 'borderRadius', cls),
+    borderWidthPx: probePx(p, 'borderTopWidth', cls),
+    borderColor: probeSrgb(p, 'borderTopColor', cls),
+    fillColor: probeSrgb(p, 'backgroundColor', cls),
+    iconColor: probeSrgb(p, 'color', cls),
+    paddingPx: probePx(p, 'padding', cls),
+    blurPx: bd.px,
+    blurSaturate: bd.saturate,
+  };
+};
+
+const ICON_COLOUR_FIELDS = ['borderColor', 'fillColor', 'iconColor'];
+const iconRow = (row) => {
+  const out = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (ICON_COLOUR_FIELDS.includes(key)) out[key] = value.hex;
+    else if (value === null || typeof value !== 'object') out[key] = value;
+    else fail(`the ${key} field is an object the pass check cannot compare`);
+  }
+  return out;
+};
+// Geometry that must not move between the two colour schemes: §6 prints one row.
+const ICON_STABLE_FIELDS = ['displayCss', 'radiusPx', 'borderWidthPx', 'paddingPx', 'blurPx', 'blurSaturate'];
+
+const iconButtons = ICON_BUTTON_CLASSES.map((cls) => {
+  const l = iconProbeRow(cls, LIGHT);
+  const d = iconProbeRow(cls, DARK);
+  for (const [tag, theme, want] of [
+    ['light-phone', LIGHT_PHONE, l],
+    ['dark-phone', DARK_PHONE, d],
+  ]) {
+    const fp = iconRow(iconProbeRow(cls, theme));
+    const fw = iconRow(want);
+    for (const [key, value] of Object.entries(fp)) {
+      if (fw[key] !== value) {
+        fail(`${cls}: ${key} is "${value}" on ${tag} but "${fw[key]}" on its desktop pass`);
+      }
+    }
+  }
+  for (const key of ICON_STABLE_FIELDS) {
+    if (l[key] !== d[key]) {
+      fail(`${cls}: ${key} is "${l[key]}" in light and "${d[key]}" in dark; §6 prints one row`);
+    }
+  }
+
+  // The pill's size is authored, not measured: read `width`/`height` from the
+  // resting rule and require them equal, because the port draws one square box.
+  // The rule wraps a multi-line `transition`, so it is wider than the default
+  // scan window — 24 lines reaches its closing `}` and stops there.
+  const rest = cssRule(new RegExp(`^\\${cls} \\{$`), cls, 24);
+  const wRaw = cssDecl(rest, 'width', cls);
+  const hRaw = cssDecl(rest, 'height', cls);
+  const sizePx = lengthPx(wRaw, `${cls} width`);
+  if (lengthPx(hRaw, `${cls} height`) !== sizePx) {
+    fail(`${cls}: width ${wRaw} != height ${hRaw}; the port paints one square pill`);
+  }
+  if (l.radiusPx < sizePx / 2) {
+    fail(`${cls}: radius ${l.radiusPx} is less than half the ${sizePx}px box; the port paints a full circle`);
+  }
+
+  const hov = CSS_LINES.findIndex((x) => new RegExp(`^\\${cls}:hover \\{$`).test(x));
+  // The `.glass-pill .icon-btn` embedding (a smaller, borderless icon inside the
+  // header pill) is a descendant rule the §6 probe never measured — so it is
+  // recorded as a finding, not invented, exactly as the skeleton records the
+  // inert `rounded-full` it cannot honour.
+  const pill = CSS_LINES.findIndex((x) => new RegExp(`^\\.glass-pill ${cls} \\{$`).test(x));
+  return {
+    cls,
+    l,
+    d,
+    sizePx,
+    hoverSrc: hov < 0 ? 'none' : `src/index.css:${hov + 1}`,
+    restSrc: `src/index.css:${rest.line}`,
+    pillSrc: pill < 0 ? null : `src/index.css:${pill + 1}`,
+  };
+});
+
+const iconButtonExpr = (c, pass) =>
+  [
+    `      cssClass: ${dartStr(c.cls)},`,
+    `      displayCss: ${dartStr(pass.displayCss)},`,
+    `      sizePx: ${fmt(c.sizePx)},`,
+    `      radiusPx: ${fmt(pass.radiusPx)},`,
+    `      borderWidthPx: ${fmt(pass.borderWidthPx)},`,
+    `      borderColor: ${dartSurfaceColour(pass.borderColor)},`,
+    `      fillColor: ${dartSurfaceColour(pass.fillColor)},`,
+    `      iconColor: ${dartSurfaceColour(pass.iconColor)},`,
+    `      paddingPx: ${fmt(pass.paddingPx)},`,
+    `      blurPx: ${fmt(pass.blurPx)},`,
+    `      blurSaturate: ${pass.blurSaturate === null ? 'null' : fmt(pass.blurSaturate)},`,
+  ].join('\n');
+
+// ================================================================ app_icon_buttons.dart
+banner();
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  '/// One §6 icon-button class — the header chrome pill — measured in its resting',
+  '/// state, with its size read from the same pinned `src/index.css` rule.',
+  '/// A widget under `lib/presentation/` restates none of it.',
+  '///',
+  '/// `.icon-btn` is filled with `color-mix(… 70%, transparent)` and blurs',
+  '/// `backdrop-filter: blur(10px)`, so its fill is genuinely translucent:',
+  '/// [fillColor] carries that alpha rather than being flattened to an opaque',
+  '/// colour, and [blurSigmaPx] is the port’s own blur mapping (CSS blur radius',
+  '/// halved), the same one [AppSurfaceSpec] uses.',
+  'class AppIconButtonSpec {',
+  '  const AppIconButtonSpec({',
+  '    required this.cssClass,',
+  '    required this.displayCss,',
+  '    required this.sizePx,',
+  '    required this.radiusPx,',
+  '    required this.borderWidthPx,',
+  '    required this.borderColor,',
+  '    required this.fillColor,',
+  '    required this.iconColor,',
+  '    required this.paddingPx,',
+  '    required this.blurPx,',
+  '    required this.blurSaturate,',
+  '  });',
+  '',
+  '  /// The CSS class this row was measured from.',
+  '  final String cssClass;',
+  '',
+  '  /// The computed `display`. Carried as data, not applied: the pill centres its',
+  '  /// icon, which in Flutter is [AppIconButton]’s own `Alignment.center`.',
+  '  final String displayCss;',
+  '',
+  '  /// The authored `width`/`height` of the square pill, from the resting rule.',
+  '  final double sizePx;',
+  '  final double radiusPx;',
+  '',
+  '  /// Measured on one side; the class authors `border: 1px solid …`, i.e. uniform,',
+  '  /// and [border] reproduces that ring.',
+  '  final double borderWidthPx;',
+  '  final Color borderColor;',
+  '',
+  '  /// The `color-mix(… 70%, transparent)` fill — translucent, as measured.',
+  '  final Color fillColor;',
+  '',
+  '  /// The icon colour (`color: var(--ink-2)`), which the SVG inherits on the web',
+  '  /// and the widget hands to its child through an IconTheme.',
+  '  final Color iconColor;',
+  '  final double paddingPx;',
+  '',
+  '  /// The `backdrop-filter` blur radius, in measured CSS px.',
+  '  final double blurPx;',
+  '  /// The `saturate()` the same filter would carry — `null` for `.icon-btn`,',
+  '  /// which blurs alone. Recorded so the absence is measured, not a guess.',
+  '  final double? blurSaturate;',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '',
+  '  Border get border => Border.all(color: borderColor, width: borderWidthPx);',
+  '',
+  '  /// CSS blur radius → Flutter sigma, the port’s fixed mapping (see',
+  '  /// [AppSurfaceSpec.blurSigma]). Not a number a widget chose.',
+  '  double get blurSigmaPx => blurPx / 2;',
+  '',
+  '  Size get size => Size(sizePx, sizePx);',
+  '}',
+  '',
+  '/// The §6 icon buttons, keyed by CSS class — one map per measured pass.',
+  'abstract final class AppIconButtons {',
+);
+for (const [passName, pass, themeTag] of [
+  ['light', 'l', 'light-desktop'],
+  ['dark', 'd', 'dark-desktop'],
+]) {
+  L.push(
+    `  /// ${passName} pass (UI_SPEC §6, \`${themeTag}\`; size from the resting rule).`,
+    `  static const Map<String, AppIconButtonSpec> ${passName} =`,
+    '      <String, AppIconButtonSpec>{',
+  );
+  for (const c of iconButtons) {
+    L.push(`    ${dartStr(c.cls)}: AppIconButtonSpec(`, iconButtonExpr(c, c[pass]), '    ),');
+  }
+  L.push('  };', '');
+}
+L.push(
+  '  /// The rules the port does NOT reproduce, printed once because both passes',
+  '  /// author them identically:',
+  ...iconButtons.flatMap((c) => [`  /// \`${c.cls}:hover\` at ${c.hoverSrc} — dropped per UI_SPEC D-U1;`, '']),
+  '  /// `.icon-btn` authors no `:active`/`:disabled`, so there is no press state or',
+  '  /// clock here — unlike AppControls, which has both.',
+  '',
+  '  /// A context the §6 probe never measured, so it is a finding, not a number:',
+  ...iconButtons.flatMap((c) =>
+    c.pillSrc
+      ? [
+          `  /// \`.glass-pill ${c.cls}\` at ${c.pillSrc} shrinks the pill and drops its`,
+          `  /// fill/border inside the header pill; that descendant is unmeasured, so`,
+          `  /// AppIconButtons carries the standalone ${c.cls} only.`,
+        ]
+      : [],
+  ),
+  '',
+  '  /// The measured pill for a class and brightness. An unknown class is a',
+  '  /// programming error, not a fallback: nothing in this layer may quietly',
+  '  /// become a Material default.',
+  '  static AppIconButtonSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppIconButtonSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppIconButtonSpec? spec = table[cssClass];',
+  "    if (spec == null) throw ArgumentError('$cssClass is not a §6 icon button');",
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+);
+finish('app_icon_buttons.dart');
+
 // ---------------------------------------------------------------- write + summary
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
@@ -2995,6 +3262,7 @@ console.log(
     `  §6 fields emitted:           ${fields.length} classes x 2 passes  -> AppFields`,
     `  §6 labels emitted:           ${labels.length} classes x 2 passes  -> AppLabels`,
     `  §6 skeletons emitted:        ${skeletons.length} classes x 2 passes  -> AppSkeletons`,
+    `  §6 icon buttons emitted:     ${iconButtons.length} classes x 2 passes  -> AppIconButtons`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );
