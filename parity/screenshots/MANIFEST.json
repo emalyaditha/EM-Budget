@@ -1,6 +1,38 @@
 {
-  "note": "Web pixel baselines for the Flutter parity tests. Produced by `node parity/run_baselines.cjs`, which only drives the untouched `qa-shot.cjs` against the running app. Each run registers a fresh throwaway tenant (D6); the harness password was generated per child and passed only through its environment (D9), so no secret is stored here. `reported` is the harness's own output for that run, kept verbatim.",
-  "generatedAt": "2026-10-06T09:08:22.819Z",
+  "note": "Web pixel baselines for the Flutter parity tests. Produced by `node parity/run_baselines.cjs`, which only drives `qa-shot.cjs` — with its two approved additive flags passed through, and nothing else — against the running app. Each run registers a fresh throwaway tenant (D6); the harness password was generated per child and passed only through its environment (D9), so no secret is stored here. `reported` is the harness's own output for that run, kept verbatim. `set` names the subtree under web/; the two Phase 1 sets carry only the OS signal because the stored app theme was never fixed.\n\n`fixedAt` and `passes[].now` apply to runs made after Phase 5 ruled the two flags. `--now` makes the seed a pure function of an instant, so a re-capture is reproducible: it names the Node clock that writes every seed date and id, and the browser clock that computes every relative label. One instant per width pass, `fixedAt` plus `passStepMs`, because the stamp prefixes every row id the pass inserts and `id` is a primary key with no tenant scope on every app table — a second pass on the same instant collides on insert and the app renders its sync-error banner instead of the screen under test.\n\nThe Phase 1 sets carry no `fixedAt`; their instants were never recorded. They are recoverable, because the row ids are still in the database: `muwgexow`/`muwgfevi`/`muwgfw0u` for the light passes and `muwggex1`/`muwggvxv`/`muwghdis` for the dark ones, base36 of the millisecond each pass seeded at. Those stamps cannot be used again — see the primary key above — so a re-capture of a Phase 1 screen pins to a different instant whose wallet ids hash to the same six deck tones, since faceToneForSeed(wallet.id) is what puts the id into the pixels. Measured under `tolerance`: a Phase 1 re-capture reproduced light/360/overviewhub byte for byte that way.",
+  "tolerance": {
+    "appliesTo": "harness reproducibility only — the rule a re-capture of a committed baseline must satisfy. It is NOT the Flutter-vs-web parity tolerance, which is a separate ruling.",
+    "compared": "decoded RGB pixels, per-channel delta",
+    "clauses": [
+      {
+        "id": "minor",
+        "channelDelta": 8,
+        "maxPixelRatio": 0.001,
+        "rule": "at most 0.1% of pixels may differ by more than 8/255 in any channel"
+      },
+      {
+        "id": "gross",
+        "channelDelta": 32,
+        "maxPixelRatio": 0.00005,
+        "rule": "at most 0.005% of pixels may differ by more than 32/255 in any channel"
+      },
+      {
+        "id": "absolute",
+        "channelDelta": 64,
+        "maxPixelCount": 0,
+        "rule": "no pixel may differ by more than 64/255"
+      }
+    ],
+    "evidence": "The one element that is not a pure function of the pinned instant is the unread badge on the notifications bell: src/App.tsx:4323 renders `w-2 h-2 bg-emerald-500 border-2 border-[var(--surface)] rounded-full animate-pulse` when unreadNotificationCount > 0, and animate-pulse swings its opacity on the CSS animation timeline, which page.clock.install does not freeze. Measured on dark/430/savingsjars, whose 12 offending pixels are all inside x380-386 y107-112 (the 4px badge core and its antialiased edge): the core reads [5,121,87] in the committed PNG, [4,138,97] and [3,143,99] in two independent re-captures — one hue at roughly 0.62, 0.72 and 0.74 of emerald-500 over the [15,21,31] surface, i.e. three points of the same pulse. Committed vs A 12px>8 (0.0033%) max 17; committed vs B 12px>8 max 22; A vs B max 5, 0px>8; zero pixels above 32/255 in any pair."
+  },
+  "comparability": {
+    "rule": "A baseline is only directly comparable with another that shares its seed instant, its seed multiplicity and its theme pair. buildSeed derives every seeded date from the same clock that names the row ids, so the instant is an input to the pixels, not just a stamp on them.",
+    "dateContent": "Yes, date-dependent content differs between the seed epochs, and it is a whole-day shift, not a rounding artefact. Read off the committed PNGs themselves: trackliabilities at 390px shows the same debt card as “Due 2026-10-14” in the 2026-10-06 sets and “Due 2026-10-17” in the 2026-10-09 set — the three days between the two seed instants, on an ISO date the app renders straight from `dueDate: daysAgo(-8)`. Everything else on the two screens is word for word the same (LKR 1,315,000, 37% repaid, 4 outstanding, 70% settled). Month-level labels do not move: reportscentre renders only “October” + “2026”, identical in both epochs, because the two instants fall in the same month. So the tabs that carry a day-level date are the ones that cannot cross epochs, and a set whose instants straddle a month or year boundary would move more than a label.",
+    "verdict": "NOT directly comparable. The 2026-10-09 set is a fourth golden in its own right: it differs from the three 2026-10-06 sets in theme pair AND seed instant, so a Flutter render is matched against exactly one set, and the dates it has to reproduce are that set’s.",
+    "proof": "light/360/overviewhub was re-captured on 2026-10-09 pinned to 2026-10-06T09:06:08.545Z — three days after the original run, and 17 ms away from the 09:06:08.528Z instant recovered from that run’s row ids — and came out byte-identical to the committed PNG. The pin, not the wall clock, is what the dates come from.",
+    "perBaselineFields": "seededAt = the instant that pass pinned its seed to (null when it pinned nothing), seedAtSource = pinned / recovered-from-row-ids / unrecorded, passIndex = position in the run, seedMultiplicity = how many seeds the tenant held when the shot was taken."
+  },
+  "generatedAt": "2026-10-09T08:01:41.777Z",
   "sourceTag": "pre-flutter",
   "sourceCommit": "41489c659af29fdd3ea3ac12cf78f6ffc2c39799",
   "widths": [360, 390, 430],
@@ -27,170 +59,306 @@
           "file": "web/light/360/ledgerregistry.png",
           "bytes": 74892,
           "sha256": "81e296b50e6ad6761515e9aed31248d46bb7c3ddb473510c5945c94f99fa45c8",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:06:08.528Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "overviewhub",
           "file": "web/light/360/overviewhub.png",
           "bytes": 98565,
           "sha256": "97e53b32e2ed2593d29f0976ea53ed1beaaf885cfd3ebf57f052db2f1b77187c",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:06:08.528Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "reportscentre",
           "file": "web/light/360/reportscentre.png",
           "bytes": 116020,
           "sha256": "42fd28db5a3268ffb2052cc34ccb88315728b1af6d0199e7f214c5b02b580a48",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:06:08.528Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "savingsjars",
           "file": "web/light/360/savingsjars.png",
           "bytes": 75968,
           "sha256": "bb18d3d818ce2d066850d8a6b8950180a65e831923f9db18482ef47e88157620",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:06:08.528Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "smartbudgets",
           "file": "web/light/360/smartbudgets.png",
           "bytes": 77443,
           "sha256": "ed19c6d53472694626417321c43b58a128d9794c5e42dd0c6e970145f4f84843",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:06:08.528Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackliabilities",
           "file": "web/light/360/trackliabilities.png",
           "bytes": 109890,
           "sha256": "cf3edf232ff3a7a2f44911f67debd1e4d4adeecf08f0b3cfca9c157f3c1c2970",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:06:08.528Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackloansgiven",
           "file": "web/light/360/trackloansgiven.png",
           "bytes": 128007,
           "sha256": "fa6ff889e064a30a522d2db67838f32da6a17b210ec368df340f37b81d805202",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:06:08.528Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "walletsportfolio",
           "file": "web/light/360/walletsportfolio.png",
           "bytes": 102269,
           "sha256": "57f0ec232e2568addbe29858c8008b41181f928d0b45025d95a95fd27e3f9557",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:06:08.528Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "ledgerregistry",
           "file": "web/light/390/ledgerregistry.png",
           "bytes": 74790,
           "sha256": "57c7a766f8c543ee4497c52b454d611faac446adcc8619acd98e68082487ee15",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:06:30.798Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "overviewhub",
           "file": "web/light/390/overviewhub.png",
           "bytes": 99927,
           "sha256": "ffafb92ce5f4ef13fcf96547d6859215865ba27d42eaf7df576fdd1e28106fa3",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:06:30.798Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "reportscentre",
           "file": "web/light/390/reportscentre.png",
           "bytes": 129145,
           "sha256": "ee23539040407a8b52c65df1c6af88babcd4ced4ee85f4d41d7d23d3635784b0",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:06:30.798Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "savingsjars",
           "file": "web/light/390/savingsjars.png",
           "bytes": 77042,
           "sha256": "046e043d52d7f301fbe554af8668b9a50d2d8c8e716a4cb90c7f95606bfd4828",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:06:30.798Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "smartbudgets",
           "file": "web/light/390/smartbudgets.png",
           "bytes": 78093,
           "sha256": "d0d79ccfc7197505f302b8dafa2aa19d6df0929186759d67bf69f6c18a068068",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:06:30.798Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackliabilities",
           "file": "web/light/390/trackliabilities.png",
           "bytes": 114218,
           "sha256": "3e179539ca4fa36109d1a58e6486e2be7f36fc0aad9594843994e0c90b4ad2cc",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:06:30.798Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackloansgiven",
           "file": "web/light/390/trackloansgiven.png",
           "bytes": 133683,
           "sha256": "a67816574d4ecf38458f7414f7d9f7ec00bb35c36762b5c3ae8f692e83f7074e",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:06:30.798Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "walletsportfolio",
           "file": "web/light/390/walletsportfolio.png",
           "bytes": 106141,
           "sha256": "60b33a519aa36b8058fd613a561148ca316f53b398a5f444d7e56c36a70c2698",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:06:30.798Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "ledgerregistry",
           "file": "web/light/430/ledgerregistry.png",
           "bytes": 76722,
           "sha256": "b97387a28e881f9d1b4298092d8933c9643b74530c403b45145ac9017d5e1e47",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:06:53.022Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "overviewhub",
           "file": "web/light/430/overviewhub.png",
           "bytes": 105086,
           "sha256": "c0ad593f389c460cefba53f448202cc9b0e2cdf261ce57248cbbe72019407aad",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:06:53.022Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "reportscentre",
           "file": "web/light/430/reportscentre.png",
           "bytes": 126815,
           "sha256": "1acd597e0f26fbb5c4dd3b16fd0ec0a17b3b549973909d33f71ab9fced8cb045",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:06:53.022Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "savingsjars",
           "file": "web/light/430/savingsjars.png",
           "bytes": 78114,
           "sha256": "e9f304dbfaabb0fbe905c894015c27c782470c2b5b1d7a6e96174b2f3907dfa6",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:06:53.022Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "smartbudgets",
           "file": "web/light/430/smartbudgets.png",
           "bytes": 79679,
           "sha256": "06823309a8101ff3c723c646ec6de860d844a54907dfa5cb742cf936f16f1543",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:06:53.022Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackliabilities",
           "file": "web/light/430/trackliabilities.png",
           "bytes": 118366,
           "sha256": "7c633d045c152172be748a0d74954a23c89956665cacf17f5273316d98522761",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:06:53.022Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackloansgiven",
           "file": "web/light/430/trackloansgiven.png",
           "bytes": 142261,
           "sha256": "4a3ed7d37ec17fb60f660cc128e0cc00635a8b6ea0dd438fe74506f81c61a34b",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:06:53.022Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "walletsportfolio",
           "file": "web/light/430/walletsportfolio.png",
           "bytes": 114904,
           "sha256": "e47fbec204b6b932e4ac14027af99b96945f0c2b23bc7deb9499318128326f07",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:06:53.022Z",
+          "seedAtSource": "recovered-from-row-ids"
         }
-      ]
+      ],
+      "set": "light",
+      "appTheme": null,
+      "fixedAt": null,
+      "passStepMs": null,
+      "passes": [
+        {
+          "width": 360,
+          "now": null,
+          "seededAt": "2026-10-06T09:06:08.528Z",
+          "seedAtSource": "recovered-from-row-ids",
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "tabs": "not recorded per pass",
+          "consoleErrors": null,
+          "overflow": null
+        },
+        {
+          "width": 390,
+          "now": null,
+          "seededAt": "2026-10-06T09:06:30.798Z",
+          "seedAtSource": "recovered-from-row-ids",
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "tabs": "not recorded per pass",
+          "consoleErrors": null,
+          "overflow": null
+        },
+        {
+          "width": 430,
+          "now": null,
+          "seededAt": "2026-10-06T09:06:53.022Z",
+          "seedAtSource": "recovered-from-row-ids",
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "tabs": "not recorded per pass",
+          "consoleErrors": null,
+          "overflow": null
+        }
+      ],
+      "seedEpoch": "2026-10-06"
     },
     {
       "theme": "dark",
@@ -214,170 +382,623 @@
           "file": "web/dark/360/ledgerregistry.png",
           "bytes": 79072,
           "sha256": "d8ceefb32bd1241897a460a9fad711e81558a55b8bccb1917229b350b4ac0e45",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:07:17.509Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "overviewhub",
           "file": "web/dark/360/overviewhub.png",
           "bytes": 102478,
           "sha256": "f9b75bac17e61804130d32808722cbfae34486e6e2b9e027b39b702cd73c85dc",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:07:17.509Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "reportscentre",
           "file": "web/dark/360/reportscentre.png",
           "bytes": 123432,
           "sha256": "8a2bfdfb2806cd7abb54d9a72607bfa9f499bb934cb9958c561f737e220657ea",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:07:17.509Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "savingsjars",
           "file": "web/dark/360/savingsjars.png",
           "bytes": 82582,
           "sha256": "8624938362abf59df08910cd8340e97909d114535482d435e41c9699a9dd01f5",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:07:17.509Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "smartbudgets",
           "file": "web/dark/360/smartbudgets.png",
           "bytes": 84203,
           "sha256": "4b3282c418aad44cbd407296bb1bccefbad470a669adcd21546406d785e56ef8",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:07:17.509Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackliabilities",
           "file": "web/dark/360/trackliabilities.png",
           "bytes": 113608,
           "sha256": "422df9a4bc5f4e015b2ec7a612d7fc98731c9c34a990ccacfdac75243fc840f5",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:07:17.509Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackloansgiven",
           "file": "web/dark/360/trackloansgiven.png",
           "bytes": 133384,
           "sha256": "f7ec9a5f3bd8d1d49db0fb29e29339bdcea5223eb9b4cbd5d97111fdf6658ff4",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:07:17.509Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "walletsportfolio",
           "file": "web/dark/360/walletsportfolio.png",
           "bytes": 107240,
           "sha256": "c923512f7663cfb2ca6dac5bf335f6982a0057127422e84c292b2b33a135a538",
-          "width": 360
+          "width": 360,
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-06T09:07:17.509Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "ledgerregistry",
           "file": "web/dark/390/ledgerregistry.png",
           "bytes": 79028,
           "sha256": "5af3151b72532d2d2bf7c7c1a9f376b5027b625535db438991c3d33ebad8842e",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:07:39.571Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "overviewhub",
           "file": "web/dark/390/overviewhub.png",
           "bytes": 104642,
           "sha256": "0429ccdc3f7ac0675e54a7a0b63ed9c9fd9d229a5804bc8f3277ce614886bc86",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:07:39.571Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "reportscentre",
           "file": "web/dark/390/reportscentre.png",
           "bytes": 138300,
           "sha256": "cfc54c06052f44aca136a8ee4ca727df981cfff387a82286a05368351ef94277",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:07:39.571Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "savingsjars",
           "file": "web/dark/390/savingsjars.png",
           "bytes": 83734,
           "sha256": "b454e2b53c3261a3d0d45adc5e9bcc36c041ec8d57afbbfa1f47aa748cfd2103",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:07:39.571Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "smartbudgets",
           "file": "web/dark/390/smartbudgets.png",
           "bytes": 85455,
           "sha256": "42f478f6aade4b075f276c0e17663bf26aea64acc99665d04a420b23d530fd3e",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:07:39.571Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackliabilities",
           "file": "web/dark/390/trackliabilities.png",
           "bytes": 118111,
           "sha256": "38f86dc49ce437855a8661d8afad534ac8bf6550f4b217a66be3d4546fe9f848",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:07:39.571Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackloansgiven",
           "file": "web/dark/390/trackloansgiven.png",
           "bytes": 139683,
           "sha256": "355184c756192f2b8c299633e903119f210a02bb7fabe5e26a707dfacff2bbef",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:07:39.571Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "walletsportfolio",
           "file": "web/dark/390/walletsportfolio.png",
           "bytes": 111100,
           "sha256": "5b2685251defe4dd39b7205ad2e9eb48349dbbd3d94fafe5c30889eea4348610",
-          "width": 390
+          "width": 390,
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-06T09:07:39.571Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "ledgerregistry",
           "file": "web/dark/430/ledgerregistry.png",
           "bytes": 82284,
           "sha256": "07e57954a120e600ef55af90d81e8f40baf981fb096bbe21319f09bedb21481c",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:08:02.356Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "overviewhub",
           "file": "web/dark/430/overviewhub.png",
           "bytes": 109397,
           "sha256": "e4b44f6c18b3df5d3712ce89e62b201d1285266c399212d4c55067c7a22b52b7",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:08:02.356Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "reportscentre",
           "file": "web/dark/430/reportscentre.png",
           "bytes": 133088,
           "sha256": "0ebcc2c5be3ead7ee01e518b3dfa472c157a605682367b22a7209a6d2b0f41d5",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:08:02.356Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "savingsjars",
           "file": "web/dark/430/savingsjars.png",
           "bytes": 85525,
           "sha256": "79e7cc26609a1748c8b196908a6cba7ed46862df700b8afd4630254aa4c42ff0",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:08:02.356Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "smartbudgets",
           "file": "web/dark/430/smartbudgets.png",
           "bytes": 87206,
           "sha256": "b56c7252caea24615c493a9783ca4a31e5a29fe61422701183f0d5633c029d52",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:08:02.356Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackliabilities",
           "file": "web/dark/430/trackliabilities.png",
           "bytes": 121738,
           "sha256": "e4db58cc4cc41b4773618c2d9eb107f0feaa802a8105e839c2e4b7f903d8f88e",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:08:02.356Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "trackloansgiven",
           "file": "web/dark/430/trackloansgiven.png",
           "bytes": 146516,
           "sha256": "13fc8896a2cbc44b91bb8dd076898364f0e3ad00a263320e3ab9bea76f50d557",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:08:02.356Z",
+          "seedAtSource": "recovered-from-row-ids"
         },
         {
           "tab": "walletsportfolio",
           "file": "web/dark/430/walletsportfolio.png",
           "bytes": 119842,
           "sha256": "9abe76ab08a32c6c1cffaf3b33a28635f18d1efa1cd26bef061ce4c1cd3484f5",
-          "width": 430
+          "width": 430,
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-06T09:08:02.356Z",
+          "seedAtSource": "recovered-from-row-ids"
         }
-      ]
+      ],
+      "set": "dark",
+      "appTheme": null,
+      "fixedAt": null,
+      "passStepMs": null,
+      "passes": [
+        {
+          "width": 360,
+          "now": null,
+          "seededAt": "2026-10-06T09:07:17.509Z",
+          "seedAtSource": "recovered-from-row-ids",
+          "passIndex": 0,
+          "seedMultiplicity": 1,
+          "tabs": "not recorded per pass",
+          "consoleErrors": null,
+          "overflow": null
+        },
+        {
+          "width": 390,
+          "now": null,
+          "seededAt": "2026-10-06T09:07:39.571Z",
+          "seedAtSource": "recovered-from-row-ids",
+          "passIndex": 1,
+          "seedMultiplicity": 2,
+          "tabs": "not recorded per pass",
+          "consoleErrors": null,
+          "overflow": null
+        },
+        {
+          "width": 430,
+          "now": null,
+          "seededAt": "2026-10-06T09:08:02.356Z",
+          "seedAtSource": "recovered-from-row-ids",
+          "passIndex": 2,
+          "seedMultiplicity": 3,
+          "tabs": "not recorded per pass",
+          "consoleErrors": null,
+          "overflow": null
+        }
+      ],
+      "seedEpoch": "2026-10-06"
+    },
+    {
+      "theme": "dark",
+      "set": "app-light-os-dark",
+      "appTheme": "light",
+      "fixedAt": "2026-10-09T08:00:14.423Z",
+      "passStepMs": 22000,
+      "passes": [
+        {
+          "width": 360,
+          "now": "2026-10-09T08:00:14.423Z",
+          "tabs": "8/8",
+          "consoleErrors": 0,
+          "overflow": 0,
+          "passIndex": 0,
+          "seedMultiplicity": 1
+        },
+        {
+          "width": 390,
+          "now": "2026-10-09T08:00:36.423Z",
+          "tabs": "8/8",
+          "consoleErrors": 0,
+          "overflow": 0,
+          "passIndex": 1,
+          "seedMultiplicity": 2
+        },
+        {
+          "width": 430,
+          "now": "2026-10-09T08:00:58.423Z",
+          "tabs": "8/8",
+          "consoleErrors": 0,
+          "overflow": 0,
+          "passIndex": 2,
+          "seedMultiplicity": 3
+        }
+      ],
+      "email": "qa-p5base-dark-mv0odyyh@example.com",
+      "tag": "p5base-dark-applight",
+      "reported": {
+        "tabs": "8/8",
+        "consoleErrors": {
+          "count": 0,
+          "body": "(none)\n(none)\n(none)"
+        },
+        "overflow": {
+          "count": 0,
+          "body": "(none)\n(none)\n(none)"
+        },
+        "raw": "=== p5base-dark-applight @ 360px, dark ===\ntabs captured: 8/8\n\n-- console errors (0) --\n(none)\n\n-- horizontal overflow (0) --\n(none)\n\nshots in D:/tmp/qa\n=== p5base-dark-applight @ 390px, dark ===\ntabs captured: 8/8\n\n-- console errors (0) --\n(none)\n\n-- horizontal overflow (0) --\n(none)\n\nshots in D:/tmp/qa\n=== p5base-dark-applight @ 430px, dark ===\ntabs captured: 8/8\n\n-- console errors (0) --\n(none)\n\n-- horizontal overflow (0) --\n(none)\n\nshots in D:/tmp/qa"
+      },
+      "screenshots": [
+        {
+          "tab": "ledgerregistry",
+          "file": "web/app-light-os-dark/360/ledgerregistry.png",
+          "bytes": 74893,
+          "sha256": "977a702db8f1b05d733321d0908f9de34bd7547aab353ff4feab40cbc117bd0a",
+          "width": 360,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-09T08:00:14.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 0
+        },
+        {
+          "tab": "overviewhub",
+          "file": "web/app-light-os-dark/360/overviewhub.png",
+          "bytes": 98736,
+          "sha256": "6d40a05d586d085c8f0631a779e244e288603670863231e82d3b3412203daa74",
+          "width": 360,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-09T08:00:14.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 0
+        },
+        {
+          "tab": "reportscentre",
+          "file": "web/app-light-os-dark/360/reportscentre.png",
+          "bytes": 116467,
+          "sha256": "16af70d3a56c974b63e3d0c7200d7e8468f4751d890a449c9bf5212a08369407",
+          "width": 360,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-09T08:00:14.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 0
+        },
+        {
+          "tab": "savingsjars",
+          "file": "web/app-light-os-dark/360/savingsjars.png",
+          "bytes": 75973,
+          "sha256": "695918fa5e0b95c921c4c9afa5b8678dba12037b7ef90d30a6dc617ce9afa16c",
+          "width": 360,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-09T08:00:14.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 0
+        },
+        {
+          "tab": "smartbudgets",
+          "file": "web/app-light-os-dark/360/smartbudgets.png",
+          "bytes": 77070,
+          "sha256": "728e3281f72f933a5306d422a35c478d978c0f4e47fc72165ecb4aa2c8fe5248",
+          "width": 360,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-09T08:00:14.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 0
+        },
+        {
+          "tab": "trackliabilities",
+          "file": "web/app-light-os-dark/360/trackliabilities.png",
+          "bytes": 109867,
+          "sha256": "9feb4c879815bb8556a1da968be1b4aa0faa271c1f09577758b01393161b8400",
+          "width": 360,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-09T08:00:14.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 0
+        },
+        {
+          "tab": "trackloansgiven",
+          "file": "web/app-light-os-dark/360/trackloansgiven.png",
+          "bytes": 127957,
+          "sha256": "b97d088d4a96ec6f2bacb7b6a7e5c88a1b46d231ef89f2ec5be4a77619822e11",
+          "width": 360,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-09T08:00:14.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 0
+        },
+        {
+          "tab": "walletsportfolio",
+          "file": "web/app-light-os-dark/360/walletsportfolio.png",
+          "bytes": 102281,
+          "sha256": "7482af2e33a411d11aba1bd4fc0b7c8ac9d9b2f9f3a7389dfab68a9047fdaf39",
+          "width": 360,
+          "seedMultiplicity": 1,
+          "seededAt": "2026-10-09T08:00:14.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 0
+        },
+        {
+          "tab": "ledgerregistry",
+          "file": "web/app-light-os-dark/390/ledgerregistry.png",
+          "bytes": 74801,
+          "sha256": "3dfd32bfbc438b09b48ba1cee62b2dd4fa2f2126f70672e1f72192bef0e78eeb",
+          "width": 390,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-09T08:00:36.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 1
+        },
+        {
+          "tab": "overviewhub",
+          "file": "web/app-light-os-dark/390/overviewhub.png",
+          "bytes": 100568,
+          "sha256": "37592707a299e7f8595786bb0f348eb4dff067dcf8f0240a65f0b1c89f23f38d",
+          "width": 390,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-09T08:00:36.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 1
+        },
+        {
+          "tab": "reportscentre",
+          "file": "web/app-light-os-dark/390/reportscentre.png",
+          "bytes": 128463,
+          "sha256": "3ba6bd1c2d66a23d828fc17a111155f43c3c58d97e97d4b7984002253e872d23",
+          "width": 390,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-09T08:00:36.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 1
+        },
+        {
+          "tab": "savingsjars",
+          "file": "web/app-light-os-dark/390/savingsjars.png",
+          "bytes": 77052,
+          "sha256": "03a687b07066aa0922a9a04ea5c3f2afc9b82100987d4719d8d2d21de2fd0826",
+          "width": 390,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-09T08:00:36.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 1
+        },
+        {
+          "tab": "smartbudgets",
+          "file": "web/app-light-os-dark/390/smartbudgets.png",
+          "bytes": 78398,
+          "sha256": "bed1d5a9dffed77afc13e99e52949fd77d1765713f502b4e55f0fdc56efd492d",
+          "width": 390,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-09T08:00:36.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 1
+        },
+        {
+          "tab": "trackliabilities",
+          "file": "web/app-light-os-dark/390/trackliabilities.png",
+          "bytes": 114204,
+          "sha256": "b0b4c27d03b29315b8867cae71d452e5d0193fdf5a678733dea7477285c118a6",
+          "width": 390,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-09T08:00:36.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 1
+        },
+        {
+          "tab": "trackloansgiven",
+          "file": "web/app-light-os-dark/390/trackloansgiven.png",
+          "bytes": 133634,
+          "sha256": "c37137729bbb05e37f9b132a35a4069ca8697f5ff067f51ba5ce975217c38f2c",
+          "width": 390,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-09T08:00:36.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 1
+        },
+        {
+          "tab": "walletsportfolio",
+          "file": "web/app-light-os-dark/390/walletsportfolio.png",
+          "bytes": 106137,
+          "sha256": "67af09153dfd15a08ff23b0ba72a5bd12477aa3511f147036c479ceae5b5afbc",
+          "width": 390,
+          "seedMultiplicity": 2,
+          "seededAt": "2026-10-09T08:00:36.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 1
+        },
+        {
+          "tab": "ledgerregistry",
+          "file": "web/app-light-os-dark/430/ledgerregistry.png",
+          "bytes": 76701,
+          "sha256": "5687771479794b0b1cfff2858797ca403e7de4fb537aac99113e709d713be53b",
+          "width": 430,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-09T08:00:58.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 2
+        },
+        {
+          "tab": "overviewhub",
+          "file": "web/app-light-os-dark/430/overviewhub.png",
+          "bytes": 104747,
+          "sha256": "200da8165019d00e8ef9ac90f68e7ed6e14f24567687b518b73a200cbf4a2ac1",
+          "width": 430,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-09T08:00:58.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 2
+        },
+        {
+          "tab": "reportscentre",
+          "file": "web/app-light-os-dark/430/reportscentre.png",
+          "bytes": 126807,
+          "sha256": "f109d76c892d1ca8d6ab0254626a79bfc592314b7946f2bb7b5e7c70a8e6360b",
+          "width": 430,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-09T08:00:58.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 2
+        },
+        {
+          "tab": "savingsjars",
+          "file": "web/app-light-os-dark/430/savingsjars.png",
+          "bytes": 78211,
+          "sha256": "a20b50ca70468e8fe1523ba6d7dd26ee0bd79e808629ecc2d1ee58b1e9b859c3",
+          "width": 430,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-09T08:00:58.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 2
+        },
+        {
+          "tab": "smartbudgets",
+          "file": "web/app-light-os-dark/430/smartbudgets.png",
+          "bytes": 79519,
+          "sha256": "27e7924df7d5d6a1918209496498f52a228b92c3fa049f3fd96fdd60136439e2",
+          "width": 430,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-09T08:00:58.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 2
+        },
+        {
+          "tab": "trackliabilities",
+          "file": "web/app-light-os-dark/430/trackliabilities.png",
+          "bytes": 118315,
+          "sha256": "fed7b89afd1885186c5aa372baf92c365f8ebbc1ba952167257abd6de126d942",
+          "width": 430,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-09T08:00:58.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 2
+        },
+        {
+          "tab": "trackloansgiven",
+          "file": "web/app-light-os-dark/430/trackloansgiven.png",
+          "bytes": 142188,
+          "sha256": "d5c83fc4494326cb538f0b3e8c506798bb4654f2bc7e18a2652a2f1f008619e9",
+          "width": 430,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-09T08:00:58.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 2
+        },
+        {
+          "tab": "walletsportfolio",
+          "file": "web/app-light-os-dark/430/walletsportfolio.png",
+          "bytes": 114900,
+          "sha256": "dc09a4cb23e3e692c943f33b4ae99cd005c182d40d26d6b52aaf3b8306df273b",
+          "width": 430,
+          "seedMultiplicity": 3,
+          "seededAt": "2026-10-09T08:00:58.423Z",
+          "seedAtSource": "pinned",
+          "passIndex": 2
+        }
+      ],
+      "seedEpoch": "2026-10-09"
     }
   ]
 }

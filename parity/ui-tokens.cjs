@@ -206,7 +206,512 @@ const utilityTokens = () => {
 const UTILITY_MAP = utilityTokens();
 const UTILITIES = [...UTILITY_MAP.keys()];
 
-const PROBE_PAGE = (selectors, utilities) => {
+/* --------------------------------------------------------- utility stacks */
+/**
+ * The #55 ruling's second evidence tier. A surface like the toast has no class
+ * in `src/index.css` for the §6 probe to measure — its whole look is a stack of
+ * Tailwind utilities written inside one `className` string (plus the fragments
+ * a template literal splices in per state). The stack is therefore measured the
+ * way the browser sees it: each row's complete authored class list goes on one
+ * detached element, exactly as the `utilities` tier does for single tokens, and
+ * its computed style is read against an unclassed control in all four passes.
+ *
+ * `parts` are verbatim slices of the pinned component source, each with its line
+ * — the drift test re-reads those lines and fails if the stack was retyped, so
+ * the measurement below is bound to the markup that produces it.
+ *
+ * `authoredNonCss` records what no CSS probe can see: timers and motion values
+ * live in JS object literals. They are stored as verbatim source slices and
+ * marked authored, never as measurements.
+ */
+const STACK_SOURCE = 'src/context/NotificationContext.tsx';
+const TOAST_BOX = {
+  cls: 'p-4 rounded-xl shadow-lg border flex items-center gap-3 backdrop-blur-sm w-full max-w-[300px]',
+  line: 83,
+};
+const UTILITY_STACKS = [
+  {
+    name: 'toast-container',
+    parts: [
+      {
+        cls: 'fixed top-4 left-4 right-4 md:left-auto md:right-4 z-[9999] flex flex-col gap-2 items-center md:items-end',
+        line: 73,
+      },
+    ],
+  },
+  {
+    name: 'toast-success',
+    parts: [
+      TOAST_BOX,
+      { cls: 'bg-[var(--surface)] border-emerald-500/30 text-emerald-700 dark:text-emerald-100', line: 86 },
+    ],
+  },
+  {
+    name: 'toast-error',
+    parts: [TOAST_BOX, { cls: 'bg-[var(--surface)] border-[var(--danger)]/30 text-[var(--danger)]', line: 88 }],
+  },
+  {
+    name: 'toast-warning',
+    parts: [TOAST_BOX, { cls: 'bg-[var(--surface)] border-amber-500/30 text-amber-700 dark:text-amber-100', line: 90 }],
+  },
+  {
+    name: 'toast-info',
+    parts: [TOAST_BOX, { cls: 'bg-[var(--surface)] border-[var(--line)] text-[var(--ink)]', line: 91 }],
+  },
+  { name: 'toast-message', parts: [{ cls: 'text-sm font-medium', line: 98 }] },
+  { name: 'toast-close', parts: [{ cls: 'ml-auto text-[var(--ink-2)] hover:text-[var(--ink)]', line: 100 }] },
+  { name: 'toast-icon-success', parts: [{ cls: 'text-emerald-500', line: 94 }] },
+  { name: 'toast-icon-error', parts: [{ cls: 'text-[var(--danger)]', line: 95 }] },
+  { name: 'toast-icon-warning', parts: [{ cls: 'text-amber-500', line: 96 }] },
+  { name: 'toast-icon-info', parts: [{ cls: 'text-[var(--ink-2)]', line: 97 }] },
+  {
+    name: 'confirm-overlay',
+    parts: [
+      {
+        cls: 'fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm',
+        line: 116,
+      },
+    ],
+  },
+  { name: 'confirm-panel', parts: [{ cls: 'card p-6 max-w-sm w-full', line: 125 }] },
+  { name: 'confirm-title', parts: [{ cls: 'text-[var(--ink)] font-bold mb-2', line: 127 }] },
+  { name: 'confirm-rule', parts: [{ cls: 'ledger-rule mb-4', line: 128 }] },
+  { name: 'confirm-message', parts: [{ cls: 'text-[var(--ink-2)] text-sm mb-6', line: 129 }] },
+  { name: 'confirm-actions', parts: [{ cls: 'flex gap-3', line: 130 }] },
+  { name: 'confirm-cancel', parts: [{ cls: 'btn-ghost flex-1', line: 136 }] },
+  { name: 'confirm-confirm', parts: [{ cls: 'btn-primary flex-1', line: 145 }] },
+];
+
+/**
+ * #56 extends the tier to the modal/sheet shells. These rows carry their own
+ * `src` because the family spans six files; the drift tests read
+ * `row.src ?? STACK_SOURCE`, so the #55 rows keep citing the top-level source
+ * untouched. The panel of the Modal primitive is a template literal —
+ * `relative w-full ${maxWidths[maxWidth]} card …` — so it is recorded as the
+ * verbatim slices around the interpolation plus the resolved default width
+ * `max-w-md`, cited to the entry in the `maxWidths` map that authors it.
+ */
+const MODAL_STACKS = [
+  {
+    name: 'modal-shell',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [
+      {
+        cls: 'fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto',
+        line: 49,
+      },
+    ],
+  },
+  {
+    name: 'modal-veil',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [{ cls: 'fixed inset-0 bg-[var(--ink)]/40 backdrop-blur-[2px]', line: 56 }],
+  },
+  {
+    name: 'modal-panel',
+    src: 'src/components/ui/Modal.tsx',
+    note: 'the interpolated ${maxWidths[maxWidth]} resolves to the prop default md',
+    parts: [
+      { cls: 'relative w-full', line: 68 },
+      { cls: 'max-w-md', line: 41 },
+      { cls: 'card p-0 overflow-hidden z-10 my-8', line: 68 },
+    ],
+  },
+  {
+    name: 'modal-header',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [
+      {
+        cls: 'flex items-center justify-between px-5 h-12 border-b border-[var(--line)] bg-[var(--surface)]',
+        line: 71,
+      },
+    ],
+  },
+  {
+    name: 'modal-title',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [{ cls: 'text-[13px] font-bold tracking-tight text-[var(--ink)]', line: 74 }],
+  },
+  {
+    name: 'modal-close',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [
+      {
+        cls: 'w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center',
+        line: 84,
+      },
+    ],
+  },
+  {
+    name: 'modal-body',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [{ cls: 'p-5 sm:p-6 max-h-[80vh] overflow-y-auto', line: 92 }],
+  },
+  {
+    name: 'sheet-shell',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [{ cls: 'fixed inset-0 z-50 flex items-end sm:items-center justify-center', line: 23 }],
+  },
+  {
+    name: 'sheet-veil',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [{ cls: 'fixed inset-0 bg-[var(--ink)]/40 backdrop-blur-[2px]', line: 30 }],
+  },
+  {
+    name: 'sheet-panel',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [
+      {
+        cls: 'relative w-full max-w-lg bg-[var(--surface)] border-t sm:border border-[var(--line)] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden z-10 max-h-[85vh] flex flex-col',
+        line: 40,
+      },
+    ],
+  },
+  {
+    name: 'sheet-grip',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [
+      {
+        cls: 'w-10 h-1 bg-[var(--line-strong)] rounded-full mx-auto my-3 shrink-0 sm:hidden',
+        line: 42,
+      },
+    ],
+  },
+  {
+    name: 'sheet-header',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [{ cls: 'flex items-center justify-between px-5 h-12 border-b border-[var(--line)] shrink-0', line: 44 }],
+  },
+  {
+    name: 'sheet-title',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [{ cls: 'text-[13px] font-bold tracking-tight text-[var(--ink)]', line: 47 }],
+  },
+  {
+    name: 'sheet-close',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [
+      {
+        cls: 'w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center',
+        line: 56,
+      },
+    ],
+  },
+  {
+    name: 'sheet-body',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [{ cls: 'p-5 sm:p-6 overflow-y-auto flex-1', line: 63 }],
+  },
+  {
+    name: 'qa-shell',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [{ cls: 'fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4', line: 102 }],
+  },
+  {
+    name: 'qa-veil',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [{ cls: 'fixed inset-0 bg-black/60 backdrop-blur-sm', line: 108 }],
+  },
+  {
+    name: 'qa-panel',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [
+      {
+        cls: 'relative w-full md:max-w-md bg-[var(--surface)] border-t md:border border-[var(--line)] rounded-t-[24px] md:rounded-[16px] p-6 text-left z-10 flex flex-col max-h-[90vh] overflow-y-auto shadow-[var(--shadow-float)]',
+        line: 121,
+      },
+    ],
+  },
+  {
+    name: 'qa-header',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [{ cls: 'flex justify-between items-center pb-4 border-b border-[var(--line)]', line: 123 }],
+  },
+  {
+    name: 'qa-title',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [{ cls: 'text-sm font-semibold tracking-tight text-[var(--ink)]', line: 125 }],
+  },
+  {
+    name: 'qa-close',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [
+      {
+        cls: 'w-8 h-8 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)] hover:text-[var(--ink)] hover:border-[var(--line-strong)] transition-colors flex items-center justify-center',
+        line: 130,
+      },
+    ],
+  },
+  {
+    name: 'debt-veil',
+    src: 'src/components/DebtDetailModal.tsx',
+    parts: [
+      {
+        cls: 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-[6px]',
+        line: 124,
+      },
+    ],
+  },
+  {
+    name: 'debt-panel',
+    src: 'src/components/DebtDetailModal.tsx',
+    parts: [{ cls: 'card max-w-[560px] w-full max-h-[92vh] overflow-hidden flex flex-col relative', line: 129 }],
+  },
+  {
+    name: 'debt-header',
+    src: 'src/components/DebtDetailModal.tsx',
+    parts: [{ cls: 'flex items-start justify-between gap-4 px-6 pt-5 pb-4 shrink-0', line: 137 }],
+  },
+  {
+    name: 'debt-title',
+    src: 'src/components/DebtDetailModal.tsx',
+    parts: [{ cls: 'text-[18px] font-bold tracking-tight mt-1 truncate', line: 142 }],
+  },
+  {
+    name: 'tem-shell',
+    src: 'src/components/TransactionEditModal.tsx',
+    parts: [{ cls: 'fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-4', line: 146 }],
+  },
+  {
+    name: 'tem-veil',
+    src: 'src/components/TransactionEditModal.tsx',
+    parts: [{ cls: 'fixed inset-0 bg-black/60 backdrop-blur-sm', line: 153 }],
+  },
+  {
+    name: 'tem-panel',
+    src: 'src/components/TransactionEditModal.tsx',
+    parts: [
+      {
+        cls: 'relative z-10 w-full md:max-w-sm max-h-[92dvh] overflow-y-auto bg-[var(--surface)] border-t md:border border-[var(--line)] rounded-t-[var(--r-lg)] md:rounded-[var(--r-lg)] p-6 md:p-8 shadow-[var(--shadow-float)]',
+        line: 159,
+      },
+    ],
+  },
+  {
+    name: 'tem-grip',
+    src: 'src/components/TransactionEditModal.tsx',
+    parts: [{ cls: 'w-10 h-1 bg-[var(--line-strong)] rounded-full mx-auto mb-4 md:hidden', line: 162 }],
+  },
+  {
+    name: 'settings-veil',
+    src: 'src/components/SettingsModal.tsx',
+    parts: [{ cls: 'fixed inset-0 z-40 bg-[var(--ink)]/40 backdrop-blur-[2px]', line: 508 }],
+  },
+  {
+    name: 'settings-drawer',
+    src: 'src/components/SettingsModal.tsx',
+    parts: [
+      {
+        cls: 'fixed top-0 right-0 bottom-0 w-full max-w-[600px] bg-[var(--surface)] border-l border-[var(--line)] z-50 flex flex-col shadow-2xl',
+        line: 518,
+      },
+    ],
+  },
+  {
+    name: 'settings-header',
+    src: 'src/components/SettingsModal.tsx',
+    parts: [
+      {
+        cls: 'px-6 h-14 flex items-center justify-between border-b border-[var(--line)] bg-[var(--surface)]/80 backdrop-blur shrink-0',
+        line: 524,
+      },
+    ],
+  },
+];
+const ALL_STACKS = [...UTILITY_STACKS, ...MODAL_STACKS];
+const AUTHORED_NON_CSS = [
+  {
+    name: 'toast-auto-dismiss',
+    tier: 'authored-js',
+    note: 'the dismiss timer is a setTimeout in the hook, not a CSS animation',
+    parts: [{ text: "const timeout = type === 'error' ? 8000 : 5000;", line: 50 }],
+  },
+  {
+    name: 'toast-motion',
+    tier: 'authored-js',
+    note: 'motion/react keyframes on the toast box; no stylesheet declares them',
+    parts: [
+      { text: 'initial={{ opacity: 0, y: -20 }}', line: 80 },
+      { text: 'animate={{ opacity: 1, y: 0 }}', line: 81 },
+      { text: 'exit={{ opacity: 0, scale: 0.95 }}', line: 82 },
+    ],
+  },
+  {
+    name: 'confirm-motion',
+    tier: 'authored-js',
+    note: 'motion/react keyframes on the confirm panel',
+    parts: [
+      { text: 'initial={{ opacity: 0, scale: 0.9 }}', line: 122 },
+      { text: 'animate={{ opacity: 1, scale: 1 }}', line: 123 },
+      { text: 'exit={{ opacity: 0, scale: 0.9 }}', line: 124 },
+    ],
+  },
+  {
+    name: 'icon-sizes',
+    tier: 'authored-js',
+    note: 'lucide renders these at a px size prop, not through CSS',
+    parts: [
+      { text: 'size={20}', line: 94 },
+      { text: 'size={20}', line: 95 },
+      { text: 'size={20}', line: 96 },
+      { text: 'size={20}', line: 97 },
+      { text: 'size={16}', line: 103 },
+    ],
+  },
+];
+
+/** #56: the modal/sheet family's authored JS — motion keyframes and spring
+ *  transitions no stylesheet declares, the scroll-lock/Escape behaviour, the
+ *  maxWidths prop map, one inline style override, and the lucide close sizes.
+ *  Same discipline: verbatim slices with a src and a line, never measurements. */
+const MODAL_AUTHORED = [
+  {
+    name: 'modal-veil-motion',
+    src: 'src/components/ui/Modal.tsx',
+    tier: 'authored-js',
+    note: 'AnimatePresence fade on the primitive veil',
+    parts: [
+      { text: 'initial={{ opacity: 0 }}', line: 51 },
+      { text: 'animate={{ opacity: 1 }}', line: 52 },
+      { text: 'exit={{ opacity: 0 }}', line: 53 },
+      { text: 'transition={{ duration: 0.18 }}', line: 54 },
+    ],
+  },
+  {
+    name: 'modal-panel-motion',
+    src: 'src/components/ui/Modal.tsx',
+    tier: 'authored-js',
+    note: 'the panel enters with a small lift, spring damped — the port must not invent another curve',
+    parts: [
+      { text: 'initial={{ opacity: 0, scale: 0.98, y: 6 }}', line: 64 },
+      { text: 'animate={{ opacity: 1, scale: 1, y: 0 }}', line: 65 },
+      { text: 'exit={{ opacity: 0, scale: 0.98, y: 6 }}', line: 66 },
+      { text: "transition={{ type: 'spring', damping: 26, stiffness: 280 }}", line: 67 },
+    ],
+  },
+  {
+    name: 'modal-behaviour',
+    src: 'src/components/ui/Modal.tsx',
+    tier: 'authored-js',
+    note: 'Escape closes and the body scroll-locks while open — JS, not CSS',
+    parts: [
+      { text: "if (e.key === 'Escape') onClose();", line: 28 },
+      { text: "document.body.style.overflow = 'hidden';", line: 31 },
+      { text: "document.body.style.overflow = 'unset';", line: 35 },
+    ],
+  },
+  {
+    name: 'modal-width-prop',
+    src: 'src/components/ui/Modal.tsx',
+    tier: 'authored-js',
+    note: 'the panel max-width is a prop; the default md selects this map entry',
+    parts: [
+      { text: "maxWidth = 'md',", line: 22 },
+      { text: "md: 'max-w-md',", line: 41 },
+    ],
+  },
+  {
+    name: 'sheet-veil-motion',
+    src: 'src/components/ui/BottomSheet.tsx',
+    tier: 'authored-js',
+    note: 'AnimatePresence fade on the sheet veil',
+    parts: [
+      { text: 'initial={{ opacity: 0 }}', line: 25 },
+      { text: 'animate={{ opacity: 1 }}', line: 26 },
+      { text: 'exit={{ opacity: 0 }}', line: 27 },
+      { text: 'transition={{ duration: 0.18 }}', line: 28 },
+    ],
+  },
+  {
+    name: 'sheet-panel-motion',
+    src: 'src/components/ui/BottomSheet.tsx',
+    tier: 'authored-js',
+    note: 'the sheet slides up from a full own-height offset',
+    parts: [
+      { text: "initial={{ y: '100%' }}", line: 36 },
+      { text: 'animate={{ y: 0 }}', line: 37 },
+      { text: "exit={{ y: '100%' }}", line: 38 },
+      { text: "transition={{ type: 'spring', damping: 26, stiffness: 220 }}", line: 39 },
+      { text: "if (isOpen) document.body.style.overflow = 'hidden';", line: 15 },
+      { text: "document.body.style.overflow = 'unset';", line: 17 },
+    ],
+  },
+  {
+    name: 'qa-motion',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    tier: 'authored-js',
+    note: 'QuickActionModal springs its own panel with its own damping/stiffness',
+    parts: [
+      { text: 'initial={{ opacity: 0 }}', line: 104 },
+      { text: 'animate={{ opacity: 1 }}', line: 105 },
+      { text: 'exit={{ opacity: 0 }}', line: 106 },
+      { text: "initial={{ y: '100%', opacity: 0.5 }}", line: 117 },
+      { text: 'animate={{ y: 0, opacity: 1 }}', line: 118 },
+      { text: "exit={{ y: '100%', opacity: 0.5 }}", line: 119 },
+      { text: "transition={{ type: 'spring', damping: 25, stiffness: 220 }}", line: 120 },
+    ],
+  },
+  {
+    name: 'debt-overlay-close',
+    src: 'src/components/DebtDetailModal.tsx',
+    tier: 'authored-js',
+    note: 'DebtDetailModal has no AnimatePresence; the overlay closes on a self-targeted click',
+    parts: [
+      { text: 'const handleOverlayClose = (e: React.MouseEvent) => {', line: 117 },
+      { text: 'if (e.target === e.currentTarget) onClose();', line: 118 },
+    ],
+  },
+  {
+    name: 'debt-panel-inline-style',
+    src: 'src/components/DebtDetailModal.tsx',
+    tier: 'authored-inline',
+    note: 'the only inline style in the family: it re-states var(--surface) over the card class',
+    parts: [{ text: "style={{ background: 'var(--surface)' }}", line: 130 }],
+  },
+  {
+    name: 'tem-motion',
+    src: 'src/components/TransactionEditModal.tsx',
+    tier: 'authored-js',
+    note: 'the edit panel springs from a full own-height offset; its veil has no exit',
+    parts: [
+      { text: 'initial={{ opacity: 0 }}', line: 149 },
+      { text: 'animate={{ opacity: 1 }}', line: 150 },
+      { text: 'transition={{ duration: 0.18 }}', line: 151 },
+      { text: "initial={{ y: '100%', opacity: 0.6 }}", line: 156 },
+      { text: 'animate={{ y: 0, opacity: 1 }}', line: 157 },
+      { text: "transition={{ type: 'spring', damping: 26, stiffness: 240 }}", line: 158 },
+    ],
+  },
+  {
+    name: 'settings-motion',
+    src: 'src/components/SettingsModal.tsx',
+    tier: 'authored-js',
+    note: 'the drawer enters from a full own-width offset — a horizontal slide, unlike the vertical sheets',
+    parts: [
+      { text: 'initial={{ opacity: 0 }}', line: 503 },
+      { text: 'animate={{ opacity: 1 }}', line: 504 },
+      { text: 'exit={{ opacity: 0 }}', line: 505 },
+      { text: 'transition={{ duration: 0.18 }}', line: 506 },
+      { text: "initial={{ x: '100%' }}", line: 514 },
+      { text: 'animate={{ x: 0 }}', line: 515 },
+      { text: "exit={{ x: '100%' }}", line: 516 },
+      { text: "transition={{ type: 'spring', damping: 28, stiffness: 260 }}", line: 517 },
+    ],
+  },
+  {
+    name: 'sheet-icon-sizes',
+    src: 'src/components/ui/Modal.tsx',
+    tier: 'authored-js',
+    note: 'the modal family closes with a 13px X, not the toast 16',
+    parts: [
+      { text: 'size={13}', line: 86 },
+      { text: 'size={13}', src: 'src/components/ui/BottomSheet.tsx', line: 58 },
+    ],
+  },
+];
+const ALL_AUTHORED = [...AUTHORED_NON_CSS, ...MODAL_AUTHORED];
+
+const PROBE_PAGE = (selectors, utilities, stacks) => {
   const cv = document.createElement('canvas');
   cv.width = 1;
   cv.height = 1;
@@ -458,6 +963,79 @@ const PROBE_PAGE = (selectors, utilities) => {
     };
   };
 
+  /** The stack tier's wider read. Same engine, more properties: a utility stack
+   *  also lays the box out (padding, gap, offsets, max-width, flex), so those
+   *  computed values are recorded next to the paint ones. Colour-bearing props
+   *  go through the same pick/compound engine path as everywhere else. */
+  const stackProps = (el) => {
+    const cs = getComputedStyle(el);
+    // Same readers as styleOf, rebuilt here rather than hoisted, so editing
+    // this tier can never move a value in the tiers above.
+    const pick = (prop) => {
+      const raw = cs[prop];
+      if (!raw || raw === 'none') return { raw };
+      if (
+        /^(rgb|rgba|hsl|hsla|oklch|oklab|color\(|#|currentcolor|transparent|white|black)/i.test(raw.trim()) ||
+        /color-mix\(/.test(raw)
+      ) {
+        return { raw, srgb: resolve(raw) };
+      }
+      return { raw };
+    };
+    const compound = (prop) => {
+      const raw = cs[prop];
+      if (!raw || raw === 'none') return { raw };
+      const many = resolveInside(raw);
+      return many ? { raw, substituted: many.substituted, stops: many.stops } : { raw };
+    };
+    return {
+      display: cs.display,
+      position: cs.position,
+      top: cs.top,
+      right: cs.right,
+      bottom: cs.bottom,
+      left: cs.left,
+      zIndex: cs.zIndex,
+      flexDirection: cs.flexDirection,
+      alignItems: cs.alignItems,
+      justifyContent: cs.justifyContent,
+      rowGap: cs.rowGap,
+      columnGap: cs.columnGap,
+      padding: cs.padding,
+      marginLeft: cs.marginLeft,
+      marginBottom: cs.marginBottom,
+      marginTop: cs.marginTop,
+      marginRight: cs.marginRight,
+      flexGrow: cs.flexGrow,
+      flexShrink: cs.flexShrink,
+      width: cs.width,
+      maxWidth: cs.maxWidth,
+      height: cs.height,
+      maxHeight: cs.maxHeight,
+      borderRadius: cs.borderRadius,
+      borderTopWidth: cs.borderTopWidth,
+      borderRightWidth: cs.borderRightWidth,
+      borderBottomWidth: cs.borderBottomWidth,
+      borderLeftWidth: cs.borderLeftWidth,
+      overflowX: cs.overflowX,
+      overflowY: cs.overflowY,
+      color: pick('color'),
+      backgroundColor: pick('backgroundColor'),
+      borderTopColor: pick('borderTopColor'),
+      borderLeftColor: pick('borderLeftColor'),
+      boxShadow: compound('boxShadow'),
+      backdropFilter: compound('backdropFilter'),
+      backgroundImage: compound('backgroundImage'),
+      fontSize: cs.fontSize,
+      fontWeight: cs.fontWeight,
+      lineHeight: cs.lineHeight,
+      letterSpacing: cs.letterSpacing,
+      whiteSpace: cs.whiteSpace,
+      textOverflow: cs.textOverflow,
+      opacity: cs.opacity,
+    };
+  };
+
   const probes = {};
   const badSelectors = [];
   for (const sel of selectors) {
@@ -509,14 +1087,17 @@ const PROBE_PAGE = (selectors, utilities) => {
   // really exists and really changes one of the five paint properties.
   const PAINT = ['color', 'backgroundColor', 'borderTopColor', 'backgroundImage', 'boxShadow'];
   const shown = (v) => (v && v.srgb ? v.srgb.rgba : v ? v.substituted || v.raw : '');
-  const control = (() => {
+  const controlRead = (() => {
     const el = document.createElement('div');
     el.textContent = 'probe';
     document.body.appendChild(el);
     const s = styleOf(el);
+    const st = stackProps(el);
     el.remove();
-    return s;
+    return { s, st };
   })();
+  const control = controlRead.s;
+  const controlStack = controlRead.st;
   const utilitiesPainted = {};
   const utilitiesSilent = [];
   for (const tok of utilities) {
@@ -536,12 +1117,29 @@ const PROBE_PAGE = (selectors, utilities) => {
     utilitiesPainted[tok] = rec;
   }
 
+  // The utility stacks: the whole authored class list of one box on one
+  // element, read wider than the paint-only tiers. `changed` names every
+  // property the stack actually moves against the control — a rule Tailwind
+  // never emits shows up as a property missing from it, not as a silent lie.
+  const stacksPainted = {};
+  for (const stack of stacks) {
+    const el = document.createElement('div');
+    el.className = stack.parts.map((p) => p.cls).join(' ');
+    el.textContent = 'probe';
+    document.body.appendChild(el);
+    const props = stackProps(el);
+    el.remove();
+    const changed = Object.keys(props).filter((k) => JSON.stringify(props[k]) !== JSON.stringify(controlStack[k]));
+    stacksPainted[stack.name] = { changed, props };
+  }
+
   return {
     root: customProps(document.documentElement),
     body: customProps(document.body),
     probes,
     utilities: utilitiesPainted,
     utilitiesSilent,
+    stacks: stacksPainted,
     controlPaint: { color: shown(control.color), backgroundColor: shown(control.backgroundColor) },
     badSelectors,
     appliedClass: document.documentElement.className,
@@ -575,6 +1173,23 @@ async function main() {
       writtenIn: Object.fromEntries(UTILITY_MAP),
       scanned: UTILITIES.length,
     },
+    utilityStacks: {
+      note:
+        'The #55 utility-stack tier: boxes whose look is a stack of Tailwind utilities written in a ' +
+        'className string, not a class in src/index.css. Each row is a verbatim slice of the pinned ' +
+        'component source; the whole class list goes on one detached element and its computed style is ' +
+        'read against an unclassed control, in themes.<pass>.stacks. "changed" names the properties the ' +
+        'stack actually moves — a utility Tailwind never emits (or a variant gated off in this pass, like ' +
+        'a dark: fragment under a light preference) shows as a property absent from it. authoredNonCss is ' +
+        'not a measurement: timers and motion values are JS, recorded verbatim so the port never invents ' +
+        'them. measuredAt/base/toolchain describe THIS section only: a stack capture can postdate the ' +
+        'pinned sections in themes/root, which are not re-synced until the ruling says so. #56 extended ' +
+        'the tier to the modal/sheet family: rows from more than one file carry their own src, and the ' +
+        'top-level source is only the fallback for the rows that were already here.',
+      source: STACK_SOURCE,
+      rows: ALL_STACKS,
+      authoredNonCss: ALL_AUTHORED,
+    },
   };
 
   for (const theme of ['light', 'dark']) {
@@ -600,7 +1215,7 @@ async function main() {
       // All measurement lives inside PROBE_PAGE; only the selector and utility lists
       // are interpolated, as JSON, so no page-source text is hand-escaped here.
       const data = await page.evaluate(
-        `(${PROBE_PAGE.toString()})(${JSON.stringify(PROBE_SELECTORS)},${JSON.stringify(UTILITIES)})`,
+        `(${PROBE_PAGE.toString()})(${JSON.stringify(PROBE_SELECTORS)},${JSON.stringify(UTILITIES)},${JSON.stringify(ALL_STACKS)})`,
       );
       if (data.badSelectors.length > 0) throw new Error(`unparseable probe selectors: ${data.badSelectors.join(', ')}`);
       data.media = { width: data.innerWidth, floatingNavDisplay: data.floatingNavDisplay };
@@ -609,11 +1224,18 @@ async function main() {
       console.log(
         `${key}: ${Object.keys(data.root).length} root props, ${Object.keys(data.probes).length} probes, ` +
           `${Object.keys(data.utilities).length}/${UTILITIES.length} JSX utilities paint, ` +
+          `${Object.keys(data.stacks).length}/${ALL_STACKS.length} stacks, ` +
           `${problems.length} page errors, floating-nav=${data.media.floatingNavDisplay} @ ${vp.width}px`,
       );
       await ctx.close();
     }
   }
+
+  result.utilityStacks.measuredAt = result.generatedAt;
+  result.utilityStacks.base = BASE;
+  result.utilityStacks.toolchain = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '..', 'node_modules', 'tailwindcss', 'package.json'), 'utf8'),
+  ).version;
 
   // Tailwind v4 resolves the `dark:` variant from `prefers-color-scheme` unless the
   // stylesheet rebinds it with `@custom-variant dark`, and src/index.css does not.
@@ -636,7 +1258,7 @@ async function main() {
       await page.goto(BASE + '/', { waitUntil: 'load' });
       await page.waitForSelector(appTheme === 'dark' ? 'html.dark' : 'html.light', { timeout: 45000 });
       const data = await page.evaluate(
-        `(${PROBE_PAGE.toString()})(${JSON.stringify([])},${JSON.stringify(darkTokens)})`,
+        `(${PROBE_PAGE.toString()})(${JSON.stringify([])},${JSON.stringify(darkTokens)},[])`,
       );
       matrix.push({
         appTheme,
@@ -712,6 +1334,7 @@ async function main() {
   const styleRecords = (t) => [
     ...Object.entries(t.probes).map(([sel, p]) => ['probe', sel, p]),
     ...Object.entries(t.utilities).map(([tok, p]) => ['utility', tok, p]),
+    ...Object.entries(t.stacks || {}).map(([name, rec]) => ['stack', name, rec.props]),
   ];
   for (const [theme, t] of styleHolders) {
     for (const [name, v] of Object.entries({ ...t.root, ...t.body })) {
