@@ -4232,6 +4232,635 @@ void main() {
     });
   });
 
+  group('utility stacks — the #55 toast and confirm rows measured whole', () {
+    // The tier the #55 ruling asked for: NotificationContext toasts have no
+    // .toast class — their look is a stack of Tailwind utilities written into
+    // className strings. Each row puts its verbatim class list on one detached
+    // element and reads the computed style against an unclassed control; the
+    // JSON carries the source file and line for every fragment so a drift test
+    // can re-read the component and prove the slice is still the component's.
+    // Nothing here builds a widget: the ruling stops at the measurement.
+    final Map<String, dynamic> stacks =
+        measurement['utilityStacks']! as Map<String, dynamic>;
+    final List<dynamic> rows = stacks['rows']! as List<dynamic>;
+    final List<dynamic> nonCss = stacks['authoredNonCss']! as List<dynamic>;
+    const List<String> stackPasses = <String>[
+      'light-desktop',
+      'dark-desktop',
+      'light-phone',
+      'dark-phone',
+    ];
+
+    Map<String, dynamic> record(String pass, String row) {
+      final Object? r =
+          (_theme(measurement, pass)['stacks']! as Map<String, dynamic>)[row];
+      if (r == null) throw StateError('no stack $row in $pass');
+      return r as Map<String, dynamic>;
+    }
+
+    Map<String, dynamic> props(String pass, String row) =>
+        record(pass, row)['props']! as Map<String, dynamic>;
+
+    List<String> changed(String pass, String row) =>
+        (record(pass, row)['changed']! as List<dynamic>).cast<String>();
+
+    /// A stack property carrying a colour arrives as {raw, srgb}; this is the
+    /// same reader `_measuredColour` uses on root tokens, so a stack colour and
+    /// a token colour are compared as the two engine serialisations of one
+    /// colour rather than as two hand-parsed strings.
+    Color colourOf(Map<String, dynamic> value) {
+      final Map<String, dynamic> srgb = value['srgb']! as Map<String, dynamic>;
+      return Color.fromRGBO(
+        (srgb['r']! as num).round(),
+        (srgb['g']! as num).round(),
+        (srgb['b']! as num).round(),
+        (srgb['alpha']! as num).toDouble(),
+      );
+    }
+
+    /// The engine-rounded channel ints of any colour-bearing record — a stack
+    /// prop or a root token — for comparisons that want the base colour and
+    /// the alpha asserted as separate facts (the `/30` and `/60` modifiers).
+    List<int> channelsOf(Map<String, dynamic> value) {
+      final Map<String, dynamic> srgb = value['srgb']! as Map<String, dynamic>;
+      return <int>[
+        (srgb['r']! as num).round(),
+        (srgb['g']! as num).round(),
+        (srgb['b']! as num).round(),
+      ];
+    }
+
+    /// How Chrome serialises an integer-px computed length, which is what
+    /// every utility in these stacks resolves to at the 16px root.
+    String px(num n) => n == n.roundToDouble() ? '${n.toInt()}px' : '$n';
+
+    double spacingOf(Map<String, dynamic> root) =>
+        _lengthToPx(_raw(root, '--spacing'));
+
+    test('the tier names its source and every fragment is that source verbatim', () {
+      expect(stacks['source'], 'src/context/NotificationContext.tsx');
+      final List<String> lines = webSource(stacks['source']! as String)
+          .split('\n');
+      void check(Map<String, dynamic> part, String textKey) {
+        final int line = (part['line']! as num).toInt();
+        expect(
+          line,
+          inInclusiveRange(1, lines.length),
+          reason: 'cited line $line is outside the ${lines.length}-line file',
+        );
+        expect(
+          lines[line - 1],
+          contains(part[textKey]! as String),
+          reason:
+              'the JSON slice "${part[textKey]}" must still be verbatim at '
+              'line $line — the component moved, the tier has to move with it',
+        );
+      }
+
+      for (final dynamic rowAny in rows) {
+        final Map<String, dynamic> row = rowAny as Map<String, dynamic>;
+        for (final dynamic p in row['parts']! as List<dynamic>) {
+          check(p as Map<String, dynamic>, 'cls');
+        }
+      }
+      for (final dynamic entryAny in nonCss) {
+        final Map<String, dynamic> entry = entryAny as Map<String, dynamic>;
+        expect(
+          entry['tier'],
+          'authored-js',
+          reason:
+              '${entry['name']} is '
+              'JS the port must copy literally, never something to re-measure',
+        );
+        for (final dynamic p in entry['parts']! as List<dynamic>) {
+          check(p as Map<String, dynamic>, 'text');
+        }
+      }
+    });
+
+    test('every pass measured exactly the authored rows', () {
+      final Set<String> names = rows
+          .map((dynamic r) => (r as Map<String, dynamic>)['name']! as String)
+          .toSet();
+      expect(names.length, rows.length, reason: 'row names are unique');
+      for (final String pass in stackPasses) {
+        expect(
+          (_theme(measurement, pass)['stacks']! as Map<String, dynamic>).keys
+              .toSet(),
+          names,
+          reason: '$pass measured a different row set than the tier declares',
+        );
+        for (final String name in names) {
+          for (final String key in changed(pass, name)) {
+            expect(
+              props(pass, name).containsKey(key),
+              isTrue,
+              reason:
+                  '$name in $pass: "changed" named $key, which was never read',
+            );
+          }
+        }
+      }
+    });
+
+    test(
+      'the toast container is the fixed offset flex column its classes say',
+      () {
+        for (final String pass in stackPasses) {
+          final Map<String, dynamic> p = props(pass, 'toast-container');
+          final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+          final double s = spacingOf(root);
+          expect(p['position'], 'fixed', reason: '$pass: fixed L73');
+          expect(p['display'], 'flex');
+          expect(p['flexDirection'], 'column', reason: 'flex-col');
+          expect(p['zIndex'], '9999', reason: 'the z-[9999] arbitrary literal');
+          expect(p['top'], px(4 * s), reason: 'top-4 is 4×--spacing');
+          expect(
+            p['right'],
+            px(4 * s),
+            reason: 'right-4 AND md:right-4 — 16px either way',
+          );
+          expect(
+            p['rowGap'],
+            px(2 * s),
+            reason: 'gap-2 is 2×--spacing; columnGap travels with it',
+          );
+          expect(p['columnGap'], px(2 * s));
+          if (pass.endsWith('desktop')) {
+            expect(
+              p['alignItems'],
+              'flex-end',
+              reason: '$pass (≥1024px): md:items-end is live here',
+            );
+            expect(
+              p['left'],
+              isNot(px(4 * s)),
+              reason: 'md:left-auto retakes left-4 in this pass',
+            );
+          } else {
+            expect(
+              p['alignItems'],
+              'center',
+              reason:
+                  '$pass (390px): the md: variant is silent, items-center wins',
+            );
+            expect(p['left'], px(4 * s), reason: 'left-4 is unconditional');
+          }
+        }
+      },
+    );
+
+    test('the four toast boxes share one measured pill geometry', () {
+      const List<String> boxes = <String>[
+        'toast-success',
+        'toast-error',
+        'toast-warning',
+        'toast-info',
+      ];
+      for (final String pass in stackPasses) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        final double s = spacingOf(root);
+        for (final String box in boxes) {
+          final Map<String, dynamic> p = props(pass, box);
+          expect(p['display'], 'flex');
+          expect(p['alignItems'], 'center');
+          expect(p['padding'], px(4 * s), reason: '$box: p-4 is 4×--spacing');
+          expect(p['rowGap'], px(3 * s), reason: 'gap-3');
+          expect(
+            p['borderRadius'],
+            px(_lengthToPx(_raw(root, '--radius-xl'))),
+            reason: '$box: rounded-xl is --radius-xl, wherever it points',
+          );
+          for (final String side in <String>[
+            'borderTopWidth',
+            'borderRightWidth',
+            'borderBottomWidth',
+            'borderLeftWidth',
+          ]) {
+            expect(p[side], '1px', reason: '$box: bare `border` on $side');
+          }
+          expect(
+            p['maxWidth'],
+            '300px',
+            reason: '$box: the max-w-[300px] arbitrary literal',
+          );
+          expect(
+            p['width'],
+            p['maxWidth'],
+            reason:
+                '$box: w-full is percentage semantics — here it resolves '
+                'against the detached parent and lands on the 300px cap',
+          );
+          expect(
+            p['backdropFilter']!['raw'],
+            'blur(${px(_lengthToPx(_raw(root, '--blur-sm')))})',
+            reason:
+                '$box: backdrop-blur-sm is --blur-sm (D-U8 divides later, '
+                'the tier records the CSS px)',
+          );
+        }
+      }
+    });
+
+    test(
+      'the toast type colours are named root tokens at the authored alpha',
+      () {
+        for (final String pass in stackPasses) {
+          final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+          final Color surface = _measuredColour(root, '--surface');
+          for (final String box in <String>[
+            'toast-success',
+            'toast-error',
+            'toast-warning',
+            'toast-info',
+          ]) {
+            expect(
+              colourOf(
+                props(pass, box)['backgroundColor']! as Map<String, dynamic>,
+              ),
+              surface,
+              reason:
+                  '$box: bg-[var(--surface)] is the token, not a palette entry',
+            );
+          }
+          expect(
+            colourOf(
+              props(pass, 'toast-success')['color']! as Map<String, dynamic>,
+            ),
+            _measuredColour(root, '--color-emerald-700'),
+            reason: 'text-emerald-700 is the palette token this pass measures',
+          );
+          expect(
+            colourOf(
+              props(pass, 'toast-warning')['color']! as Map<String, dynamic>,
+            ),
+            _measuredColour(root, '--color-amber-700'),
+          );
+          final Color danger = _measuredColour(root, '--danger');
+          expect(
+            colourOf(
+              props(pass, 'toast-error')['color']! as Map<String, dynamic>,
+            ),
+            danger,
+            reason: 'text-[var(--danger)]',
+          );
+          final Color infoInk = _measuredColour(root, '--ink');
+          expect(
+            colourOf(
+              props(pass, 'toast-info')['color']! as Map<String, dynamic>,
+            ),
+            infoInk,
+            reason:
+                'text-[var(--ink)] — quiet in this pass, so absent from '
+                '"changed": the control already reads it',
+          );
+          for (final List<String> pair in <List<String>>[
+            <String>['toast-success', '--color-emerald-500'],
+            <String>['toast-error', '--danger'],
+            <String>['toast-warning', '--color-amber-500'],
+          ]) {
+            final Map<String, dynamic> borderRec =
+                props(pass, pair[0])['borderTopColor']! as Map<String, dynamic>;
+            expect(
+              channelsOf(borderRec),
+              channelsOf(_token(root, pair[1])),
+              reason: '${pair[0]}: the /30 border is ${pair[1]}’s channels',
+            );
+            expect(
+              colourOf(borderRec).a,
+              closeTo(0.3, 0.002),
+              reason: '${pair[0]}: /30 is 30% alpha, and nothing else',
+            );
+          }
+          expect(
+            colourOf(
+              props(pass, 'toast-info')['borderTopColor']!
+                  as Map<String, dynamic>,
+            ),
+            _measuredColour(root, '--line'),
+            reason: 'border-[var(--line)] carries no modifier — alpha 1',
+          );
+        }
+      },
+    );
+
+    test('the icon and close inks are their tokens, unmodified', () {
+      for (final String pass in stackPasses) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        final Map<String, String> want = <String, String>{
+          'toast-icon-success': '--color-emerald-500',
+          'toast-icon-error': '--danger',
+          'toast-icon-warning': '--color-amber-500',
+          'toast-icon-info': '--ink-2',
+          'toast-close': '--ink-2',
+        };
+        for (final MapEntry<String, String> e in want.entries) {
+          expect(
+            colourOf(props(pass, e.key)['color']! as Map<String, dynamic>),
+            _measuredColour(root, e.value),
+            reason: '${e.key} paints ${e.value} at full alpha',
+          );
+        }
+      }
+    });
+
+    test('dark: and hover: fragments moved nothing in any pass', () {
+      // The detached probe never carries the app's html.dark class and the
+      // dark OS-preference is not what these passes paint, so dark:text-*
+      // fragments answer to nothing here — exactly as darkVariantMatrix found
+      // for the utility tier. hover:text-[var(--ink)] needs a pointer the
+      // probe has no way to fake. Both are findings, and D-U1 drops hover
+      // anyway; what this test pins is that the tier did NOT quietly absorb
+      // a value from a fragment that cannot fire in the pass it is recorded in.
+      for (final String pass in stackPasses) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        final Color success = colourOf(
+          props(pass, 'toast-success')['color']! as Map<String, dynamic>,
+        );
+        expect(
+          success,
+          _measuredColour(root, '--color-emerald-700'),
+          reason: '$pass: dark:text-emerald-100 is silent — even here',
+        );
+        expect(success, isNot(_measuredColour(root, '--color-emerald-100')));
+        expect(
+          colourOf(
+            props(pass, 'toast-warning')['color']! as Map<String, dynamic>,
+          ),
+          isNot(_measuredColour(root, '--color-amber-100')),
+          reason: '$pass: dark:text-amber-100 never painted',
+        );
+        expect(
+          colourOf(
+            props(pass, 'toast-close')['color']! as Map<String, dynamic>,
+          ),
+          _measuredColour(root, '--ink-2'),
+          reason:
+              'the hover target is --ink; the resting state is what was '
+              'measured and is what the tier records',
+        );
+      }
+    });
+
+    test('the toast message is the app-overridden --text-sm at its ratio', () {
+      for (final String pass in stackPasses) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        final Map<String, dynamic> p = props(pass, 'toast-message');
+        expect(
+          p['fontSize'],
+          _raw(root, '--text-sm'),
+          reason:
+              'text-sm resolves through the ROOT, where index.css has '
+              'overridden Tailwind’s 14px to 15px — the drift test follows '
+              'the override instead of hard-coding either',
+        );
+        expect(
+          p['fontWeight'],
+          _raw(root, '--font-weight-medium'),
+          reason: 'font-medium is --font-weight-medium verbatim',
+        );
+        expect(
+          _lengthToPx(p['lineHeight']! as String),
+          closeTo(
+            _lengthToPx(_raw(root, '--text-sm')) *
+                _ratio(_raw(root, '--text-sm--line-height')),
+            0.001,
+          ),
+          reason:
+              '$pass: line-height is calc(1.25 / 0.875) × font-size, '
+              'which serialises as 21.4286px at 15px',
+        );
+      }
+    });
+
+    test('the confirm sheet is the overlay/panel pair its classes say', () {
+      for (final String pass in stackPasses) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        final double s = spacingOf(root);
+        final Map<String, dynamic> o = props(pass, 'confirm-overlay');
+        expect(o['position'], 'fixed');
+        expect(o['zIndex'], '10000', reason: 'the z-[10000] literal');
+        for (final String side in <String>['top', 'right', 'bottom', 'left']) {
+          expect(o[side], '0px', reason: 'inset-0 on $side');
+        }
+        expect(o['alignItems'], 'center');
+        expect(o['justifyContent'], 'center');
+        expect(o['padding'], px(4 * s), reason: 'p-4');
+        final Map<String, dynamic> veilRec =
+            o['backgroundColor']! as Map<String, dynamic>;
+        expect(
+          channelsOf(veilRec),
+          channelsOf(_token(root, '--color-black')),
+          reason: 'bg-black/60 is --color-black’s channels',
+        );
+        expect(colourOf(veilRec).a, closeTo(0.6, 0.002), reason: '/60 is 60%');
+        expect(
+          o['backdropFilter']!['raw'],
+          'blur(${px(_lengthToPx(_raw(root, '--blur-sm')))})',
+        );
+
+        final Map<String, dynamic> panel = props(pass, 'confirm-panel');
+        expect(
+          panel['padding'],
+          px(6 * s),
+          reason: 'p-6 overrode the card’s own padding',
+        );
+        expect(
+          panel['maxWidth'],
+          px(_lengthToPx(_raw(root, '--container-sm'))),
+          reason: 'max-w-sm is --container-sm',
+        );
+        expect(panel['width'], panel['maxWidth']);
+
+        expect(
+          props(pass, 'confirm-title')['marginBottom'],
+          px(2 * s),
+          reason: 'mb-2',
+        );
+        expect(
+          props(pass, 'confirm-title')['fontWeight'],
+          _raw(root, '--font-weight-bold'),
+          reason: 'font-bold',
+        );
+        expect(
+          props(pass, 'confirm-rule')['marginBottom'],
+          px(4 * s),
+          reason: 'mb-4',
+        );
+        expect(
+          props(pass, 'confirm-message')['marginBottom'],
+          px(6 * s),
+          reason: 'mb-6',
+        );
+        expect(
+          props(pass, 'confirm-actions')['columnGap'],
+          px(3 * s),
+          reason: 'gap-3',
+        );
+        for (final String b in <String>['confirm-cancel', 'confirm-confirm']) {
+          expect(props(pass, b)['flexGrow'], '1', reason: '$b: flex-1');
+        }
+      }
+    });
+
+    test('the class-carried stacks equal their §probe twins', () {
+      // btn-ghost, btn-primary, card and ledger-rule ARE stylesheet classes with
+      // probe rows of their own. If a stack built from them disagrees with the
+      // probe — measured six days earlier at the pinned tag — one of the two
+      // captures moved, and this test refuses both until it is explained.
+      final Map<String, List<String>> twins = <String, List<String>>{
+        'confirm-cancel': <String>[
+          '.btn-ghost',
+          'padding',
+          'borderRadius',
+          'borderTopWidth',
+          'fontSize',
+          'fontWeight',
+          'lineHeight',
+          'color',
+          'backgroundColor',
+          'borderTopColor',
+        ],
+        'confirm-confirm': <String>[
+          '.btn-primary',
+          'padding',
+          'borderRadius',
+          'borderTopWidth',
+          'fontSize',
+          'fontWeight',
+          'lineHeight',
+          'color',
+          'backgroundColor',
+          'borderTopColor',
+        ],
+        'confirm-panel': <String>[
+          '.card',
+          'borderRadius',
+          'borderTopWidth',
+          'backgroundColor',
+          'borderTopColor',
+          'boxShadow',
+        ],
+        'confirm-rule': <String>['.ledger-rule', 'backgroundColor'],
+      };
+      const List<String> colourKeys = <String>[
+        'color',
+        'backgroundColor',
+        'borderTopColor',
+      ];
+      for (final String pass in stackPasses) {
+        final Map<String, dynamic> probes = _probesOf(
+          _theme(measurement, pass),
+        );
+        twins.forEach((String row, List<String> spec) {
+          final String cls = spec[0];
+          final Map<String, dynamic> p = props(pass, row);
+          final Map<String, dynamic>? probe =
+              probes[cls] as Map<String, dynamic>?;
+          expect(probe, isNotNull, reason: '$pass lost probe $cls');
+          for (final String key in spec.sublist(1)) {
+            if (colourKeys.contains(key)) {
+              expect(
+                colourOf(p[key]! as Map<String, dynamic>),
+                colourOf(probe![key]! as Map<String, dynamic>),
+                reason: '$row.$key disagrees with $cls in $pass',
+              );
+            } else if (key == 'boxShadow') {
+              expect(
+                p[key]!['raw'],
+                probe![key]!['raw'],
+                reason: '$row.$key disagrees with $cls in $pass',
+              );
+            } else {
+              expect(
+                p[key],
+                probe![key],
+                reason: '$row.$key disagrees with $cls in $pass',
+              );
+            }
+          }
+        });
+      }
+    });
+
+    test(
+      'shadow-lg arrives as engine output with no root token to re-derive it',
+      () {
+        // Tailwind 4.3 inlines shadow utilities: --shadow-lg is not in the
+        // measured root, so the box-shadow below is the ONLY copy of the value
+        // the tier has. It is recorded as measured, this test pins its shape,
+        // and if a future toolchain re-exposes the token the absent-token
+        // assertion fails and forces the tier to grow the derivation it lacks.
+        for (final String pass in stackPasses) {
+          final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+          expect(
+            root.containsKey('--shadow-lg'),
+            isFalse,
+            reason:
+                '$pass: --shadow-lg reappeared in root — this tier’s '
+                'engine-only finding is stale; re-read it against the token',
+          );
+          for (final String box in <String>[
+            'toast-success',
+            'toast-error',
+            'toast-warning',
+            'toast-info',
+          ]) {
+            expect(
+              changed(pass, box),
+              contains('boxShadow'),
+              reason:
+                  '$box in $pass: shadow-lg moved nothing, which would '
+                  'mean the utility stopped emitting',
+            );
+            final String raw = props(pass, box)['boxShadow']!['raw']! as String;
+            expect(
+              raw,
+              allOf(
+                contains('0px 10px 15px -3px'),
+                contains('0px 4px 6px -4px'),
+              ),
+              reason:
+                  '$box: the two Tailwind default shadow-lg layers, '
+                  'as the engine serialised them',
+            );
+          }
+        }
+      },
+    );
+
+    test('authoredNonCss names never collide with measured rows', () {
+      // The JS tier is provenance, not measurement: it must stay impossible to
+      // read one of these out of themes.<pass>.stacks.
+      final Set<String> measured = rows
+          .map((dynamic r) => (r as Map<String, dynamic>)['name']! as String)
+          .toSet();
+      for (final dynamic e in nonCss) {
+        expect(
+          measured,
+          isNot(contains((e as Map<String, dynamic>)['name']! as String)),
+        );
+      }
+      expect(nonCss, isNotEmpty);
+    });
+
+    test(
+      'the section says when IT was measured, separately from the pinned tiers',
+      () {
+        expect(stacks['measuredAt'], isA<String>());
+        expect(stacks['base'], 'http://localhost:3000');
+        expect(stacks['toolchain'], isA<String>());
+        expect(
+          (stacks['note']! as String),
+          contains('THIS section only'),
+          reason:
+              'the note must keep saying stacks can postdate the pinned '
+              'root/probe tiers — that is the provenance caveat of this whole item',
+        );
+      },
+    );
+  });
+
   group('the no-hard-coded-style rule (playbook 2.4)', () {
     test('nothing outside lib/core/theme/ spells out a colour literal', () {
       final Directory lib = Directory(

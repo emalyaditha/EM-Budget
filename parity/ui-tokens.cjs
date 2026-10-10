@@ -206,7 +206,123 @@ const utilityTokens = () => {
 const UTILITY_MAP = utilityTokens();
 const UTILITIES = [...UTILITY_MAP.keys()];
 
-const PROBE_PAGE = (selectors, utilities) => {
+/* --------------------------------------------------------- utility stacks */
+/**
+ * The #55 ruling's second evidence tier. A surface like the toast has no class
+ * in `src/index.css` for the §6 probe to measure — its whole look is a stack of
+ * Tailwind utilities written inside one `className` string (plus the fragments
+ * a template literal splices in per state). The stack is therefore measured the
+ * way the browser sees it: each row's complete authored class list goes on one
+ * detached element, exactly as the `utilities` tier does for single tokens, and
+ * its computed style is read against an unclassed control in all four passes.
+ *
+ * `parts` are verbatim slices of the pinned component source, each with its line
+ * — the drift test re-reads those lines and fails if the stack was retyped, so
+ * the measurement below is bound to the markup that produces it.
+ *
+ * `authoredNonCss` records what no CSS probe can see: timers and motion values
+ * live in JS object literals. They are stored as verbatim source slices and
+ * marked authored, never as measurements.
+ */
+const STACK_SOURCE = 'src/context/NotificationContext.tsx';
+const TOAST_BOX = {
+  cls: 'p-4 rounded-xl shadow-lg border flex items-center gap-3 backdrop-blur-sm w-full max-w-[300px]',
+  line: 83,
+};
+const UTILITY_STACKS = [
+  {
+    name: 'toast-container',
+    parts: [
+      {
+        cls: 'fixed top-4 left-4 right-4 md:left-auto md:right-4 z-[9999] flex flex-col gap-2 items-center md:items-end',
+        line: 73,
+      },
+    ],
+  },
+  {
+    name: 'toast-success',
+    parts: [
+      TOAST_BOX,
+      { cls: 'bg-[var(--surface)] border-emerald-500/30 text-emerald-700 dark:text-emerald-100', line: 86 },
+    ],
+  },
+  {
+    name: 'toast-error',
+    parts: [TOAST_BOX, { cls: 'bg-[var(--surface)] border-[var(--danger)]/30 text-[var(--danger)]', line: 88 }],
+  },
+  {
+    name: 'toast-warning',
+    parts: [TOAST_BOX, { cls: 'bg-[var(--surface)] border-amber-500/30 text-amber-700 dark:text-amber-100', line: 90 }],
+  },
+  {
+    name: 'toast-info',
+    parts: [TOAST_BOX, { cls: 'bg-[var(--surface)] border-[var(--line)] text-[var(--ink)]', line: 91 }],
+  },
+  { name: 'toast-message', parts: [{ cls: 'text-sm font-medium', line: 98 }] },
+  { name: 'toast-close', parts: [{ cls: 'ml-auto text-[var(--ink-2)] hover:text-[var(--ink)]', line: 100 }] },
+  { name: 'toast-icon-success', parts: [{ cls: 'text-emerald-500', line: 94 }] },
+  { name: 'toast-icon-error', parts: [{ cls: 'text-[var(--danger)]', line: 95 }] },
+  { name: 'toast-icon-warning', parts: [{ cls: 'text-amber-500', line: 96 }] },
+  { name: 'toast-icon-info', parts: [{ cls: 'text-[var(--ink-2)]', line: 97 }] },
+  {
+    name: 'confirm-overlay',
+    parts: [
+      {
+        cls: 'fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm',
+        line: 116,
+      },
+    ],
+  },
+  { name: 'confirm-panel', parts: [{ cls: 'card p-6 max-w-sm w-full', line: 125 }] },
+  { name: 'confirm-title', parts: [{ cls: 'text-[var(--ink)] font-bold mb-2', line: 127 }] },
+  { name: 'confirm-rule', parts: [{ cls: 'ledger-rule mb-4', line: 128 }] },
+  { name: 'confirm-message', parts: [{ cls: 'text-[var(--ink-2)] text-sm mb-6', line: 129 }] },
+  { name: 'confirm-actions', parts: [{ cls: 'flex gap-3', line: 130 }] },
+  { name: 'confirm-cancel', parts: [{ cls: 'btn-ghost flex-1', line: 136 }] },
+  { name: 'confirm-confirm', parts: [{ cls: 'btn-primary flex-1', line: 145 }] },
+];
+const AUTHORED_NON_CSS = [
+  {
+    name: 'toast-auto-dismiss',
+    tier: 'authored-js',
+    note: 'the dismiss timer is a setTimeout in the hook, not a CSS animation',
+    parts: [{ text: "const timeout = type === 'error' ? 8000 : 5000;", line: 50 }],
+  },
+  {
+    name: 'toast-motion',
+    tier: 'authored-js',
+    note: 'motion/react keyframes on the toast box; no stylesheet declares them',
+    parts: [
+      { text: 'initial={{ opacity: 0, y: -20 }}', line: 80 },
+      { text: 'animate={{ opacity: 1, y: 0 }}', line: 81 },
+      { text: 'exit={{ opacity: 0, scale: 0.95 }}', line: 82 },
+    ],
+  },
+  {
+    name: 'confirm-motion',
+    tier: 'authored-js',
+    note: 'motion/react keyframes on the confirm panel',
+    parts: [
+      { text: 'initial={{ opacity: 0, scale: 0.9 }}', line: 122 },
+      { text: 'animate={{ opacity: 1, scale: 1 }}', line: 123 },
+      { text: 'exit={{ opacity: 0, scale: 0.9 }}', line: 124 },
+    ],
+  },
+  {
+    name: 'icon-sizes',
+    tier: 'authored-js',
+    note: 'lucide renders these at a px size prop, not through CSS',
+    parts: [
+      { text: 'size={20}', line: 94 },
+      { text: 'size={20}', line: 95 },
+      { text: 'size={20}', line: 96 },
+      { text: 'size={20}', line: 97 },
+      { text: 'size={16}', line: 103 },
+    ],
+  },
+];
+
+const PROBE_PAGE = (selectors, utilities, stacks) => {
   const cv = document.createElement('canvas');
   cv.width = 1;
   cv.height = 1;
@@ -458,6 +574,69 @@ const PROBE_PAGE = (selectors, utilities) => {
     };
   };
 
+  /** The stack tier's wider read. Same engine, more properties: a utility stack
+   *  also lays the box out (padding, gap, offsets, max-width, flex), so those
+   *  computed values are recorded next to the paint ones. Colour-bearing props
+   *  go through the same pick/compound engine path as everywhere else. */
+  const stackProps = (el) => {
+    const cs = getComputedStyle(el);
+    // Same readers as styleOf, rebuilt here rather than hoisted, so editing
+    // this tier can never move a value in the tiers above.
+    const pick = (prop) => {
+      const raw = cs[prop];
+      if (!raw || raw === 'none') return { raw };
+      if (
+        /^(rgb|rgba|hsl|hsla|oklch|oklab|color\(|#|currentcolor|transparent|white|black)/i.test(raw.trim()) ||
+        /color-mix\(/.test(raw)
+      ) {
+        return { raw, srgb: resolve(raw) };
+      }
+      return { raw };
+    };
+    const compound = (prop) => {
+      const raw = cs[prop];
+      if (!raw || raw === 'none') return { raw };
+      const many = resolveInside(raw);
+      return many ? { raw, substituted: many.substituted, stops: many.stops } : { raw };
+    };
+    return {
+      display: cs.display,
+      position: cs.position,
+      top: cs.top,
+      right: cs.right,
+      bottom: cs.bottom,
+      left: cs.left,
+      zIndex: cs.zIndex,
+      flexDirection: cs.flexDirection,
+      alignItems: cs.alignItems,
+      justifyContent: cs.justifyContent,
+      rowGap: cs.rowGap,
+      columnGap: cs.columnGap,
+      padding: cs.padding,
+      marginLeft: cs.marginLeft,
+      marginBottom: cs.marginBottom,
+      flexGrow: cs.flexGrow,
+      width: cs.width,
+      maxWidth: cs.maxWidth,
+      borderRadius: cs.borderRadius,
+      borderTopWidth: cs.borderTopWidth,
+      borderRightWidth: cs.borderRightWidth,
+      borderBottomWidth: cs.borderBottomWidth,
+      borderLeftWidth: cs.borderLeftWidth,
+      color: pick('color'),
+      backgroundColor: pick('backgroundColor'),
+      borderTopColor: pick('borderTopColor'),
+      borderLeftColor: pick('borderLeftColor'),
+      boxShadow: compound('boxShadow'),
+      backdropFilter: compound('backdropFilter'),
+      backgroundImage: compound('backgroundImage'),
+      fontSize: cs.fontSize,
+      fontWeight: cs.fontWeight,
+      lineHeight: cs.lineHeight,
+      opacity: cs.opacity,
+    };
+  };
+
   const probes = {};
   const badSelectors = [];
   for (const sel of selectors) {
@@ -509,14 +688,17 @@ const PROBE_PAGE = (selectors, utilities) => {
   // really exists and really changes one of the five paint properties.
   const PAINT = ['color', 'backgroundColor', 'borderTopColor', 'backgroundImage', 'boxShadow'];
   const shown = (v) => (v && v.srgb ? v.srgb.rgba : v ? v.substituted || v.raw : '');
-  const control = (() => {
+  const controlRead = (() => {
     const el = document.createElement('div');
     el.textContent = 'probe';
     document.body.appendChild(el);
     const s = styleOf(el);
+    const st = stackProps(el);
     el.remove();
-    return s;
+    return { s, st };
   })();
+  const control = controlRead.s;
+  const controlStack = controlRead.st;
   const utilitiesPainted = {};
   const utilitiesSilent = [];
   for (const tok of utilities) {
@@ -536,12 +718,29 @@ const PROBE_PAGE = (selectors, utilities) => {
     utilitiesPainted[tok] = rec;
   }
 
+  // The utility stacks: the whole authored class list of one box on one
+  // element, read wider than the paint-only tiers. `changed` names every
+  // property the stack actually moves against the control — a rule Tailwind
+  // never emits shows up as a property missing from it, not as a silent lie.
+  const stacksPainted = {};
+  for (const stack of stacks) {
+    const el = document.createElement('div');
+    el.className = stack.parts.map((p) => p.cls).join(' ');
+    el.textContent = 'probe';
+    document.body.appendChild(el);
+    const props = stackProps(el);
+    el.remove();
+    const changed = Object.keys(props).filter((k) => JSON.stringify(props[k]) !== JSON.stringify(controlStack[k]));
+    stacksPainted[stack.name] = { changed, props };
+  }
+
   return {
     root: customProps(document.documentElement),
     body: customProps(document.body),
     probes,
     utilities: utilitiesPainted,
     utilitiesSilent,
+    stacks: stacksPainted,
     controlPaint: { color: shown(control.color), backgroundColor: shown(control.backgroundColor) },
     badSelectors,
     appliedClass: document.documentElement.className,
@@ -575,6 +774,21 @@ async function main() {
       writtenIn: Object.fromEntries(UTILITY_MAP),
       scanned: UTILITIES.length,
     },
+    utilityStacks: {
+      note:
+        'The #55 utility-stack tier: boxes whose look is a stack of Tailwind utilities written in a ' +
+        'className string, not a class in src/index.css. Each row is a verbatim slice of the pinned ' +
+        'component source; the whole class list goes on one detached element and its computed style is ' +
+        'read against an unclassed control, in themes.<pass>.stacks. "changed" names the properties the ' +
+        'stack actually moves — a utility Tailwind never emits (or a variant gated off in this pass, like ' +
+        'a dark: fragment under a light preference) shows as a property absent from it. authoredNonCss is ' +
+        'not a measurement: timers and motion values are JS, recorded verbatim so the port never invents ' +
+        'them. measuredAt/base/toolchain describe THIS section only: a stack capture can postdate the ' +
+        'pinned sections in themes/root, which are not re-synced until the ruling says so.',
+      source: STACK_SOURCE,
+      rows: UTILITY_STACKS,
+      authoredNonCss: AUTHORED_NON_CSS,
+    },
   };
 
   for (const theme of ['light', 'dark']) {
@@ -600,7 +814,7 @@ async function main() {
       // All measurement lives inside PROBE_PAGE; only the selector and utility lists
       // are interpolated, as JSON, so no page-source text is hand-escaped here.
       const data = await page.evaluate(
-        `(${PROBE_PAGE.toString()})(${JSON.stringify(PROBE_SELECTORS)},${JSON.stringify(UTILITIES)})`,
+        `(${PROBE_PAGE.toString()})(${JSON.stringify(PROBE_SELECTORS)},${JSON.stringify(UTILITIES)},${JSON.stringify(UTILITY_STACKS)})`,
       );
       if (data.badSelectors.length > 0) throw new Error(`unparseable probe selectors: ${data.badSelectors.join(', ')}`);
       data.media = { width: data.innerWidth, floatingNavDisplay: data.floatingNavDisplay };
@@ -609,11 +823,18 @@ async function main() {
       console.log(
         `${key}: ${Object.keys(data.root).length} root props, ${Object.keys(data.probes).length} probes, ` +
           `${Object.keys(data.utilities).length}/${UTILITIES.length} JSX utilities paint, ` +
+          `${Object.keys(data.stacks).length}/${UTILITY_STACKS.length} stacks, ` +
           `${problems.length} page errors, floating-nav=${data.media.floatingNavDisplay} @ ${vp.width}px`,
       );
       await ctx.close();
     }
   }
+
+  result.utilityStacks.measuredAt = result.generatedAt;
+  result.utilityStacks.base = BASE;
+  result.utilityStacks.toolchain = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '..', 'node_modules', 'tailwindcss', 'package.json'), 'utf8'),
+  ).version;
 
   // Tailwind v4 resolves the `dark:` variant from `prefers-color-scheme` unless the
   // stylesheet rebinds it with `@custom-variant dark`, and src/index.css does not.
@@ -636,7 +857,7 @@ async function main() {
       await page.goto(BASE + '/', { waitUntil: 'load' });
       await page.waitForSelector(appTheme === 'dark' ? 'html.dark' : 'html.light', { timeout: 45000 });
       const data = await page.evaluate(
-        `(${PROBE_PAGE.toString()})(${JSON.stringify([])},${JSON.stringify(darkTokens)})`,
+        `(${PROBE_PAGE.toString()})(${JSON.stringify([])},${JSON.stringify(darkTokens)},[])`,
       );
       matrix.push({
         appTheme,
@@ -712,6 +933,7 @@ async function main() {
   const styleRecords = (t) => [
     ...Object.entries(t.probes).map(([sel, p]) => ['probe', sel, p]),
     ...Object.entries(t.utilities).map(([tok, p]) => ['utility', tok, p]),
+    ...Object.entries(t.stacks || {}).map(([name, rec]) => ['stack', name, rec.props]),
   ];
   for (const [theme, t] of styleHolders) {
     for (const [name, v] of Object.entries({ ...t.root, ...t.body })) {
