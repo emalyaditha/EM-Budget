@@ -17,10 +17,12 @@ import '../../core/theme/app_icon_buttons.dart';
 /// confined to the element's border-box, not smeared over the page.
 ///
 /// The size is the class's, not the caller's. `.icon-btn` authors a 38×38 square
-/// with a 999px corner, i.e. a full circle, and the port draws exactly that. The
-/// `.glass-pill .icon-btn` context (a smaller, borderless icon inside the header
-/// pill) is a descendant the §6 probe never measured, so it is not ported here —
-/// see the note on [AppIconButtons].
+/// with a 999px corner, i.e. a full circle, and the port draws exactly that.
+/// [AppIconButton.inGlassPill] is the `.glass-pill .icon-btn` header context:
+/// the descendant rule refines the same measured class to a 34×34 box whose fill
+/// and frame are literal `transparent`, so the header pill behind it is the
+/// frost and the frame still occupies its 1px. Both rows come from
+/// [AppIconButtons]; the widget restates no number for either.
 ///
 /// There is no press state and no disabled paint. `.icon-btn` authors only a
 /// `:hover` rule, which UI_SPEC D-U1 rules "decoration, not contract" on a touch
@@ -29,7 +31,23 @@ import '../../core/theme/app_icon_buttons.dart';
 /// to. The child is handed the class's icon colour through an [IconTheme], which
 /// is how the SVG inherits `color: var(--ink-2)` on the web.
 class AppIconButton extends StatelessWidget {
-  const AppIconButton({super.key, this.onPressed, required this.child});
+  const AppIconButton({super.key, this.onPressed, required this.child})
+    : _cssClass = '.icon-btn';
+
+  /// The `.glass-pill .icon-btn` header context — the same icon pill shrunk to
+  /// 34×34 with its own fill and frame written off, inside the header pill that
+  /// [AppCard] paints as the `.glass-pill` surface.
+  const AppIconButton.inGlassPill({
+    super.key,
+    this.onPressed,
+    required this.child,
+  }) : _cssClass = '.glass-pill .icon-btn';
+
+  /// The §6 class this instance paints — one of the two keys of
+  /// [AppIconButtons], never a caller-supplied string. `AppIconButtons.resolve`
+  /// is the only place a class name meets a number, and the drift test in
+  /// `test/theme/ui_tokens_test.dart` proves the key set.
+  final String _cssClass;
 
   /// The glyph to centre in the pill — usually an [Icon]. It reaches the box
   /// already wrapped in the class's [IconTheme], so an [Icon] with no explicit
@@ -39,10 +57,6 @@ class AppIconButton extends StatelessWidget {
   /// `null` leaves the button inert. The class describes no disabled look, so
   /// nothing is repainted for it.
   final VoidCallback? onPressed;
-
-  /// The one §6 icon-button class. `AppIconButtons` holds exactly it, and the
-  /// drift test that proves it is in `test/theme/ui_tokens_test.dart`.
-  static const String _cssClass = '.icon-btn';
 
   @override
   Widget build(BuildContext context) {

@@ -3022,7 +3022,14 @@ void main() {
     /// probe either — the pill size is authored, so it is read from the same
     /// pinned `src/index.css` rule the transition is, exactly as the skeleton
     /// reads its heights from the `h-<n>` rule rather than a measured box.
+    ///
+    /// The second row AppIconButtons carries is not a probe but a composition:
+    /// `.glass-pill .icon-btn` refines the standalone pill with four literal
+    /// declarations and inherits every field the rule does not author, so it
+    /// rides the same evidence tier the nav bar’s authored placement numbers
+    /// ride — pinned rule text over a measured base, never a guess.
     const List<String> iconClasses = <String>['.icon-btn'];
+    const String iconPillClass = '.glass-pill .icon-btn';
 
     Map<String, dynamic> probesFor(Brightness brightness) =>
         brightness == Brightness.light ? lightProbes : darkProbes;
@@ -3044,13 +3051,11 @@ void main() {
       ];
     }
 
-    test(
-      'AppIconButtons holds exactly the measured icon classes, per pass',
-      () {
-        expect(AppIconButtons.light.keys.toList(), iconClasses);
-        expect(AppIconButtons.dark.keys.toList(), iconClasses);
-      },
-    );
+    test('AppIconButtons holds the measured pill and its composed context, per pass', () {
+      final List<String> rows = <String>[...iconClasses, iconPillClass];
+      expect(AppIconButtons.light.keys.toList(), rows);
+      expect(AppIconButtons.dark.keys.toList(), rows);
+    });
 
     for (final String cls in iconClasses) {
       for (final Brightness brightness in Brightness.values) {
@@ -3353,25 +3358,85 @@ void main() {
       });
     }
 
-    test('the unmeasured .glass-pill context is a finding, not a number', () {
-      // `.glass-pill .icon-btn` shrinks the pill and drops its fill/border
-      // inside the header glass pill. The §6 probe measured the standalone
-      // `.icon-btn` element, not that descendant, so AppIconButtons can only
-      // carry the standalone pill. This test pins the descendant’s existence so
-      // the gap is visible in the suite rather than silently omitted.
+    test('the .glass-pill context is composed, and only from four literals', () {
+      // The descendant rule is the whole evidence for the fields it changes —
+      // and it must stay a closed set. A fifth declaration would mean the
+      // generated row silently ignored part of the web’s pill-context button;
+      // a vanished one, that the port paints something the web no longer does.
       final Map<String, String> pill = _cssDecls(
         cssLines,
         '.glass-pill .icon-btn {',
-        '.icon-btn',
+        iconPillClass,
       );
       expect(
-        _pxOf(pill['width']!, 'glass-pill icon width'),
-        lessThan(AppIconButtons.resolve('.icon-btn', Brightness.light).sizePx),
+        pill.keys.toSet(),
+        <String>{'width', 'height', 'background', 'border-color'},
         reason:
-            'the glass-pill context makes a smaller pill than the measured '
-            'standalone; being unmeasured it is recorded as a finding, not ported',
+            'AppIconButtons composes the header context from exactly these '
+            'four authored declarations; the row does not carry anything else',
       );
+      expect(
+        pill['width'],
+        pill['height'],
+        reason: 'the context stays a square, so the port squares the box to it',
+      );
+      expect(pill['background'], 'transparent');
+      expect(pill['border-color'], 'transparent');
+      for (final Brightness brightness in Brightness.values) {
+        final AppIconButtonSpec base = AppIconButtons.resolve(
+          '.icon-btn',
+          brightness,
+        );
+        final AppIconButtonSpec spec = AppIconButtons.resolve(
+          iconPillClass,
+          brightness,
+        );
+        expect(spec.cssClass, iconPillClass);
+        expect(spec.sizePx, _pxOf(pill['width']!, '$iconPillClass width'));
+        expect(
+          spec.sizePx < base.sizePx,
+          isTrue,
+          reason: 'the descendant shrinks the pill inside the header pill',
+        );
+        // §6’s column convention: a transparent *border* still occupies its
+        // width — the frame is inherited, only its colour becomes nothing.
+        expect(spec.fillColor, _parseRgba(pill['background']!));
+        expect(spec.borderColor, _parseRgba(pill['border-color']!));
+        expect(spec.borderWidthPx, base.borderWidthPx);
+        // Everything the rule leaves alone keeps the probe’s value — that is
+        // what composition means, pinned field by field rather than assumed.
+        expect(spec.iconColor, base.iconColor);
+        expect(spec.radiusPx, base.radiusPx);
+        expect(spec.paddingPx, base.paddingPx);
+        expect(
+          spec.blurPx,
+          base.blurPx,
+          reason:
+              'the untouched backdrop-filter keeps blurring: the pill-context '
+              'icon frosts what is behind it while painting no fill of its own',
+        );
+        expect(spec.blurSaturate, base.blurSaturate);
+        expect(spec.displayCss, base.displayCss);
+      }
     });
+
+    test(
+      '.glass-pill .icon-btn:hover is paint-only, so D-U1 still drops it',
+      () {
+        final Map<String, String> hover = _cssDecls(
+          cssLines,
+          '.glass-pill .icon-btn:hover {',
+          '$iconPillClass hover',
+        );
+        expect(
+          hover.keys.toSet().difference(<String>{'background', 'border-color'}),
+          isEmpty,
+          reason:
+              'the context hover authors geometry or ink beyond paint; D-U1 '
+              'dropped it on the assumption it was decoration only',
+        );
+      },
+    );
 
     test('an unknown icon class is an error, not a Material default', () {
       for (final Brightness brightness in Brightness.values) {

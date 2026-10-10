@@ -7,8 +7,10 @@
 
 import 'package:flutter/material.dart';
 
-/// One §6 icon-button class — the header chrome pill — measured in its resting
-/// state, with its size read from the same pinned `src/index.css` rule.
+/// The §6 icon-button rows: the standalone header-chrome pill, measured at
+/// rest by the §6 probe with its size read from the same pinned
+/// `src/index.css` rule, and the `.glass-pill .icon-btn` header context,
+/// composed from that probe and the descendant rule that refines it.
 /// A widget under `lib/presentation/` restates none of it.
 ///
 /// `.icon-btn` is filled with `color-mix(… 70%, transparent)` and blurs
@@ -38,16 +40,21 @@ class AppIconButtonSpec {
   /// icon, which in Flutter is [AppIconButton]’s own `Alignment.center`.
   final String displayCss;
 
-  /// The authored `width`/`height` of the square pill, from the resting rule.
+  /// The authored `width`/`height` of the square pill — the resting rule for
+  /// `.icon-btn`, the descendant rule for the header-pill context.
   final double sizePx;
   final double radiusPx;
 
   /// Measured on one side; the class authors `border: 1px solid …`, i.e. uniform,
-  /// and [border] reproduces that ring.
+  /// and [border] reproduces that ring. In the pill context the colour is
+  /// `transparent`: the frame still occupies its 1px of layout, it just paints
+  /// nothing — what §6 calls a transparent border, not a missing one.
   final double borderWidthPx;
   final Color borderColor;
 
-  /// The `color-mix(… 70%, transparent)` fill — translucent, as measured.
+  /// The `color-mix(… 70%, transparent)` fill — translucent, as measured. The
+  /// pill-context row authors `background: transparent` instead: the header
+  /// pill behind it is the frost, the icon adds no fill of its own.
   final Color fillColor;
 
   /// The icon colour (`color: var(--ink-2)`), which the SVG inherits on the web
@@ -75,7 +82,7 @@ class AppIconButtonSpec {
 
 /// The §6 icon buttons, keyed by CSS class — one map per measured pass.
 abstract final class AppIconButtons {
-  /// light pass (UI_SPEC §6, `light-desktop`; size from the resting rule).
+  /// light pass (UI_SPEC §6, `light-desktop`; sizes from the rules that author them).
   static const Map<String, AppIconButtonSpec> light =
       <String, AppIconButtonSpec>{
         '.icon-btn': AppIconButtonSpec(
@@ -91,9 +98,22 @@ abstract final class AppIconButtons {
           blurPx: 10.0,
           blurSaturate: null,
         ),
+        '.glass-pill .icon-btn': AppIconButtonSpec(
+          cssClass: '.glass-pill .icon-btn',
+          displayCss: 'inline-flex',
+          sizePx: 34.0,
+          radiusPx: 999.0,
+          borderWidthPx: 1.0,
+          borderColor: Color.fromRGBO(0, 0, 0, 0.0),
+          fillColor: Color.fromRGBO(0, 0, 0, 0.0),
+          iconColor: Color.fromRGBO(73, 86, 105, 1.0),
+          paddingPx: 0.0,
+          blurPx: 10.0,
+          blurSaturate: null,
+        ),
       };
 
-  /// dark pass (UI_SPEC §6, `dark-desktop`; size from the resting rule).
+  /// dark pass (UI_SPEC §6, `dark-desktop`; sizes from the rules that author them).
   static const Map<String, AppIconButtonSpec> dark =
       <String, AppIconButtonSpec>{
         '.icon-btn': AppIconButtonSpec(
@@ -109,19 +129,38 @@ abstract final class AppIconButtons {
           blurPx: 10.0,
           blurSaturate: null,
         ),
+        '.glass-pill .icon-btn': AppIconButtonSpec(
+          cssClass: '.glass-pill .icon-btn',
+          displayCss: 'inline-flex',
+          sizePx: 34.0,
+          radiusPx: 999.0,
+          borderWidthPx: 1.0,
+          borderColor: Color.fromRGBO(0, 0, 0, 0.0),
+          fillColor: Color.fromRGBO(0, 0, 0, 0.0),
+          iconColor: Color.fromRGBO(162, 172, 185, 1.0),
+          paddingPx: 0.0,
+          blurPx: 10.0,
+          blurSaturate: null,
+        ),
       };
 
   /// The rules the port does NOT reproduce, printed once because both passes
   /// author them identically:
   /// `.icon-btn:hover` at src/index.css:716 — dropped per UI_SPEC D-U1;
 
+  /// `.glass-pill .icon-btn:hover` at src/index.css:743 — dropped per UI_SPEC D-U1;
+
   /// `.icon-btn` authors no `:active`/`:disabled`, so there is no press state or
   /// clock here — unlike AppControls, which has both.
 
-  /// A context the §6 probe never measured, so it is a finding, not a number:
-  /// `.glass-pill .icon-btn` at src/index.css:737 shrinks the pill and drops its
-  /// fill/border inside the header pill; that descendant is unmeasured, so
-  /// AppIconButtons carries the standalone .icon-btn only.
+  /// The `.glass-pill .icon-btn` row is composed, not probed: the descendant
+  /// rule at src/index.css:737 authors exactly four literals — 34px width and
+  /// height, `background: transparent`, `border-color: transparent` — and every
+  /// other field is the standalone measurement it refines. §6’s column
+  /// conventions keep the transparent frame occupying its 1px of layout and the
+  /// untouched `backdrop-filter` blurring, so the pill-context icon frosts
+  /// without filling; its `:hover` is paint-only and dropped per D-U1, asserted
+  /// by the generator rather than trusted.
 
   /// The measured pill for a class and brightness. An unknown class is a
   /// programming error, not a fallback: nothing in this layer may quietly

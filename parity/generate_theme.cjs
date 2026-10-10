@@ -3065,11 +3065,6 @@ const iconButtons = ICON_BUTTON_CLASSES.map((cls) => {
   }
 
   const hov = CSS_LINES.findIndex((x) => new RegExp(`^\\${cls}:hover \\{$`).test(x));
-  // The `.glass-pill .icon-btn` embedding (a smaller, borderless icon inside the
-  // header pill) is a descendant rule the §6 probe never measured — so it is
-  // recorded as a finding, not invented, exactly as the skeleton records the
-  // inert `rounded-full` it cannot honour.
-  const pill = CSS_LINES.findIndex((x) => new RegExp(`^\\.glass-pill ${cls} \\{$`).test(x));
   return {
     cls,
     l,
@@ -3077,8 +3072,84 @@ const iconButtons = ICON_BUTTON_CLASSES.map((cls) => {
     sizePx,
     hoverSrc: hov < 0 ? 'none' : `src/index.css:${hov + 1}`,
     restSrc: `src/index.css:${rest.line}`,
-    pillSrc: pill < 0 ? null : `src/index.css:${pill + 1}`,
   };
+});
+
+// ------------------------------------------------------------ the header-pill context
+// `.glass-pill .icon-btn` (src/index.css:737) is the same button inside the header
+// pill. The §6 probe measured a detached element, so it never saw the embedding —
+// but the embedding does not have to be guessed either: the descendant rule
+// authors exactly four literal declarations, and everything it does not author
+// keeps the probe’s measured value. That is composition on the same evidence tier
+// the nav bar’s authored placement numbers ride, and §6’s own column conventions
+// settle the two things the rule text leaves open: a transparent *border* still
+// occupies its `1px` layout (so the box stays a 34px square with a 1px invisible
+// frame), and the untouched `backdrop-filter` keeps blurring (so the pill-context
+// icon frosts its surroundings while painting no fill and no frame of its own).
+const ICON_PILL_CLASS = '.glass-pill .icon-btn';
+
+const pillHeads = CSS_LINES.reduce((acc, l, i) => (/^\.glass-pill \.icon-btn \{$/.test(l) ? acc.concat(i) : acc), []);
+if (pillHeads.length !== 1) {
+  fail(`${ICON_PILL_CLASS}: expected exactly one descendant rule, found ${pillHeads.length}`);
+}
+const pillRule = cssRule(/^\.glass-pill \.icon-btn \{$/, ICON_PILL_CLASS);
+const pillProps = ruleProps(pillRule, ICON_PILL_CLASS);
+const PILL_ALLOWED = ['width', 'height', 'background', 'border-color'];
+const pillDeclared = pillProps.map(([prop]) => prop);
+for (const prop of pillDeclared) {
+  if (!PILL_ALLOWED.includes(prop)) {
+    fail(
+      `${ICON_PILL_CLASS}: the descendant rule sets \`${prop}\` (src/index.css:${pillRule.line}); nothing beyond the four literals composes`,
+    );
+  }
+}
+for (const prop of PILL_ALLOWED) {
+  if (!pillDeclared.includes(prop)) {
+    fail(`${ICON_PILL_CLASS}: the descendant rule no longer authors \`${prop}\` (src/index.css:${pillRule.line})`);
+  }
+}
+const pillDecl = Object.fromEntries(pillProps);
+if (pillDecl.background !== 'transparent' || pillDecl['border-color'] !== 'transparent') {
+  fail(
+    `${ICON_PILL_CLASS}: fill and frame must be literal transparent, got "${pillDecl.background}"/"${pillDecl['border-color']}"`,
+  );
+}
+const pillSizePx = lengthPx(pillDecl.width, `${ICON_PILL_CLASS} width`);
+if (lengthPx(pillDecl.height, `${ICON_PILL_CLASS} height`) !== pillSizePx) {
+  fail(`${ICON_PILL_CLASS}: width ${pillDecl.width} != height ${pillDecl.height}; the port paints one square pill`);
+}
+
+const pillHover = cssRule(/^\.glass-pill \.icon-btn:hover \{$/, `${ICON_PILL_CLASS} hover`);
+for (const [prop] of ruleProps(pillHover, `${ICON_PILL_CLASS} hover`)) {
+  if (!['background', 'border-color'].includes(prop)) {
+    fail(
+      `${ICON_PILL_CLASS} hover sets \`${prop}\` (src/index.css:${pillHover.line}); D-U1 drops paint-only states and nothing else`,
+    );
+  }
+}
+
+const ICON_TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
+const insidePill = (pass) => ({
+  ...pass,
+  fillColor: ICON_TRANSPARENT,
+  borderColor: ICON_TRANSPARENT,
+});
+if (iconButtons.length !== 1 || iconButtons[0].cls !== '.icon-btn') {
+  fail('the pill context composes against exactly one standalone icon-button class');
+}
+const baseIcon = iconButtons[0];
+if (baseIcon.l.radiusPx < pillSizePx / 2) {
+  fail(
+    `${ICON_PILL_CLASS}: radius ${baseIcon.l.radiusPx} is less than half the ${pillSizePx}px box; the port paints a full circle`,
+  );
+}
+iconButtons.push({
+  cls: ICON_PILL_CLASS,
+  l: insidePill(baseIcon.l),
+  d: insidePill(baseIcon.d),
+  sizePx: pillSizePx,
+  hoverSrc: `src/index.css:${pillHover.line}`,
+  restSrc: `src/index.css:${pillRule.line}`,
 });
 
 const iconButtonExpr = (c, pass) =>
@@ -3101,8 +3172,10 @@ banner();
 L.push(
   "import 'package:flutter/material.dart';",
   '',
-  '/// One §6 icon-button class — the header chrome pill — measured in its resting',
-  '/// state, with its size read from the same pinned `src/index.css` rule.',
+  '/// The §6 icon-button rows: the standalone header-chrome pill, measured at',
+  '/// rest by the §6 probe with its size read from the same pinned',
+  '/// `src/index.css` rule, and the `.glass-pill .icon-btn` header context,',
+  '/// composed from that probe and the descendant rule that refines it.',
   '/// A widget under `lib/presentation/` restates none of it.',
   '///',
   '/// `.icon-btn` is filled with `color-mix(… 70%, transparent)` and blurs',
@@ -3132,16 +3205,21 @@ L.push(
   '  /// icon, which in Flutter is [AppIconButton]’s own `Alignment.center`.',
   '  final String displayCss;',
   '',
-  '  /// The authored `width`/`height` of the square pill, from the resting rule.',
+  '  /// The authored `width`/`height` of the square pill — the resting rule for',
+  '  /// `.icon-btn`, the descendant rule for the header-pill context.',
   '  final double sizePx;',
   '  final double radiusPx;',
   '',
   '  /// Measured on one side; the class authors `border: 1px solid …`, i.e. uniform,',
-  '  /// and [border] reproduces that ring.',
+  '  /// and [border] reproduces that ring. In the pill context the colour is',
+  '  /// `transparent`: the frame still occupies its 1px of layout, it just paints',
+  '  /// nothing — what §6 calls a transparent border, not a missing one.',
   '  final double borderWidthPx;',
   '  final Color borderColor;',
   '',
-  '  /// The `color-mix(… 70%, transparent)` fill — translucent, as measured.',
+  '  /// The `color-mix(… 70%, transparent)` fill — translucent, as measured. The',
+  '  /// pill-context row authors `background: transparent` instead: the header',
+  '  /// pill behind it is the frost, the icon adds no fill of its own.',
   '  final Color fillColor;',
   '',
   '  /// The icon colour (`color: var(--ink-2)`), which the SVG inherits on the web',
@@ -3174,7 +3252,7 @@ for (const [passName, pass, themeTag] of [
   ['dark', 'd', 'dark-desktop'],
 ]) {
   L.push(
-    `  /// ${passName} pass (UI_SPEC §6, \`${themeTag}\`; size from the resting rule).`,
+    `  /// ${passName} pass (UI_SPEC §6, \`${themeTag}\`; sizes from the rules that author them).`,
     `  static const Map<String, AppIconButtonSpec> ${passName} =`,
     '      <String, AppIconButtonSpec>{',
   );
@@ -3190,16 +3268,14 @@ L.push(
   '  /// `.icon-btn` authors no `:active`/`:disabled`, so there is no press state or',
   '  /// clock here — unlike AppControls, which has both.',
   '',
-  '  /// A context the §6 probe never measured, so it is a finding, not a number:',
-  ...iconButtons.flatMap((c) =>
-    c.pillSrc
-      ? [
-          `  /// \`.glass-pill ${c.cls}\` at ${c.pillSrc} shrinks the pill and drops its`,
-          `  /// fill/border inside the header pill; that descendant is unmeasured, so`,
-          `  /// AppIconButtons carries the standalone ${c.cls} only.`,
-        ]
-      : [],
-  ),
+  '  /// The `.glass-pill .icon-btn` row is composed, not probed: the descendant',
+  '  /// rule at src/index.css:737 authors exactly four literals — 34px width and',
+  '  /// height, `background: transparent`, `border-color: transparent` — and every',
+  '  /// other field is the standalone measurement it refines. §6’s column',
+  '  /// conventions keep the transparent frame occupying its 1px of layout and the',
+  '  /// untouched `backdrop-filter` blurring, so the pill-context icon frosts',
+  '  /// without filling; its `:hover` is paint-only and dropped per D-U1, asserted',
+  '  /// by the generator rather than trusted.',
   '',
   '  /// The measured pill for a class and brightness. An unknown class is a',
   '  /// programming error, not a fallback: nothing in this layer may quietly',
