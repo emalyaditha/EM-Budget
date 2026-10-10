@@ -281,6 +281,244 @@ const UTILITY_STACKS = [
   { name: 'confirm-cancel', parts: [{ cls: 'btn-ghost flex-1', line: 136 }] },
   { name: 'confirm-confirm', parts: [{ cls: 'btn-primary flex-1', line: 145 }] },
 ];
+
+/**
+ * #56 extends the tier to the modal/sheet shells. These rows carry their own
+ * `src` because the family spans six files; the drift tests read
+ * `row.src ?? STACK_SOURCE`, so the #55 rows keep citing the top-level source
+ * untouched. The panel of the Modal primitive is a template literal —
+ * `relative w-full ${maxWidths[maxWidth]} card …` — so it is recorded as the
+ * verbatim slices around the interpolation plus the resolved default width
+ * `max-w-md`, cited to the entry in the `maxWidths` map that authors it.
+ */
+const MODAL_STACKS = [
+  {
+    name: 'modal-shell',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [
+      {
+        cls: 'fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto',
+        line: 49,
+      },
+    ],
+  },
+  {
+    name: 'modal-veil',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [{ cls: 'fixed inset-0 bg-[var(--ink)]/40 backdrop-blur-[2px]', line: 56 }],
+  },
+  {
+    name: 'modal-panel',
+    src: 'src/components/ui/Modal.tsx',
+    note: 'the interpolated ${maxWidths[maxWidth]} resolves to the prop default md',
+    parts: [
+      { cls: 'relative w-full', line: 68 },
+      { cls: 'max-w-md', line: 41 },
+      { cls: 'card p-0 overflow-hidden z-10 my-8', line: 68 },
+    ],
+  },
+  {
+    name: 'modal-header',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [
+      {
+        cls: 'flex items-center justify-between px-5 h-12 border-b border-[var(--line)] bg-[var(--surface)]',
+        line: 71,
+      },
+    ],
+  },
+  {
+    name: 'modal-title',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [{ cls: 'text-[13px] font-bold tracking-tight text-[var(--ink)]', line: 74 }],
+  },
+  {
+    name: 'modal-close',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [
+      {
+        cls: 'w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center',
+        line: 84,
+      },
+    ],
+  },
+  {
+    name: 'modal-body',
+    src: 'src/components/ui/Modal.tsx',
+    parts: [{ cls: 'p-5 sm:p-6 max-h-[80vh] overflow-y-auto', line: 92 }],
+  },
+  {
+    name: 'sheet-shell',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [{ cls: 'fixed inset-0 z-50 flex items-end sm:items-center justify-center', line: 23 }],
+  },
+  {
+    name: 'sheet-veil',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [{ cls: 'fixed inset-0 bg-[var(--ink)]/40 backdrop-blur-[2px]', line: 30 }],
+  },
+  {
+    name: 'sheet-panel',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [
+      {
+        cls: 'relative w-full max-w-lg bg-[var(--surface)] border-t sm:border border-[var(--line)] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden z-10 max-h-[85vh] flex flex-col',
+        line: 40,
+      },
+    ],
+  },
+  {
+    name: 'sheet-grip',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [
+      {
+        cls: 'w-10 h-1 bg-[var(--line-strong)] rounded-full mx-auto my-3 shrink-0 sm:hidden',
+        line: 42,
+      },
+    ],
+  },
+  {
+    name: 'sheet-header',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [{ cls: 'flex items-center justify-between px-5 h-12 border-b border-[var(--line)] shrink-0', line: 44 }],
+  },
+  {
+    name: 'sheet-title',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [{ cls: 'text-[13px] font-bold tracking-tight text-[var(--ink)]', line: 47 }],
+  },
+  {
+    name: 'sheet-close',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [
+      {
+        cls: 'w-7 h-7 rounded-full bg-[var(--surface-2)] border border-[var(--line)] text-[var(--ink-2)] hover:text-[var(--ink)] flex items-center justify-center',
+        line: 56,
+      },
+    ],
+  },
+  {
+    name: 'sheet-body',
+    src: 'src/components/ui/BottomSheet.tsx',
+    parts: [{ cls: 'p-5 sm:p-6 overflow-y-auto flex-1', line: 63 }],
+  },
+  {
+    name: 'qa-shell',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [{ cls: 'fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4', line: 102 }],
+  },
+  {
+    name: 'qa-veil',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [{ cls: 'fixed inset-0 bg-black/60 backdrop-blur-sm', line: 108 }],
+  },
+  {
+    name: 'qa-panel',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [
+      {
+        cls: 'relative w-full md:max-w-md bg-[var(--surface)] border-t md:border border-[var(--line)] rounded-t-[24px] md:rounded-[16px] p-6 text-left z-10 flex flex-col max-h-[90vh] overflow-y-auto shadow-[var(--shadow-float)]',
+        line: 121,
+      },
+    ],
+  },
+  {
+    name: 'qa-header',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [{ cls: 'flex justify-between items-center pb-4 border-b border-[var(--line)]', line: 123 }],
+  },
+  {
+    name: 'qa-title',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [{ cls: 'text-sm font-semibold tracking-tight text-[var(--ink)]', line: 125 }],
+  },
+  {
+    name: 'qa-close',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    parts: [
+      {
+        cls: 'w-8 h-8 rounded-full border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-2)] hover:text-[var(--ink)] hover:border-[var(--line-strong)] transition-colors flex items-center justify-center',
+        line: 130,
+      },
+    ],
+  },
+  {
+    name: 'debt-veil',
+    src: 'src/components/DebtDetailModal.tsx',
+    parts: [
+      {
+        cls: 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-[6px]',
+        line: 124,
+      },
+    ],
+  },
+  {
+    name: 'debt-panel',
+    src: 'src/components/DebtDetailModal.tsx',
+    parts: [{ cls: 'card max-w-[560px] w-full max-h-[92vh] overflow-hidden flex flex-col relative', line: 129 }],
+  },
+  {
+    name: 'debt-header',
+    src: 'src/components/DebtDetailModal.tsx',
+    parts: [{ cls: 'flex items-start justify-between gap-4 px-6 pt-5 pb-4 shrink-0', line: 137 }],
+  },
+  {
+    name: 'debt-title',
+    src: 'src/components/DebtDetailModal.tsx',
+    parts: [{ cls: 'text-[18px] font-bold tracking-tight mt-1 truncate', line: 142 }],
+  },
+  {
+    name: 'tem-shell',
+    src: 'src/components/TransactionEditModal.tsx',
+    parts: [{ cls: 'fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-4', line: 146 }],
+  },
+  {
+    name: 'tem-veil',
+    src: 'src/components/TransactionEditModal.tsx',
+    parts: [{ cls: 'fixed inset-0 bg-black/60 backdrop-blur-sm', line: 153 }],
+  },
+  {
+    name: 'tem-panel',
+    src: 'src/components/TransactionEditModal.tsx',
+    parts: [
+      {
+        cls: 'relative z-10 w-full md:max-w-sm max-h-[92dvh] overflow-y-auto bg-[var(--surface)] border-t md:border border-[var(--line)] rounded-t-[var(--r-lg)] md:rounded-[var(--r-lg)] p-6 md:p-8 shadow-[var(--shadow-float)]',
+        line: 159,
+      },
+    ],
+  },
+  {
+    name: 'tem-grip',
+    src: 'src/components/TransactionEditModal.tsx',
+    parts: [{ cls: 'w-10 h-1 bg-[var(--line-strong)] rounded-full mx-auto mb-4 md:hidden', line: 162 }],
+  },
+  {
+    name: 'settings-veil',
+    src: 'src/components/SettingsModal.tsx',
+    parts: [{ cls: 'fixed inset-0 z-40 bg-[var(--ink)]/40 backdrop-blur-[2px]', line: 508 }],
+  },
+  {
+    name: 'settings-drawer',
+    src: 'src/components/SettingsModal.tsx',
+    parts: [
+      {
+        cls: 'fixed top-0 right-0 bottom-0 w-full max-w-[600px] bg-[var(--surface)] border-l border-[var(--line)] z-50 flex flex-col shadow-2xl',
+        line: 518,
+      },
+    ],
+  },
+  {
+    name: 'settings-header',
+    src: 'src/components/SettingsModal.tsx',
+    parts: [
+      {
+        cls: 'px-6 h-14 flex items-center justify-between border-b border-[var(--line)] bg-[var(--surface)]/80 backdrop-blur shrink-0',
+        line: 524,
+      },
+    ],
+  },
+];
+const ALL_STACKS = [...UTILITY_STACKS, ...MODAL_STACKS];
 const AUTHORED_NON_CSS = [
   {
     name: 'toast-auto-dismiss',
@@ -321,6 +559,157 @@ const AUTHORED_NON_CSS = [
     ],
   },
 ];
+
+/** #56: the modal/sheet family's authored JS — motion keyframes and spring
+ *  transitions no stylesheet declares, the scroll-lock/Escape behaviour, the
+ *  maxWidths prop map, one inline style override, and the lucide close sizes.
+ *  Same discipline: verbatim slices with a src and a line, never measurements. */
+const MODAL_AUTHORED = [
+  {
+    name: 'modal-veil-motion',
+    src: 'src/components/ui/Modal.tsx',
+    tier: 'authored-js',
+    note: 'AnimatePresence fade on the primitive veil',
+    parts: [
+      { text: 'initial={{ opacity: 0 }}', line: 51 },
+      { text: 'animate={{ opacity: 1 }}', line: 52 },
+      { text: 'exit={{ opacity: 0 }}', line: 53 },
+      { text: 'transition={{ duration: 0.18 }}', line: 54 },
+    ],
+  },
+  {
+    name: 'modal-panel-motion',
+    src: 'src/components/ui/Modal.tsx',
+    tier: 'authored-js',
+    note: 'the panel enters with a small lift, spring damped — the port must not invent another curve',
+    parts: [
+      { text: 'initial={{ opacity: 0, scale: 0.98, y: 6 }}', line: 64 },
+      { text: 'animate={{ opacity: 1, scale: 1, y: 0 }}', line: 65 },
+      { text: 'exit={{ opacity: 0, scale: 0.98, y: 6 }}', line: 66 },
+      { text: "transition={{ type: 'spring', damping: 26, stiffness: 280 }}", line: 67 },
+    ],
+  },
+  {
+    name: 'modal-behaviour',
+    src: 'src/components/ui/Modal.tsx',
+    tier: 'authored-js',
+    note: 'Escape closes and the body scroll-locks while open — JS, not CSS',
+    parts: [
+      { text: "if (e.key === 'Escape') onClose();", line: 28 },
+      { text: "document.body.style.overflow = 'hidden';", line: 31 },
+      { text: "document.body.style.overflow = 'unset';", line: 35 },
+    ],
+  },
+  {
+    name: 'modal-width-prop',
+    src: 'src/components/ui/Modal.tsx',
+    tier: 'authored-js',
+    note: 'the panel max-width is a prop; the default md selects this map entry',
+    parts: [
+      { text: "maxWidth = 'md',", line: 22 },
+      { text: "md: 'max-w-md',", line: 41 },
+    ],
+  },
+  {
+    name: 'sheet-veil-motion',
+    src: 'src/components/ui/BottomSheet.tsx',
+    tier: 'authored-js',
+    note: 'AnimatePresence fade on the sheet veil',
+    parts: [
+      { text: 'initial={{ opacity: 0 }}', line: 25 },
+      { text: 'animate={{ opacity: 1 }}', line: 26 },
+      { text: 'exit={{ opacity: 0 }}', line: 27 },
+      { text: 'transition={{ duration: 0.18 }}', line: 28 },
+    ],
+  },
+  {
+    name: 'sheet-panel-motion',
+    src: 'src/components/ui/BottomSheet.tsx',
+    tier: 'authored-js',
+    note: 'the sheet slides up from a full own-height offset',
+    parts: [
+      { text: "initial={{ y: '100%' }}", line: 36 },
+      { text: 'animate={{ y: 0 }}', line: 37 },
+      { text: "exit={{ y: '100%' }}", line: 38 },
+      { text: "transition={{ type: 'spring', damping: 26, stiffness: 220 }}", line: 39 },
+      { text: "if (isOpen) document.body.style.overflow = 'hidden';", line: 15 },
+      { text: "document.body.style.overflow = 'unset';", line: 17 },
+    ],
+  },
+  {
+    name: 'qa-motion',
+    src: 'src/components/dashboard/QuickActionModal.tsx',
+    tier: 'authored-js',
+    note: 'QuickActionModal springs its own panel with its own damping/stiffness',
+    parts: [
+      { text: 'initial={{ opacity: 0 }}', line: 104 },
+      { text: 'animate={{ opacity: 1 }}', line: 105 },
+      { text: 'exit={{ opacity: 0 }}', line: 106 },
+      { text: "initial={{ y: '100%', opacity: 0.5 }}", line: 117 },
+      { text: 'animate={{ y: 0, opacity: 1 }}', line: 118 },
+      { text: "exit={{ y: '100%', opacity: 0.5 }}", line: 119 },
+      { text: "transition={{ type: 'spring', damping: 25, stiffness: 220 }}", line: 120 },
+    ],
+  },
+  {
+    name: 'debt-overlay-close',
+    src: 'src/components/DebtDetailModal.tsx',
+    tier: 'authored-js',
+    note: 'DebtDetailModal has no AnimatePresence; the overlay closes on a self-targeted click',
+    parts: [
+      { text: 'const handleOverlayClose = (e: React.MouseEvent) => {', line: 117 },
+      { text: 'if (e.target === e.currentTarget) onClose();', line: 118 },
+    ],
+  },
+  {
+    name: 'debt-panel-inline-style',
+    src: 'src/components/DebtDetailModal.tsx',
+    tier: 'authored-inline',
+    note: 'the only inline style in the family: it re-states var(--surface) over the card class',
+    parts: [{ text: "style={{ background: 'var(--surface)' }}", line: 130 }],
+  },
+  {
+    name: 'tem-motion',
+    src: 'src/components/TransactionEditModal.tsx',
+    tier: 'authored-js',
+    note: 'the edit panel springs from a full own-height offset; its veil has no exit',
+    parts: [
+      { text: 'initial={{ opacity: 0 }}', line: 149 },
+      { text: 'animate={{ opacity: 1 }}', line: 150 },
+      { text: 'transition={{ duration: 0.18 }}', line: 151 },
+      { text: "initial={{ y: '100%', opacity: 0.6 }}", line: 156 },
+      { text: 'animate={{ y: 0, opacity: 1 }}', line: 157 },
+      { text: "transition={{ type: 'spring', damping: 26, stiffness: 240 }}", line: 158 },
+    ],
+  },
+  {
+    name: 'settings-motion',
+    src: 'src/components/SettingsModal.tsx',
+    tier: 'authored-js',
+    note: 'the drawer enters from a full own-width offset — a horizontal slide, unlike the vertical sheets',
+    parts: [
+      { text: 'initial={{ opacity: 0 }}', line: 503 },
+      { text: 'animate={{ opacity: 1 }}', line: 504 },
+      { text: 'exit={{ opacity: 0 }}', line: 505 },
+      { text: 'transition={{ duration: 0.18 }}', line: 506 },
+      { text: "initial={{ x: '100%' }}", line: 514 },
+      { text: 'animate={{ x: 0 }}', line: 515 },
+      { text: "exit={{ x: '100%' }}", line: 516 },
+      { text: "transition={{ type: 'spring', damping: 28, stiffness: 260 }}", line: 517 },
+    ],
+  },
+  {
+    name: 'sheet-icon-sizes',
+    src: 'src/components/ui/Modal.tsx',
+    tier: 'authored-js',
+    note: 'the modal family closes with a 13px X, not the toast 16',
+    parts: [
+      { text: 'size={13}', line: 86 },
+      { text: 'size={13}', src: 'src/components/ui/BottomSheet.tsx', line: 58 },
+    ],
+  },
+];
+const ALL_AUTHORED = [...AUTHORED_NON_CSS, ...MODAL_AUTHORED];
 
 const PROBE_PAGE = (selectors, utilities, stacks) => {
   const cv = document.createElement('canvas');
@@ -615,14 +1004,21 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
       padding: cs.padding,
       marginLeft: cs.marginLeft,
       marginBottom: cs.marginBottom,
+      marginTop: cs.marginTop,
+      marginRight: cs.marginRight,
       flexGrow: cs.flexGrow,
+      flexShrink: cs.flexShrink,
       width: cs.width,
       maxWidth: cs.maxWidth,
+      height: cs.height,
+      maxHeight: cs.maxHeight,
       borderRadius: cs.borderRadius,
       borderTopWidth: cs.borderTopWidth,
       borderRightWidth: cs.borderRightWidth,
       borderBottomWidth: cs.borderBottomWidth,
       borderLeftWidth: cs.borderLeftWidth,
+      overflowX: cs.overflowX,
+      overflowY: cs.overflowY,
       color: pick('color'),
       backgroundColor: pick('backgroundColor'),
       borderTopColor: pick('borderTopColor'),
@@ -633,6 +1029,9 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
       fontSize: cs.fontSize,
       fontWeight: cs.fontWeight,
       lineHeight: cs.lineHeight,
+      letterSpacing: cs.letterSpacing,
+      whiteSpace: cs.whiteSpace,
+      textOverflow: cs.textOverflow,
       opacity: cs.opacity,
     };
   };
@@ -784,10 +1183,12 @@ async function main() {
         'a dark: fragment under a light preference) shows as a property absent from it. authoredNonCss is ' +
         'not a measurement: timers and motion values are JS, recorded verbatim so the port never invents ' +
         'them. measuredAt/base/toolchain describe THIS section only: a stack capture can postdate the ' +
-        'pinned sections in themes/root, which are not re-synced until the ruling says so.',
+        'pinned sections in themes/root, which are not re-synced until the ruling says so. #56 extended ' +
+        'the tier to the modal/sheet family: rows from more than one file carry their own src, and the ' +
+        'top-level source is only the fallback for the rows that were already here.',
       source: STACK_SOURCE,
-      rows: UTILITY_STACKS,
-      authoredNonCss: AUTHORED_NON_CSS,
+      rows: ALL_STACKS,
+      authoredNonCss: ALL_AUTHORED,
     },
   };
 
@@ -814,7 +1215,7 @@ async function main() {
       // All measurement lives inside PROBE_PAGE; only the selector and utility lists
       // are interpolated, as JSON, so no page-source text is hand-escaped here.
       const data = await page.evaluate(
-        `(${PROBE_PAGE.toString()})(${JSON.stringify(PROBE_SELECTORS)},${JSON.stringify(UTILITIES)},${JSON.stringify(UTILITY_STACKS)})`,
+        `(${PROBE_PAGE.toString()})(${JSON.stringify(PROBE_SELECTORS)},${JSON.stringify(UTILITIES)},${JSON.stringify(ALL_STACKS)})`,
       );
       if (data.badSelectors.length > 0) throw new Error(`unparseable probe selectors: ${data.badSelectors.join(', ')}`);
       data.media = { width: data.innerWidth, floatingNavDisplay: data.floatingNavDisplay };
@@ -823,7 +1224,7 @@ async function main() {
       console.log(
         `${key}: ${Object.keys(data.root).length} root props, ${Object.keys(data.probes).length} probes, ` +
           `${Object.keys(data.utilities).length}/${UTILITIES.length} JSX utilities paint, ` +
-          `${Object.keys(data.stacks).length}/${UTILITY_STACKS.length} stacks, ` +
+          `${Object.keys(data.stacks).length}/${ALL_STACKS.length} stacks, ` +
           `${problems.length} page errors, floating-nav=${data.media.floatingNavDisplay} @ ${vp.width}px`,
       );
       await ctx.close();

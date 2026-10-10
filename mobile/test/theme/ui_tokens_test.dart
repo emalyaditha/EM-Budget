@@ -4297,43 +4297,72 @@ void main() {
     double spacingOf(Map<String, dynamic> root) =>
         _lengthToPx(_raw(root, '--spacing'));
 
-    test('the tier names its source and every fragment is that source verbatim', () {
-      expect(stacks['source'], 'src/context/NotificationContext.tsx');
-      final List<String> lines = webSource(stacks['source']! as String)
-          .split('\n');
-      void check(Map<String, dynamic> part, String textKey) {
+    test('the tier names a source per fragment and every fragment is that source verbatim', () {
+      // #56 made the tier multi-file: modal rows carry their own `src`, the
+      // top-level `source` is only the fallback for the rows authored before
+      // the extension. A part may even cite a different file than its row,
+      // so the fallback chain is part.src ?? row.src ?? stacks.source.
+      final Map<String, List<String>> fileLines = <String, List<String>>{};
+      List<String> linesOf(String src) =>
+          fileLines.putIfAbsent(src, () => webSource(src).split('\n'));
+
+      void check(
+        Map<String, dynamic> part,
+        String textKey,
+        String src,
+        String name,
+      ) {
+        final List<String> lines = linesOf(src);
         final int line = (part['line']! as num).toInt();
         expect(
           line,
           inInclusiveRange(1, lines.length),
-          reason: 'cited line $line is outside the ${lines.length}-line file',
+          reason:
+              '$name cites line $line of $src, which has '
+              '${lines.length} lines',
         );
         expect(
           lines[line - 1],
           contains(part[textKey]! as String),
           reason:
               'the JSON slice "${part[textKey]}" must still be verbatim at '
-              'line $line — the component moved, the tier has to move with it',
+              'line $line of $src — the component moved, the tier has to '
+              'move with it',
         );
       }
 
       for (final dynamic rowAny in rows) {
         final Map<String, dynamic> row = rowAny as Map<String, dynamic>;
+        final String src = (row['src'] ?? stacks['source'])! as String;
         for (final dynamic p in row['parts']! as List<dynamic>) {
-          check(p as Map<String, dynamic>, 'cls');
+          final Map<String, dynamic> part = p as Map<String, dynamic>;
+          check(
+            part,
+            'cls',
+            (part['src'] ?? src)! as String,
+            row['name']! as String,
+          );
         }
       }
       for (final dynamic entryAny in nonCss) {
         final Map<String, dynamic> entry = entryAny as Map<String, dynamic>;
+        final Object? tier = entry['tier'];
         expect(
-          entry['tier'],
-          'authored-js',
+          <String>['authored-js', 'authored-inline'],
+          contains(tier),
           reason:
-              '${entry['name']} is '
-              'JS the port must copy literally, never something to re-measure',
+              '${entry['name']} is tier $tier — JS or an inline style the '
+              'port must copy literally, never something to re-measure',
         );
+        final String src = (entry['src'] ?? stacks['source'])! as String;
         for (final dynamic p in entry['parts']! as List<dynamic>) {
-          check(p as Map<String, dynamic>, 'text');
+          final Map<String, dynamic> part = p as Map<String, dynamic>;
+          check(
+            part,
+            'text',
+            (part['src'] ?? src)! as String,
+            entry['name']! as String,
+          );
         }
       }
     });
@@ -4859,6 +4888,904 @@ void main() {
         );
       },
     );
+  });
+
+  group('modal/sheet stacks — the #56 family measured whole', () {
+    // #56 extended the utility-stack tier from NotificationContext to the six
+    // modal/sheet components: each shell tier (veil, shell, panel, header,
+    // title, close, grip, body) is one authored class list measured on a
+    // detached element against an unclassed control, in all four passes.
+    // Rows from the newer files carry their own src; the drift test above
+    // re-reads every cited line. Nothing here builds a widget.
+    final Map<String, dynamic> stacks =
+        measurement['utilityStacks']! as Map<String, dynamic>;
+    final List<dynamic> rows = stacks['rows']! as List<dynamic>;
+    final String fallbackSource = stacks['source']! as String;
+    const List<String> passes = <String>[
+      'light-desktop',
+      'dark-desktop',
+      'light-phone',
+      'dark-phone',
+    ];
+
+    Map<String, dynamic> record(String pass, String row) {
+      final Object? r =
+          (_theme(measurement, pass)['stacks']! as Map<String, dynamic>)[row];
+      if (r == null) throw StateError('no stack $row in $pass');
+      return r as Map<String, dynamic>;
+    }
+
+    Map<String, dynamic> props(String pass, String row) =>
+        record(pass, row)['props']! as Map<String, dynamic>;
+
+    List<String> changed(String pass, String row) =>
+        (record(pass, row)['changed']! as List<dynamic>).cast<String>();
+
+    Color colourOf(Map<String, dynamic> value) {
+      final Map<String, dynamic> srgb = value['srgb']! as Map<String, dynamic>;
+      return Color.fromRGBO(
+        (srgb['r']! as num).round(),
+        (srgb['g']! as num).round(),
+        (srgb['b']! as num).round(),
+        (srgb['alpha']! as num).toDouble(),
+      );
+    }
+
+    List<int> channelsOf(Map<String, dynamic> value) {
+      final Map<String, dynamic> srgb = value['srgb']! as Map<String, dynamic>;
+      return <int>[
+        (srgb['r']! as num).round(),
+        (srgb['g']! as num).round(),
+        (srgb['b']! as num).round(),
+      ];
+    }
+
+    String rawOf(Object? value) =>
+        (value! as Map<String, dynamic>)['raw']! as String;
+
+    String px(num n) => n == n.roundToDouble() ? '${n.toInt()}px' : '$n';
+
+    double spacingOf(Map<String, dynamic> root) =>
+        _lengthToPx(_raw(root, '--spacing'));
+
+    double viewportH(String pass) =>
+        ((_theme(measurement, pass)['viewport']!
+                    as Map<String, dynamic>)['height']!
+                as num)
+            .toDouble();
+
+    double viewportW(String pass) =>
+        ((_theme(measurement, pass)['viewport']!
+                    as Map<String, dynamic>)['width']!
+                as num)
+            .toDouble();
+
+    // Chrome serialises rounded-full's calc(infinity * 1px) as this float —
+    // recorded verbatim because that is what any reader of the tier sees.
+    const String fullRadius = '3.35544e+07px';
+
+    test('the family is 19 toast rows plus 32 rows from six modal files', () {
+      final Map<String, int> bySource = <String, int>{};
+      for (final dynamic r in rows) {
+        final Map<String, dynamic> row = r as Map<String, dynamic>;
+        final String src = (row['src'] ?? fallbackSource)! as String;
+        bySource[src] = (bySource[src] ?? 0) + 1;
+      }
+      expect(
+        bySource,
+        <String, int>{
+          'src/context/NotificationContext.tsx': 19,
+          'src/components/ui/Modal.tsx': 7,
+          'src/components/ui/BottomSheet.tsx': 8,
+          'src/components/dashboard/QuickActionModal.tsx': 6,
+          'src/components/DebtDetailModal.tsx': 4,
+          'src/components/TransactionEditModal.tsx': 4,
+          'src/components/SettingsModal.tsx': 3,
+        },
+        reason:
+            'a component joining or leaving the family means the tier '
+            'was re-measured against a different source set',
+      );
+    });
+
+    test('the veils are two recipes: --ink at 40% or black at 60%', () {
+      for (final String pass in passes) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        for (final String veil in <String>[
+          'modal-veil',
+          'sheet-veil',
+          'settings-veil',
+        ]) {
+          final Map<String, dynamic> bg =
+              props(pass, veil)['backgroundColor']! as Map<String, dynamic>;
+          expect(
+            channelsOf(bg),
+            channelsOf(_token(root, '--ink')),
+            reason: '$veil: bg-[var(--ink)]/40 is the token’s own channels',
+          );
+          expect(
+            colourOf(bg).a,
+            closeTo(0.4, 0.002),
+            reason: '$veil: /40 is 40% alpha',
+          );
+          expect(
+            rawOf(props(pass, veil)['backdropFilter']),
+            'blur(2px)',
+            reason: '$veil: the literal backdrop-blur-[2px]',
+          );
+        }
+        for (final String veil in <String>['qa-veil', 'tem-veil']) {
+          final Map<String, dynamic> p = props(pass, veil);
+          final Map<String, dynamic> bg =
+              p['backgroundColor']! as Map<String, dynamic>;
+          expect(channelsOf(bg), <int>[
+            0,
+            0,
+            0,
+          ], reason: '$veil: bg-black/60 has no token to borrow');
+          expect(colourOf(bg).a, closeTo(0.6, 0.002));
+          expect(
+            rawOf(p['backdropFilter']),
+            'blur(${px(_lengthToPx(_raw(root, '--blur-sm')))})',
+            reason:
+                '$veil: bare backdrop-blur — it lands on the same 8px the '
+                '--blur-sm token names, but the class asked for no token',
+          );
+        }
+        final Map<String, dynamic> debt = props(pass, 'debt-veil');
+        final Map<String, dynamic> debtBg =
+            debt['backgroundColor']! as Map<String, dynamic>;
+        expect(channelsOf(debtBg), <int>[0, 0, 0], reason: 'bg-black/60');
+        expect(colourOf(debtBg).a, closeTo(0.6, 0.002));
+        expect(
+          rawOf(debt['backdropFilter']),
+          'blur(6px)',
+          reason: 'debt-veil: the literal backdrop-blur-[6px]',
+        );
+        expect(
+          props(pass, 'settings-veil')['zIndex'],
+          '40',
+          reason: 'the drawer veil sits a level under every modal z-50',
+        );
+      }
+    });
+
+    test(
+      'the shells are fixed inset frames whose z, padding and anchor vary',
+      () {
+        for (final String pass in passes) {
+          final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+          final double s = spacingOf(root);
+          final bool phone = pass.endsWith('phone');
+          for (final String shell in <String>[
+            'modal-shell',
+            'sheet-shell',
+            'qa-shell',
+            'tem-shell',
+            'debt-veil',
+          ]) {
+            final Map<String, dynamic> p = props(pass, shell);
+            expect(p['position'], 'fixed', reason: '$shell: fixed inset-0');
+            for (final String side in <String>[
+              'top',
+              'right',
+              'bottom',
+              'left',
+            ]) {
+              expect(p[side], '0px', reason: '$shell: inset-0 on $side');
+            }
+            expect(p['display'], 'flex');
+            expect(p['justifyContent'], 'center');
+            expect(
+              p['width'],
+              px(viewportW(pass)),
+              reason: '$shell: inset-0 spans the recorded viewport',
+            );
+            expect(p['height'], px(viewportH(pass)));
+          }
+          expect(props(pass, 'modal-shell')['zIndex'], '50');
+          expect(props(pass, 'sheet-shell')['zIndex'], '50');
+          expect(props(pass, 'qa-shell')['zIndex'], '50');
+          expect(props(pass, 'debt-veil')['zIndex'], '50');
+          expect(
+            props(pass, 'tem-shell')['zIndex'],
+            '200',
+            reason:
+                'the z-[200] arbitrary literal — the edit modal outranks '
+                'every z-50 shell in the app',
+          );
+          expect(
+            props(pass, 'modal-shell')['padding'],
+            phone ? px(4 * s) : px(6 * s),
+            reason: 'p-4 sm:p-6 — sm is live only on the desktop passes',
+          );
+          expect(
+            props(pass, 'qa-shell')['padding'],
+            phone ? '0px' : px(4 * s),
+            reason: 'p-0 md:p-4 — md silent at 390px',
+          );
+          expect(
+            props(pass, 'tem-shell')['padding'],
+            phone ? '0px' : px(4 * s),
+            reason: 'p-0 md:p-4',
+          );
+          expect(props(pass, 'sheet-shell')['padding'], '0px');
+          expect(
+            props(pass, 'debt-veil')['padding'],
+            px(4 * s),
+            reason: 'p-4 with no responsive sibling — 16px either way',
+          );
+          expect(
+            props(pass, 'modal-shell')['alignItems'],
+            'center',
+            reason: 'items-center is unconditional on the modal shell',
+          );
+          expect(props(pass, 'debt-veil')['alignItems'], 'center');
+          for (final String bottom in <String>[
+            'sheet-shell',
+            'qa-shell',
+            'tem-shell',
+          ]) {
+            expect(
+              props(pass, bottom)['alignItems'],
+              phone ? 'flex-end' : 'center',
+              reason:
+                  '$bottom: items-end becomes sm:/md:items-centre — '
+                  'sheet on sm, the two panels on md',
+            );
+          }
+          final Map<String, dynamic> modalShell = props(pass, 'modal-shell');
+          expect(modalShell['overflowY'], 'auto', reason: 'overflow-y-auto');
+          expect(
+            modalShell['overflowX'],
+            'auto',
+            reason:
+                'overflow-x stays visible in the sheet but the engine '
+                'computes it auto once the other axis is scrollable',
+          );
+          expect(
+            props(pass, 'sheet-shell')['overflowY'],
+            'visible',
+            reason: 'sheet-shell authored no overflow utility at all',
+          );
+        }
+      },
+    );
+
+    test('the sm:/md: variants sound only in the passes they are live in', () {
+      for (final String pass in passes) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        final double s = spacingOf(root);
+        final bool phone = pass.endsWith('phone');
+        for (final String body in <String>['modal-body', 'sheet-body']) {
+          expect(
+            props(pass, body)['padding'],
+            phone ? px(5 * s) : px(6 * s),
+            reason: '$body: p-5 sm:p-6',
+          );
+        }
+        for (final String grip in <String>['sheet-grip', 'tem-grip']) {
+          expect(
+            props(pass, grip)['display'],
+            phone ? 'block' : 'none',
+            reason:
+                '$grip: the handle is sm:hidden / md:hidden — it only '
+                'exists where the panel docks to the bottom edge',
+          );
+        }
+        expect(
+          props(pass, 'qa-panel')['maxWidth'],
+          phone ? 'none' : px(_lengthToPx(_raw(root, '--container-md'))),
+          reason:
+              'md:max-w-md — the cap is a container token, and only '
+              'from md up',
+        );
+        expect(
+          props(pass, 'tem-panel')['maxWidth'],
+          phone ? 'none' : px(_lengthToPx(_raw(root, '--container-sm'))),
+          reason: 'md:max-w-sm',
+        );
+        expect(
+          props(pass, 'qa-panel')['borderTopWidth'],
+          '1px',
+          reason: 'border-t is unconditional',
+        );
+        expect(
+          props(pass, 'qa-panel')['borderLeftWidth'],
+          phone ? '0px' : '1px',
+          reason: 'md:border — the side borders appear with the variant',
+        );
+        expect(
+          props(pass, 'tem-panel')['borderBottomWidth'],
+          phone ? '0px' : '1px',
+          reason: 'border-t md:border',
+        );
+        expect(
+          props(pass, 'sheet-panel')['borderRightWidth'],
+          phone ? '0px' : '1px',
+          reason: 'border-t sm:border',
+        );
+        expect(
+          props(pass, 'qa-panel')['borderRadius'],
+          phone ? '24px 24px 0px 0px' : '16px',
+          reason:
+              'rounded-t-[24px] md:rounded-[16px] — per-corner radii '
+              'serialise in tl tr br bl order',
+        );
+        final double rLg = _lengthToPx(_raw(root, '--r-lg'));
+        expect(
+          props(pass, 'tem-panel')['borderRadius'],
+          phone ? '${px(rLg)} ${px(rLg)} 0px 0px' : px(rLg),
+          reason:
+              'rounded-t-[var(--r-lg)] md:rounded-[var(--r-lg)] — the '
+              'arbitrary token radius resolves identically on both corners '
+              'of the pair',
+        );
+        expect(
+          props(pass, 'sheet-panel')['borderRadius'],
+          phone ? '16px 16px 0px 0px' : '16px',
+          reason: 'rounded-t-2xl sm:rounded-2xl',
+        );
+      }
+    });
+
+    test('the capped panels are viewport fractions, not fixed heights', () {
+      final Map<String, double> caps = <String, double>{
+        'modal-body': 0.80,
+        'sheet-panel': 0.85,
+        'qa-panel': 0.90,
+        'debt-panel': 0.92,
+        'tem-panel': 0.92,
+      };
+      for (final String pass in passes) {
+        caps.forEach((String row, double fraction) {
+          expect(
+            _lengthToPx(props(pass, row)['maxHeight']! as String),
+            closeTo(viewportH(pass) * fraction, 0.05),
+            reason:
+                '$row in $pass: the vh-family cap re-derived from the '
+                'viewport the pass recorded — 92dvh measured the same as '
+                '92vh because no browser chrome moved between captures',
+          );
+        });
+      }
+    });
+
+    test('modal and debt panels are .card twins; the sheet panel is not', () {
+      const List<String> colourKeys = <String>[
+        'backgroundColor',
+        'borderTopColor',
+      ];
+      for (final String pass in passes) {
+        final Map<String, dynamic> probes = _probesOf(
+          _theme(measurement, pass),
+        );
+        final Map<String, dynamic> card =
+            probes['.card']! as Map<String, dynamic>;
+        for (final String row in <String>['modal-panel', 'debt-panel']) {
+          final Map<String, dynamic> p = props(pass, row);
+          expect(
+            p['borderRadius'],
+            card['borderRadius'],
+            reason: '$row carries the card class — its radius is the probe’s',
+          );
+          expect(p['borderTopWidth'], card['borderTopWidth']);
+          for (final String key in colourKeys) {
+            expect(
+              colourOf(p[key]! as Map<String, dynamic>),
+              colourOf(card[key]! as Map<String, dynamic>),
+              reason: '$row.$key disagrees with the .card probe in $pass',
+            );
+          }
+          expect(
+            rawOf(p['boxShadow']),
+            rawOf(card['boxShadow']),
+            reason: '$row: the card shadow, byte for byte',
+          );
+        }
+        final Map<String, dynamic> sheet = props(pass, 'sheet-panel');
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        expect(
+          sheet['borderRadius'],
+          isNot(props(pass, 'modal-panel')['borderRadius']),
+          reason:
+              'the utility rounded-2xl is 1rem where .card is bigger — '
+              'the sheet is a look-alike, not a card',
+        );
+        expect(
+          sheet['borderRadius'],
+          contains(px(_lengthToPx(_raw(root, '--radius-2xl')))),
+          reason: 'even the divergent corner is --radius-2xl, re-derived',
+        );
+        expect(
+          root.containsKey('--shadow-2xl'),
+          isFalse,
+          reason:
+              '$pass: --shadow-2xl reappeared in root — the sheet/drawer '
+              'shadow was pinned as engine-only output; re-read the finding',
+        );
+        for (final String row in <String>['sheet-panel', 'settings-drawer']) {
+          expect(
+            changed(pass, row),
+            contains('boxShadow'),
+            reason:
+                '$row in $pass: shadow-2xl moved nothing, which would '
+                'mean the utility stopped emitting',
+          );
+          expect(
+            rawOf(props(pass, row)['boxShadow']),
+            contains('rgba(0, 0, 0, 0.25) 0px 25px 50px -12px'),
+            reason:
+                '$row: the one non-empty layer of the engine-serialised '
+                'shadow-2xl, four transparent siblings included',
+          );
+        }
+      }
+    });
+
+    test('the settings drawer is the right-edge panel its classes say', () {
+      for (final String pass in passes) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        final Map<String, dynamic> p = props(pass, 'settings-drawer');
+        expect(p['position'], 'fixed');
+        expect(p['top'], '0px');
+        expect(p['right'], '0px');
+        expect(p['bottom'], '0px');
+        expect(p['zIndex'], '50');
+        expect(p['display'], 'flex');
+        expect(p['flexDirection'], 'column');
+        expect(p['borderLeftWidth'], '1px', reason: 'border-l only');
+        expect(p['borderTopWidth'], '0px');
+        expect(
+          colourOf(p['borderLeftColor']! as Map<String, dynamic>),
+          _measuredColour(root, '--line'),
+        );
+        expect(
+          colourOf(p['backgroundColor']! as Map<String, dynamic>),
+          _measuredColour(root, '--surface'),
+        );
+        expect(
+          p['maxWidth'],
+          '600px',
+          reason: 'the max-w-[600px] arbitrary literal, both passes',
+        );
+        if (pass.endsWith('phone')) {
+          expect(p['left'], '0px');
+          expect(
+            p['width'],
+            px(viewportW(pass)),
+            reason: 'w-full under the cap — the phone drawer IS the screen',
+          );
+        } else {
+          expect(
+            p['left'],
+            px(viewportW(pass) - 600),
+            reason:
+                'fixed right-0 + max-w-[600px]: left lands where the '
+                'cap pins it',
+          );
+          expect(p['width'], '600px');
+        }
+        expect(
+          p['height'],
+          px(viewportH(pass)),
+          reason: 'top-0 bottom-0 spans the recorded viewport',
+        );
+
+        final Map<String, dynamic> header = props(pass, 'settings-header');
+        final double s = spacingOf(root);
+        expect(header['height'], px(14 * s), reason: 'h-14 is 14×--spacing');
+        expect(
+          header['padding'],
+          '0px ${px(6 * s)}',
+          reason: 'px-6 with no vertical padding',
+        );
+        expect(header['borderBottomWidth'], '1px');
+        expect(header['flexShrink'], '0', reason: 'shrink-0');
+        final Map<String, dynamic> bg =
+            header['backgroundColor']! as Map<String, dynamic>;
+        expect(
+          channelsOf(bg),
+          channelsOf(_token(root, '--surface')),
+          reason: 'bg-[var(--surface)]/80 is the token’s channels',
+        );
+        expect(colourOf(bg).a, closeTo(0.8, 0.002));
+        expect(
+          rawOf(header['backdropFilter']),
+          'blur(${px(_lengthToPx(_raw(root, '--blur-sm')))})',
+          reason: 'bare backdrop-blur coincides with --blur-sm here',
+        );
+      }
+    });
+
+    test('headers, titles and closes carry spacing multiples and tokens', () {
+      for (final String pass in passes) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        final double s = spacingOf(root);
+        final double tight = double.parse(
+          _raw(root, '--tracking-tight').replaceAll('em', ''),
+        );
+        for (final String header in <String>['modal-header', 'sheet-header']) {
+          final Map<String, dynamic> p = props(pass, header);
+          expect(p['display'], 'flex');
+          expect(p['alignItems'], 'center');
+          expect(p['justifyContent'], 'space-between');
+          expect(p['height'], px(12 * s), reason: '$header: h-12');
+          expect(p['padding'], '0px ${px(5 * s)}', reason: 'px-5');
+          expect(p['borderBottomWidth'], '1px', reason: 'border-b');
+          expect(
+            colourOf(p['borderTopColor']! as Map<String, dynamic>),
+            _measuredColour(root, '--line'),
+            reason: '$header: border-[var(--line)]',
+          );
+        }
+        expect(
+          colourOf(
+            props(pass, 'modal-header')['backgroundColor']!
+                as Map<String, dynamic>,
+          ),
+          _measuredColour(root, '--surface'),
+          reason: 'the modal header paints the surface',
+        );
+        expect(
+          colourOf(
+            props(pass, 'sheet-header')['backgroundColor']!
+                as Map<String, dynamic>,
+          ).a,
+          0.0,
+          reason: 'the sheet header does not — bare border-b carries no bg',
+        );
+        expect(
+          props(pass, 'sheet-header')['flexShrink'],
+          '0',
+          reason: 'shrink-0 in the column chain',
+        );
+        expect(
+          props(pass, 'sheet-body')['flexGrow'],
+          '1',
+          reason: 'flex-1 grows the body under the capped panel',
+        );
+
+        for (final String title in <String>['modal-title', 'sheet-title']) {
+          final Map<String, dynamic> p = props(pass, title);
+          expect(
+            p['fontSize'],
+            '13px',
+            reason: '$title: the text-[13px] arbitrary literal',
+          );
+          expect(
+            p['fontWeight'],
+            _raw(root, '--font-weight-bold'),
+            reason: '$title: font-bold is the token',
+          );
+          expect(
+            _lengthToPx(p['letterSpacing']! as String),
+            closeTo(tight * _lengthToPx(p['fontSize']! as String), 0.005),
+            reason:
+                '$title: tracking-tight is --tracking-tight × THIS '
+                'font-size, not the 16px root — the em unit binds to the '
+                'element, the tier must not forget that',
+          );
+        }
+        final Map<String, dynamic> qa = props(pass, 'qa-title');
+        final double textSm = _lengthToPx(_raw(root, '--text-sm'));
+        expect(
+          qa['fontSize'],
+          px(textSm),
+          reason:
+              'qa-title: text-sm is --text-sm, the app’s 15px override '
+              'of Tailwind’s 14',
+        );
+        expect(
+          qa['fontWeight'],
+          _raw(root, '--font-weight-semibold'),
+          reason: 'font-semibold',
+        );
+        expect(
+          _lengthToPx(qa['letterSpacing']! as String),
+          closeTo(tight * textSm, 0.005),
+        );
+        expect(
+          _lengthToPx(qa['lineHeight']! as String),
+          closeTo(textSm * _ratio(_raw(root, '--text-sm--line-height')), 0.005),
+          reason: 'text-sm brings its paired line-height token',
+        );
+        final Map<String, dynamic> debt = props(pass, 'debt-title');
+        expect(debt['fontSize'], '18px', reason: 'text-[18px] literal');
+        expect(debt['fontWeight'], _raw(root, '--font-weight-bold'));
+        expect(
+          _lengthToPx(debt['letterSpacing']! as String),
+          closeTo(tight * 18, 0.005),
+        );
+        expect(debt['marginTop'], px(s), reason: 'mt-1');
+        expect(debt['whiteSpace'], 'nowrap', reason: 'truncate');
+        expect(debt['textOverflow'], 'ellipsis', reason: 'truncate');
+        expect(debt['overflowX'], 'hidden', reason: 'truncate');
+
+        for (final String close in <String>['modal-close', 'sheet-close']) {
+          final Map<String, dynamic> p = props(pass, close);
+          expect(
+            p['width'],
+            px(7 * s),
+            reason: '$close: w-7 h-7 is a 7×--spacing square',
+          );
+          expect(p['height'], px(7 * s));
+          expect(
+            p['borderRadius'],
+            fullRadius,
+            reason: '$close: rounded-full serialises as calc(infinity×1px)',
+          );
+          expect(
+            channelsOf(p['backgroundColor']! as Map<String, dynamic>),
+            channelsOf(_token(root, '--surface-2')),
+            reason: '$close: bg-[var(--surface-2)]',
+          );
+          expect(
+            colourOf(p['color']! as Map<String, dynamic>),
+            _measuredColour(root, '--ink-2'),
+            reason:
+                '$close: the resting text-[var(--ink-2)] — hover: is a '
+                'variant this detached probe cannot enter, so the quiet '
+                'reading IS the finding',
+          );
+          expect(
+            colourOf(p['color']! as Map<String, dynamic>),
+            isNot(_measuredColour(root, '--ink')),
+          );
+          expect(p['borderTopWidth'], '1px');
+          expect(
+            colourOf(p['borderTopColor']! as Map<String, dynamic>),
+            _measuredColour(root, '--line'),
+          );
+        }
+        final Map<String, dynamic> qaClose = props(pass, 'qa-close');
+        expect(qaClose['width'], px(8 * s), reason: 'w-8 h-8');
+        expect(qaClose['height'], px(8 * s));
+        expect(qaClose['borderRadius'], fullRadius);
+      }
+    });
+
+    test('the grips are one pill measured twice, centred per pass', () {
+      for (final String pass in passes) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        final double s = spacingOf(root);
+        final bool phone = pass.endsWith('phone');
+        for (final String grip in <String>['sheet-grip', 'tem-grip']) {
+          final Map<String, dynamic> p = props(pass, grip);
+          expect(p['width'], px(10 * s), reason: '$grip: w-10');
+          expect(p['height'], px(s), reason: '$grip: h-1');
+          expect(p['borderRadius'], fullRadius, reason: '$grip: rounded-full');
+          expect(
+            channelsOf(p['backgroundColor']! as Map<String, dynamic>),
+            channelsOf(_token(root, '--line-strong')),
+            reason: '$grip: bg-[var(--line-strong)]',
+          );
+          if (phone) {
+            expect(
+              p['marginRight'],
+              px((viewportW(pass) - 10 * s) / 2),
+              reason:
+                  '$grip: mx-auto computes to the used side margin '
+                  '(390−40)/2 on the phone pass',
+            );
+          } else {
+            expect(
+              p['marginRight'],
+              'auto',
+              reason:
+                  '$grip: a display:none element never resolves its auto '
+                  'margins — the raw keyword is the honest reading',
+            );
+          }
+        }
+        expect(
+          props(pass, 'sheet-grip')['marginTop'],
+          px(3 * s),
+          reason: 'my-3',
+        );
+        expect(props(pass, 'sheet-grip')['marginBottom'], px(3 * s));
+        expect(props(pass, 'tem-grip')['marginTop'], '0px');
+        expect(
+          props(pass, 'tem-grip')['marginBottom'],
+          px(4 * s),
+          reason: 'mb-4',
+        );
+        expect(
+          props(pass, 'sheet-grip')['flexShrink'],
+          '0',
+          reason: 'shrink-0 — only the sheet grip asks for it',
+        );
+        expect(props(pass, 'tem-grip')['flexShrink'], '1');
+      }
+    });
+
+    test('the flex chains and overflow readings match the class lists', () {
+      for (final String pass in passes) {
+        final Map<String, dynamic> root = _rootOf(_theme(measurement, pass));
+        final double s = spacingOf(root);
+        for (final String column in <String>[
+          'sheet-panel',
+          'qa-panel',
+          'debt-panel',
+          'settings-drawer',
+        ]) {
+          expect(
+            props(pass, column)['flexDirection'],
+            'column',
+            reason: '$column: flex-col',
+          );
+        }
+        for (final String raised in <String>[
+          'modal-panel',
+          'sheet-panel',
+          'qa-panel',
+          'tem-panel',
+        ]) {
+          expect(
+            props(pass, raised)['zIndex'],
+            '10',
+            reason: '$raised: z-10 above the veil',
+          );
+        }
+        expect(
+          props(pass, 'debt-panel')['zIndex'],
+          'auto',
+          reason: 'the debt panel authored no z — it rides DOM order',
+        );
+        expect(
+          props(pass, 'modal-panel')['padding'],
+          '0px',
+          reason: 'p-0 cancels the card padding',
+        );
+        expect(
+          props(pass, 'modal-panel')['marginTop'],
+          px(8 * s),
+          reason: 'my-8',
+        );
+        expect(props(pass, 'modal-panel')['marginBottom'], px(8 * s));
+        expect(
+          props(pass, 'modal-panel')['maxWidth'],
+          px(_lengthToPx(_raw(root, '--container-md'))),
+          reason: 'max-w-md is --container-md at the prop default',
+        );
+        expect(
+          props(pass, 'sheet-panel')['maxWidth'],
+          px(_lengthToPx(_raw(root, '--container-lg'))),
+          reason: 'max-w-lg is --container-lg',
+        );
+        expect(
+          props(pass, 'debt-panel')['maxWidth'],
+          '560px',
+          reason: 'the max-w-[560px] arbitrary literal',
+        );
+        final Map<String, dynamic> debtHeader = props(pass, 'debt-header');
+        expect(debtHeader['alignItems'], 'flex-start');
+        expect(debtHeader['justifyContent'], 'space-between');
+        expect(debtHeader['padding'], '${px(5 * s)} ${px(6 * s)} ${px(4 * s)}');
+        expect(debtHeader['rowGap'], px(4 * s), reason: 'gap-4');
+        expect(debtHeader['flexShrink'], '0', reason: 'shrink-0');
+        expect(
+          props(pass, 'qa-header')['padding'],
+          '0px 0px ${px(4 * s)}',
+          reason: 'pb-4 only',
+        );
+        expect(props(pass, 'qa-header')['borderBottomWidth'], '1px');
+        for (final String clipped in <String>[
+          'modal-panel',
+          'sheet-panel',
+          'debt-panel',
+        ]) {
+          expect(
+            props(pass, clipped)['overflowY'],
+            'hidden',
+            reason: '$clipped: overflow-hidden',
+          );
+          expect(props(pass, clipped)['overflowX'], 'hidden');
+        }
+        for (final String scrolled in <String>[
+          'modal-body',
+          'sheet-body',
+          'qa-panel',
+          'tem-panel',
+        ]) {
+          expect(
+            props(pass, scrolled)['overflowY'],
+            'auto',
+            reason: '$scrolled: overflow-y-auto',
+          );
+        }
+        // shadow-[var(--shadow-float)] is theme-dependent: the dark pass
+        // redefines the token with three different layers. Each authored
+        // layer `offX offY blur colour` serialises as `colour offXpx offYpx
+        // blurpx 0px` (spread omitted → 0px), so the layers are re-derived
+        // from the token of THIS pass, never pinned to light literals.
+        final List<String> floatLayers = _splitTopLevel(
+          _raw(root, '--shadow-float'),
+        );
+        expect(floatLayers, isNotEmpty);
+        for (final String panel in <String>['qa-panel', 'tem-panel']) {
+          final String panelShadow = rawOf(props(pass, panel)['boxShadow']);
+          for (final String layer in floatLayers) {
+            final Match? m = RegExp(
+              r'^\s*(-?[\d.]+(?:px|em|rem)?)\s+'
+              r'(-?[\d.]+(?:px|em|rem)?)\s+'
+              r'(-?[\d.]+(?:px|em|rem)?)',
+            ).firstMatch(layer);
+            expect(m, isNotNull, reason: '$panel: unparsable layer $layer');
+            final Match hit = m!;
+            String toPx(String v) => v.endsWith('px') ? v : '${v}px';
+            final String offsets =
+                '${toPx(hit[1]!)} '
+                '${toPx(hit[2]!)} ${toPx(hit[3]!)} 0px';
+            expect(
+              panelShadow,
+              contains(offsets),
+              reason:
+                  '$panel in $pass must carry the $offsets layer that '
+                  '--shadow-float names in this pass',
+            );
+          }
+        }
+      }
+    });
+
+    test('the extended stack props are read in every pass, not just moved', () {
+      // The #56 rows asked stackProps for marginTop/marginRight/flexShrink/
+      // height/maxHeight/overflowX/overflowY/letterSpacing/whiteSpace/
+      // textOverflow. The full readout must carry them wherever they exist,
+      // whether or not `changed` lists them — the changed set is movement
+      // against the control, the props map is the record.
+      const List<String> extended = <String>[
+        'marginTop',
+        'marginRight',
+        'flexShrink',
+        'height',
+        'maxHeight',
+        'overflowX',
+        'overflowY',
+        'letterSpacing',
+        'whiteSpace',
+        'textOverflow',
+      ];
+      final List<String> modalNames = rows
+          .map((dynamic r) => (r as Map<String, dynamic>)['name']! as String)
+          .where(
+            (String name) => !<String>[
+              'toast-container',
+              'toast-success',
+              'toast-error',
+              'toast-warning',
+              'toast-info',
+              'toast-message',
+              'toast-close',
+              'toast-icon-success',
+              'toast-icon-error',
+              'toast-icon-warning',
+              'toast-icon-info',
+              'confirm-overlay',
+              'confirm-panel',
+              'confirm-title',
+              'confirm-rule',
+              'confirm-message',
+              'confirm-actions',
+              'confirm-cancel',
+              'confirm-confirm',
+            ].contains(name),
+          )
+          .toList();
+      expect(modalNames.length, 32);
+      for (final String pass in passes) {
+        for (final String name in modalNames) {
+          for (final String key in extended) {
+            expect(
+              props(pass, name).containsKey(key),
+              isTrue,
+              reason: '$name in $pass has no $key readout',
+            );
+          }
+        }
+      }
+    });
   });
 
   group('the no-hard-coded-style rule (playbook 2.4)', () {
