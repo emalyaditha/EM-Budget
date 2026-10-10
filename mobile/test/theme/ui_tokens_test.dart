@@ -20,6 +20,7 @@ import 'package:em_budget/core/theme/app_controls.dart';
 import 'package:em_budget/core/theme/app_colors.dart';
 import 'package:em_budget/core/theme/app_fields.dart';
 import 'package:em_budget/core/theme/app_icon_buttons.dart';
+import 'package:em_budget/core/theme/app_modals.dart';
 import 'package:em_budget/core/theme/app_navs.dart';
 import 'package:em_budget/core/theme/app_radii.dart';
 import 'package:em_budget/core/theme/app_shadows.dart';
@@ -5784,6 +5785,700 @@ void main() {
             );
           }
         }
+      }
+    });
+  });
+
+  group('AppModals — the ported shells re-derived from the #56 stacks', () {
+    // #63 emits `mobile/lib/core/theme/app_modals.dart` from the utility-stack
+    // tier's modal/sheet rows, the authored non-CSS entries and the pinned
+    // `.ledger-rule`. This group reads the same evidence back independently:
+    // every field of every generated row is re-derived here from a JSON
+    // string, an authored line or a stylesheet declaration — never copied
+    // out of the generated file, so the two can only agree by both being
+    // right.
+    final Map<String, dynamic> modStacks =
+        measurement['utilityStacks']! as Map<String, dynamic>;
+
+    const Map<String, Map<String, String>> modShells =
+        <String, Map<String, String>>{
+          '.modal-panel': <String, String>{
+            'shell': 'modal-shell',
+            'veil': 'modal-veil',
+            'panel': 'modal-panel',
+            'header': 'modal-header',
+            'title': 'modal-title',
+            'close': 'modal-close',
+            'body': 'modal-body',
+          },
+          '.sheet-panel': <String, String>{
+            'shell': 'sheet-shell',
+            'veil': 'sheet-veil',
+            'panel': 'sheet-panel',
+            'header': 'sheet-header',
+            'title': 'sheet-title',
+            'close': 'sheet-close',
+            'body': 'sheet-body',
+            'grip': 'sheet-grip',
+          },
+        };
+
+    Map<String, dynamic> modProps(String pass, String row) {
+      final Object? r =
+          (_theme(measurement, pass)['stacks']! as Map<String, dynamic>)[row];
+      if (r == null) throw StateError('no stack row $row in $pass');
+      return (r as Map<String, dynamic>)['props']! as Map<String, dynamic>;
+    }
+
+    String modVal(String pass, String row, String field) =>
+        _probeValue(modProps(pass, row), field, '$pass $row');
+
+    Color modColour(String pass, String row, String field) =>
+        _probeColour(modProps(pass, row), field, '$pass $row');
+
+    /// A px length Chrome may print in exponential form — the full-round
+    /// radius (`3.35544e+07px`, the engine's clamp of `rounded-full`) among
+    /// them. Recorded verbatim is what the port is checked against.
+    double modPx(String pass, String row, String field) {
+      final String raw = modVal(pass, row, field);
+      final RegExpMatch? m = RegExp(r'^(-?[\d.]+(?:e\+\d+)?)px$')
+          .firstMatch(raw);
+      if (m == null) {
+        throw StateError('$pass $row: "$raw" for $field is not a px length');
+      }
+      return double.parse(m.group(1)!);
+    }
+
+    double modUniformPad(String pass, String row) {
+      final String raw = modVal(pass, row, 'padding');
+      final RegExpMatch? m = RegExp(r'^([\d.]+)px$').firstMatch(raw);
+      if (m == null) {
+        throw StateError('$pass $row: padding "$raw" is not one uniform px');
+      }
+      return double.parse(m.group(1)!);
+    }
+
+    double modHeaderPadH(String pass, String row) {
+      final String raw = modVal(pass, row, 'padding');
+      final RegExpMatch? m = RegExp(r'^0px ([\d.]+)px$').firstMatch(raw);
+      if (m == null) {
+        throw StateError(
+          '$pass $row: padding "$raw" is not the "0 A" pair a flex header authors',
+        );
+      }
+      return double.parse(m.group(1)!);
+    }
+
+    List<double> modRadii(String pass, String row) {
+      final List<double> out = <double>[];
+      for (final String part in modVal(pass, row, 'borderRadius').split(' ')) {
+        final RegExpMatch? m = RegExp(r'^(-?[\d.]+(?:e\+\d+)?)px$')
+            .firstMatch(part);
+        if (m == null) {
+          throw StateError('$pass $row: radius part "$part" is not px');
+        }
+        out.add(double.parse(m.group(1)!));
+      }
+      return out;
+    }
+
+    double modBlurPx(String pass, String row) {
+      final RegExpMatch? m = RegExp(r'^blur\(([\d.]+)px\)$')
+          .firstMatch(modVal(pass, row, 'backdropFilter'));
+      if (m == null) {
+        throw StateError(
+          '$pass $row: backdrop-filter is not a bare blur(), so the row '
+          'could not be ported as one',
+        );
+      }
+      return double.parse(m.group(1)!);
+    }
+
+    double modViewportH(String pass) =>
+        ((_theme(measurement, pass)['viewport']!
+                    as Map<String, dynamic>)['height']!
+                as num)
+            .toDouble();
+
+    Map<String, dynamic> modAuthored(String name) {
+      for (final dynamic e in modStacks['authoredNonCss']! as List<dynamic>) {
+        final Map<String, dynamic> entry = e as Map<String, dynamic>;
+        if (entry['name'] == name) return entry;
+      }
+      throw StateError('ui-tokens.json records no authored entry "$name"');
+    }
+
+    List<String> modAuthoredTexts(String name) => <String>[
+      for (final dynamic p in modAuthored(name)['parts']! as List<dynamic>)
+        (p as Map<String, dynamic>)['text']! as String,
+    ];
+
+    String modAuthoredTextWith(String name, String needle) {
+      for (final String text in modAuthoredTexts(name)) {
+        if (text.contains(needle)) return text;
+      }
+      throw StateError(
+        'authored entry "$name" records no part containing "$needle"',
+      );
+    }
+
+    double modGroupNum(String text, String label, String pattern) {
+      final RegExpMatch? m = RegExp(pattern).firstMatch(text);
+      if (m == null) {
+        throw StateError('$label: "$text" does not carry $pattern');
+      }
+      return double.parse(m.group(1)!);
+    }
+
+    test('AppModals holds exactly the two measured shells, per pass', () {
+      final List<String> keys = modShells.keys.toList();
+      expect(AppModals.light.keys.toList(), keys);
+      expect(AppModals.dark.keys.toList(), keys);
+      for (final Brightness brightness in Brightness.values) {
+        expect(
+          () => AppModals.resolve('.card', brightness),
+          throwsA(isA<ArgumentError>()),
+          reason: 'a §6 card class is not a shell and must not resolve',
+        );
+      }
+    });
+
+    for (final String cls in modShells.keys) {
+      final Map<String, String> rows = modShells[cls]!;
+      final bool isSheet = rows.containsKey('grip');
+      for (final Brightness brightness in Brightness.values) {
+        final String wide = brightness == Brightness.light
+            ? 'light-desktop'
+            : 'dark-desktop';
+        final String narrow = brightness == Brightness.light
+            ? 'light-phone'
+            : 'dark-phone';
+
+        test(
+          '$cls ${brightness.name} — every generated field re-derives from the stacks',
+          () {
+            final AppModalSpec spec = AppModals.resolve(cls, brightness);
+            final String shell = rows['shell']!;
+            final String veil = rows['veil']!;
+            final String panel = rows['panel']!;
+            final String header = rows['header']!;
+            final String title = rows['title']!;
+            final String close = rows['close']!;
+            final String body = rows['body']!;
+
+            expect(spec.cssClass, cls);
+            expect(spec.shellPaddingWidePx, modUniformPad(wide, shell));
+            expect(spec.shellPaddingNarrowPx, modUniformPad(narrow, shell));
+            expect(spec.shellAlignWideCss, modVal(wide, shell, 'alignItems'));
+            expect(
+              spec.shellAlignNarrowCss,
+              modVal(narrow, shell, 'alignItems'),
+            );
+            expect(
+              spec.docksNarrowToBottom,
+              modVal(narrow, shell, 'alignItems') == 'flex-end',
+              reason: 'the getter is the measured flex-end read back',
+            );
+            expect(
+              spec.shellOverflowYWideCss,
+              modVal(wide, shell, 'overflowY'),
+            );
+            expect(
+              spec.shellOverflowYNarrowCss,
+              modVal(narrow, shell, 'overflowY'),
+            );
+            expect(spec.shellZIndexCss, modVal(wide, shell, 'zIndex'));
+            expect(spec.panelZIndexCss, modVal(wide, panel, 'zIndex'));
+
+            expect(spec.veilColor, modColour(wide, veil, 'backgroundColor'));
+            expect(
+              spec.veilColor,
+              modColour(narrow, veil, 'backgroundColor'),
+              reason: '$veil: the veil colour does not move with the viewport',
+            );
+            expect(spec.veilBlurPx, modBlurPx(wide, veil));
+            expect(
+              spec.veilBlurSigmaPx,
+              spec.veilBlurPx / 2,
+              reason: 'ruling D-U8: the CSS blur radius halved is the sigma',
+            );
+
+            expect(spec.panelMaxWidthPx, modPx(wide, panel, 'maxWidth'));
+            expect(
+              modPx(narrow, panel, 'maxWidth'),
+              spec.panelMaxWidthPx,
+              reason: '$panel: max-width is one row across the viewports',
+            );
+            expect(spec.panelMarginYPx, modPx(wide, panel, 'marginTop'));
+            expect(
+              modPx(wide, panel, 'marginBottom'),
+              spec.panelMarginYPx,
+              reason: '$panel: the authored `my-*` is symmetric',
+            );
+
+            final List<double> wideRadii = modRadii(wide, panel);
+            expect(
+              wideRadii.toSet().length,
+              1,
+              reason: '$panel: desktop authors one uniform corner set',
+            );
+            expect(spec.panelRadiusWidePx, wideRadii.first);
+            final List<double> narrowRadii = modRadii(narrow, panel);
+            expect(
+              narrowRadii.length == 1 || narrowRadii.length == 4,
+              isTrue,
+              reason: '$panel: a radius is one uniform value or four corners',
+            );
+            final double narrowTop = narrowRadii.first;
+            final double narrowBottom = narrowRadii.length == 1
+                ? narrowTop
+                : narrowRadii[2];
+            expect(spec.panelRadiusNarrowTopPx, narrowTop);
+            expect(spec.panelRadiusNarrowBottomPx, narrowBottom);
+
+            final List<double> wideBorders = <double>[
+              modPx(wide, panel, 'borderTopWidth'),
+              modPx(wide, panel, 'borderRightWidth'),
+              modPx(wide, panel, 'borderBottomWidth'),
+              modPx(wide, panel, 'borderLeftWidth'),
+            ];
+            expect(
+              wideBorders.toSet().length,
+              1,
+              reason: '$panel: desktop authors a uniform frame',
+            );
+            expect(spec.panelBorderWidePx, wideBorders.first);
+            expect(
+              spec.panelBorderNarrowTopPx,
+              modPx(narrow, panel, 'borderTopWidth'),
+            );
+            expect(
+              spec.panelBorderNarrowSidesPx,
+              modPx(narrow, panel, 'borderLeftWidth'),
+            );
+            expect(
+              modPx(narrow, panel, 'borderRightWidth'),
+              spec.panelBorderNarrowSidesPx,
+              reason: '$panel: the phone frame is left-right symmetric',
+            );
+            expect(
+              spec.panelBorderNarrowBottomPx,
+              modPx(narrow, panel, 'borderBottomWidth'),
+            );
+            expect(spec.panelFill, modColour(wide, panel, 'backgroundColor'));
+            expect(
+              spec.panelBorderColor,
+              modColour(wide, panel, 'borderTopColor'),
+            );
+
+            expect(
+              spec.panelShadow,
+              _probeShadowLayers(modProps(wide, panel), panel),
+            );
+            expect(
+              _probeShadowLayers(modProps(narrow, panel), panel),
+              spec.panelShadow,
+              reason: '$panel: the shadow does not move with the viewport',
+            );
+
+            final String capRow = isSheet ? panel : body;
+            final double? capFraction = isSheet
+                ? spec.panelMaxHeightFraction
+                : spec.bodyMaxHeightFraction;
+            expect(
+              capFraction! * modViewportH(wide),
+              closeTo(modPx(wide, capRow, 'maxHeight'), 0.05),
+              reason:
+                  'the fraction over the desktop pass reproduces the '
+                  'measured px cap',
+            );
+            expect(
+              capFraction * modViewportH(narrow),
+              closeTo(modPx(narrow, capRow, 'maxHeight'), 0.05),
+              reason:
+                  '…and over the phone pass too — Flutter has no vh, the port '
+                  'sizes the cap from the live viewport',
+            );
+            if (isSheet) {
+              expect(
+                spec.bodyMaxHeightFraction,
+                isNull,
+                reason: 'the sheet caps its panel, not its body',
+              );
+            } else {
+              expect(
+                spec.panelMaxHeightFraction,
+                isNull,
+                reason: 'the dialog caps its body, not its panel',
+              );
+            }
+
+            expect(spec.headerHeightPx, modPx(wide, header, 'height'));
+            expect(spec.headerPaddingHorizontalPx, modHeaderPadH(wide, header));
+            expect(
+              spec.headerBorderBottomWidthPx,
+              modPx(wide, header, 'borderBottomWidth'),
+            );
+            expect(
+              spec.headerBorderBottomColor,
+              modColour(wide, header, 'borderTopColor'),
+              reason: 'the frame colour is one authoring across the sides',
+            );
+            expect(
+              modColour(wide, header, 'borderLeftColor'),
+              modColour(wide, header, 'borderTopColor'),
+            );
+            expect(spec.headerFill, modColour(wide, header, 'backgroundColor'));
+
+            expect(spec.titleFontSizePx, modPx(wide, title, 'fontSize'));
+            expect(
+              spec.titleFontWeight,
+              int.parse(modVal(wide, title, 'fontWeight')),
+            );
+            expect(spec.titleLineHeightPx, modPx(wide, title, 'lineHeight'));
+            expect(
+              spec.titleLetterSpacingPx,
+              modPx(wide, title, 'letterSpacing'),
+            );
+            expect(spec.titleColor, modColour(wide, title, 'color'));
+            expect(spec.titleStyle.fontSize, spec.titleFontSizePx);
+            expect(
+              spec.titleStyle.height,
+              closeTo(spec.titleLineHeightPx / spec.titleFontSizePx, 1e-12),
+              reason: 'the ratio getter is the measured pair divided',
+            );
+
+            expect(spec.closeSizePx, modPx(wide, close, 'width'));
+            expect(
+              modPx(wide, close, 'height'),
+              spec.closeSizePx,
+              reason: '$close: the target is square',
+            );
+            expect(
+              spec.closeBorderRadiusPx,
+              modPx(wide, close, 'borderRadius'),
+            );
+            expect(spec.closeFill, modColour(wide, close, 'backgroundColor'));
+            expect(spec.closeFgColor, modColour(wide, close, 'color'));
+            expect(
+              spec.closeBorderWidthPx,
+              modPx(wide, close, 'borderTopWidth'),
+            );
+            expect(
+              modPx(wide, close, 'borderBottomWidth'),
+              spec.closeBorderWidthPx,
+              reason: '$close: the ring is uniform',
+            );
+            expect(
+              spec.closeBorderColor,
+              modColour(wide, close, 'borderTopColor'),
+            );
+
+            expect(spec.bodyPaddingWidePx, modUniformPad(wide, body));
+            expect(spec.bodyPaddingNarrowPx, modUniformPad(narrow, body));
+
+            final String motionName = isSheet
+                ? 'sheet-panel-motion'
+                : 'modal-panel-motion';
+            final String springText = modAuthoredTextWith(
+              motionName,
+              'damping',
+            );
+            expect(
+              spec.panelSpringDamping,
+              modGroupNum(springText, motionName, r'damping: ([\d.]+)'),
+            );
+            expect(
+              spec.panelSpringStiffness,
+              modGroupNum(springText, motionName, r'stiffness: ([\d.]+)'),
+            );
+            expect(
+              spec.panelSpring.mass,
+              1.0,
+              reason:
+                  'motion’s spring default mass is 1 — a documented package '
+                  'default, not a measured value (logged deviation)',
+            );
+
+            final String initialText = modAuthoredTextWith(
+              motionName,
+              'initial=',
+            );
+            if (isSheet) {
+              expect(
+                spec.enterOwnHeightFraction,
+                modGroupNum(initialText, motionName, r"\by: '([\d.]+)%'") / 100,
+                reason: 'the authored 100% offset is a full own-height slide',
+              );
+              expect(spec.enterOpacityFrom, isNull);
+              expect(spec.enterScale, isNull);
+              expect(spec.enterOffsetYPx, isNull);
+            } else {
+              expect(
+                spec.enterOpacityFrom,
+                modGroupNum(initialText, motionName, r'opacity: ([\d.]+)'),
+              );
+              expect(
+                spec.enterScale,
+                modGroupNum(initialText, motionName, r'scale: ([\d.]+)'),
+              );
+              expect(
+                spec.enterOffsetYPx,
+                modGroupNum(initialText, motionName, r'\by: ([\d.]+)'),
+              );
+              expect(spec.enterOwnHeightFraction, isNull);
+            }
+
+            expect(
+              spec.bodyScrollLocks,
+              isTrue,
+              reason:
+                  'both entries record the authored '
+                  '`overflow = \'hidden\'` part while open',
+            );
+            if (isSheet) {
+              expect(
+                modAuthoredTexts('sheet-panel-motion')
+                    .any((String t) => t.contains('Escape')),
+                isFalse,
+                reason: 'BottomSheet.tsx authors no Escape key handler',
+              );
+              expect(
+                spec.escapeCloses,
+                isFalse,
+                reason: 'only the dialog records an Escape part',
+              );
+            } else {
+              expect(
+                modAuthoredTexts('modal-behaviour')
+                    .any((String t) => t.contains('Escape')),
+                isTrue,
+              );
+              expect(spec.escapeCloses, isTrue);
+            }
+
+            if (isSheet) {
+              final AppModalGripSpec grip = spec.grip!;
+              expect(grip.widthPx, modPx(narrow, 'sheet-grip', 'width'));
+              expect(grip.heightPx, modPx(narrow, 'sheet-grip', 'height'));
+              expect(
+                grip.radiusPx,
+                modPx(narrow, 'sheet-grip', 'borderRadius'),
+              );
+              expect(grip.marginYPx, modPx(narrow, 'sheet-grip', 'marginTop'));
+              expect(
+                modPx(narrow, 'sheet-grip', 'marginBottom'),
+                grip.marginYPx,
+                reason: 'the authored grip margin is symmetric',
+              );
+              expect(
+                grip.fill,
+                modColour(narrow, 'sheet-grip', 'backgroundColor'),
+              );
+              expect(
+                grip.displayWideCss,
+                modVal(wide, 'sheet-grip', 'display'),
+                reason: 'the `sm:hidden` side measures none',
+              );
+              expect(
+                grip.displayNarrowCss,
+                modVal(narrow, 'sheet-grip', 'display'),
+              );
+              expect(grip.shownOnWide, isFalse);
+              expect(grip.shownOnNarrow, isTrue);
+            } else {
+              expect(
+                spec.grip,
+                isNull,
+                reason: 'the dialog measures no grab bar',
+              );
+            }
+          },
+        );
+      }
+    }
+
+    test(
+      'both veils fade on one authored clock with motion’s unset easing',
+      () {
+        for (final String name in <String>[
+          'modal-veil-motion',
+          'sheet-veil-motion',
+        ]) {
+          final String transition = modAuthoredTextWith(name, 'duration:');
+          expect(
+            transition,
+            isNot(contains('ease')),
+            reason:
+                '$name leaves motion’s easing unset; the port’s Cubic is that '
+                'default, not an authored curve (logged deviation)',
+          );
+          expect(
+            AppModals.veilFadeMs,
+            (modGroupNum(transition, name, r'duration: ([\d.]+)') * 1000)
+                .round(),
+            reason: '$name: the authored seconds are the ported milliseconds',
+          );
+        }
+        expect(
+          AppModals.veilFadeEase,
+          const Cubic(0.42, 0.0, 0.58, 1.0),
+          reason:
+              'CSS `ease` is cubic-bezier(0.25, 0.1, 0.25, 1) in authoring and '
+              'Flutter names its resolved curve exactly this — the one number '
+              'pair the port carries with no measurement behind it',
+        );
+      },
+    );
+
+    test(
+      'the width table is the recorded container tokens, not new numbers',
+      () {
+        expect(AppModals.widthPx.keys.toList(), <String>['sm', 'md', 'lg']);
+        for (final Map<String, dynamic> root in <Map<String, dynamic>>[
+          light,
+          dark,
+        ]) {
+          for (final String token in <String>['sm', 'md', 'lg']) {
+            expect(
+              AppModals.widthPx[token],
+              _lengthToPx(_raw(root, '--container-$token')),
+              reason: '--container-$token names the same px the table carries',
+            );
+          }
+        }
+        final String defaultPart = modAuthoredTextWith(
+          'modal-width-prop',
+          'maxWidth =',
+        );
+        expect(
+          AppModals.defaultWidthToken,
+          RegExp(r"maxWidth = '(\w+)'").firstMatch(defaultPart)!.group(1)!,
+          reason: 'the prop default line is the table’s key the port names',
+        );
+        expect(
+          AppModals.resolve('.modal-panel', Brightness.light).panelMaxWidthPx,
+          AppModals.widthPx[AppModals.defaultWidthToken],
+          reason: 'the dialog row measures its default token’s width',
+        );
+        expect(
+          AppModals.resolve('.sheet-panel', Brightness.light).panelMaxWidthPx,
+          AppModals.widthPx['lg'],
+          reason:
+              'the sheet’s measured 512 is the --container-lg row, not another '
+              'number anyone chose',
+        );
+      },
+    );
+
+    test(
+      'the recorded close glyph and the recipes keep their measured rows',
+      () {
+        final List<String> glyphTexts = modAuthoredTexts('sheet-icon-sizes');
+        expect(
+          glyphTexts.length,
+          2,
+          reason: 'both shells author the close glyph',
+        );
+        for (final String text in glyphTexts) {
+          expect(
+            AppModals.closeGlyphSizePx,
+            modGroupNum(text, 'sheet-icon-sizes', r'size=\{(\d+)\}'),
+          );
+        }
+        for (final Brightness brightness in Brightness.values) {
+          final String pass = brightness == Brightness.light
+              ? 'light-desktop'
+              : 'dark-desktop';
+          final AppModalSpec dialog = AppModals.resolve(
+            '.modal-panel',
+            brightness,
+          );
+          final AppVeilRecipe ink = brightness == Brightness.light
+              ? AppModals.inkVeilLight
+              : AppModals.inkVeilDark;
+          expect(
+            ink.color,
+            dialog.veilColor,
+            reason: '$pass: the shell’s own veil',
+          );
+          expect(ink.blurPx, dialog.veilBlurPx);
+          final AppVeilRecipe dim = brightness == Brightness.light
+              ? AppModals.dimVeilLight
+              : AppModals.dimVeilDark;
+          expect(
+            dim.color,
+            modColour(pass, 'qa-veil', 'backgroundColor'),
+            reason: '$pass qa-veil: the black/60 recipe as measured',
+          );
+          expect(
+            dim.blurPx,
+            _lengthToPx(_raw(_rootOf(_theme(measurement, pass)), '--blur-sm')),
+            reason: '$pass: the bare backdrop-blur lands on --blur-sm',
+          );
+          expect(
+            dim.blurSigmaPx,
+            dim.blurPx / 2,
+            reason: 'ruling D-U8 applies to the swapped recipe too',
+          );
+          expect(AppModals.debtVeilBlurPx, modBlurPx(pass, 'debt-veil'));
+          expect(
+            modBlurPx(
+              brightness == Brightness.light ? 'dark-desktop' : 'light-desktop',
+              'debt-veil',
+            ),
+            AppModals.debtVeilBlurPx,
+            reason: 'the literal 6px is the same row in the other scheme',
+          );
+        }
+      },
+    );
+
+    test('AppModals.ledger is the pinned rule over the measured fill', () {
+      final Map<String, String> rule = _cssDecls(
+        cssLines,
+        '.ledger-rule {',
+        '.ledger-rule',
+      );
+      expect(
+        AppModals.ledgerLight.heightPx,
+        _pxOf(rule['height']!, '.ledger-rule height'),
+      );
+      expect(
+        AppModals.ledgerDark.heightPx,
+        AppModals.ledgerLight.heightPx,
+        reason: 'the hairline height does not move with the scheme',
+      );
+      for (final Brightness brightness in Brightness.values) {
+        final String desktop = brightness == Brightness.light
+            ? 'light-desktop'
+            : 'dark-desktop';
+        final String phone = brightness == Brightness.light
+            ? 'light-phone'
+            : 'dark-phone';
+        final Color fill = _probeColour(
+          _probe(
+            _probesOf(_theme(measurement, desktop)),
+            '.ledger-rule',
+            desktop,
+          ),
+          'backgroundColor',
+          '.ledger-rule',
+        );
+        expect(AppModals.ledger(brightness).fill, fill);
+        expect(
+          _probeColour(
+            _probe(
+              _probesOf(_theme(measurement, phone)),
+              '.ledger-rule',
+              phone,
+            ),
+            'backgroundColor',
+            '.ledger-rule',
+          ),
+          fill,
+          reason: 'the fill does not move with the viewport',
+        );
       }
     });
   });

@@ -3821,7 +3821,1174 @@ L.push(
 );
 finish('app_navs.dart');
 
-// ---------------------------------------------------------------- write + summary
+// ================================================================ app_modals.dart
+// #56 — the two shared shells, `ui/Modal.tsx` and `ui/BottomSheet.tsx`, port as ONE
+// primitive with a dialog and a sheet variant. Every value below is read from the
+// per-pass utility-stack rows and the authored non-CSS entries recorded in
+// `parity/ui-tokens.json`; a value that no pass measured fails generation. Divergent
+// viewport behaviour (shell padding and docking, the sheet's bottom corners, border
+// sides and grip) is carried as an explicit wide/narrow pair, never averaged.
+
+const US = TOKENS.utilityStacks;
+if (!US || !Array.isArray(US.rows) || !Array.isArray(US.authoredNonCss)) {
+  fail('ui-tokens.json records no utilityStacks tier — app_modals.dart would have no evidence to emit from');
+}
+const readTsx = (...segs) => fs.readFileSync(path.join(ROOT, 'src', ...segs), 'utf8').split(/\r?\n/);
+const MODAL_TSX = readTsx('components', 'ui', 'Modal.tsx');
+const SHEET_TSX = readTsx('components', 'ui', 'BottomSheet.tsx');
+const tsxLine = (lines, file, line, text) => {
+  const src = lines[line - 1];
+  if (src === undefined || !src.includes(text)) {
+    fail(`recorded "${text}" at ${file}:${line}, but that line reads "${src}"`);
+  }
+};
+const usRow = (name) => {
+  const r = US.rows.find((x) => x.name === name);
+  if (!r) fail(`ui-tokens.json records no utility stack row "${name}"`);
+  return r;
+};
+const usAuthored = (name) => {
+  const e = US.authoredNonCss.find((x) => x.name === name);
+  if (!e) fail(`ui-tokens.json records no authored non-CSS entry "${name}"`);
+  return e;
+};
+const stackProps = (theme, name) => {
+  const row = theme.stacks && theme.stacks[name];
+  if (!row) fail(`"${name}": the ${theme.viewport.name} pass recorded no utility stack row`);
+  return row.props;
+};
+/** Row provenance for doc comments: the class-list part lines of the recorded row. */
+const stackSrc = (name) => {
+  const r = usRow(name);
+  const file = r.src || US.source;
+  return `${file}:${(r.parts || []).map((p) => p.line).join(',')}`;
+};
+
+/** A px length Chrome may print in exponential form — the full-round radius
+ *  (`3.35544e+07px`, the engine's clamp of a `rounded-full` pill) among them. */
+const lenAnyPx = (raw, label) => {
+  const m = /^(-?[\d.]+(?:e\+[\d.]+)?)px$/.exec(raw.trim());
+  if (!m) fail(`${label}: "${raw}" is not a px length`);
+  const v = parseFloat(m[1]);
+  if (!Number.isFinite(v)) fail(`${label}: "${raw}" is not a finite length`);
+  return v;
+};
+const stackLenPx = (props, field, name) => {
+  const raw = probeRaw(props, field, name);
+  return raw.includes('e+') ? lenAnyPx(raw, `${name} ${field}`) : lengthPx(raw, `${name} ${field}`);
+};
+/** The row's single uniform `padding`, or the `0 A` horizontal pair of a header. */
+const stackUniformPad = (props, name) => {
+  const raw = probeRaw(props, 'padding', name);
+  const parts = raw.split(/\s+/).map((s) => lenAnyPx(s, `${name} padding`));
+  if (parts.some((p) => p !== parts[0])) {
+    fail(`${name}: padding "${raw}" is not a single uniform value the port can carry as EdgeInsets.all`);
+  }
+  return parts[0];
+};
+const stackPaddingH = (props, name) => {
+  const raw = probeRaw(props, 'padding', name);
+  const m = /^0px ([\d.]+px)$/.exec(raw);
+  if (!m) fail(`${name}: padding "${raw}" is not the "0 A" horizontal pair a flex header authors`);
+  return lenAnyPx(m[1], `${name} padding`);
+};
+/** `blur(Npx)` from the row's backdrop-filter; the row must have measured one. */
+const stackBlurPx = (props, name) => {
+  const raw = probeRaw(props, 'backdropFilter', name);
+  const m = /^blur\(([\d.]+)px\)$/.exec(raw);
+  if (!m) fail(`${name}: backdrop-filter "${raw}" is not a plain blur(Npx)`);
+  return parseFloat(m[1]);
+};
+/** `border-radius` as the top/bottom pair Chrome prints (`16px 16px 0px 0px` on
+ *  the phone sheet, one uniform value everywhere else). */
+const stackRadius = (props, name) => {
+  const raw = probeRaw(props, 'borderRadius', name);
+  const parts = raw.split(/\s+/).map((s) => lenAnyPx(s, `${name} radius`));
+  if (parts.length === 1) return { top: parts[0], bottom: parts[0] };
+  if (parts.length === 4 && parts[0] === parts[1] && parts[2] === parts[3]) {
+    return { top: parts[0], bottom: parts[2] };
+  }
+  fail(`${name}: borderRadius "${raw}" is neither uniform nor an authored top/bottom pair`);
+};
+/** `rgba(…)`-serialised shadow layers of a stack row, parsed through the same
+ *  engine-first reader the §6 surfaces use. */
+const stackShadowLayers = (props, name) => {
+  const bs = props.boxShadow;
+  if (!bs) fail(`${name}: no boxShadow probe`);
+  const raw = typeof bs === 'string' ? bs : bs.substituted || bs.raw;
+  if (raw === 'none') return [];
+  return probeShadowList(raw, name);
+};
+const colourKey = (c) => `rgba(${c.r}, ${c.g}, ${c.b}, ${c.alpha})`;
+const stackColour = (props, field, name) => {
+  const c = probeSrgb(props, field, name);
+  return { r: c.r, g: c.g, b: c.b, alpha: c.alpha };
+};
+/** A vh-style cap divided by the height the pass measured it at. Flutter has no
+ *  vh unit: the port carries the fraction and sizes it from MediaQuery, which is
+ *  what reproduces the measured pixel cap on any viewport, not a pinned px. */
+const capFraction = (px, theme, name) => {
+  const f = px / theme.viewport.height;
+  if (!Number.isInteger(Math.round(f * 1000) / 10) || Math.abs(f * 100 - Math.round(f * 100)) > 1e-9) {
+    fail(`${name}: cap ${px}px / viewport ${theme.viewport.height}px = ${f} is not a clean authored vh fraction`);
+  }
+  return Math.round(f * 100) / 100;
+};
+
+const MODAL_VARIANTS = [
+  {
+    key: '.modal-panel',
+    label: 'dialog',
+    file: 'src/components/ui/Modal.tsx',
+    lines: MODAL_TSX,
+    rows: {
+      shell: 'modal-shell',
+      veil: 'modal-veil',
+      panel: 'modal-panel',
+      header: 'modal-header',
+      title: 'modal-title',
+      close: 'modal-close',
+      body: 'modal-body',
+    },
+    gripRow: null,
+    motion: { veil: 'modal-veil-motion', panel: 'modal-panel-motion', behaviour: 'modal-behaviour' },
+    capScope: 'body',
+    // The only two viewport-divergent dialog values: the shell's and the body's
+    // Tailwind `sm:` padding steps. Docking, box and border do not move.
+    viewportDivergent: ['shellPaddingPx', 'bodyPaddingPx'],
+  },
+  {
+    key: '.sheet-panel',
+    label: 'sheet',
+    file: 'src/components/ui/BottomSheet.tsx',
+    lines: SHEET_TSX,
+    rows: {
+      shell: 'sheet-shell',
+      veil: 'sheet-veil',
+      panel: 'sheet-panel',
+      header: 'sheet-header',
+      title: 'sheet-title',
+      close: 'sheet-close',
+      body: 'sheet-body',
+    },
+    gripRow: 'sheet-grip',
+    motion: { veil: 'sheet-veil-motion', panel: 'sheet-panel-motion', behaviour: 'sheet-panel-motion' },
+    capScope: 'panel',
+    // `items-end sm:items-center`, `rounded-t-2xl sm:rounded-2xl`,
+    // `border-t sm:border`, `sm:hidden` on the grip, and the body's `sm:` padding.
+    viewportDivergent: [
+      'shellAlignItems',
+      'panelRadiusBottomPx',
+      'panelBorderRightPx',
+      'panelBorderLeftPx',
+      'panelBorderBottomPx',
+      'gripDisplay',
+      'bodyPaddingPx',
+    ],
+  },
+];
+
+const readModalRow = (v, theme, tag) => {
+  const P = (n) => stackProps(theme, v.rows[n]);
+  const shell = P('shell');
+  const veil = P('veil');
+  const panel = P('panel');
+  const header = P('header');
+  const title = P('title');
+  const close = P('close');
+  const body = P('body');
+  const grip = v.gripRow ? stackProps(theme, v.gripRow) : null;
+  const weight = probeRaw(title, 'fontWeight', `${v.key} title`);
+  if (!/^([1-9]00)$/.test(weight)) fail(`${v.key}: title fontWeight "${weight}" is not a 100-900 step`);
+  const r = {
+    shellPaddingPx: stackUniformPad(shell, `${tag} ${v.key} shell`),
+    shellAlignItems: probeRaw(shell, 'alignItems', `${tag} ${v.key} shell`),
+    shellOverflowY: probeRaw(shell, 'overflowY', `${tag} ${v.key} shell`),
+    shellZIndex: probeRaw(shell, 'zIndex', `${tag} ${v.key} shell`),
+    panelZIndex: probeRaw(panel, 'zIndex', `${tag} ${v.key} panel`),
+    veilFill: stackColour(veil, 'backgroundColor', `${tag} ${v.key} veil`),
+    veilBlurPx: stackBlurPx(veil, `${tag} ${v.key} veil`),
+    panelMaxWidthPx: stackLenPx(panel, 'maxWidth', `${tag} ${v.key} panel`),
+    panelMarginTopPx: stackLenPx(panel, 'marginTop', `${tag} ${v.key} panel`),
+    panelMarginBottomPx: stackLenPx(panel, 'marginBottom', `${tag} ${v.key} panel`),
+    panelBorderTopPx: stackLenPx(panel, 'borderTopWidth', `${tag} ${v.key} panel`),
+    panelBorderRightPx: stackLenPx(panel, 'borderRightWidth', `${tag} ${v.key} panel`),
+    panelBorderBottomPx: stackLenPx(panel, 'borderBottomWidth', `${tag} ${v.key} panel`),
+    panelBorderLeftPx: stackLenPx(panel, 'borderLeftWidth', `${tag} ${v.key} panel`),
+    panelFill: stackColour(panel, 'backgroundColor', `${tag} ${v.key} panel`),
+    panelBorderColour: stackColour(panel, 'borderTopColor', `${tag} ${v.key} panel`),
+    panelShadowRaw: (() => {
+      const bs = panel.boxShadow;
+      if (!bs) fail(`${tag} ${v.key} panel: no boxShadow probe`);
+      const raw = typeof bs === 'string' ? bs : bs.substituted || bs.raw;
+      if (raw === 'none') fail(`${tag} ${v.key} panel: carries no box-shadow, but the shells port one`);
+      return raw;
+    })(),
+    headerHeightPx: stackLenPx(header, 'height', `${tag} ${v.key} header`),
+    headerPaddingHPx: stackPaddingH(header, `${tag} ${v.key} header`),
+    headerBorderBottomPx: stackLenPx(header, 'borderBottomWidth', `${tag} ${v.key} header`),
+    headerBorderTopPx: stackLenPx(header, 'borderTopWidth', `${tag} ${v.key} header`),
+    headerBorderBottomColour: stackColour(header, 'borderTopColor', `${tag} ${v.key} header`),
+    headerFill: stackColour(header, 'backgroundColor', `${tag} ${v.key} header`),
+    titleFontSizePx: stackLenPx(title, 'fontSize', `${tag} ${v.key} title`),
+    titleFontWeight: parseInt(weight, 10),
+    titleLineHeightPx: stackLenPx(title, 'lineHeight', `${tag} ${v.key} title`),
+    titleLetterSpacingPx: stackLenPx(title, 'letterSpacing', `${tag} ${v.key} title`),
+    titleColour: stackColour(title, 'color', `${tag} ${v.key} title`),
+    closeWidthPx: stackLenPx(close, 'width', `${tag} ${v.key} close`),
+    closeHeightPx: stackLenPx(close, 'height', `${tag} ${v.key} close`),
+    closeRadiusPx: lenAnyPx(probeRaw(close, 'borderRadius', `${tag} ${v.key} close`), `${tag} ${v.key} close radius`),
+    closeBorderTopPx: stackLenPx(close, 'borderTopWidth', `${tag} ${v.key} close`),
+    closeBorderRightPx: stackLenPx(close, 'borderRightWidth', `${tag} ${v.key} close`),
+    closeBorderBottomPx: stackLenPx(close, 'borderBottomWidth', `${tag} ${v.key} close`),
+    closeBorderLeftPx: stackLenPx(close, 'borderLeftWidth', `${tag} ${v.key} close`),
+    closeFill: stackColour(close, 'backgroundColor', `${tag} ${v.key} close`),
+    closeFgColour: stackColour(close, 'color', `${tag} ${v.key} close`),
+    closeBorderColour: stackColour(close, 'borderTopColor', `${tag} ${v.key} close`),
+    bodyPaddingPx: stackUniformPad(body, `${tag} ${v.key} body`),
+  };
+  const radius = stackRadius(panel, `${tag} ${v.key} panel`);
+  r.panelRadiusTopPx = radius.top;
+  r.panelRadiusBottomPx = radius.bottom;
+  const bodyMax = probeRaw(body, 'maxHeight', `${tag} ${v.key} body`);
+  const panelMax = probeRaw(panel, 'maxHeight', `${tag} ${v.key} panel`);
+  r.bodyMaxHeightPx = bodyMax === 'none' ? null : stackLenPx(body, 'maxHeight', `${tag} ${v.key} body`);
+  r.panelMaxHeightPx = panelMax === 'none' ? null : stackLenPx(panel, 'maxHeight', `${tag} ${v.key} panel`);
+  if (v.capScope === 'body') {
+    if (r.bodyMaxHeightPx === null) fail(`${v.key}: the dialog body carries no measured max-height cap`);
+    if (r.panelMaxHeightPx !== null)
+      fail(`${v.key}: the dialog panel also caps at ${r.panelMaxHeightPx}px; model it explicitly`);
+    r.bodyCapFraction = capFraction(r.bodyMaxHeightPx, theme, `${tag} ${v.key} body cap`);
+    r.panelCapFraction = null;
+  } else {
+    if (r.panelMaxHeightPx === null) fail(`${v.key}: the sheet panel carries no measured max-height cap`);
+    if (r.bodyMaxHeightPx !== null)
+      fail(`${v.key}: the sheet body also caps at ${r.bodyMaxHeightPx}px; model it explicitly`);
+    r.panelCapFraction = capFraction(r.panelMaxHeightPx, theme, `${tag} ${v.key} panel cap`);
+    r.bodyCapFraction = null;
+  }
+  if (grip) {
+    r.gripDisplay = probeRaw(grip, 'display', `${tag} ${v.key} grip`);
+    r.gripWidthPx = stackLenPx(grip, 'width', `${tag} ${v.key} grip`);
+    r.gripHeightPx = stackLenPx(grip, 'height', `${tag} ${v.key} grip`);
+    r.gripRadiusPx = lenAnyPx(probeRaw(grip, 'borderRadius', `${tag} ${v.key} grip`), `${tag} ${v.key} grip radius`);
+    r.gripMarginTopPx = stackLenPx(grip, 'marginTop', `${tag} ${v.key} grip`);
+    r.gripMarginBottomPx = stackLenPx(grip, 'marginBottom', `${tag} ${v.key} grip`);
+    r.gripFill = stackColour(grip, 'backgroundColor', `${tag} ${v.key} grip`);
+  }
+  return r;
+};
+
+const MODAL_COLOUR_KEYS = [
+  'veilFill',
+  'panelFill',
+  'panelBorderColour',
+  'headerBorderBottomColour',
+  'headerFill',
+  'titleColour',
+  'closeFill',
+  'closeFgColour',
+  'closeBorderColour',
+  'gripFill',
+];
+
+const modalScalar = (row, k) => {
+  const v = row[k];
+  if (v === undefined || v === null) return v === undefined ? '<missing>' : 'null';
+  if (MODAL_COLOUR_KEYS.includes(k)) return colourKey(v);
+  if (typeof v === 'object') fail(`row field ${k} is an unexamined object`);
+  return String(v);
+};
+
+/** Brightness pair: geometry, type and box must not move with the colour scheme —
+ *  colours and shadows are what the scheme exists to change. Viewport pair: only
+ *  the variant's recorded `sm:` divergences may move, and the row carries each
+ *  side explicitly rather than a blend of the two. */
+const compareModalRows = (v, a, b, tagA, tagB, keys) => {
+  for (const k of keys) {
+    const av = modalScalar(a, k);
+    const bv = modalScalar(b, k);
+    if (av !== bv) {
+      fail(`${v.key}: ${k} is "${av}" on ${tagA} but "${bv}" on ${tagB}`);
+    }
+  }
+};
+const compareModalViewport = (v, wide, narrow, keys) => {
+  const divergent = [];
+  for (const k of keys) {
+    if (v.viewportDivergent.includes(k)) {
+      if (modalScalar(wide, k) !== modalScalar(narrow, k)) divergent.push(k);
+      continue;
+    }
+    if (modalScalar(wide, k) !== modalScalar(narrow, k)) {
+      fail(
+        `${v.key}: ${k} is "${modalScalar(wide, k)}" on the desktop pass but "${modalScalar(narrow, k)}" on the phone pass — not a recorded sm: divergence`,
+      );
+    }
+  }
+  return divergent;
+};
+
+const modalVariantData = MODAL_VARIANTS.map((v) => {
+  const rows = {};
+  for (const [tag, theme] of [
+    ['light-desktop', LIGHT],
+    ['dark-desktop', DARK],
+    ['light-phone', LIGHT_PHONE],
+    ['dark-phone', DARK_PHONE],
+  ]) {
+    rows[tag] = readModalRow(v, theme, tag);
+  }
+  // Key lists come from this variant’s own rows: the sheet records grip fields
+  // the dialog does not, and every recorded field must be compared somewhere.
+  const keys = Object.keys(rows['light-desktop']);
+  for (const k of ['bodyMaxHeightPx', 'panelMaxHeightPx', 'bodyCapFraction', 'panelCapFraction']) {
+    if (!keys.includes(k)) fail(`${v.key}: the row builder recorded no ${k} field`);
+  }
+  const colourKeys = keys.filter((k) => MODAL_COLOUR_KEYS.includes(k));
+  const geometryKeys = keys.filter((k) => !MODAL_COLOUR_KEYS.includes(k) && k !== 'panelShadowRaw');
+  // The viewport pair compares everything the port carries per side except the
+  // shadow (compared above by raw string) and the vh cap in px — those px are a
+  // function of the measured viewport height by design; their ported form is
+  // the fraction, and the fraction is in this list and must be equal.
+  const viewportKeys = keys.filter(
+    (k) => k !== 'panelShadowRaw' && k !== 'bodyMaxHeightPx' && k !== 'panelMaxHeightPx',
+  );
+  compareModalRows(v, rows['light-desktop'], rows['dark-desktop'], 'light-desktop', 'dark-desktop', geometryKeys);
+  compareModalRows(v, rows['light-phone'], rows['dark-phone'], 'light-phone', 'dark-phone', geometryKeys);
+  compareModalRows(v, rows['light-desktop'], rows['light-phone'], 'light-desktop', 'light-phone', colourKeys);
+  compareModalRows(v, rows['dark-desktop'], rows['dark-phone'], 'dark-desktop', 'dark-phone', colourKeys);
+  const diverged = compareModalViewport(v, rows['light-desktop'], rows['light-phone'], viewportKeys);
+  if (rows['light-desktop'].panelShadowRaw !== rows['light-phone'].panelShadowRaw) {
+    fail(`${v.key}: the panel shadow moves with the viewport; the port carries one row per brightness`);
+  }
+  for (const k of v.viewportDivergent) {
+    if (!diverged.includes(k)) {
+      fail(
+        `${v.key}: ${k} is whitelisted as a sm: divergence but the two passes measured it equal — drop it from the model`,
+      );
+    }
+  }
+  // One-sided box asserts that comparePassRows cannot express: borders are uniform
+  // on desktop, and the phone sheet keeps only its top border.
+  const d = rows['light-desktop'];
+  const n = rows['light-phone'];
+  if (new Set([d.panelBorderTopPx, d.panelBorderRightPx, d.panelBorderBottomPx, d.panelBorderLeftPx]).size !== 1) {
+    fail(
+      `${v.key}: the desktop panel border is not uniform (${d.panelBorderTopPx}/${d.panelBorderRightPx}/${d.panelBorderBottomPx}/${d.panelBorderLeftPx})`,
+    );
+  }
+  if (new Set([n.panelBorderRightPx, n.panelBorderLeftPx]).size !== 1) {
+    fail(`${v.key}: the phone panel side borders differ (${n.panelBorderRightPx}/${n.panelBorderLeftPx})`);
+  }
+  if (d.panelMarginTopPx !== d.panelMarginBottomPx || n.panelMarginTopPx !== n.panelMarginBottomPx) {
+    fail(`${v.key}: the panel margins are not a symmetric my pair`);
+  }
+  if (d.closeWidthPx !== d.closeHeightPx)
+    fail(`${v.key}: the close target is not square (${d.closeWidthPx}x${d.closeHeightPx})`);
+  if (new Set([d.closeBorderTopPx, d.closeBorderRightPx, d.closeBorderBottomPx, d.closeBorderLeftPx]).size !== 1) {
+    fail(`${v.key}: the close border is not uniform`);
+  }
+  if (d.headerBorderTopPx !== 0) fail(`${v.key}: the header also borders its top; the shells author border-b only`);
+  if (d.panelRadiusTopPx !== d.panelRadiusBottomPx) {
+    fail(
+      `${v.key}: the desktop panel radius is not uniform (${d.panelRadiusTopPx}/${d.panelRadiusBottomPx}); sm:rounded-2xl rounds all four corners`,
+    );
+  }
+  if (n.gripMarginTopPx !== undefined && n.gripMarginTopPx !== n.gripMarginBottomPx) {
+    fail(`${v.key}: the grip margins are not a symmetric my pair`);
+  }
+  return { v, rows, diverged };
+});
+
+// ------------------------------------------------ motion, behaviour, widths (authored entries)
+const parseSpring = (entry, v) => {
+  const tr = entry.parts.filter((p) => /transition=/.test(p.text) && /spring/.test(p.text));
+  if (tr.length !== 1) fail(`${entry.name}: expected exactly one spring transition part, found ${tr.length}`);
+  tsxLine(v.lines, v.file, tr[0].line, tr[0].text);
+  const m = /^transition=\{\{ type: 'spring', damping: ([\d.]+), stiffness: ([\d.]+) \}\}$/.exec(tr[0].text);
+  if (!m) fail(`${entry.name}: spring "${tr[0].text}" is not the authored damping/stiffness pair`);
+  return { damping: parseFloat(m[1]), stiffness: parseFloat(m[2]), at: `${v.file}:${tr[0].line}` };
+};
+const parsePanelKeyframes = (entry, v) => {
+  const texts = entry.parts.map((p) => p.text);
+  const initial = entry.parts.find((p) => /^initial=/.test(p.text));
+  const animate = entry.parts.find((p) => /^animate=/.test(p.text));
+  const exit = entry.parts.find((p) => /^exit=/.test(p.text));
+  if (!initial || !animate || !exit) fail(`${entry.name}: panel keyframe parts incomplete: ${texts.join(' | ')}`);
+  tsxLine(v.lines, v.file, initial.line, initial.text);
+  tsxLine(v.lines, v.file, animate.line, animate.text);
+  tsxLine(v.lines, v.file, exit.line, exit.text);
+  if (exit.text.slice('exit='.length) !== initial.text.slice('initial='.length)) {
+    fail(`${entry.name}: exit "${exit.text}" does not restate initial "${initial.text}"`);
+  }
+  const d = /^\{\{ opacity: ([\d.]+), scale: ([\d.]+), y: ([\d.]+) \}\}$/.exec(initial.text.slice('initial='.length));
+  if (d) {
+    if (animate.text !== 'animate={{ opacity: 1, scale: 1, y: 0 }}') {
+      fail(`${entry.name}: animate "${animate.text}" is not the identity target of the dialog keyframes`);
+    }
+    return { opacityFrom: parseFloat(d[1]), scale: parseFloat(d[2]), dyPx: parseFloat(d[3]), ownHeight: null };
+  }
+  const s = /^\{\{ y: '([\d.]+)%' \}\}$/.exec(initial.text.slice('initial='.length));
+  if (s) {
+    if (animate.text !== 'animate={{ y: 0 }}') {
+      fail(`${entry.name}: animate "${animate.text}" is not the sheet's y: 0 target`);
+    }
+    return { opacityFrom: null, scale: null, dyPx: null, ownHeight: parseFloat(s[1]) / 100 };
+  }
+  fail(`${entry.name}: initial "${initial.text}" is neither the dialog scale/lift nor the sheet own-height slide`);
+};
+const parseVeilFade = (entry, v) => {
+  const tr = entry.parts.find((p) => /^transition=/.test(p.text));
+  if (!tr) fail(`${entry.name}: no transition part`);
+  tsxLine(v.lines, v.file, tr.line, tr.text);
+  const m = /^transition=\{\{ duration: ([\d.]+) \}\}$/.exec(tr.text);
+  if (!m) fail(`${entry.name}: veil transition "${tr.text}" is not a plain duration tween`);
+  const ms = parseFloat(m[1]) * 1000;
+  if (!Number.isInteger(ms)) fail(`${entry.name}: ${ms} ms is not an integral fade`);
+  const opacity = entry.parts.filter((p) => /opacity: [\d.]+/.test(p.text)).map((p) => p.text);
+  if (opacity.length !== 3)
+    fail(`${entry.name}: expected initial/animate/exit opacity parts, got ${opacity.join(' | ')}`);
+  for (const p of entry.parts) tsxLine(v.lines, v.file, p.line, p.text);
+  return { ms, at: `${v.file}:${tr.line}` };
+};
+const modalFades = modalVariantData.map(({ v }) => parseVeilFade(usAuthored(v.motion.veil), v));
+if (modalFades[0].ms !== modalFades[1].ms) {
+  fail('the two shell veils fade on different clocks; port one duration per variant instead of a shared constant');
+}
+const veilFadeMs = modalFades[0].ms;
+const veilFadeAt = modalFades.map((f) => f.at).join(' and ');
+/** The tween curve the shells never author: motion's own default, read from the
+ *  package the app ships (`motion-dom/dist/es/animation/generators/keyframes.mjs`
+ *  defaults `ease = "easeInOut"`; `motion-utils/.../easing/ease.mjs` defines it).
+ *  A framework default, not a Chrome measurement — logged as a deviation. */
+
+const modalMotion = modalVariantData.map(({ v }) => {
+  const panelEntry = usAuthored(v.motion.panel);
+  const spring = parseSpring(panelEntry, v);
+  const keys = parsePanelKeyframes(panelEntry, v);
+  return { v, spring, keys };
+});
+
+// Escape + body-lock, straight from the authored behaviour parts and the sources.
+const modalBehaviour = usAuthored('modal-behaviour');
+for (const p of modalBehaviour.parts) tsxLine(MODAL_TSX, 'src/components/ui/Modal.tsx', p.line, p.text);
+const modalEscapePart = modalBehaviour.parts.find((p) => /Escape/.test(p.text));
+if (!modalEscapePart) fail('modal-behaviour records no Escape part; the dialog close-on-key is unevidenced');
+const modalEscapeAt = `src/components/ui/Modal.tsx:${modalEscapePart.line}`;
+const sheetLockEntry = usAuthored('sheet-panel-motion');
+for (const p of sheetLockEntry.parts) tsxLine(SHEET_TSX, 'src/components/ui/BottomSheet.tsx', p.line, p.text);
+if (SHEET_TSX.join('\n').includes('Escape'))
+  fail('BottomSheet.tsx DOES carry Escape; sheet escapeCloses=false is wrong');
+const modalLockParts = modalBehaviour.parts.filter((p) => /overflow = 'hidden'/.test(p.text));
+const sheetLockParts = sheetLockEntry.parts.filter((p) => /overflow = 'hidden'/.test(p.text));
+if (!modalLockParts.length || !sheetLockParts.length) fail('a shell lost its recorded body scroll-lock part');
+const modalLockAt = [
+  ...modalLockParts.map((p) => `src/components/ui/Modal.tsx:${p.line}`),
+  ...sheetLockParts.map((p) => `src/components/ui/BottomSheet.tsx:${p.line}`),
+].join(', ');
+
+// The close glyph: recorded as authored px sizes, verified at the cited source lines.
+const glyphEntry = usAuthored('sheet-icon-sizes');
+const glyphSizes = new Set();
+const glyphAt = [];
+for (const p of glyphEntry.parts) {
+  const m = /^size=\{(\d+)\}$/.exec(p.text);
+  if (!m) fail(`sheet-icon-sizes part "${p.text}" is not a size={N} literal`);
+  glyphSizes.add(parseInt(m[1], 10));
+  const file = p.src || 'src/components/ui/Modal.tsx';
+  tsxLine(p.src && p.src.endsWith('BottomSheet.tsx') ? SHEET_TSX : MODAL_TSX, file, p.line, p.text);
+  glyphAt.push(`${file}:${p.line}`);
+}
+if (glyphSizes.size !== 1) fail(`the shells close with more than one glyph size: ${[...glyphSizes].join('/')}`);
+const closeGlyphPx = [...glyphSizes][0];
+
+// Panel max widths: the class each panel actually carries vs the measured container
+// token, plus the full map the dialog prop selects from (scoped to sm/md/lg).
+const widthTokenOfPanel = (name) => {
+  const row = usRow(name);
+  const toks = new Set();
+  for (const p of row.parts || []) {
+    for (const m of (p.cls || '').matchAll(/\bmax-w-([\w-]+)\b/g)) toks.add(m[1]);
+  }
+  if (toks.size !== 1) fail(`${name}: carries ${toks.size} max-w classes; the port expects exactly one`);
+  return [...toks][0];
+};
+const panelWidthTokens = {
+  '.modal-panel': widthTokenOfPanel('modal-panel'),
+  '.sheet-panel': widthTokenOfPanel('sheet-panel'),
+};
+const WIDTH_KEYS = ['sm', 'md', 'lg'];
+const widthPxTable = {};
+for (const k of WIDTH_KEYS) {
+  const tok = LIGHT.root[`--container-${k}`];
+  if (!tok) fail(`--container-${k} is not measured in the light pass :root`);
+  for (const theme of [LIGHT, DARK, LIGHT_PHONE, DARK_PHONE]) {
+    if (JSON.stringify(theme.root[`--container-${k}`]) !== JSON.stringify(tok)) {
+      fail(`--container-${k} moves between passes; the width table would need a pass per side`);
+    }
+  }
+  widthPxTable[k] = lengthPx(typeof tok === 'object' ? tok.raw : tok, `--container-${k}`);
+}
+const modalDefaultWidth = (() => {
+  const start = MODAL_TSX.findIndex((l) => /const maxWidths/.test(l));
+  if (start === -1) fail('Modal.tsx declares no maxWidths map');
+  const entries = [];
+  for (let i = start + 1; i < MODAL_TSX.length; i++) {
+    const line = MODAL_TSX[i];
+    if (/^\s*\};/.test(line)) break;
+    const m = /^\s*(?:'(\w+)'|(\w+)):\s*'max-w-([\w-]+)',?\s*$/.exec(line);
+    if (!m) fail(`maxWidths map line ${i + 1} "${line.trim()}" is not a key: 'max-w-<key>' pair`);
+    entries.push({ key: m[1] !== undefined ? m[1] : m[2], cls: m[3], at: `src/components/ui/Modal.tsx:${i + 1}` });
+  }
+  if (!entries.length) fail('the maxWidths map is empty');
+  const ported = entries.filter((e) => WIDTH_KEYS.includes(e.key));
+  if (ported.length !== WIDTH_KEYS.length) fail('the maxWidths map is missing a ported sm/md/lg token');
+  for (const e of ported) {
+    if (e.key !== e.cls) fail(`maxWidths entry ${e.at}: key ${e.key} selects max-w-${e.cls}`);
+  }
+  const def = usAuthored('modal-width-prop');
+  for (const p of def.parts) tsxLine(MODAL_TSX, 'src/components/ui/Modal.tsx', p.line, p.text);
+  const defaultPart = def.parts.find((p) => /maxWidth = /.test(p.text));
+  const defaultTok = /maxWidth = '(\w+)',/.exec(defaultPart.text);
+  if (!defaultTok || !WIDTH_KEYS.includes(defaultTok[1]))
+    fail(`dialog default width "${defaultTok && defaultTok[1]}" is not a ported token`);
+  return { token: defaultTok[1], unported: entries.filter((e) => !WIDTH_KEYS.includes(e.key)) };
+})();
+const modalUnportedWidths = modalDefaultWidth.unported.map((e) => `${e.key} (${e.at})`).join(', ');
+const modalWidthOf = {
+  '.modal-panel': panelWidthTokens['.modal-panel'],
+  '.sheet-panel': panelWidthTokens['.sheet-panel'],
+};
+if (modalWidthOf['.modal-panel'] !== modalDefaultWidth.token) {
+  fail(
+    `the dialog panel carries max-w-${modalWidthOf['.modal-panel']} but the prop default is ${modalDefaultWidth.token}`,
+  );
+}
+
+// The alternate veil recipes the primitive's parameter must be able to name:
+// black/60 + the 8px --blur-sm token (qa/tem) and the DebtDetail 6px literal.
+const dimVeilColour = { r: 0, g: 0, b: 0, alpha: 0.6 };
+const dimVeilBlurPx = (() => {
+  const blurTok = LIGHT.root['--blur-sm'];
+  if (!blurTok) fail('--blur-sm is not measured in the light pass :root');
+  const tokPx = lengthPx(typeof blurTok === 'object' ? blurTok.raw : blurTok, '--blur-sm');
+  for (const name of ['qa-veil', 'tem-veil']) {
+    for (const [tag, theme] of [
+      ['light-desktop', LIGHT],
+      ['dark-desktop', DARK],
+      ['light-phone', LIGHT_PHONE],
+      ['dark-phone', DARK_PHONE],
+    ]) {
+      const p = stackProps(theme, name);
+      const c = stackColour(p, 'backgroundColor', `${tag} ${name}`);
+      if (colourKey(c) !== colourKey(dimVeilColour))
+        fail(`${tag} ${name}: veil is ${colourKey(c)}, not the recorded black/60`);
+      const b = stackBlurPx(p, `${tag} ${name}`);
+      if (b !== tokPx) fail(`${tag} ${name}: backdrop-blur-sm resolves to ${b}px, token says ${tokPx}px`);
+    }
+  }
+  return tokPx;
+})();
+const debtVeilBlurPx = (() => {
+  for (const [tag, theme] of [
+    ['light-desktop', LIGHT],
+    ['dark-desktop', DARK],
+    ['light-phone', LIGHT_PHONE],
+    ['dark-phone', DARK_PHONE],
+  ]) {
+    const p = stackProps(theme, 'debt-veil');
+    const c = stackColour(p, 'backgroundColor', `${tag} debt-veil`);
+    if (colourKey(c) !== colourKey(dimVeilColour)) fail(`${tag} debt-veil: ${colourKey(c)} is not the black/60 recipe`);
+    if (stackBlurPx(p, `${tag} debt-veil`) !== 6) fail(`${tag} debt-veil: the literal blur is not 6px`);
+  }
+  return 6;
+})();
+
+// The rule both shells draw under their headers: authored height in the pinned
+// stylesheet, measured fill in the probe of every pass.
+const LEDGER_RULE = cssRule(/^\.ledger-rule \{$/, '.ledger-rule');
+const ledgerHeightPx = lengthPx(cssDecl(LEDGER_RULE, 'height', '.ledger-rule'), '.ledger-rule height');
+const ledgerFills = {};
+for (const [tag, theme] of [
+  ['light-desktop', LIGHT],
+  ['dark-desktop', DARK],
+  ['light-phone', LIGHT_PHONE],
+  ['dark-phone', DARK_PHONE],
+]) {
+  const probe = theme.probes['.ledger-rule'];
+  if (!probe) fail(`${tag}: no .ledger-rule probe`);
+  ledgerFills[tag] = stackColour(probe, 'backgroundColor', `${tag} .ledger-rule`);
+}
+if (colourKey(ledgerFills['light-desktop']) !== colourKey(ledgerFills['light-phone']))
+  fail('the ledger rule changes colour with the viewport');
+if (colourKey(ledgerFills['dark-desktop']) !== colourKey(ledgerFills['dark-phone']))
+  fail('the ledger rule changes colour with the viewport');
+
+// ------------------------------------------------------------------ emit Dart
+const modalSpecExpr = (v, base, narrow, tag) => {
+  const isSheet = v.gripRow !== null;
+  const lines = [
+    `      cssClass: ${dartStr(v.key)},`,
+    `      shellPaddingWidePx: ${fmt(base.shellPaddingPx)},`,
+    `      shellPaddingNarrowPx: ${fmt(narrow.shellPaddingPx)},`,
+    `      shellAlignWideCss: ${dartStr(base.shellAlignItems)},`,
+    `      shellAlignNarrowCss: ${dartStr(narrow.shellAlignItems)},`,
+    `      shellOverflowYWideCss: ${dartStr(base.shellOverflowY)},`,
+    `      shellOverflowYNarrowCss: ${dartStr(narrow.shellOverflowY)},`,
+    `      shellZIndexCss: ${dartStr(base.shellZIndex)},`,
+    `      panelZIndexCss: ${dartStr(base.panelZIndex)},`,
+    `      veilColor: ${dartSurfaceColour(base.veilFill)},`,
+    `      veilBlurPx: ${fmt(base.veilBlurPx)},`,
+    `      panelMaxWidthPx: ${fmt(base.panelMaxWidthPx)},`,
+    `      panelMarginYPx: ${fmt(base.panelMarginTopPx)},`,
+    `      panelRadiusWidePx: ${fmt(base.panelRadiusTopPx)},`,
+    `      panelRadiusNarrowTopPx: ${fmt(narrow.panelRadiusTopPx)},`,
+    `      panelRadiusNarrowBottomPx: ${fmt(narrow.panelRadiusBottomPx)},`,
+    `      panelBorderWidePx: ${fmt(base.panelBorderTopPx)},`,
+    `      panelBorderNarrowTopPx: ${fmt(narrow.panelBorderTopPx)},`,
+    `      panelBorderNarrowSidesPx: ${fmt(narrow.panelBorderLeftPx)},`,
+    `      panelBorderNarrowBottomPx: ${fmt(narrow.panelBorderBottomPx)},`,
+    `      panelFill: ${dartSurfaceColour(base.panelFill)},`,
+    `      panelBorderColor: ${dartSurfaceColour(base.panelBorderColour)},`,
+    `      panelShadow: ${shadowListExpr(stackShadowLayers(stackProps(tag === 'light' ? LIGHT : DARK, v.rows.panel), v.key))},`,
+    `      bodyMaxHeightFraction: ${base.bodyCapFraction === null ? 'null' : fmt(base.bodyCapFraction)},`,
+    `      panelMaxHeightFraction: ${base.panelCapFraction === null ? 'null' : fmt(base.panelCapFraction)},`,
+    `      headerHeightPx: ${fmt(base.headerHeightPx)},`,
+    `      headerPaddingHorizontalPx: ${fmt(base.headerPaddingHPx)},`,
+    `      headerBorderBottomWidthPx: ${fmt(base.headerBorderBottomPx)},`,
+    `      headerBorderBottomColor: ${dartSurfaceColour(base.headerBorderBottomColour)},`,
+    `      headerFill: ${dartSurfaceColour(base.headerFill)},`,
+    `      titleFontSizePx: ${fmt(base.titleFontSizePx)},`,
+    `      titleFontWeight: ${base.titleFontWeight},`,
+    `      titleLineHeightPx: ${fmt(base.titleLineHeightPx)},`,
+    `      titleLetterSpacingPx: ${fmt(base.titleLetterSpacingPx)},`,
+    `      titleColor: ${dartSurfaceColour(base.titleColour)},`,
+    `      closeSizePx: ${fmt(base.closeWidthPx)},`,
+    `      closeBorderRadiusPx: ${fmt(base.closeRadiusPx)},`,
+    `      closeFill: ${dartSurfaceColour(base.closeFill)},`,
+    `      closeFgColor: ${dartSurfaceColour(base.closeFgColour)},`,
+    `      closeBorderWidthPx: ${fmt(base.closeBorderTopPx)},`,
+    `      closeBorderColor: ${dartSurfaceColour(base.closeBorderColour)},`,
+    `      bodyPaddingWidePx: ${fmt(base.bodyPaddingPx)},`,
+    `      bodyPaddingNarrowPx: ${fmt(narrow.bodyPaddingPx)},`,
+  ];
+  const mot = modalMotion.find((mm) => mm.v.key === v.key);
+  if (isSheet) {
+    lines.push(
+      `      grip: AppModalGripSpec(`,
+      `        widthPx: ${fmt(narrow.gripWidthPx)},`,
+      `        heightPx: ${fmt(narrow.gripHeightPx)},`,
+      `        radiusPx: ${fmt(narrow.gripRadiusPx)},`,
+      `        marginYPx: ${fmt(narrow.gripMarginTopPx)},`,
+      `        fill: ${dartSurfaceColour(narrow.gripFill)},`,
+      `        displayWideCss: ${dartStr(base.gripDisplay)},`,
+      `        displayNarrowCss: ${dartStr(narrow.gripDisplay)},`,
+      `      ),`,
+    );
+  } else {
+    if (base.gripDisplay !== undefined) fail(`${v.key}: a dialog grip appeared`);
+    lines.push('      grip: null,');
+  }
+  lines.push(
+    `      panelSpringDamping: ${fmt(mot.spring.damping)},`,
+    `      panelSpringStiffness: ${fmt(mot.spring.stiffness)},`,
+    `      enterOpacityFrom: ${mot.keys.opacityFrom === null ? 'null' : fmt(mot.keys.opacityFrom)},`,
+    `      enterScale: ${mot.keys.scale === null ? 'null' : fmt(mot.keys.scale)},`,
+    `      enterOffsetYPx: ${mot.keys.dyPx === null ? 'null' : fmt(mot.keys.dyPx)},`,
+    `      enterOwnHeightFraction: ${mot.keys.ownHeight === null ? 'null' : fmt(mot.keys.ownHeight)},`,
+    `      escapeCloses: ${v.key === '.modal-panel'},`,
+    '      bodyScrollLocks: true,',
+  );
+  return lines.join('\n');
+};
+
+banner();
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  '/// One shared shell — the `ui/Modal.tsx` dialog or the `ui/BottomSheet.tsx`',
+  '/// sheet — measured as a whole class stack in every pass of',
+  '/// `parity/ui-tokens.json`, with the states and motion the probe cannot see',
+  '/// read from the authored non-CSS entries and the pinned sources. A widget',
+  '/// under `lib/presentation/` restates none of it.',
+  '///',
+  '/// Viewport divergence is carried, not averaged: the web switches a value',
+  '/// between the phone pass (390x844) and the desktop pass (1440x900) through',
+  '/// Tailwind `sm:`/`md:` media queries, whose breakpoint widths are framework',
+  '/// knowledge and were never measured (UI_SPEC records none). Each pair',
+  '/// below says which side of the split the value was measured on; the widget',
+  '/// picks between the sides at a breakpoint the CALLER supplies, so the port',
+  '/// invents no threshold the evidence does not back.',
+  'class AppModalGripSpec {',
+  '  const AppModalGripSpec({',
+  '    required this.widthPx,',
+  '    required this.heightPx,',
+  '    required this.radiusPx,',
+  '    required this.marginYPx,',
+  '    required this.fill,',
+  '    required this.displayWideCss,',
+  '    required this.displayNarrowCss,',
+  '  });',
+  '',
+  '  final double widthPx;',
+  '  final double heightPx;',
+  '  /// Chrome’s clamp of `rounded-full` — a full round, kept verbatim.',
+  '  final double radiusPx;',
+  '  final double marginYPx;',
+  '  final Color fill;',
+  '  /// The measured `display` of the grip per viewport side:',
+  '  /// `sm:hidden` hides it on desktop (`none`) and the phone shows it',
+  '  /// (`block`). Carried as CSS text; [shownOnWide]/[shownOnNarrow] read it.',
+  '  final String displayWideCss;',
+  '  final String displayNarrowCss;',
+  '',
+  "  bool get shownOnWide => displayWideCss != 'none';",
+  '',
+  "  bool get shownOnNarrow => displayNarrowCss != 'none';",
+  '}',
+  '',
+  '/// A veil recipe: a measured colour and the blur the class author-ed on it.',
+  'class AppVeilRecipe {',
+  '  const AppVeilRecipe({required this.color, required this.blurPx});',
+  '',
+  '  final Color color;',
+  '  /// The CSS blur radius. Ruling D-U8 converts it to Flutter sigma at the',
+  '  /// consumer, so this row keeps the measured px.',
+  '  final double blurPx;',
+  '',
+  '  /// CSS blur radius → Flutter sigma, the port’s fixed mapping (see',
+  '  /// [AppSurfaceSpec.blurSigma]). Not a number a widget chose.',
+  '  double get blurSigmaPx => blurPx / 2;',
+  '}',
+  '',
+  '/// The `ledger-rule` hairline both shells draw under their headers.',
+  'class AppLedgerRuleSpec {',
+  '  const AppLedgerRuleSpec({required this.heightPx, required this.fill});',
+  '',
+  '  final double heightPx;',
+  '  final Color fill;',
+  '}',
+  '',
+  '/// One shell, measured per brightness pass, with the viewport-divergent',
+  '/// geometry carried as explicit wide/narrow pairs.',
+  'class AppModalSpec {',
+  '  const AppModalSpec({',
+  '    required this.cssClass,',
+  '    required this.shellPaddingWidePx,',
+  '    required this.shellPaddingNarrowPx,',
+  '    required this.shellAlignWideCss,',
+  '    required this.shellAlignNarrowCss,',
+  '    required this.shellOverflowYWideCss,',
+  '    required this.shellOverflowYNarrowCss,',
+  '    required this.shellZIndexCss,',
+  '    required this.panelZIndexCss,',
+  '    required this.veilColor,',
+  '    required this.veilBlurPx,',
+  '    required this.panelMaxWidthPx,',
+  '    required this.panelMarginYPx,',
+  '    required this.panelRadiusWidePx,',
+  '    required this.panelRadiusNarrowTopPx,',
+  '    required this.panelRadiusNarrowBottomPx,',
+  '    required this.panelBorderWidePx,',
+  '    required this.panelBorderNarrowTopPx,',
+  '    required this.panelBorderNarrowSidesPx,',
+  '    required this.panelBorderNarrowBottomPx,',
+  '    required this.panelFill,',
+  '    required this.panelBorderColor,',
+  '    required this.panelShadow,',
+  '    required this.bodyMaxHeightFraction,',
+  '    required this.panelMaxHeightFraction,',
+  '    required this.headerHeightPx,',
+  '    required this.headerPaddingHorizontalPx,',
+  '    required this.headerBorderBottomWidthPx,',
+  '    required this.headerBorderBottomColor,',
+  '    required this.headerFill,',
+  '    required this.titleFontSizePx,',
+  '    required this.titleFontWeight,',
+  '    required this.titleLineHeightPx,',
+  '    required this.titleLetterSpacingPx,',
+  '    required this.titleColor,',
+  '    required this.closeSizePx,',
+  '    required this.closeBorderRadiusPx,',
+  '    required this.closeFill,',
+  '    required this.closeFgColor,',
+  '    required this.closeBorderWidthPx,',
+  '    required this.closeBorderColor,',
+  '    required this.bodyPaddingWidePx,',
+  '    required this.bodyPaddingNarrowPx,',
+  '    this.grip,',
+  '    required this.panelSpringDamping,',
+  '    required this.panelSpringStiffness,',
+  '    required this.enterOpacityFrom,',
+  '    required this.enterScale,',
+  '    required this.enterOffsetYPx,',
+  '    required this.enterOwnHeightFraction,',
+  '    required this.escapeCloses,',
+  '    required this.bodyScrollLocks,',
+  '  });',
+  '',
+  '  /// The panel class this row was measured under — the map key.',
+  '  final String cssClass;',
+  '',
+  '  /// The shell’s `p-4 sm:p-6` (dialog) or its absence (sheet): one uniform',
+  '  /// value per measured viewport side.',
+  '  final double shellPaddingWidePx;',
+  '  final double shellPaddingNarrowPx;',
+  '',
+  '  /// The computed `align-items` of the shell per side. Carried as CSS text:',
+  '  /// the sheet is `flex-end` on the phone and `center` on desktop',
+  '  /// (`items-end sm:items-center`), the dialog `center` on both.',
+  '  final String shellAlignWideCss;',
+  '  final String shellAlignNarrowCss;',
+  '',
+  '  /// The measured `overflow-y` of the shell. Carried as data, not applied:',
+  '  /// the dialog shell scrolls its content (`auto`) where Flutter’s route',
+  '  /// does the equivalent by construction, and the sheet measures `visible`.',
+  '  final String shellOverflowYWideCss;',
+  '  final String shellOverflowYNarrowCss;',
+  '',
+  '  /// The measured z-indices, carried as data: Flutter has no z-index; the',
+  '  /// port stacks veil below panel in one overlay entry, which is the whole',
+  '  /// of what 50/10 order on the web.',
+  '  final String shellZIndexCss;',
+  '  final String panelZIndexCss;',
+  '',
+  '  /// The shell’s own veil — `bg-[var(--ink)]/40 backdrop-blur-[2px]`,',
+  '  /// measured per brightness pass (the ink flips with the scheme). Other',
+  '  /// recipes live on [AppModals] as explicit widget parameters.',
+  '  final Color veilColor;',
+  '  final double veilBlurPx;',
+  '',
+  '  /// CSS blur radius → Flutter sigma, ruling D-U8’s fixed mapping — the',
+  '  /// same conversion [AppVeilRecipe.blurSigmaPx] applies to the recipes.',
+  '  double get veilBlurSigmaPx => veilBlurPx / 2;',
+  '',
+  '  /// The panel’s measured `max-width` — `--container-md` for the dialog',
+  '  /// (the prop default), `--container-lg` for the sheet — which matches',
+  '  /// the token table, and `my-8` (dialog) or none (sheet).',
+  '  final double panelMaxWidthPx;',
+  '  final double panelMarginYPx;',
+  '',
+  '  /// `rounded-2xl` on desktop; `rounded-t-2xl sm:rounded-2xl` leaves the',
+  '  /// phone sheet flush to the bottom edge, so its bottom radius is 0.',
+  '  final double panelRadiusWidePx;',
+  '  final double panelRadiusNarrowTopPx;',
+  '  final double panelRadiusNarrowBottomPx;',
+  '',
+  '  /// `border-t sm:border`: uniform on desktop, top-only on the phone.',
+  '  final double panelBorderWidePx;',
+  '  final double panelBorderNarrowTopPx;',
+  '  final double panelBorderNarrowSidesPx;',
+  '  final double panelBorderNarrowBottomPx;',
+  '  final Color panelFill;',
+  '  final Color panelBorderColor;',
+  '  /// The panel’s measured box-shadow. The dialog is the `.card` twin',
+  '  /// (two layers, per pass); the sheet is Tailwind’s `shadow-2xl`, which',
+  '  /// the engine serialises as one visible layer plus four transparent',
+  '  /// ones — ported verbatim, transparent layers included.',
+  '  final List<BoxShadow> panelShadow;',
+  '',
+  '  /// `max-h-[80vh]`/`max-h-[85vh]` as the measured px cap divided by the',
+  '  /// pass viewport height — equal on both sides (720/900 = 675.2/844 =',
+  '  /// 0.8; 765/900 = 717.4/844 = 0.85). Flutter has no vh: the widget',
+  '  /// multiplies the fraction by the live MediaQuery height. Only the',
+  '  /// element the class sits on is capped: [bodyMaxHeightFraction] for the',
+  '  /// dialog (the body), [panelMaxHeightFraction] for the sheet (the panel',
+  '  /// itself, whose body then flexes inside it).',
+  '  final double? bodyMaxHeightFraction;',
+  '  final double? panelMaxHeightFraction;',
+  '',
+  '  /// The header bar: `h-12 px-5 border-b border-[var(--line)]`, filled',
+  '  /// `--surface` on the dialog and transparent on the sheet.',
+  '  final double headerHeightPx;',
+  '  final double headerPaddingHorizontalPx;',
+  '  final double headerBorderBottomWidthPx;',
+  '  final Color headerBorderBottomColor;',
+  '  final Color headerFill;',
+  '',
+  '  /// §6.3 type of the title: the class sets `text-[13px] font-bold',
+  '  /// tracking-tight` itself, measured identically on all four passes.',
+  '  final double titleFontSizePx;',
+  '  final int titleFontWeight;',
+  '  final double titleLineHeightPx;',
+  '  final double titleLetterSpacingPx;',
+  '  final Color titleColor;',
+  '',
+  '  /// The close target: `w-7 h-7` (28 square), full round, `--surface-2`',
+  '  /// on a `--line` border, glyph `--ink-2`. The 13px glyph it centres is',
+  '  /// authored JS (`<X size={13} />`) and sits on [AppModals] as',
+  '  /// [AppModals.closeGlyphSizePx] — the glyph itself is the caller’s.',
+  '  final double closeSizePx;',
+  '  final double closeBorderRadiusPx;',
+  '  final Color closeFill;',
+  '  final Color closeFgColor;',
+  '  final double closeBorderWidthPx;',
+  '  final Color closeBorderColor;',
+  '',
+  '  /// The body’s `p-6 sm:p-5` — a `sm:` padding step on both shells, so one',
+  '  /// uniform value per measured viewport side, never a blend.',
+  '  final double bodyPaddingWidePx;',
+  '  final double bodyPaddingNarrowPx;',
+  '',
+  '  /// The phone-only grab bar. Null on the dialog, which measures none.',
+  '  final AppModalGripSpec? grip;',
+  '',
+  '  /// The panel’s authored `transition={{ type: "spring", … }}` — the two',
+  '  /// numbers the shells print, kept verbatim. motion’s spring default',
+  '  /// mass is 1 (`node_modules/motion-dom/dist/es/animation/',
+  '  /// generators/spring.mjs`), so [panelSpring] maps the pair one-to-one;',
+  '  /// the browser’s own integrator has no pixel evidence and the port does',
+  '  /// not claim its exact frames — only settle behaviour.',
+  '  final double panelSpringDamping;',
+  '  final double panelSpringStiffness;',
+  '',
+  '  /// The authored initial keyframe, per variant: the dialog fades from',
+  '  /// `opacity: enterOpacityFrom` with `scale: enterScale` and a',
+  '  /// `enterOffsetYPx` lift; the sheet slides up a full',
+  '  /// `enterOwnHeightFraction` of its own height and never fades or',
+  '  /// scales (those fields are then null). Exit restates initial.',
+  '  final double? enterOpacityFrom;',
+  '  final double? enterScale;',
+  '  final double? enterOffsetYPx;',
+  '  final double? enterOwnHeightFraction;',
+  '',
+  '  /// Authored behaviour: `if (e.key === "Escape") onClose()` is in',
+  '  /// Modal.tsx and verifiably NOT in BottomSheet.tsx.',
+  '  final bool escapeCloses;',
+  '  /// Both shells lock `document.body.style.overflow` while open. Flutter',
+  '  /// has no document body: the port’s analogue is hosting the shell in a',
+  '  /// route/overlay entry, which the widget cannot itself enforce; carried',
+  '  /// so the behaviour test can name what the web does.',
+  '  final bool bodyScrollLocks;',
+  '',
+  '  EdgeInsets get shellPaddingWide => EdgeInsets.all(shellPaddingWidePx);',
+  '',
+  '  EdgeInsets get shellPaddingNarrow => EdgeInsets.all(shellPaddingNarrowPx);',
+  '',
+  "  bool get docksNarrowToBottom => shellAlignNarrowCss == 'flex-end';",
+  '',
+  '  BorderRadius get panelRadiusWide => BorderRadius.circular(panelRadiusWidePx);',
+  '',
+  '  BorderRadius get panelRadiusNarrow => BorderRadius.vertical(',
+  '    top: Radius.circular(panelRadiusNarrowTopPx),',
+  '    bottom: Radius.circular(panelRadiusNarrowBottomPx),',
+  '  );',
+  '',
+  '  Border get panelBorderWide =>',
+  '      Border.all(color: panelBorderColor, width: panelBorderWidePx);',
+  '',
+  '  Border get panelBorderNarrow => Border(',
+  '    top: BorderSide(color: panelBorderColor, width: panelBorderNarrowTopPx),',
+  '    left: BorderSide(',
+  '      color: panelBorderColor,',
+  '      width: panelBorderNarrowSidesPx,',
+  '    ),',
+  '    right: BorderSide(',
+  '      color: panelBorderColor,',
+  '      width: panelBorderNarrowSidesPx,',
+  '    ),',
+  '    bottom: BorderSide(',
+  '      color: panelBorderColor,',
+  '      width: panelBorderNarrowBottomPx,',
+  '    ),',
+  '  );',
+  '',
+  '  EdgeInsets get headerPadding =>',
+  '      EdgeInsets.symmetric(horizontal: headerPaddingHorizontalPx);',
+  '',
+  '  Border get headerBorderBottom => Border(',
+  '    bottom: BorderSide(',
+  '      color: headerBorderBottomColor,',
+  '      width: headerBorderBottomWidthPx,',
+  '    ),',
+  '  );',
+  '',
+  '  EdgeInsets get bodyPaddingWide => EdgeInsets.all(bodyPaddingWidePx);',
+  '',
+  '  EdgeInsets get bodyPaddingNarrow => EdgeInsets.all(bodyPaddingNarrowPx);',
+);
+L.push(
+  '',
+  '  /// The 100-900 CSS step indexes the Dart enum directly; no weight is retyped.',
+  '  FontWeight get titleWeight =>',
+  '      FontWeight.values[titleFontWeight ~/ 100 - 1];',
+  '',
+  '  /// Flutter’s line-height is a multiple of the font size, CSS’s is a length,',
+  '  /// so this is the measured pair divided — not a number anyone chose.',
+  '  double get titleHeightRatio => titleLineHeightPx / titleFontSizePx;',
+  '',
+  '  TextStyle get titleStyle => TextStyle(',
+  '    fontSize: titleFontSizePx,',
+  '    fontWeight: titleWeight,',
+  '    height: titleHeightRatio,',
+  '    letterSpacing: titleLetterSpacingPx,',
+  '    color: titleColor,',
+  '  );',
+  '',
+  '  /// motion’s spring is mass 1, so Flutter’s mass is the same 1.0 — nothing',
+  '  /// here is tuned. The integrator differs (see the field doc); behaviour',
+  '  /// tests assert settle and end state, not frame-exact motion.',
+  '  SpringDescription get panelSpring => SpringDescription(',
+  '    mass: 1.0,',
+  '    damping: panelSpringDamping,',
+  '    stiffness: panelSpringStiffness,',
+  '  );',
+  '',
+  '  /// The cap applied to the body (dialog) or the panel (sheet), as the',
+  '  /// measured fraction of a live viewport height.',
+  '  double? get capOnBody => bodyMaxHeightFraction;',
+  '  double? get capOnPanel => panelMaxHeightFraction;',
+  '}',
+  '',
+);
+const provenanceLines = (v) =>
+  Object.entries(v.rows).map(([role, name]) => `  ///   ${role}: \`${name}\` (${stackSrc(name)})`);
+L.push(
+  '/// The two shared shells, keyed by panel class — one map per measured',
+  '/// brightness pass, the same convention `AppControls` sets.',
+  '///',
+  ...modalVariantData.flatMap(({ v }, i) => [
+    ...(i ? ['///'] : []),
+    `/// Row provenance for the ${v.label}:`,
+    ...provenanceLines(v).map((s) => s.replace('  ///', '///')),
+    '///   Measured viewports: desktop ' +
+      `${LIGHT.viewport.width}x${LIGHT.viewport.height}, phone ` +
+      `${LIGHT_PHONE.viewport.width}x${LIGHT_PHONE.viewport.height}.`,
+  ]),
+  'abstract final class AppModals {',
+);
+for (const [passName, tag] of [
+  ['light', 'light-desktop'],
+  ['dark', 'dark-desktop'],
+]) {
+  L.push(
+    `  /// ${passName} pass (utility stacks \`${tag}\`/\`${passName}-phone\`; states and`,
+    '  /// motion from the authored non-CSS entries and the pinned sources).',
+    `  static const Map<String, AppModalSpec> ${passName} =`,
+    '      <String, AppModalSpec>{',
+  );
+  for (const { v, rows } of modalVariantData) {
+    const base = rows[tag];
+    const narrow = rows[`${passName}-phone`];
+    L.push(`    ${dartStr(v.key)}: AppModalSpec(`, modalSpecExpr(v, base, narrow, passName), '    ),');
+  }
+  L.push('  };', '');
+}
+const motionDocLines = modalMotion.map(
+  ({ v, spring }) => `  ///   ${v.label} spring ${String(spring.damping)}/${String(spring.stiffness)} — ${spring.at};`,
+);
+L.push(
+  '  /// The state and motion rules, printed once because both passes author them',
+  '  /// identically (they are JS, not CSS):',
+  `  ///   veil fade ${String(veilFadeMs)}ms — ${veilFadeAt}:`,
+  '  ///   `transition={{ duration: 0.18 }}`, with no easing authored; motion’s',
+  '  ///   own tween default applies ([veilFadeEase], a framework default read',
+  '  ///   from the shipped package, not a measurement).',
+  ...motionDocLines,
+  '  ///   both mass 1 by motion’s default.',
+  `  ///   Escape closes the dialog only — ${modalEscapeAt}; BottomSheet.tsx`,
+  '  ///   has no Escape handler (generation fails if one appears).',
+  `  ///   both shells lock the document body while open — ${modalLockAt};`,
+  '  ///   Flutter’s analogue is route hosting, see',
+  '  ///   [AppModalSpec.bodyScrollLocks].',
+  '',
+  '  /// The clock the veils fade on, authored without a curve:',
+  '  static const int veilFadeMs = ' + String(veilFadeMs) + ';',
+  '',
+  '  static const Duration veilFadeDuration =',
+  '      Duration(milliseconds: veilFadeMs);',
+  '',
+  '  /// The `ease = "easeInOut"` default of the tween the shells leave unset —',
+  "  /// motion's own cubic(0.42, 0, 0.58, 1), read from the package the app",
+  '  /// ships, not measured on the web. A framework default, logged as a',
+  '  /// deliberate deviation.',
+  '  static const Cubic veilFadeEase = Cubic(0.42, 0.0, 0.58, 1.0);',
+  '',
+  `  /// Authored \`<X size={${String(closeGlyphPx)}} />\` in both shells (${glyphAt.join(', ')}) —`,
+  '  /// a px size prop, not CSS. The glyph stays the',
+  "  /// caller's widget; this is the size it is authored to render at.",
+  '  static const double closeGlyphSizePx = ' + fmt(closeGlyphPx) + ';',
+  '',
+  `  /// The dialog’s prop default (\`maxWidth = "${modalDefaultWidth.token}"\`) and the`,
+  '  /// map it selects, scoped to the three tokens this port',
+  '  /// was approved for. Each value is the measured `--container-*` token,',
+  '  /// equal on all four passes; the sheet ignores the map and keeps its own',
+  `  /// measured \`max-w-${modalWidthOf['.sheet-panel']}\` row.`,
+  ...(modalDefaultWidth.unported.length
+    ? [
+        `  /// The web map also offers ${modalUnportedWidths} — outside this`,
+        '  /// approved scope, so the port records their absence instead of',
+        '  /// exposing unpinned widths.',
+      ]
+    : []),
+  `  static const String defaultWidthToken = ${dartStr(modalDefaultWidth.token)};`,
+  '',
+  '  static const Map<String, double> widthPx = <String, double>{',
+  ...WIDTH_KEYS.map((k) => `    '${k}': ${fmt(widthPxTable[k])},`),
+  '  };',
+  '',
+  '  /// The alternate veil recipes the shells’ compositions parameterise:',
+  '  /// `bg-[var(--ink)]/40 backdrop-blur-[2px]` measured on both primitive',
+  '  /// veils (their own row default), and the `bg-black/60',
+  '  /// backdrop-blur-sm` of the feature-modal veils (`qa-veil`/`tem-veil`,',
+  '  /// black 0/0/0 at 0.6 on every pass, blur = the `--blur-sm` 8px token).',
+  '  /// DebtDetailModal authors the same black/60 over a literal',
+  '  /// `backdrop-blur-[6px]` — [debtVeilBlurPx].',
+  '  static const AppVeilRecipe inkVeilLight = AppVeilRecipe(',
+  `    color: ${dartSurfaceColour(modalVariantData[0].rows['light-desktop'].veilFill)},`,
+  `    blurPx: ${fmt(modalVariantData[0].rows['light-desktop'].veilBlurPx)},`,
+  '  );',
+  '',
+  '  static const AppVeilRecipe inkVeilDark = AppVeilRecipe(',
+  `    color: ${dartSurfaceColour(modalVariantData[0].rows['dark-desktop'].veilFill)},`,
+  `    blurPx: ${fmt(modalVariantData[0].rows['dark-desktop'].veilBlurPx)},`,
+  '  );',
+  '',
+  '  static const AppVeilRecipe dimVeilLight = AppVeilRecipe(',
+  `    color: ${dartSurfaceColour(dimVeilColour)},`,
+  `    blurPx: ${fmt(dimVeilBlurPx)},`,
+  '  );',
+  '',
+  '  static const AppVeilRecipe dimVeilDark = AppVeilRecipe(',
+  `    color: ${dartSurfaceColour(dimVeilColour)},`,
+  `    blurPx: ${fmt(dimVeilBlurPx)},`,
+  '  );',
+  '',
+  `  static const double debtVeilBlurPx = ${fmt(debtVeilBlurPx)};`,
+  '',
+  '  /// The hairline under both headers: authored height in',
+  `  /// \`src/index.css:${LEDGER_RULE.line}\`, fill measured \`.ledger-rule\` in`,
+  '  /// every pass (it tracks `--line` with the scheme).',
+  '  static const AppLedgerRuleSpec ledgerLight = AppLedgerRuleSpec(',
+  `    heightPx: ${fmt(ledgerHeightPx)},`,
+  `    fill: ${dartSurfaceColour(ledgerFills['light-desktop'])},`,
+  '  );',
+  '',
+  '  static const AppLedgerRuleSpec ledgerDark = AppLedgerRuleSpec(',
+  `    heightPx: ${fmt(ledgerHeightPx)},`,
+  `    fill: ${dartSurfaceColour(ledgerFills['dark-desktop'])},`,
+  '  );',
+  '',
+  '  static AppLedgerRuleSpec ledger(Brightness brightness) =>',
+  '      brightness == Brightness.dark ? ledgerDark : ledgerLight;',
+  '',
+  '  /// The measured shell for a panel class and brightness. An unknown class',
+  '  /// is a programming error, not a fallback: nothing in this layer may',
+  '  /// quietly become a Material default.',
+  '  static AppModalSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppModalSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppModalSpec? spec = table[cssClass];',
+  '    if (spec == null) {',
+  "      throw ArgumentError('$cssClass is not a modal/sheet shell row');",
+  '    }',
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+);
+finish('app_modals.dart');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
   fs.writeFileSync(path.join(OUT_DIR, name), text, 'utf8');
@@ -3869,6 +5036,7 @@ console.log(
     `  §6 skeletons emitted:        ${skeletons.length} classes x 2 passes  -> AppSkeletons`,
     `  §6 icon buttons emitted:     ${iconButtons.length} classes x 2 passes  -> AppIconButtons`,
     `  §6 nav emitted:              ${navs.length} classes x 2 passes  -> AppNavs`,
+    `  §6 modal/sheet shells:       ${modalVariantData.length} variants x 2 passes  -> AppModals`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );
