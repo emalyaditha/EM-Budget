@@ -20,6 +20,7 @@ import 'package:em_budget/core/theme/app_controls.dart';
 import 'package:em_budget/core/theme/app_colors.dart';
 import 'package:em_budget/core/theme/app_fields.dart';
 import 'package:em_budget/core/theme/app_icon_buttons.dart';
+import 'package:em_budget/core/theme/app_navs.dart';
 import 'package:em_budget/core/theme/app_radii.dart';
 import 'package:em_budget/core/theme/app_shadows.dart';
 import 'package:em_budget/core/theme/app_skeletons.dart';
@@ -3384,6 +3385,782 @@ void main() {
         );
         expect(
           () => AppIconButtons.resolve('.no-such-icon', brightness),
+          throwsArgumentError,
+        );
+      }
+    });
+  });
+
+  group('UI_SPEC 6 nav', () {
+    /// The phone floating-nav family: the bar, one tab, the selected tab and
+    /// the raised centre action. The generator reads these rows from the PHONE
+    /// passes (desktop hides the bar behind a `display: none` media rule at
+    /// `src/index.css:1168`), and the active row from the COMPOSED
+    /// `.nav-item.nav-item-active` probe — the bare `.nav-item-active` probe
+    /// measures a class nothing ever writes alone. Both choices are pinned
+    /// here against the JSON, not trusted from the generator.
+    const List<String> navClasses = <String>[
+      '.floating-nav',
+      '.nav-item',
+      '.nav-item-active',
+      '.nav-fab',
+    ];
+    const Map<String, String> navGeometryProbe = <String, String>{
+      '.nav-item-active': '.nav-item.nav-item-active',
+    };
+
+    Map<String, dynamic> phoneProbes(Brightness brightness) =>
+        brightness == Brightness.light ? lightPhoneProbes : darkPhoneProbes;
+    Map<String, dynamic> phoneRoot(Brightness brightness) => _rootOf(
+      _theme(
+        measurement,
+        brightness == Brightness.light ? 'light-phone' : 'dark-phone',
+      ),
+    );
+
+    Map<String, dynamic> navProbe(Map<String, dynamic> probes, String cls) =>
+        _probe(probes, navGeometryProbe[cls] ?? cls, 'nav');
+
+    /// The symmetric `padding` shorthand as the pair the spec carries.
+    List<double> navPadding(Map<String, dynamic> probe, String cls) {
+      final List<String> parts = _probeValue(
+        probe,
+        'padding',
+        cls,
+      ).split(RegExp(r'\s+'));
+      final List<double> n = parts.map((String p) => _cssLength(p)).toList();
+      final double top = n[0];
+      final double right = n.length > 1 ? n[1] : top;
+      final double bottom = n.length > 2 ? n[2] : top;
+      final double left = n.length > 3 ? n[3] : right;
+      if (top != bottom || left != right) {
+        throw StateError('$cls: asymmetric padding the port does not model');
+      }
+      return <double>[top, left];
+    }
+
+    /// Declarations of a rule whose head is a GROUPED selector. The active
+    /// hover is written `.nav-item-active:hover,\n.nav-item-active:focus-visible
+    /// {`, and [_cssDecls] — which starts reading at the line AFTER the head —
+    /// parses the selector continuation as if it were a declaration. This reads
+    /// from the head itself and skips every line that ends the selector rather
+    /// than a declaration.
+    Map<String, String> navRule(
+      List<String> lines,
+      String headLine,
+      String cls,
+    ) {
+      final int start = lines.indexOf(headLine);
+      if (start < 0) {
+        throw StateError('$cls: no rule head "$headLine" in src/index.css');
+      }
+      final Map<String, String> decls = <String, String>{};
+      for (int j = start; j < lines.length; j++) {
+        final String line = lines[j].trim();
+        if (line.endsWith('{') || line.endsWith(',')) continue;
+        for (final String part in line.split(';')) {
+          final int colon = part.indexOf(':');
+          if (colon <= 0) continue;
+          decls[part.substring(0, colon).trim()] = part
+              .substring(colon + 1)
+              .trim();
+        }
+        if (line.contains('}')) return decls;
+      }
+      throw StateError('$cls: rule at "$headLine" never closes');
+    }
+
+    test('AppNavs holds exactly the measured nav classes, per pass', () {
+      expect(AppNavs.light.keys.toList(), navClasses);
+      expect(AppNavs.dark.keys.toList(), navClasses);
+    });
+
+    for (final Brightness brightness in Brightness.values) {
+      final String pass = brightness == Brightness.light
+          ? 'light-phone'
+          : 'dark-phone';
+
+      test(
+        'the $pass rows match the phone probes Chrome measured, field by field',
+        () {
+          final Map<String, dynamic> probes = phoneProbes(brightness);
+          for (final String cls in navClasses) {
+            final Map<String, dynamic> p = navProbe(probes, cls);
+            final AppNavSpec spec = AppNavs.resolve(cls, brightness);
+            expect(spec.cssClass, cls);
+            expect(
+              spec.displayCss,
+              _probeValue(p, 'display', cls),
+              reason: '$pass $cls display',
+            );
+            expect(
+              spec.position,
+              _probeValue(p, 'position', cls),
+              reason: '$pass $cls position',
+            );
+            expect(
+              spec.radiusPx,
+              _pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
+            );
+            expect(
+              spec.borderWidthPx,
+              _pxOf(_probeValue(p, 'borderTopWidth', cls), '$cls border width'),
+            );
+            expect(
+              spec.borderColor,
+              _probeColour(p, 'borderTopColor', cls),
+              reason: '$pass $cls border colour',
+            );
+            expect(
+              spec.fillColor,
+              _probeColour(p, 'backgroundColor', cls),
+              reason: '$pass $cls fill',
+            );
+            expect(
+              spec.fgColor,
+              _probeColour(p, 'color', cls),
+              reason: '$pass $cls ink',
+            );
+            final List<double> pad = navPadding(p, cls);
+            expect(
+              spec.paddingVerticalPx,
+              pad[0],
+              reason: '$pass $cls padding v',
+            );
+            expect(
+              spec.paddingHorizontalPx,
+              pad[1],
+              reason: '$pass $cls padding h',
+            );
+            // Backdrop: the bar blurs AND saturates (the shared
+            // `_BackdropExpectation` shape); every other row measured `none`,
+            // which the port carries as blurPx 0.0 with sigma null — a
+            // measured absence, never a widget’s choice.
+            final String backdrop = _probeValue(p, 'backdropFilter', cls);
+            if (backdrop == 'none') {
+              expect(spec.blurPx, 0.0, reason: '$pass $cls measured no filter');
+              expect(spec.blurSaturate, isNull);
+              expect(
+                spec.blurSigmaPx,
+                isNull,
+                reason: '$cls must not blur what measured none',
+              );
+            } else {
+              final _BackdropExpectation want = _BackdropExpectation.measure(
+                p,
+                cls,
+              );
+              expect(spec.blurPx, want.blurPx, reason: '$pass $cls blur');
+              expect(
+                spec.blurSaturate,
+                want.saturate,
+                reason: '$pass $cls saturate travels as recorded data',
+              );
+              expect(
+                spec.blurSigmaPx,
+                want.blurPx! / 2,
+                reason:
+                    '$cls CSS blur radius → sigma, the port’s fixed mapping',
+              );
+            }
+            final List<BoxShadow> layers = _probeShadowLayers(p, cls);
+            if (layers.isEmpty) {
+              expect(spec.shadows, isNull, reason: '$pass $cls measured none');
+            } else {
+              expect(spec.shadows!, layers, reason: '$pass $cls shadow list');
+            }
+            expect(
+              _probeValue(p, 'backgroundImage', cls),
+              'none',
+              reason: '$pass $cls carries no gradient under the flat fill',
+            );
+            // Type follows authorship: only `.nav-item` (and so the composed
+            // active row) writes font properties; the bar and the fab carry
+            // nulls because the measurement was never theirs to make.
+            final bool authoredType =
+                cls == '.nav-item' || cls == '.nav-item-active';
+            if (authoredType) {
+              expect(
+                spec.fontFamily,
+                (_probeValue(
+                  p,
+                  'fontFamily',
+                  cls,
+                ).split(',').first).replaceAll(RegExp('["]'), '').trim(),
+                reason: '$pass $cls first family of the measured stack',
+              );
+              expect(
+                spec.fontSizePx,
+                _pxOf(_probeValue(p, 'fontSize', cls), '$cls font size'),
+              );
+              expect(
+                spec.fontWeight,
+                int.parse(_probeValue(p, 'fontWeight', cls)),
+              );
+              expect(
+                spec.lineHeightPx,
+                _pxOf(_probeValue(p, 'lineHeight', cls), '$cls line height'),
+                reason: '$cls line height is measured, not authored',
+              );
+              expect(
+                spec.letterSpacingPx,
+                _pxOf(
+                  _probeValue(p, 'letterSpacing', cls),
+                  '$cls letter spacing',
+                ),
+              );
+            } else {
+              expect(
+                spec.fontFamily,
+                isNull,
+                reason: '$pass $cls authors no type',
+              );
+              expect(spec.fontSizePx, isNull);
+              expect(spec.fontWeight, isNull);
+              expect(spec.lineHeightPx, isNull);
+              expect(spec.letterSpacingPx, isNull);
+            }
+          }
+        },
+      );
+    }
+
+    test(
+      'the bar is a phone surface: the media split is measured, not assumed',
+      () {
+        // Desktop probe displays none, phone probe displays flex — and the
+        // generated row carries the FLEX, because the port is the phone. The
+        // hiding itself is the indented rule inside the 1024px media block.
+        final int hiddenAt = cssLines.indexWhere(
+          (String l) => RegExp(r'^\s+\.floating-nav \{$').hasMatch(l),
+        );
+        expect(
+          hiddenAt,
+          isNonNegative,
+          reason: 'no indented .floating-nav rule',
+        );
+        // The untrimmed line is the lookup key: the FIRST `.floating-nav {` is
+        // the unindented authoring, the indented one inside the 1024px block is
+        // the hide, and _cssDecls takes the exact head string.
+        final Map<String, String> hide = _cssDecls(
+          cssLines,
+          cssLines[hiddenAt],
+          '.floating-nav',
+        );
+        expect(
+          hide['display'],
+          'none',
+          reason: 'src/index.css:${hiddenAt + 1} must be the display:none hide',
+        );
+        expect(
+          _probeValue(
+            _probe(
+              _probesOf(_theme(measurement, 'light-desktop')),
+              '.floating-nav',
+              'light-desktop',
+            ),
+            'display',
+            '.floating-nav',
+          ),
+          'none',
+        );
+        expect(
+          AppNavs.resolve('.floating-nav', Brightness.light).displayCss,
+          'flex',
+        );
+        // Everything the row carries beyond display agrees between passes —
+        // except the bar, whose agreement was just split on purpose.
+        for (final List<String> pair in <List<String>>[
+          <String>['light-phone', 'light-desktop'],
+          <String>['dark-phone', 'dark-desktop'],
+        ]) {
+          final Map<String, dynamic> phone = _probesOf(
+            _theme(measurement, pair[0]),
+          );
+          final Map<String, dynamic> desk = _probesOf(
+            _theme(measurement, pair[1]),
+          );
+          for (final String cls in navClasses) {
+            final Map<String, dynamic> f = navProbe(phone, cls);
+            final Map<String, dynamic> d = navProbe(desk, cls);
+            for (final String field in <String>[
+              'position',
+              'color',
+              'backgroundColor',
+              'borderTopColor',
+              'borderTopWidth',
+              'boxShadow',
+              'backdropFilter',
+              'borderRadius',
+              'padding',
+              'fontSize',
+              'fontWeight',
+              'letterSpacing',
+              'lineHeight',
+              'fontFamily',
+            ]) {
+              expect(
+                _probeValue(d, field, cls),
+                _probeValue(f, field, cls),
+                reason: '$cls $field moves between ${pair[1]} and ${pair[0]}',
+              );
+            }
+            final String deskDisplay = _probeValue(d, 'display', cls);
+            if (cls == '.floating-nav') {
+              expect(deskDisplay, 'none');
+            } else {
+              expect(
+                deskDisplay,
+                _probeValue(f, 'display', cls),
+                reason: '$cls display moves between ${pair[1]} and ${pair[0]}',
+              );
+            }
+          }
+        }
+      },
+    );
+
+    test('.nav-item-active is the composed colour-only override of .nav-item', () {
+      // The generator refuses a row whose non-colour fields moved; the drift
+      // check here is that the REFUSAL has teeth: against the probes, the
+      // composed active row equals the item row in every measured field except
+      // `color` — and `borderTopColor` only follows it because both classes
+      // leave the border colour at its computed initial value, currentColor.
+      for (final Brightness brightness in Brightness.values) {
+        final Map<String, dynamic> probes = phoneProbes(brightness);
+        final Map<String, dynamic> item = navProbe(probes, '.nav-item');
+        final Map<String, dynamic> active = navProbe(
+          probes,
+          '.nav-item-active',
+        );
+        final AppNavSpec itemSpec = AppNavs.resolve('.nav-item', brightness);
+        final AppNavSpec activeSpec = AppNavs.resolve(
+          '.nav-item-active',
+          brightness,
+        );
+        expect(
+          _probeValue(active, 'color', '.nav-item-active') ==
+              _probeValue(item, 'color', '.nav-item'),
+          isFalse,
+          reason: 'the active ink must differ from the resting ink',
+        );
+        for (final String field in <String>[
+          'display',
+          'position',
+          'borderTopWidth',
+          'backgroundColor',
+          'boxShadow',
+          'backdropFilter',
+          'borderRadius',
+          'padding',
+          'fontSize',
+          'fontWeight',
+          'letterSpacing',
+          'lineHeight',
+          'fontFamily',
+        ]) {
+          expect(
+            _probeValue(active, field, '.nav-item-active'),
+            _probeValue(item, field, '.nav-item'),
+            reason: 'active differs in $field; the class is colour-only',
+          );
+        }
+        // The bare probe — the class on an element of its own — still carries
+        // the same colour the composed row paints: the one field the class
+        // changes is the one field it changes identically.
+        expect(
+          _probeColour(
+            _probe(probes, '.nav-item-active', 'nav-bare'),
+            'color',
+            '.nav-item-active',
+          ),
+          activeSpec.fgColor,
+        );
+        // currentColor chase: an unauthored border paints the ink.
+        expect(
+          activeSpec.borderColor,
+          activeSpec.fgColor,
+          reason: 'the active frame should follow the active ink',
+        );
+        expect(
+          itemSpec.borderColor,
+          itemSpec.fgColor,
+          reason: 'the resting frame should follow the resting ink',
+        );
+        // And the authored rule really is colour-only.
+        expect(
+          _cssDecls(cssLines, '.nav-item-active {', '.nav-item-active').keys,
+          <String>['color'],
+        );
+      }
+    });
+
+    test('the two brightnesses share one nav geometry, colour by contrast', () {
+      Map<String, Object?> stable(AppNavSpec s) => <String, Object?>{
+        'display': s.displayCss,
+        'position': s.position,
+        'radius': s.radiusPx,
+        'borderWidth': s.borderWidthPx,
+        'blur': s.blurPx,
+        'saturate': s.blurSaturate,
+        'padV': s.paddingVerticalPx,
+        'padH': s.paddingHorizontalPx,
+        'family': s.fontFamily,
+        'size': s.fontSizePx,
+        'weight': s.fontWeight,
+        'line': s.lineHeightPx,
+        'space': s.letterSpacingPx,
+        'minWidth': s.minWidthPx,
+        'height': s.heightPx,
+        'gap': s.gapPx,
+        'lift': s.liftPx,
+        'max': s.maxBarWidthPx,
+        'edge': s.edgeInsetPx,
+        'bottom': s.bottomGapPx,
+        'press': s.pressScale,
+        'ms': s.transitionMs,
+      };
+      for (final String cls in navClasses) {
+        expect(
+          stable(AppNavs.resolve(cls, Brightness.light)),
+          stable(AppNavs.resolve(cls, Brightness.dark)),
+          reason: '$cls geometry moved with the colour scheme',
+        );
+        if (cls == '.nav-item' || cls == '.nav-item-active') {
+          // The tabs author no `background` at all: on the web they are the
+          // bar’s translucent fill showing through, so the measured fill is
+          // transparent in BOTH passes — a pair would mean a class had grown a
+          // background the CSS does not declare.
+          expect(
+            AppNavs.resolve(cls, Brightness.light).fillColor,
+            AppNavs.resolve(cls, Brightness.dark).fillColor,
+            reason: '$cls paints no fill; only its ink is themed',
+          );
+          expect(
+            AppNavs.resolve(cls, Brightness.light).fgColor ==
+                AppNavs.resolve(cls, Brightness.dark).fgColor,
+            isFalse,
+            reason: '$cls ink is identical in both passes: §6.1 prints a pair',
+          );
+        } else {
+          expect(
+            AppNavs.resolve(cls, Brightness.light).fillColor ==
+                AppNavs.resolve(cls, Brightness.dark).fillColor,
+            isFalse,
+            reason: '$cls fill is identical in both passes: §6.1 prints a pair',
+          );
+        }
+      }
+    });
+
+    for (final Brightness brightness in Brightness.values) {
+      final String passName = brightness == Brightness.light ? 'light' : 'dark';
+      final Map<String, dynamic> root = phoneRoot(brightness);
+
+      test('the authored $passName nav rules substitute to the emitted rows', () {
+        final Map<String, String> bar = _cssDecls(
+          cssLines,
+          '.floating-nav {',
+          '.floating-nav',
+        );
+        final AppNavSpec barSpec = AppNavs.resolve('.floating-nav', brightness);
+        expect(
+          bar['bottom'],
+          'calc(12px + env(safe-area-inset-bottom, 0px))',
+          reason: 'the bar pins itself 12px over the safe area',
+        );
+        expect(barSpec.bottomGapPx, _cssLength('12px'));
+        expect(bar['width'], 'min(100% - 24px, 460px)');
+        expect(barSpec.edgeInsetPx, _cssLength('24px'));
+        expect(barSpec.maxBarWidthPx, _cssLength('460px'));
+        expect(bar['gap'], '4px');
+        expect(barSpec.gapPx, _cssLength('4px'));
+        expect(bar['padding'], '8px 10px');
+        expect(bar['border-radius'], '999px');
+        expect(barSpec.radiusPx, _cssLength('999px'));
+        expect(bar['backdrop-filter'], 'blur(22px) saturate(1.5)');
+        expect(barSpec.blurPx, 22.0);
+        expect(barSpec.blurSaturate, 1.5);
+        expect(bar['border'], '1px solid var(--line)');
+        expect(barSpec.borderWidthPx, 1.0);
+        expect(
+          barSpec.borderColor,
+          _measuredColour(root, '--line'),
+          reason: 'the bar frame is the substituted --line',
+        );
+        expect(bar['box-shadow'], 'var(--shadow-float)');
+        expect(
+          barSpec.shadows,
+          _boxShadows(root, '--shadow-float'),
+          reason: 'the measured bar shadow list is the token’s own layers',
+        );
+        // background: color-mix(in srgb, var(--surface) 82%, transparent) —
+        // rebuilt from the root token at the mix’s own alpha, the same
+        // substitution proof AppIconButton carries for its 70% fill.
+        expect(bar['background'], isNotNull);
+        final RegExpMatch? mix = RegExp(
+          r'^color-mix\(in srgb, var\(--([a-z0-9-]+)\) ([\d.]+)%, transparent\)$',
+        ).firstMatch(bar['background']!);
+        expect(
+          mix,
+          isNotNull,
+          reason: 'bar background is not the authored mix',
+        );
+        final List<num> base = <num>[
+          (_token(root, '--${mix![1]}')['srgb']! as Map<String, dynamic>)['r']!
+              as num,
+          (_token(root, '--${mix[1]}')['srgb']! as Map<String, dynamic>)['g']!
+              as num,
+          (_token(root, '--${mix[1]}')['srgb']! as Map<String, dynamic>)['b']!
+              as num,
+        ];
+        final double mixAlpha = double.parse(mix.group(2)!) / 100.0;
+        expect(
+          barSpec.fillColor,
+          Color.fromRGBO(
+            base[0].round(),
+            base[1].round(),
+            base[2].round(),
+            mixAlpha,
+          ),
+          reason:
+              'the 82% mix substitutes to the token’s channels at 0.82 — the '
+              'bar is translucent exactly as authored',
+        );
+        expect(barSpec.fillColor.a, lessThan(1.0));
+
+        final Map<String, String> item = _cssDecls(
+          cssLines,
+          '.nav-item {',
+          '.nav-item',
+        );
+        final AppNavSpec itemSpec = AppNavs.resolve('.nav-item', brightness);
+        expect(item['min-width'], '44px');
+        expect(itemSpec.minWidthPx, _cssLength('44px'));
+        expect(item['height'], '48px');
+        expect(itemSpec.heightPx, _cssLength('48px'));
+        expect(item['gap'], '2px');
+        expect(itemSpec.gapPx, _cssLength('2px'));
+        expect(item['padding'], '0 6px');
+        expect(item['border-radius'], '999px');
+        expect(item['font-size'], '8px');
+        expect(itemSpec.fontSizePx, 8.0);
+        expect(item['font-weight'], '700');
+        expect(itemSpec.fontWeight, 700);
+        expect(item['letter-spacing'], '0.02em');
+        expect(
+          itemSpec.letterSpacingPx,
+          closeTo(0.02 * itemSpec.fontSizePx!, 1e-9),
+          reason: '0.02em of the authored 8px is the measured 0.16px',
+        );
+        expect(
+          item.containsKey('line-height'),
+          isFalse,
+          reason: 'the 12px line box is measured, not authored',
+        );
+        expect(itemSpec.lineHeightPx, 12.0);
+        expect(item['color'], 'var(--ink-3)');
+        expect(
+          itemSpec.fgColor,
+          _measuredColour(root, '--ink-3'),
+          reason: 'the resting tab ink is the substituted --ink-3',
+        );
+        expect(
+          item['border'],
+          isNull,
+          reason:
+              '.nav-item authors no border: its measured frame is currentColor',
+        );
+        expect(item['transition'], 'color var(--dur-fast) var(--ease-out)');
+
+        final Map<String, String> active = _cssDecls(
+          cssLines,
+          '.nav-item-active {',
+          '.nav-item-active',
+        );
+        expect(active['color'], 'var(--accent-fg)');
+        expect(
+          AppNavs.resolve('.nav-item-active', brightness).fgColor,
+          _measuredColour(root, '--accent-fg'),
+          reason: 'the selected tab ink is the substituted --accent-fg',
+        );
+
+        final Map<String, String> fab = _cssDecls(
+          cssLines,
+          '.nav-fab {',
+          '.nav-fab',
+        );
+        final AppNavSpec fabSpec = AppNavs.resolve('.nav-fab', brightness);
+        expect(fab['width'], fab['height']);
+        expect(fabSpec.sizePx, _cssLength(fab['width']!));
+        expect(fabSpec.sizePx, 48.0);
+        expect(fab['border-radius'], '999px');
+        expect(fab['background'], 'var(--accent)');
+        expect(
+          fabSpec.fillColor,
+          _measuredColour(root, '--accent'),
+          reason: 'the fab fill is the substituted --accent',
+        );
+        expect(fab['color'], 'var(--accent-fg)');
+        expect(
+          fabSpec.fgColor,
+          _measuredColour(root, '--accent-fg'),
+          reason: 'the fab shares its ink with the selected tab',
+        );
+        expect(fab['border'], '3px solid var(--bg)');
+        expect(fabSpec.borderWidthPx, 3.0);
+        expect(
+          fabSpec.borderColor,
+          _measuredColour(root, '--bg'),
+          reason: 'the ring that bites the fab out of the bar is --bg',
+        );
+        expect(fab['margin-top'], '-14px');
+        expect(
+          fabSpec.liftPx,
+          14.0,
+          reason: 'the lift is stored as the positive magnitude it paints',
+        );
+        // The fab shadow is authored one layer per line, so [_cssDecls] (which
+        // splits per line) sees the value end at its first `,`; read the whole
+        // rule text and collapse its whitespace to the single line the token
+        // substitution would have produced.
+        final String fabShadow = RegExp(r'box-shadow:\s*([^;]+);')
+            .firstMatch(
+              _cssRuleText(
+                cssLines,
+                '.nav-fab {',
+                '.nav-fab',
+              ).replaceAll(RegExp(r'\s+'), ' '),
+            )!
+            .group(1)!
+            .trim();
+        expect(
+          fabShadow,
+          'var(--shadow-float), '
+          '0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent)',
+        );
+        final List<BoxShadow> floatLayers = _boxShadows(root, '--shadow-float');
+        expect(
+          fabSpec.shadows!.length,
+          floatLayers.length + 1,
+          reason: 'the fab halo rides on top of the bar’s own float shadow',
+        );
+        expect(
+          fabSpec.shadows!.take(floatLayers.length),
+          floatLayers,
+          reason: 'prefix-equal to the substituted --shadow-float token',
+        );
+        final Map<String, dynamic> accentSrgb =
+            _token(root, '--accent')['srgb']! as Map<String, dynamic>;
+        expect(
+          fabSpec.shadows!.last,
+          BoxShadow(
+            color: Color.fromRGBO(
+              (accentSrgb['r']! as num).round(),
+              (accentSrgb['g']! as num).round(),
+              (accentSrgb['b']! as num).round(),
+              0.35,
+            ),
+            offset: Offset.zero,
+            blurRadius: 0.0,
+            spreadRadius: 2.0,
+          ),
+          reason: 'the 35% accent halo substitutes, layer and numbers intact',
+        );
+        expect(
+          fab['transition'],
+          'transform var(--dur-fast) var(--ease-spring)',
+        );
+        expect(
+          fabSpec.pressDuration,
+          _duration(_raw(root, '--dur-fast')),
+          reason: 'the fab press runs on the class’s own measured clock',
+        );
+        final Cubic spring = _cubic(_raw(root, '--ease-spring'));
+        expect(
+          <double>[
+            fabSpec.easeX1!,
+            fabSpec.easeY1!,
+            fabSpec.easeX2!,
+            fabSpec.easeY2!,
+          ],
+          <double>[spring.a, spring.b, spring.c, spring.d],
+          reason:
+              '…and on its own spring, which is a curve no widget chose '
+              '(Cubic has no value equality, so the four numbers compare)',
+        );
+        final Map<String, String> fabActive = _cssDecls(
+          cssLines,
+          '.nav-fab:active {',
+          '.nav-fab',
+        );
+        expect(fabActive['transform'], 'scale(0.92)');
+        expect(fabSpec.pressScale, 0.92);
+        expect(fabActive.keys, <String>[
+          'transform',
+        ], reason: 'a second fab press property would need a field it lacks');
+      });
+    }
+
+    test('the nav hovers are decoration-only, which is why they are droppable', () {
+      // D-U1 drops `:hover` on touch only because every rule that carries it
+      // touches colour alone. `.nav-item:hover` and the
+      // `.nav-item-active:hover/:focus-visible` list must stay checked against
+      // that promise — a future geometry hover would be a port gap, not a
+      // droppable decoration.
+      final Map<String, String> itemHover = navRule(
+        cssLines,
+        '.nav-item:hover {',
+        '.nav-item',
+      );
+      expect(itemHover.keys, <String>['color']);
+      final Map<String, String> activeHover = navRule(
+        cssLines,
+        '.nav-item-active:hover,',
+        '.nav-item-active',
+      );
+      expect(activeHover.keys, <String>['color']);
+      expect(
+        activeHover['color'],
+        'var(--accent-fg)',
+        reason:
+            'the active hover re-states the active ink — a no-op the port '
+            'does not need to model even on the web',
+      );
+    });
+
+    test(
+      'the desktop chrome that replaces the bar is a finding, not a row',
+      () {
+        // `.nav-link` (sidebar) and `.nav-pill` (header) are the ≥1024px
+        // surfaces. They are authored and probed, but no phone screen writes
+        // them, so AppNavs must not carry them — and this test pins that the
+        // classes really exist as CSS so the exclusion is a decision, not an
+        // oversight.
+        expect(
+          cssLines.any((String l) => RegExp(r'^\.nav-link \{$').hasMatch(l)),
+          isTrue,
+        );
+        expect(
+          cssLines.any((String l) => RegExp(r'^\.nav-pill \{$').hasMatch(l)),
+          isTrue,
+        );
+        expect(AppNavs.light.keys, isNot(contains('.nav-link')));
+        expect(AppNavs.dark.keys, isNot(contains('.nav-pill')));
+      },
+    );
+
+    test('an unknown nav class is an error, not a Material default', () {
+      for (final Brightness brightness in Brightness.values) {
+        expect(
+          () => AppNavs.resolve('.icon-btn', brightness),
+          throwsArgumentError,
+          reason:
+              'the header pill is a measured §6 class but not the navigation: '
+              'AppNavs refusing it keeps a tab from quietly becoming chrome',
+        );
+        expect(
+          () => AppNavs.resolve('.no-such-nav', brightness),
           throwsArgumentError,
         );
       }

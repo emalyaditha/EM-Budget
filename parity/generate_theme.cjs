@@ -3216,6 +3216,535 @@ L.push(
 );
 finish('app_icon_buttons.dart');
 
+// ---------------------------------------------------------------- §6 nav (UI_SPEC NAVIGATION)
+// `.floating-nav` and its children are the phone’s navigation: a fixed, centred,
+// translucent pill at the bottom of the screen, holding label-under-icon items and
+// one raised centre action. At ≥1024px the web hides the bar behind a
+// `display: none` media rule and swaps to a sidebar — so the PHONE pass is the
+// ground truth here, and the desktop probe is read only to prove that hiding. The
+// desktop chrome itself (`src/index.css:854 .nav-link`, `src/index.css:1070
+// .nav-pill`) is a surface no phone screen writes, so it is recorded as a
+// finding, not ported.
+//
+// Four classes share one spec row. `.nav-item-active` is measured twice and the
+// two measurements mean different things: on a bare element the harness cannot
+// see the `.nav-item` it sits beside (block/static/defaults), while the composed
+// `.nav-item.nav-item-active` probe is the class on a real tab. Geometry therefore
+// comes from the composed probe — which is how the class is actually ever written
+// — and the generator proves the bare probe’s colour, the one field the authored
+// class changes, matches it. The bar sizes, gaps and the fab’s lift and press are
+// authored numbers the probe cannot see, read from the pinned rules, exactly as
+// `.icon-btn`’s size was.
+const NAV_CLASSES = ['.floating-nav', '.nav-item', '.nav-item-active', '.nav-fab'];
+
+/** Where a class’s row is measured. See the block comment: the active class is
+ *  only ever on an element that also carries `.nav-item`. */
+const NAV_GEOMETRY_PROBE = { '.nav-item-active': '.nav-item.nav-item-active' };
+
+/** Which authored rule makes a row a text row. `.nav-item-active` carries the
+ *  label type it shares with `.nav-item`, not type of its own — and the bar and
+ *  the fab author no font properties at all, so their type fields stay null
+ *  because the measurement was never theirs to make. */
+const NAV_TYPE_AUTHORED_BY = { '.nav-item': '.nav-item', '.nav-item-active': '.nav-item' };
+
+/** One §6 nav row straight from the probe: frame, fill, ink, corner, padding,
+ *  backdrop and the resting shadow list. */
+const navProbeRow = (cls, theme) => {
+  const probeCls = NAV_GEOMETRY_PROBE[cls] ?? cls;
+  const p = theme.probes[probeCls];
+  if (!p) fail(`${theme.tag} theme has no ${probeCls} probe`);
+  const bi = p.backgroundImage;
+  if (bi && bi.raw !== 'none') {
+    fail(`${cls}: the probe carries a background-image (${bi.raw}); the port paints a flat fill`);
+  }
+  const bd = iconBackdrop(p, cls);
+  const pad = probePadding(p, cls);
+  const typed = NAV_TYPE_AUTHORED_BY[cls] !== undefined;
+  const lineRaw = probeRaw(p, 'lineHeight', cls);
+  const spaceRaw = probeRaw(p, 'letterSpacing', cls);
+  let fontWeight = null;
+  if (typed) {
+    const w = probeRaw(p, 'fontWeight', cls);
+    if (!/^([1-9]00)$/.test(w)) fail(`${cls}: fontWeight "${w}" is not a 100-900 step`);
+    fontWeight = parseInt(w, 10);
+  }
+  return {
+    displayCss: probeRaw(p, 'display', cls),
+    position: probeRaw(p, 'position', cls),
+    radiusPx: probePx(p, 'borderRadius', cls),
+    borderWidthPx: probePx(p, 'borderTopWidth', cls),
+    borderColor: probeSrgb(p, 'borderTopColor', cls),
+    fillColor: probeSrgb(p, 'backgroundColor', cls),
+    fgColor: probeSrgb(p, 'color', cls),
+    blurPx: bd.px,
+    blurSaturate: bd.saturate,
+    shadows: probeShadow(p, cls),
+    paddingVerticalPx: pad.vertical,
+    paddingHorizontalPx: pad.horizontal,
+    fontFamily: typed ? probeFamily(p, cls) : null,
+    fontSizePx: typed ? probePx(p, 'fontSize', cls) : null,
+    fontWeight,
+    lineHeightPx: !typed || lineRaw === 'normal' ? null : lengthPx(lineRaw, `${cls} lineHeight`),
+    letterSpacingPx: !typed || spaceRaw === 'normal' ? null : lengthPx(spaceRaw, `${cls} letterSpacing`),
+  };
+};
+
+const NAV_COLOUR_FIELDS = ['borderColor', 'fillColor', 'fgColor'];
+/** A row flattened to what `!==` can decide; the shadow list enters as its exact
+ *  JSON, so a layer the phone gained or dropped fails the pass check instead of
+ *  being compared by reference. */
+const navFlat = (row) => {
+  const out = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (NAV_COLOUR_FIELDS.includes(key)) out[key] = value.hex;
+    else if (key === 'shadows') out[key] = value === null ? 'null' : JSON.stringify(value);
+    else if (value === null || typeof value !== 'object') out[key] = value;
+    else fail(`the ${key} field is an object the pass check cannot compare`);
+  }
+  return out;
+};
+// Geometry and type that must not move between the two colour schemes. The
+// shadow list is the colour pass’s own (`--shadow-float` is a per-pass token)
+// and stays out; §6 prints one row for everything else.
+const NAV_STABLE_FIELDS = [
+  'displayCss',
+  'position',
+  'radiusPx',
+  'borderWidthPx',
+  'blurPx',
+  'blurSaturate',
+  'paddingVerticalPx',
+  'paddingHorizontalPx',
+  'fontFamily',
+  'fontSizePx',
+  'fontWeight',
+  'lineHeightPx',
+  'letterSpacingPx',
+];
+
+const navs = NAV_CLASSES.map((cls) => {
+  // The phone passes are the port: the bar does not even display on desktop.
+  const l = navProbeRow(cls, LIGHT_PHONE);
+  const d = navProbeRow(cls, DARK_PHONE);
+  for (const [tag, theme, want] of [
+    ['light-desktop', LIGHT, l],
+    ['dark-desktop', DARK, d],
+  ]) {
+    const row = navFlat(navProbeRow(cls, theme));
+    const fw = navFlat(want);
+    for (const [key, value] of Object.entries(row)) {
+      // The bar’s own display is the documented phone/desktop split, asserted
+      // once below against the media rule rather than averaged away here.
+      if (cls === '.floating-nav' && key === 'displayCss') continue;
+      if (fw[key] !== value) {
+        fail(`${cls}: ${key} is "${value}" on ${tag} but "${fw[key]}" on its phone pass`);
+      }
+    }
+  }
+  for (const key of NAV_STABLE_FIELDS) {
+    if (l[key] !== d[key]) {
+      fail(`${cls}: ${key} is "${l[key]}" in light and "${d[key]}" in dark; §6 prints one row`);
+    }
+  }
+
+  // Authored numbers the probe cannot see, plus the state rules around them.
+  // The nav rules wrap multi-line `transition` and `box-shadow` values, so the
+  // same widened window `.icon-btn` needed reads them all; the scan still stops
+  // at the first `}`-terminated line.
+  const rest = cssRule(new RegExp(`^\\${cls} \\{$`), cls, 24);
+  const authored = {
+    sizePx: null,
+    minWidthPx: null,
+    heightPx: null,
+    gapPx: null,
+    liftPx: null,
+    maxBarWidthPx: null,
+    edgeInsetPx: null,
+    bottomGapPx: null,
+    pressScale: null,
+    transition: null,
+  };
+  const hover = CSS_LINES.findIndex((x) => new RegExp(`^\\${cls}:hover \\{$`).test(x));
+  let mediaHideSrc = null;
+  let activeSrc = null;
+
+  if (cls === '.floating-nav') {
+    if (l.displayCss !== 'flex') fail(`.floating-nav: the phone probe displays "${l.displayCss}"`);
+    if (navProbeRow(cls, LIGHT).displayCss !== 'none') {
+      fail('.floating-nav: the desktop probe still displays the bar; the media hide moved and the port must know');
+    }
+    // The indented head is the one inside `@media (min-width: 1024px)` — the
+    // column-0 head is the resting rule.
+    const hiddenAt = CSS_LINES.findIndex((x) => /^\s+\.floating-nav \{$/.test(x));
+    if (hiddenAt < 0) fail('.floating-nav: no indented rule head — the @media block hides nothing');
+    mediaHideSrc = `src/index.css:${hiddenAt + 1}`;
+    const bm = /^calc\(([\d.]+)px \+ env\(safe-area-inset-bottom, 0px\)\)$/.exec(cssDecl(rest, 'bottom', cls));
+    if (!bm) fail(`.floating-nav: bottom "${cssDecl(rest, 'bottom', cls)}" is not a fixed gap over the safe area`);
+    authored.bottomGapPx = parseFloat(bm[1]);
+    const wm = /^min\(100% - ([\d.]+)px, ([\d.]+)px\)$/.exec(cssDecl(rest, 'width', cls));
+    if (!wm) fail(`.floating-nav: width "${cssDecl(rest, 'width', cls)}" is not the inset-capped pill`);
+    authored.edgeInsetPx = parseFloat(wm[1]);
+    authored.maxBarWidthPx = parseFloat(wm[2]);
+    authored.gapPx = lengthPx(cssDecl(rest, 'gap', cls), `${cls} gap`);
+  }
+
+  if (cls === '.nav-item') {
+    authored.minWidthPx = lengthPx(cssDecl(rest, 'min-width', cls), `${cls} min-width`);
+    authored.heightPx = lengthPx(cssDecl(rest, 'height', cls), `${cls} height`);
+    authored.gapPx = lengthPx(cssDecl(rest, 'gap', cls), `${cls} gap`);
+    if (hover < 0) fail('.nav-item: the hover rule the class transitions moved out from under the port');
+    const hov = cssRule(new RegExp(`^\\${cls}:hover \\{$`), cls);
+    checkStateProps(ruleProps(hov, cls), ['color'], ':hover', cls, hov.line);
+    // Its one animated property is the one the port drops, so the clock needs no
+    // field — but it must still be the clock the §6 rule names.
+    const tr = cssDecl(rest, 'transition', cls).replace(/\s+/g, ' ');
+    if (tr !== 'color var(--dur-fast) var(--ease-out)') {
+      fail(`.nav-item: transition "${tr}" animates more than the dropped hover colour`);
+    }
+  }
+
+  if (cls === '.nav-item-active') {
+    // The class is the composition’s colour alone: anything else it authored
+    // would have shown as a difference against the bare `.nav-item` row below.
+    const extra = ruleProps(rest, cls).filter(([prop]) => prop !== 'color');
+    if (extra.length) {
+      fail(
+        `.nav-item-active: authors ${extra.map(([p]) => `\`${p}\``).join(', ')}; the class was read as a colour-only override`,
+      );
+    }
+    const hv = cssRule(/^\.nav-item-active:hover,$/, cls);
+    checkStateProps(ruleProps(hv, cls), ['color'], ':hover/:focus-visible', cls, hv.line);
+  }
+
+  if (cls === '.nav-fab') {
+    const w = lengthPx(cssDecl(rest, 'width', cls), `${cls} width`);
+    const h = lengthPx(cssDecl(rest, 'height', cls), `${cls} height`);
+    if (w !== h) fail(`.nav-fab: width ${w} != height ${h}; the port paints one square action`);
+    authored.sizePx = w;
+    const mt = lengthPx(cssDecl(rest, 'margin-top', cls), `${cls} margin-top`);
+    if (mt >= 0) fail(`.nav-fab: margin-top ${mt} is not a lift above the bar`);
+    authored.liftPx = -mt;
+    const act = cssRule(new RegExp(`^\\${cls}:active \\{$`), cls);
+    checkStateProps(ruleProps(act, cls), ['transform'], ':active', cls, act.line);
+    const sm = /^scale\(([\d.]+)\)$/.exec(cssDecl(act, 'transform', cls));
+    if (!sm) fail(`.nav-fab: :active transform "${cssDecl(act, 'transform', cls)}" is not a plain scale(N)`);
+    authored.pressScale = parseFloat(sm[1]);
+    if (!(authored.pressScale > 0 && authored.pressScale <= 1)) {
+      fail(`.nav-fab: press scale ${authored.pressScale} is not a squeeze`);
+    }
+    authored.transition = controlTransition(rest, cls, ['transform']);
+    activeSrc = `src/index.css:${act.line}`;
+  }
+
+  return {
+    cls,
+    l,
+    d,
+    authored,
+    restSrc: `src/index.css:${rest.line}`,
+    hoverSrc: hover < 0 ? 'none' : `src/index.css:${hover + 1}`,
+    mediaHideSrc,
+    activeSrc,
+  };
+});
+
+// Cross-class invariants — each is one of the UI_SPEC table’s rows disagreeing
+// with another, which no single-row read could see.
+{
+  const by = Object.fromEntries(navs.map((c) => [c.cls, c]));
+  const item = by['.nav-item'];
+  const active = by['.nav-item-active'];
+  const fab = by['.nav-fab'];
+  const bar = by['.floating-nav'];
+  if (!(bar.l.fillColor.alpha < 1 && bar.l.fillColor.alpha > 0)) {
+    fail(`.floating-nav: the 82% mix measures α ${bar.l.fillColor.alpha}; the port paints no translucent bar`);
+  }
+  for (const [tag, iRow, aRow, fRow, theme] of [
+    ['light', item.l, active.l, fab.l, LIGHT_PHONE],
+    ['dark', item.d, active.d, fab.d, DARK_PHONE],
+  ]) {
+    if (aRow.fgColor.hex === iRow.fgColor.hex) {
+      fail(`.nav-item-active: the ${tag} active ink equals the resting ink — the selected tab would be invisible`);
+    }
+    if (fRow.fgColor.hex !== aRow.fgColor.hex) {
+      fail(`.nav-fab: the ${tag} fab ink is not the active-tab ink; both are authored var(--accent-fg)`);
+    }
+    // The bare active probe measured the same colour the composed one carries —
+    // the one field the class changes is the one field it changes identically.
+    const bare = probeSrgb(theme.probes['.nav-item-active'], 'color', '.nav-item-active');
+    if (bare.hex !== aRow.fgColor.hex) {
+      fail(`.nav-item-active: ${tag} composed ink ${aRow.fgColor.hex} != bare probe ${bare.hex}`);
+    }
+    const flatA = navFlat(aRow);
+    const flatI = navFlat(iRow);
+    // The one computed field the colour change drags along: neither class
+    // authors a border, so the probe's border-colour is `currentColor` and it
+    // follows the ink. Asserting that chase (active frame == active ink) keeps
+    // the skip honest rather than blind.
+    if (aRow.borderColor.hex !== aRow.fgColor.hex || iRow.borderColor.hex !== iRow.fgColor.hex) {
+      fail(`.nav-item: ${tag} border colour is not currentColor; the active-row border skip needs re-reading`);
+    }
+    for (const [key, value] of Object.entries(flatA)) {
+      if (key === 'fgColor' || key === 'borderColor') continue;
+      if (flatI[key] !== value) {
+        fail(
+          `.nav-item-active: ${tag} ${key} is "${value}" while .nav-item is "${flatI[key]}"; the class authors colour only`,
+        );
+      }
+    }
+  }
+}
+
+const navExpr = (c, pass) => {
+  const num = (v) => (v === null ? 'null' : fmt(v));
+  const trans = c.authored.transition;
+  return [
+    `      cssClass: ${dartStr(c.cls)},`,
+    `      displayCss: ${dartStr(pass.displayCss)},`,
+    `      position: ${dartStr(pass.position)},`,
+    `      radiusPx: ${fmt(pass.radiusPx)},`,
+    `      borderWidthPx: ${fmt(pass.borderWidthPx)},`,
+    `      borderColor: ${dartSurfaceColour(pass.borderColor)},`,
+    `      fillColor: ${dartSurfaceColour(pass.fillColor)},`,
+    `      fgColor: ${dartSurfaceColour(pass.fgColor)},`,
+    `      blurPx: ${fmt(pass.blurPx)},`,
+    `      blurSaturate: ${num(pass.blurSaturate)},`,
+    `      shadows: ${pass.shadows ? shadowListExpr(pass.shadows) : 'null'},`,
+    `      paddingVerticalPx: ${fmt(pass.paddingVerticalPx)},`,
+    `      paddingHorizontalPx: ${fmt(pass.paddingHorizontalPx)},`,
+    `      fontFamily: ${pass.fontFamily === null ? 'null' : dartStr(pass.fontFamily)},`,
+    `      fontSizePx: ${num(pass.fontSizePx)},`,
+    `      fontWeight: ${pass.fontWeight === null ? 'null' : pass.fontWeight},`,
+    `      lineHeightPx: ${num(pass.lineHeightPx)},`,
+    `      letterSpacingPx: ${num(pass.letterSpacingPx)},`,
+    `      sizePx: ${num(c.authored.sizePx)},`,
+    `      minWidthPx: ${num(c.authored.minWidthPx)},`,
+    `      heightPx: ${num(c.authored.heightPx)},`,
+    `      gapPx: ${num(c.authored.gapPx)},`,
+    `      liftPx: ${num(c.authored.liftPx)},`,
+    `      maxBarWidthPx: ${num(c.authored.maxBarWidthPx)},`,
+    `      edgeInsetPx: ${num(c.authored.edgeInsetPx)},`,
+    `      bottomGapPx: ${num(c.authored.bottomGapPx)},`,
+    `      pressScale: ${num(c.authored.pressScale)},`,
+    `      transitionMs: ${trans === null ? 'null' : trans.ms},`,
+    `      easeX1: ${trans === null ? 'null' : fmt(trans.curve[0])},`,
+    `      easeY1: ${trans === null ? 'null' : fmt(trans.curve[1])},`,
+    `      easeX2: ${trans === null ? 'null' : fmt(trans.curve[2])},`,
+    `      easeY2: ${trans === null ? 'null' : fmt(trans.curve[3])},`,
+  ].join('\n');
+};
+
+// ================================================================ app_navs.dart
+banner();
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  '/// One §6 navigation class — the phone’s floating bottom bar, one of its',
+  '/// tabs, the selected tab, or the raised centre action — measured on the',
+  '/// phone pass, with the authored placement numbers the probe cannot see read',
+  '/// from the same pinned `src/index.css` rules. A widget under',
+  '/// `lib/presentation/` restates none of it.',
+  '///',
+  '/// The four rows share one shape because one widget composes them: fields a',
+  '/// class does not author are `null` — a measured absence, not a default.',
+  '/// In particular:',
+  '/// * `.floating-nav` fills with `color-mix(… 82%, transparent)` over a',
+  '///   `backdrop-filter: blur(22px) saturate(1.5)`, so [fillColor] carries that',
+  '///   alpha and [blurSigmaPx] is the port’s own blur mapping (CSS blur radius',
+  '///   halved, as in [AppSurfaceSpec]). The `saturate()` travels as data and is',
+  '///   unimplemented — the same recorded finding [AppSurfaceSpec] carries.',
+  '/// * `.nav-item-active` is the composed measurement (`.nav-item` carrying the',
+  '///   override): identical geometry to a resting tab, the accent ink instead.',
+  '/// * `.nav-fab` is the only state the family ports: `:active` scales it on the',
+  '///   clock its own rule transitions ([pressScale], [transitionMs], [pressCurve]).',
+  '/// * `env(safe-area-inset-bottom)` in the bar’s `bottom` becomes the host’s',
+  '///   view padding at paint time, not a number in this table.',
+  'class AppNavSpec {',
+  '  const AppNavSpec({',
+  '    required this.cssClass,',
+  '    required this.displayCss,',
+  '    required this.position,',
+  '    required this.radiusPx,',
+  '    required this.borderWidthPx,',
+  '    required this.borderColor,',
+  '    required this.fillColor,',
+  '    required this.fgColor,',
+  '    required this.blurPx,',
+  '    required this.blurSaturate,',
+  '    required this.shadows,',
+  '    required this.paddingVerticalPx,',
+  '    required this.paddingHorizontalPx,',
+  '    required this.fontFamily,',
+  '    required this.fontSizePx,',
+  '    required this.fontWeight,',
+  '    required this.lineHeightPx,',
+  '    required this.letterSpacingPx,',
+  '    required this.sizePx,',
+  '    required this.minWidthPx,',
+  '    required this.heightPx,',
+  '    required this.gapPx,',
+  '    required this.liftPx,',
+  '    required this.maxBarWidthPx,',
+  '    required this.edgeInsetPx,',
+  '    required this.bottomGapPx,',
+  '    required this.pressScale,',
+  '    required this.transitionMs,',
+  '    required this.easeX1,',
+  '    required this.easeY1,',
+  '    required this.easeX2,',
+  '    required this.easeY2,',
+  '  });',
+  '',
+  '  /// The CSS class this row was measured from.',
+  '  final String cssClass;',
+  '',
+  '  /// The computed `display` and `position`, on the pass that shows the bar.',
+  '  /// Carried as data, not applied: the Flutter placement is [AppNav]’s own',
+  '  /// composition, and desktop hides this surface entirely.',
+  '  final String displayCss;',
+  '  final String position;',
+  '',
+  '  final double radiusPx;',
+  '',
+  '  /// Measured on one side; `.nav-item` measures 0px — no frame at all.',
+  '  final double borderWidthPx;',
+  '  final Color borderColor;',
+  '',
+  '  /// The resting fill: the bar’s translucent 82% mix, the fab’s solid accent,',
+  '  /// the tab’s measured transparent.',
+  '  final Color fillColor;',
+  '  /// The ink (`color`): a tab’s resting `--ink-3`, an active tab’s or the',
+  '  /// fab’s `--accent-fg`.',
+  '  final Color fgColor;',
+  '',
+  '  /// The `backdrop-filter` blur in CSS px; `0.0` is the measured `none`.',
+  '  final double blurPx;',
+  '  /// The `saturate()` the same filter carries — recorded, unimplemented.',
+  '  final double? blurSaturate;',
+  '',
+  '  /// The measured resting `box-shadow` list, layer for layer: the bar’s',
+  '  /// `--shadow-float` and the fab’s `--shadow-float` + 35% accent halo.',
+  '  /// Tabs measured `none`.',
+  '  final List<BoxShadow>? shadows;',
+  '',
+  '  final double paddingVerticalPx;',
+  '  final double paddingHorizontalPx;',
+  '',
+  '  /// The label type, authored only by `.nav-item` (and so by the composed',
+  '  /// active row); `null` on the bar and the fab, which author no font.',
+  '  final String? fontFamily;',
+  '  final double? fontSizePx;',
+  '  final int? fontWeight;',
+  '  final double? lineHeightPx;',
+  '  final double? letterSpacingPx;',
+  '',
+  '  /// Authored placement, the probe’s blind spots: the fab’s square size, the',
+  '  /// tab’s `min-width`/`height` floor, the flex `gap`s, the fab’s `-14px`',
+  '  /// lift, and the bar’s `min(100% - 24px, 460px)` pair plus its `bottom`',
+  '  /// gap over the safe area.',
+  '  final double? sizePx;',
+  '  final double? minWidthPx;',
+  '  final double? heightPx;',
+  '  final double? gapPx;',
+  '  final double? liftPx;',
+  '  final double? maxBarWidthPx;',
+  '  final double? edgeInsetPx;',
+  '  final double? bottomGapPx;',
+  '',
+  '  /// The fab’s `:active scale(…)` and the `transition` clock its own rule',
+  '  /// names; null on every other row, which authors no press state.',
+  '  final double? pressScale;',
+  '  final int? transitionMs;',
+  '  final double? easeX1;',
+  '  final double? easeY1;',
+  '  final double? easeX2;',
+  '  final double? easeY2;',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '',
+  '  /// `null` where the class measured no frame, rather than a zero-width one.',
+  '  Border? get border => borderWidthPx == 0',
+  '      ? null',
+  '      : Border.all(color: borderColor, width: borderWidthPx);',
+  '',
+  '  /// CSS blur radius → Flutter sigma, the port’s fixed mapping (see',
+  '  /// [AppSurfaceSpec.blurSigma]); `null` where the filter measured `none`.',
+  '  double? get blurSigmaPx => blurPx == 0 ? null : blurPx / 2;',
+  '',
+  '  /// The measured `font-weight`, which the classes author as a number and',
+  '  /// Flutter names — the same mapping [AppControlSpec.weight] applies.',
+  '  FontWeight get weight => FontWeight.values[fontWeight! ~/ 100 - 1];',
+  '',
+  '  /// The line box the tab measures, as the multiple of its own font size',
+  '  /// Flutter wants: the 12px box over the authored 8px, no literal between.',
+  '  double? get lineHeightRatio =>',
+  '      lineHeightPx == null || fontSizePx == null',
+  '          ? null',
+  '          : lineHeightPx! / fontSizePx!;',
+  '',
+  '  /// The fab’s press clock, duration and curve both authored by the class.',
+  '  Duration? get pressDuration {',
+  '    final int? ms = transitionMs;',
+  '    return ms == null ? null : Duration(milliseconds: ms);',
+  '  }',
+  '  Curve? get pressCurve => easeX1 == null',
+  '      ? null',
+  '      : Cubic(easeX1!, easeY1!, easeX2!, easeY2!);',
+  '}',
+  '',
+  '/// The §6 floating-navigation rows, keyed by CSS class — one map per',
+  '/// measured phone pass.',
+  'abstract final class AppNavs {',
+);
+for (const [passName, rowName, themeTag] of [
+  ['light', 'l', 'light-phone'],
+  ['dark', 'd', 'dark-phone'],
+]) {
+  L.push(
+    `  /// ${passName} pass (UI_SPEC §6, \`${themeTag}\`; placement from the resting rules).`,
+    `  static const Map<String, AppNavSpec> ${passName} =`,
+    '      <String, AppNavSpec>{',
+  );
+  for (const c of navs) {
+    L.push(`    ${dartStr(c.cls)}: AppNavSpec(`, navExpr(c, c[rowName]), '    ),');
+  }
+  L.push('  };', '');
+}
+const navFloating = navs.find((c) => c.cls === '.floating-nav');
+const navItemHover = navs.find((c) => c.cls === '.nav-item');
+const navActive = navs.find((c) => c.cls === '.nav-item-active');
+L.push(
+  '  /// The rules the port does NOT reproduce, printed once because every',
+  '  /// measured pass authors them identically:',
+  `  /// * \`${navFloating.cls}\` is hidden on desktop at ${navFloating.mediaHideSrc}`,
+  '  ///   (`@media (min-width: 1024px) { … display: none }`); the desktop chrome',
+  '  ///   that replaces it (`.nav-link` at src/index.css:854, `.nav-pill` at',
+  '  ///   src/index.css:1070) is a surface no phone screen writes, so it is not',
+  '  ///   ported. The phone pass is therefore the bar’s measurement.',
+  `  /// * \`.nav-item:hover\` at ${navItemHover.hoverSrc} and`,
+  '  ///   `.nav-item-active:hover`/`:focus-visible` (src/index.css:1197) change',
+  '  ///   only `color` — decoration, not contract, dropped per UI_SPEC D-U1.',
+  '',
+  '  /// `.nav-fab` is the family’s one ported state: `:active` at',
+  `  /// ${navs.find((c) => c.cls === '.nav-fab').activeSrc} scales the action,`,
+  '  /// animating the `transform` its resting rule transitions — the same one',
+  '  /// clock AppControls ports, no colour repaint beneath it.',
+  '',
+  '  /// The measured rows for a class and brightness. An unknown class is a',
+  '  /// programming error, not a fallback: nothing in this layer may quietly',
+  '  /// become a Material default.',
+  '  static AppNavSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppNavSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppNavSpec? spec = table[cssClass];',
+  "    if (spec == null) throw ArgumentError('$cssClass is not a §6 nav class');",
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+);
+finish('app_navs.dart');
+
 // ---------------------------------------------------------------- write + summary
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
@@ -3263,6 +3792,7 @@ console.log(
     `  §6 labels emitted:           ${labels.length} classes x 2 passes  -> AppLabels`,
     `  §6 skeletons emitted:        ${skeletons.length} classes x 2 passes  -> AppSkeletons`,
     `  §6 icon buttons emitted:     ${iconButtons.length} classes x 2 passes  -> AppIconButtons`,
+    `  §6 nav emitted:              ${navs.length} classes x 2 passes  -> AppNavs`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );
