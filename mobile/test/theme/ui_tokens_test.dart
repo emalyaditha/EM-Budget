@@ -24,6 +24,7 @@ import 'package:em_budget/core/theme/app_fields.dart';
 import 'package:em_budget/core/theme/app_icon_buttons.dart';
 import 'package:em_budget/core/theme/app_modals.dart';
 import 'package:em_budget/core/theme/app_navs.dart';
+import 'package:em_budget/core/theme/app_numerals.dart';
 import 'package:em_budget/core/theme/app_radii.dart';
 import 'package:em_budget/core/theme/app_segments.dart';
 import 'package:em_budget/core/theme/app_shadows.dart';
@@ -7854,6 +7855,688 @@ void main() {
           () => AppBars.resolve('.bar-imaginary', brightness),
           throwsArgumentError,
         );
+      }
+    });
+  });
+
+  group('UI_SPEC 6 numerals and money', () {
+    /// The §6 rows `AppNumerals` ports. `.eyebrow` is absent on purpose:
+    /// `AppLabels` already owns that class, together with the `text-transform`
+    /// no figure carries.
+    const List<String> numeralClasses = <String>[
+      '.money-display',
+      '.numeral',
+      '.numeral-md',
+      '.numeral-hero',
+      '.numeral-sup',
+      '.money',
+      '.mono',
+    ];
+
+    /// The declarations each of those rules is allowed to author. A second one
+    /// would be a design fact `AppNumeralSpec` has no field for, so the
+    /// generator refuses to emit the row and this file refuses to read it.
+    const Map<String, List<String>> numeralDeclarations =
+        <String, List<String>>{
+          '.money-display': <String>[
+            'font-family',
+            'font-size',
+            'font-weight',
+            'line-height',
+            'letter-spacing',
+            'font-variant-numeric',
+            'overflow-wrap',
+            'min-width',
+          ],
+          '.numeral': <String>[
+            'font-family',
+            'font-size',
+            'font-weight',
+            'line-height',
+            'letter-spacing',
+            'font-variant-numeric',
+            'overflow-wrap',
+            'min-width',
+          ],
+          '.numeral-md': <String>['font-size', 'font-weight'],
+          '.numeral-hero': <String>['font-size'],
+          '.numeral-sup': <String>[
+            'font-family',
+            'font-size',
+            'font-weight',
+            'letter-spacing',
+            'vertical-align',
+            'margin-left',
+            'color',
+          ],
+          '.money': <String>['font-variant-numeric', 'letter-spacing'],
+          '.mono': <String>['font-family', 'font-variant-numeric'],
+        };
+
+    final List<String> numeralPasses = <String>[
+      'light-desktop',
+      'dark-desktop',
+      'light-phone',
+      'dark-phone',
+    ];
+    Map<String, dynamic> themeOf(String pass) => _theme(measurement, pass);
+    Map<String, dynamic> rootOf(String pass) => _rootOf(themeOf(pass));
+    Map<String, dynamic> probesOf(String pass) => _probesOf(themeOf(pass));
+    Map<String, dynamic> bodyOf(String pass) =>
+        _probe(probesOf(pass), 'body', pass);
+    double innerWidthOf(String pass) =>
+        (themeOf(pass)['innerWidth']! as num).toDouble();
+
+    /// The viewport a `cqi` falls back to when the probed element is in no
+    /// query container: CSS uses the small viewport, which is the page height on
+    /// a landscape desktop and the page width on a phone.
+    double smallViewportOf(String pass) {
+      final Map<String, dynamic> viewport =
+          themeOf(pass)['viewport']! as Map<String, dynamic>;
+      return math.min(
+        (viewport['width']! as num).toDouble(),
+        (viewport['height']! as num).toDouble(),
+      );
+    }
+
+    Map<String, String> ruleDecls(String cls) =>
+        _cssDecls(cssLines, '$cls {', cls);
+
+    /// `body` is authored twice in `src/index.css` — `overflow-x: clip` at :301,
+    /// then the face at :305 — so this finds the one that carries the ink.
+    Map<String, String> bodyRule() {
+      for (int i = 0; i < cssLines.length; i++) {
+        if (cssLines[i] != 'body {') continue;
+        final Map<String, String> decls = _cssDecls(
+          cssLines.sublist(i),
+          'body {',
+          'body',
+        );
+        if (decls.containsKey('color')) return decls;
+      }
+      throw StateError('no body rule authors a colour');
+    }
+
+    String tokenOf(String raw, String label) {
+      final RegExpMatch? m = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+          .firstMatch(raw.trim());
+      if (m == null) throw StateError('$label: "$raw" is not a bare var()');
+      return m.group(1)!;
+    }
+
+    double emOf(String raw, String label) {
+      final RegExpMatch? m = RegExp(r'^(-?[\d.]+)em$').firstMatch(raw.trim());
+      if (m == null) throw StateError('$label: "$raw" is not an em multiplier');
+      return double.parse(m.group(1)!);
+    }
+
+    String firstFamily(String stack) =>
+        stack.split(',').first.trim().replaceAll(RegExp('^["\']|["\']\$'), '');
+
+    double probeLetterSpacing(Map<String, dynamic> probe, String cls) {
+      final String raw = _probeValue(probe, 'letterSpacing', cls);
+      return raw == 'normal' ? 0.0 : _pxOf(raw, '$cls letter-spacing');
+    }
+
+    /// `clamp(lo px, pref vw, hi px)` at a viewport — the same law Chrome ran to
+    /// produce the probe, read from the token or rule the row names.
+    double clampAt(String raw, double viewportPx, String label) {
+      final RegExpMatch? m = RegExp(
+        r'^clamp\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)vw\s*,\s*(-?[\d.]+)px\s*\)$',
+      ).firstMatch(raw.trim());
+      if (m == null) throw StateError('$label: "$raw" is not a px/vw/px clamp');
+      final double lo = double.parse(m.group(1)!);
+      final double preferred = double.parse(m.group(2)!) * viewportPx / 100.0;
+      final double hi = double.parse(m.group(3)!);
+      return math.min(math.max(preferred, lo), hi);
+    }
+
+    /// The authored font-size law of a row, resolved at one measured viewport.
+    /// `.numeral-sup` returns the size it *specified*; Chrome floors the size it
+    /// used, and the row's own test pins the difference.
+    double lawFontSize(String cls, String pass) {
+      final Map<String, dynamic> root = rootOf(pass);
+      final String? authored = ruleDecls(cls)['font-size']?.trim();
+      final double viewport = innerWidthOf(pass);
+      if (authored == null) {
+        return _pxOf(
+          _probeValue(bodyOf(pass), 'fontSize', 'body'),
+          'body font size',
+        );
+      }
+      final RegExpMatch? token = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+          .firstMatch(authored);
+      if (token != null) {
+        return clampAt(
+          _raw(root, token.group(1)!),
+          viewport,
+          '$cls ${token.group(1)}',
+        );
+      }
+      if (authored.startsWith('clamp(')) {
+        return clampAt(authored, viewport, '$cls font-size');
+      }
+      final RegExpMatch? hero = RegExp(
+        r'^min\(\s*var\((--[a-z0-9-]+)\)\s*,\s*([\d.]+)cqi\s*\)$',
+      ).firstMatch(authored);
+      if (hero != null) {
+        final double cap = clampAt(
+          _raw(root, hero.group(1)!),
+          viewport,
+          '$cls ${hero.group(1)}',
+        );
+        final double query =
+            double.parse(hero.group(2)!) / 100.0 * smallViewportOf(pass);
+        return math.min(cap, query);
+      }
+      final RegExpMatch? em = RegExp(r'^([\d.]+)em$').firstMatch(authored);
+      if (em != null) {
+        return double.parse(em.group(1)!) *
+            _pxOf(_probeValue(bodyOf(pass), 'fontSize', 'body'), 'body size');
+      }
+      throw StateError('$cls: unhandled font-size "$authored"');
+    }
+
+    test('AppNumerals carries exactly the seven measured rows, per pass', () {
+      final List<String> expected = numeralClasses.toList()..sort();
+      for (final Map<String, AppNumeralSpec> table
+          in <Map<String, AppNumeralSpec>>[
+            AppNumerals.light,
+            AppNumerals.dark,
+          ]) {
+        expect(table.keys.toList()..sort(), expected);
+      }
+    });
+
+    for (final Brightness brightness in Brightness.values) {
+      final String pass = brightness == Brightness.light
+          ? 'light-phone'
+          : 'dark-phone';
+      for (final String cls in numeralClasses) {
+        test('$cls is the $pass row, re-derived from its own rule', () {
+          final Map<String, String> decls = ruleDecls(cls);
+          expect(
+            decls.keys.toList(),
+            numeralDeclarations[cls],
+            reason:
+                '$cls authors exactly the properties AppNumeralSpec carries; '
+                'a new declaration needs a field and a call site',
+          );
+          final Map<String, dynamic> probe = _probe(probesOf(pass), cls, pass);
+          final AppNumeralSpec spec = AppNumerals.resolve(cls, brightness);
+          expect(spec.cssClass, cls);
+          expect(
+            spec.authoredSrc,
+            'src/index.css:${cssLines.indexOf('$cls {') + 1}',
+          );
+          expect(spec.displayCss, _probeValue(probe, 'display', cls));
+          expect(_probeValue(probe, 'position', cls), 'static');
+
+          final double measured = _pxOf(
+            _probeValue(probe, 'fontSize', cls),
+            '$cls probe size',
+          );
+          final double law = lawFontSize(cls, pass);
+          expect(spec.fontSizePx, measured);
+          if (cls == '.numeral-sup') {
+            expect(
+              law,
+              lessThan(measured),
+              reason:
+                  'the row specified ${law}px and Chrome floored the used size '
+                  'to ${measured}px; the call site never reads either',
+            );
+          } else {
+            expect(
+              spec.fontSizePx,
+              closeTo(law, 1e-9),
+              reason: '$cls is what its own font-size law resolves to at $pass',
+            );
+          }
+
+          final String? heightRaw = decls['line-height'];
+          final double height = heightRaw == null
+              ? _probeRatio(probesOf(pass), 'body')
+              : _ratio(heightRaw);
+          expect(spec.heightRatio, closeTo(height, 1e-12));
+          expect(
+            spec.heightRatio,
+            closeTo(_probeRatio(probesOf(pass), cls), 1e-9),
+            reason: '$cls measured line-height over measured font-size',
+          );
+
+          final double lsEm = decls['letter-spacing'] == null
+              ? 0.0
+              : emOf(decls['letter-spacing']!, '$cls letter-spacing');
+          expect(spec.letterSpacingEm, closeTo(lsEm, 1e-12));
+          expect(
+            spec.letterSpacingPx,
+            closeTo(probeLetterSpacing(probe, cls), 1e-9),
+          );
+          if (cls == '.numeral-sup') {
+            // Tracking resolves from the SPECIFIED size even where Chrome floors
+            // the used one, which is the whole evidence for the floor.
+            expect(
+              spec.letterSpacingPx,
+              closeTo(
+                lsEm *
+                    emOf(decls['font-size']!, '$cls font-size') *
+                    AppNumerals.rootFontSizePx,
+                1e-9,
+              ),
+            );
+          } else {
+            expect(
+              spec.letterSpacingPx,
+              closeTo(lsEm * measured, 1e-9),
+              reason: '$cls tracking is ${lsEm}em of its own used size',
+            );
+          }
+
+          final int weight = decls['font-weight'] == null
+              ? 400
+              : int.parse(decls['font-weight']!.trim());
+          expect(spec.fontWeight, weight);
+          expect(spec.weight, FontWeight.values[weight ~/ 100 - 1]);
+          expect(_probeValue(probe, 'fontWeight', cls), '$weight');
+
+          final String familyToken = decls['font-family'] == null
+              ? tokenOf(bodyRule()['font-family']!, 'body font-family')
+              : tokenOf(decls['font-family']!, '$cls font-family');
+          expect(
+            firstFamily(_substituted(rootOf(pass), familyToken)),
+            spec.fontFamily,
+            reason: '$cls takes the first family of $familyToken',
+          );
+          expect(
+            firstFamily(_probeValue(probe, 'fontFamily', cls)),
+            spec.fontFamily,
+          );
+
+          final String? colourRaw = decls['color'];
+          final String colourToken = colourRaw == null
+              ? tokenOf(bodyRule()['color']!, 'body colour')
+              : tokenOf(colourRaw, '$cls colour');
+          expect(spec.inheritsColor, colourRaw == null);
+          expect(
+            spec.authoredColorToken,
+            colourRaw == null ? null : colourToken,
+          );
+          expect(spec.textColor, _measuredColour(rootOf(pass), colourToken));
+          expect(spec.textColor, _probeColour(probe, 'color', cls));
+
+          final String? numeric = decls['font-variant-numeric'];
+          expect(spec.tabularNums, numeric != null);
+          if (numeric != null) expect(numeric.trim(), 'tabular-nums');
+          final String? wrap = decls['overflow-wrap'];
+          expect(spec.overflowWrapAnywhere, wrap != null);
+          if (wrap != null) expect(wrap.trim(), 'anywhere');
+          final String? minWidth = decls['min-width'];
+          expect(spec.minWidthZero, minWidth != null);
+          if (minWidth != null) {
+            expect(
+              minWidth.trim(),
+              anyOf('0', '0px'),
+              reason: '$cls min-width is the unitless zero the port reads',
+            );
+          }
+
+          if (cls == '.numeral-sup') {
+            expect(
+              emOf(decls['vertical-align']!, '$cls vertical-align'),
+              AppNumerals.supVerticalAlignEm,
+            );
+            expect(
+              emOf(decls['margin-left']!, '$cls margin-left'),
+              AppNumerals.supMarginLeftEm,
+            );
+            expect(
+              emOf(decls['font-size']!, '$cls font-size'),
+              AppNumerals.supFontSizeEm,
+            );
+            expect(lsEm, AppNumerals.supLetterSpacingEm);
+          } else {
+            expect(
+              decls.containsKey('vertical-align'),
+              false,
+              reason: 'only the sup row raises itself',
+            );
+            expect(
+              decls.containsKey('margin-left'),
+              false,
+              reason: 'only the sup row spaces itself',
+            );
+          }
+          if (cls == '.numeral-hero') {
+            final RegExpMatch? fraction = RegExp(
+              r'^min\(\s*var\(--text-[a-z-]+\)\s*,\s*([\d.]+)cqi\s*\)$',
+            ).firstMatch(decls['font-size']!.trim());
+            expect(fraction, isNotNull);
+            expect(
+              AppNumerals.heroWidthFraction,
+              closeTo(double.parse(fraction!.group(1)!) / 100.0, 1e-12),
+            );
+          }
+        });
+      }
+    }
+
+    test('the root size the ems and vw resolve against is the body probe', () {
+      for (final String pass in numeralPasses) {
+        expect(
+          AppNumerals.rootFontSizePx,
+          _pxOf(_probeValue(bodyOf(pass), 'fontSize', 'body'), 'body size'),
+          reason: '$pass measures a different root than the port declares',
+        );
+      }
+      expect(AppNumerals.rootFontSizePx, 16.0);
+    });
+
+    test('a numeral row is a bare face on all four passes', () {
+      for (final String pass in numeralPasses) {
+        for (final String cls in numeralClasses) {
+          final Map<String, dynamic> probe = _probe(probesOf(pass), cls, pass);
+          expect(
+            _probeColour(probe, 'backgroundColor', cls).a,
+            0,
+            reason: '$cls $pass paints a fill; a figure owns no box',
+          );
+          expect(_probeValue(probe, 'boxShadow', cls), 'none');
+          expect(
+            _pxOf(_probeValue(probe, 'borderTopWidth', cls), '$cls border'),
+            0.0,
+          );
+          expect(
+            _pxOf(_probeValue(probe, 'padding', cls), '$cls padding'),
+            0.0,
+          );
+          expect(_probeValue(probe, 'backgroundImage', cls), 'none');
+        }
+      }
+    });
+
+    test('every row resolves its own law at both viewports', () {
+      for (final String cls in numeralClasses) {
+        final double lsEm =
+            cls == '.money' ||
+                cls == '.numeral' ||
+                cls == '.money-display' ||
+                cls == '.numeral-sup'
+            ? emOf(ruleDecls(cls)['letter-spacing']!, '$cls letter-spacing')
+            : 0.0;
+        for (final String pass in numeralPasses) {
+          final Map<String, dynamic> probe = _probe(probesOf(pass), cls, pass);
+          final double measured = _pxOf(
+            _probeValue(probe, 'fontSize', cls),
+            '$cls $pass size',
+          );
+          final double law = lawFontSize(cls, pass);
+          if (cls == '.numeral-sup') {
+            expect(
+              measured,
+              greaterThanOrEqualTo(law),
+              reason:
+                  '$cls $pass: Chrome floors a tiny used size, never inflates it',
+            );
+          } else {
+            expect(
+              measured,
+              closeTo(law, 1e-9),
+              reason: '$cls at $pass (${innerWidthOf(pass)}px)',
+            );
+          }
+          expect(
+            probeLetterSpacing(probe, cls),
+            closeTo(cls == '.numeral-sup' ? lsEm * law : lsEm * measured, 1e-9),
+            reason: '$cls $pass tracks ${lsEm}em of its specified size',
+          );
+        }
+      }
+    });
+
+    test(
+      'the clamps sit at their floor on the phone and ceiling on the desktop',
+      () {
+        final Map<String, List<double>> want = <String, List<double>>{
+          '.numeral': <double>[38.0, 62.0],
+          '.money-display': <double>[30.0, 46.0],
+          '.numeral-md': <double>[26.0, 34.0],
+          '.numeral-hero': <double>[38.0, 62.0],
+        };
+        want.forEach((String cls, List<double> sizes) {
+          expect(
+            lawFontSize(cls, 'light-phone'),
+            sizes[0],
+            reason: '$cls at 8vw/6vw/4.5vw of 390px is under its floor',
+          );
+          expect(
+            lawFontSize(cls, 'light-desktop'),
+            sizes[1],
+            reason: '$cls at 1440px is over its ceiling',
+          );
+        });
+        expect(
+          AppNumerals.resolve('.numeral', Brightness.light).fontSizePx,
+          38.0,
+        );
+        expect(
+          AppNumerals.resolve('.money-display', Brightness.dark).fontSizePx,
+          30.0,
+        );
+      },
+    );
+
+    test('the viewport moves nothing but the size a clamp resolves', () {
+      for (final String brightnessName in <String>['light', 'dark']) {
+        final String phone = '$brightnessName-phone';
+        final String desktop = '$brightnessName-desktop';
+        for (final String cls in numeralClasses) {
+          final Map<String, dynamic> p = _probe(probesOf(phone), cls, phone);
+          final Map<String, dynamic> d = _probe(
+            probesOf(desktop),
+            cls,
+            desktop,
+          );
+          for (final String field in <String>[
+            'display',
+            'position',
+            'fontFamily',
+            'fontWeight',
+          ]) {
+            expect(
+              _probeValue(p, field, cls),
+              _probeValue(d, field, cls),
+              reason: '$cls $field moves with the viewport',
+            );
+          }
+          expect(
+            _probeColour(p, 'color', cls),
+            _probeColour(d, 'color', cls),
+            reason: '$cls ink moves with the viewport',
+          );
+          expect(
+            _probeRatio(probesOf(phone), cls),
+            closeTo(_probeRatio(probesOf(desktop), cls), 1e-9),
+            reason: '$cls keeps its line-height ratio across the clamp',
+          );
+        }
+      }
+    });
+
+    test('brightness moves the ink and no metric', () {
+      for (final String cls in numeralClasses) {
+        final AppNumeralSpec lightRow = AppNumerals.resolve(
+          cls,
+          Brightness.light,
+        );
+        final AppNumeralSpec darkRow = AppNumerals.resolve(
+          cls,
+          Brightness.dark,
+        );
+        expect(darkRow.fontSizePx, lightRow.fontSizePx);
+        expect(darkRow.heightRatio, lightRow.heightRatio);
+        expect(darkRow.letterSpacingPx, lightRow.letterSpacingPx);
+        expect(darkRow.letterSpacingEm, lightRow.letterSpacingEm);
+        expect(darkRow.fontWeight, lightRow.fontWeight);
+        expect(darkRow.fontFamily, lightRow.fontFamily);
+        expect(
+          darkRow.textColor,
+          isNot(lightRow.textColor),
+          reason: '$cls is the same figure in both themes only by accident',
+        );
+      }
+    });
+
+    test(
+      'the sup probe is the floored standalone row, never a call-site value',
+      () {
+        const String cls = '.numeral-sup';
+        final Map<String, String> decls = ruleDecls(cls);
+        final double specified =
+            emOf(decls['font-size']!, '$cls font-size') *
+            AppNumerals.rootFontSizePx;
+        final AppNumeralSpec sup = AppNumerals.resolve(cls, Brightness.light);
+        expect(specified, closeTo(4.48, 1e-12));
+        expect(sup.fontSizePx, greaterThan(specified));
+        expect(
+          sup.letterSpacingPx,
+          closeTo(emOf(decls['letter-spacing']!, '$cls ls') * specified, 1e-12),
+          reason:
+              'tracking kept resolving from the specified size while the used one '
+              'was floored — which is why the port reads the ems, not the row',
+        );
+      },
+    );
+
+    test('supAt resolves the four authored ems against the parent figure', () {
+      for (final Brightness brightness in Brightness.values) {
+        final AppNumeralSpec sup = AppNumerals.resolve(
+          '.numeral-sup',
+          brightness,
+        );
+        for (final double parent in <double>[38.0, 30.0, 19.0]) {
+          final AppNumeralSupBox box = AppNumerals.supAt(parent, brightness);
+          final double size = AppNumerals.supFontSizeEm * parent;
+          expect(box.style.fontSize, closeTo(size, 1e-12));
+          expect(
+            box.style.letterSpacing,
+            closeTo(AppNumerals.supLetterSpacingEm * size, 1e-12),
+          );
+          expect(
+            box.style.height,
+            isNull,
+            reason:
+                'CSS line-height on an inline span does not grow the parent '
+                'line box, while Flutter TextStyle.height does',
+          );
+          expect(box.style.fontWeight, sup.weight);
+          expect(box.style.fontFamily, sup.fontFamily);
+          expect(box.style.color, sup.textColor);
+          expect(
+            box.liftPx,
+            closeTo(AppNumerals.supVerticalAlignEm * size, 1e-12),
+          );
+          expect(box.gapPx, closeTo(AppNumerals.supMarginLeftEm * size, 1e-12));
+        }
+      }
+      final AppNumeralSupBox hero = AppNumerals.supAt(38.0, Brightness.light);
+      expect(hero.style.fontSize, closeTo(10.64, 1e-9));
+      expect(hero.style.letterSpacing, closeTo(0.4256, 1e-9));
+      expect(hero.liftPx, closeTo(6.5968, 1e-9));
+      expect(hero.gapPx, closeTo(2.9792, 1e-9));
+    });
+
+    test('heroFontSizePx is the authored min()', () {
+      for (final Brightness brightness in Brightness.values) {
+        final double numeral = AppNumerals.resolve(
+          '.numeral',
+          brightness,
+        ).fontSizePx;
+        expect(AppNumerals.heroFontSizePx(400.0, brightness), numeral);
+        expect(AppNumerals.heroFontSizePx(1200.0, brightness), numeral);
+        expect(
+          AppNumerals.heroFontSizePx(253.33333333333334, brightness),
+          closeTo(numeral, 1e-9),
+        );
+        expect(
+          AppNumerals.heroFontSizePx(200.0, brightness),
+          closeTo(30.0, 1e-9),
+        );
+        expect(
+          AppNumerals.heroFontSizePx(120.0, brightness),
+          closeTo(18.0, 1e-9),
+        );
+        expect(
+          AppNumerals.heroWidthFraction * 390.0,
+          greaterThan(numeral),
+          reason:
+              'the phone card the probe was taken on keeps the numeral size',
+        );
+      }
+    });
+
+    test("AppTypography's five numeral styles are the same projection", () {
+      const Map<String, TextStyle> ported = <String, TextStyle>{
+        '.money-display': AppTypography.moneyDisplay,
+        '.numeral': AppTypography.numeral,
+        '.numeral-hero': AppTypography.numeralHero,
+        '.numeral-md': AppTypography.numeralMd,
+        '.numeral-sup': AppTypography.numeralSup,
+      };
+      for (final MapEntry<String, TextStyle> entry in ported.entries) {
+        final AppNumeralSpec row = AppNumerals.resolve(
+          entry.key,
+          Brightness.light,
+        );
+        final TextStyle style = entry.value;
+        expect(style.fontSize, row.fontSizePx, reason: entry.key);
+        expect(
+          style.height,
+          closeTo(row.heightRatio, 1e-12),
+          reason: entry.key,
+        );
+        expect(style.fontWeight?.value, row.fontWeight, reason: entry.key);
+        expect(style.fontFamily, row.fontFamily, reason: entry.key);
+        if (entry.key == '.numeral-sup') {
+          expect(
+            style.letterSpacing,
+            row.letterSpacingPx,
+            reason:
+                'the one row the two projections cannot agree on: AppTypography '
+                'keeps the measured floor, AppNumeralSpec carries the authored '
+                'em and re-resolves it at the parent size',
+          );
+        } else {
+          expect(
+            style.letterSpacing,
+            closeTo(row.textStyle.letterSpacing!, 1e-9),
+            reason: entry.key,
+          );
+        }
+        expect(
+          style.color,
+          isNull,
+          reason:
+              'AppTypography is the ink-free projection; the row carries it',
+        );
+      }
+    });
+
+    test('an unknown numeral class is an error, not a Material default', () {
+      for (final Brightness brightness in Brightness.values) {
+        for (final String cls in <String>[
+          '.eyebrow',
+          '.btn-primary',
+          '.bar-pink',
+          '.delta-chip',
+          '.numeral-super',
+        ]) {
+          expect(
+            () => AppNumerals.resolve(cls, brightness),
+            throwsArgumentError,
+            reason: '$cls is not one of the seven rows',
+          );
+        }
       }
     });
   });

@@ -6295,6 +6295,603 @@ L.push(
 );
 finish('app_bars.dart');
 
+// ================================================================ app_numerals.dart
+// Item 7 — the numeral/money type utilities of `src/index.css:359-426`: the faces
+// a money figure is set in, plus the two overlays a call site stacks on text it
+// sizes itself (`.money`, `.mono`). `.eyebrow` is already a §6 label row
+// (`AppLabels`), so it is not repeated here.
+//
+// Two tiers meet in these rows. The phone probe is what Chrome painted at
+// `innerWidth` 390; the authored declaration is the only form that survives the
+// font size a call site gives the element — the hero clamps itself to its own
+// card, and `.numeral-sup` is em-relative through and through. So every row has
+// to satisfy both readings at once: the authored `em` / `clamp()` / `min()`
+// re-resolved at each measured viewport must equal the probe taken there, or
+// generation fails rather than shipping a number that only works at one width.
+const NUMERAL_CLASSES = [
+  '.money-display',
+  '.numeral',
+  '.numeral-md',
+  '.numeral-hero',
+  '.numeral-sup',
+  '.money',
+  '.mono',
+];
+
+// What each class may author. A new declaration in this block is a new fact the
+// phone has to answer for, so it fails generation instead of being dropped.
+const NUMERAL_REST_PROPS = {
+  '.money-display': [
+    'font-family',
+    'font-size',
+    'font-weight',
+    'line-height',
+    'letter-spacing',
+    'font-variant-numeric',
+    'overflow-wrap',
+    'min-width',
+  ],
+  '.numeral': [
+    'font-family',
+    'font-size',
+    'font-weight',
+    'line-height',
+    'letter-spacing',
+    'font-variant-numeric',
+    'overflow-wrap',
+    'min-width',
+  ],
+  '.numeral-md': ['font-size', 'font-weight'],
+  '.numeral-hero': ['font-size'],
+  '.numeral-sup': [
+    'font-family',
+    'font-size',
+    'font-weight',
+    'letter-spacing',
+    'vertical-align',
+    'margin-left',
+    'color',
+  ],
+  '.money': ['font-variant-numeric', 'letter-spacing'],
+  '.mono': ['font-family', 'font-variant-numeric'],
+};
+
+/** The first family of a CSS font stack — the one name Flutter is given. */
+const firstFamily = (raw, cls) => {
+  const first = collapse(raw)
+    .split(',')[0]
+    .replace(/^["']|["']$/g, '')
+    .trim();
+  if (!first) fail(`${cls}: font stack "${raw}" has no first family`);
+  return first;
+};
+
+/** `clamp(<lo>px, <pref>vw, <hi>px)` resolved at a viewport width — the median
+ *  the browser takes, which is why one authored clamp has two measured numbers. */
+const clampAt = (raw, viewportPx, cls) => {
+  const m = /^clamp\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)vw\s*,\s*(-?[\d.]+)px\s*\)$/.exec(collapse(raw));
+  if (!m) fail(`${cls}: unportable clamp "${raw}"`);
+  const preferred = (parseFloat(m[2]) * viewportPx) / 100;
+  return Math.min(Math.max(preferred, parseFloat(m[1])), parseFloat(m[3]));
+};
+
+/** `<n>em` — the unit every authored numeral metric is written in. */
+const emOf = (raw, cls, prop) => {
+  const m = /^(-?[\d.]+)em$/.exec(collapse(raw));
+  if (!m) fail(`${cls}: \`${prop}: ${raw}\` is not an em length`);
+  return parseFloat(m[1]);
+};
+
+/** `letter-spacing` computes to `normal` when a row inherits none: zero tracking. */
+const lsPxOf = (p, cls) => (probeRaw(p, 'letterSpacing', cls) === 'normal' ? 0 : probePx(p, 'letterSpacing', cls));
+
+// The element every probe inherits from. `body` authors the family and the colour
+// the non-authoring rows measure, and it authors no font size, so its own probe IS
+// the root size this whole block's em and vw values resolve against. Reading it
+// beats assuming the 16px.
+const bodyRule = (() => {
+  for (let i = 0; i < CSS_LINES.length; i++) {
+    if (!/^body \{$/.test(CSS_LINES[i])) continue;
+    const text = CSS_LINES.slice(i, i + 12).join('\n');
+    if (/font-family:/.test(text) && /color:/.test(text)) return { line: i + 1, text };
+  }
+  return fail('src/index.css has no `body { … }` rule authoring both font-family and color');
+})();
+const BODY_FONT_TOKEN = tokenRef(cssDecl(bodyRule, 'font-family', 'body'), 'body font-family', 'body');
+const BODY_COLOUR_TOKEN = tokenRef(cssDecl(bodyRule, 'color', 'body'), 'body colour', 'body');
+
+/** One numeral class as one measured pass saw it, with the box painted away. */
+const numeralPass = (cls, tag, theme) => {
+  const p = theme.probes[cls];
+  if (!p) fail(`${tag}: no ${cls} probe`);
+  if (probeRaw(p, 'backgroundColor', cls) !== 'rgba(0, 0, 0, 0)') fail(`${cls}: ${tag} probe paints a fill`);
+  if (probeRaw(p, 'boxShadow', cls) !== 'none') fail(`${cls}: ${tag} probe carries a box-shadow`);
+  if (probeRaw(p, 'borderTopWidth', cls) !== '0px') fail(`${cls}: ${tag} probe measures a border`);
+  if (probeRaw(p, 'padding', cls) !== '0px') fail(`${cls}: ${tag} probe measures padding`);
+  return {
+    tag,
+    innerWidth: theme.innerWidth,
+    displayCss: probeRaw(p, 'display', cls),
+    fontFamily: probeFamily(p, cls),
+    fontSizePx: probePx(p, 'fontSize', cls),
+    fontWeight: parseInt(probeRaw(p, 'fontWeight', cls), 10),
+    lineHeightPx: probePx(p, 'lineHeight', cls),
+    letterSpacingPx: lsPxOf(p, cls),
+    colour: probeSrgb(p, 'color', cls),
+  };
+};
+
+const PASS_VIEWS = [
+  ['light-desktop', LIGHT],
+  ['dark-desktop', DARK],
+  ['light-phone', LIGHT_PHONE],
+  ['dark-phone', DARK_PHONE],
+];
+const passTheme = (tag) => {
+  const found = PASS_VIEWS.find(([name]) => name === tag);
+  if (!found) fail(`no measured pass named ${tag}`);
+  return found[1];
+};
+// The root size and the inherited multiplier, read straight off the `body` probe:
+// `body` authors neither a font size nor a line-height, so it is the non-circular
+// source for every `em` and `vw` in this block — the probe inherits 16px and the
+// preflight 1.5 the whole page resolves against, plus body's own family and ink.
+// Its box is not checked: `body` is the inheritance source for these rows, not one
+// of them, and the fill a numeral must not carry is authored on `body` itself
+// (`src/index.css:306`), which a probe element never inherits.
+const rootFontSizePx = probePx(LIGHT_PHONE.probes['body'], 'fontSize', 'body');
+const inheritedHeightRatio = probePx(LIGHT_PHONE.probes['body'], 'lineHeight', 'body') / rootFontSizePx;
+for (const [tag, theme] of PASS_VIEWS) {
+  if (probePx(theme.probes['body'], 'fontSize', `body ${tag}`) !== rootFontSizePx) {
+    fail(`body font size moves in ${tag}`);
+  }
+}
+
+const numerals = NUMERAL_CLASSES.map((cls) => {
+  const rest = cssRule(new RegExp(`^\\${cls} \\{$`), cls);
+  const props = ruleProps(rest, cls);
+  for (const [prop] of props) {
+    if (!NUMERAL_REST_PROPS[cls].includes(prop)) {
+      fail(`${cls}: the rest rule sets \`${prop}\` (src/index.css:${rest.line}); AppNumeralSpec cannot port it`);
+    }
+  }
+  const decl = new Map(props);
+  const authored = (prop) => (decl.has(prop) ? collapse(decl.get(prop)) : null);
+
+  const rows = {};
+  for (const [tag, theme] of PASS_VIEWS) rows[tag] = numeralPass(cls, tag, theme);
+  const lp = rows['light-phone'];
+  const dp = rows['dark-phone'];
+
+  // Brightness moves the colour and nothing else; the viewport moves only what a
+  // clamp or a min resolves against it, which the line-height ratio below proves.
+  for (const [what, desktop, phone] of [
+    ['light', rows['light-desktop'], lp],
+    ['dark', rows['dark-desktop'], dp],
+  ]) {
+    for (const field of ['displayCss', 'fontFamily', 'fontWeight']) {
+      if (desktop[field] !== phone[field]) {
+        fail(`${cls}: ${what}-phone ${field} ${phone[field]} != ${what}-desktop ${desktop[field]}`);
+      }
+    }
+    if (Math.abs(desktop.lineHeightPx / desktop.fontSizePx - phone.lineHeightPx / phone.fontSizePx) > 1e-12) {
+      fail(`${cls}: ${what} line-height ratio differs between the two viewports`);
+    }
+    if (desktop.colour.hex !== phone.colour.hex || desktop.colour.alpha !== phone.colour.alpha) {
+      fail(`${cls}: ${what} colour differs between the two viewports`);
+    }
+  }
+
+  // ---- font size: one authored law, four measured outcomes.
+  const sizeRaw = authored('font-size');
+  let supFontSizeEm = null;
+  let heroWidthFraction = null;
+  if (sizeRaw === null) {
+    for (const [tag, p] of Object.entries(rows)) {
+      if (p.fontSizePx !== rootFontSizePx) {
+        fail(`${cls}: authors no font-size but measured ${p.fontSizePx}px in ${tag}, not the body ${rootFontSizePx}px`);
+      }
+    }
+  } else if (/^var\(--text-[a-z-]+\)$/.test(sizeRaw)) {
+    const name = tokenRef(sizeRaw, `${cls} font-size`, cls);
+    for (const [tag, p] of Object.entries(rows)) {
+      const theme = passTheme(tag);
+      const token = theme.root[name];
+      if (!token || !/^clamp\(/.test(token.raw)) fail(`${cls}: ${name} is not a measured clamp token in ${tag}`);
+      const want = clampAt(token.raw, p.innerWidth, cls);
+      if (want !== p.fontSizePx) {
+        fail(
+          `${cls}: ${name} resolves to ${want}px at ${tag} (${p.innerWidth}px) but the probe measured ${p.fontSizePx}px`,
+        );
+      }
+    }
+  } else if (/^clamp\(/.test(sizeRaw)) {
+    for (const [tag, p] of Object.entries(rows)) {
+      const want = clampAt(sizeRaw, p.innerWidth, cls);
+      if (want !== p.fontSizePx) {
+        fail(`${cls}: \`${sizeRaw}\` resolves to ${want}px at ${tag} but the probe measured ${p.fontSizePx}px`);
+      }
+    }
+  } else if (/^min\(\s*var\(--text-[a-z-]+\)\s*,\s*[\d.]+cqi\s*\)$/.test(sizeRaw)) {
+    const m = /^min\(\s*(var\(--text-[a-z-]+\))\s*,\s*([\d.]+)cqi\s*\)$/.exec(sizeRaw);
+    const name = tokenRef(m[1], `${cls} font-size`, cls);
+    heroWidthFraction = parseFloat(m[2]) / 100;
+    // With no eligible container — which is a detached probe — CSS resolves `cqi`
+    // against the small viewport, so the min is checkable at both measured widths.
+    // The port gets the same law with the `.hero-face` box handed to it at paint time.
+    for (const [tag, p] of Object.entries(rows)) {
+      const theme = passTheme(tag);
+      const token = theme.root[name];
+      if (!token || !/^clamp\(/.test(token.raw)) fail(`${cls}: ${name} is not a measured clamp token in ${tag}`);
+      const want = Math.min(clampAt(token.raw, p.innerWidth, cls), heroWidthFraction * p.innerWidth);
+      if (want !== p.fontSizePx) {
+        fail(`${cls}: \`${sizeRaw}\` resolves to ${want}px at ${tag} but the probe measured ${p.fontSizePx}px`);
+      }
+    }
+  } else if (/^[\d.]+em$/.test(sizeRaw)) {
+    supFontSizeEm = emOf(sizeRaw, cls, 'font-size');
+    const specified = supFontSizeEm * rootFontSizePx;
+    for (const [tag, p] of Object.entries(rows)) {
+      if (p.fontSizePx < specified) {
+        fail(`${cls}: ${tag} measured ${p.fontSizePx}px below the ${specified}px its own em authors`);
+      }
+      // The em law that DOES hold in the row is letter-spacing: Chrome resolves it
+      // against the specified size, so the probe names the specified font size even
+      // where its reported used size has been floored up. That is why the port takes
+      // the ratios and resolves them against the parent numeral, not this row.
+      const wantLs = emOf(authored('letter-spacing'), cls, 'letter-spacing') * specified;
+      if (Math.abs(p.letterSpacingPx - wantLs) > 1e-9) {
+        fail(`${cls}: ${tag} letter-spacing ${p.letterSpacingPx}px != ${wantLs}px from the authored ems`);
+      }
+    }
+  } else {
+    fail(`${cls}: unportable authored font-size \`${sizeRaw}\` (src/index.css:${rest.line})`);
+  }
+
+  // ---- line-height: an authored unitless multiplier, or the inherited one every
+  // non-authoring row in the measurement resolves to (the body's own ratio).
+  const lhRaw = authored('line-height');
+  const heightRatio = lhRaw === null ? inheritedHeightRatio : ratioOf(lhRaw, `${cls} line-height`);
+  for (const [tag, p] of Object.entries(rows)) {
+    const want = heightRatio * p.fontSizePx;
+    if (Math.abs(p.lineHeightPx - want) > 1e-9) {
+      fail(`${cls}: ${tag} line-height ${p.lineHeightPx}px != ${heightRatio} × ${p.fontSizePx}px`);
+    }
+  }
+
+  // ---- letter-spacing, for every row whose own font size is the em basis.
+  const lsRaw = authored('letter-spacing');
+  const letterSpacingEm = lsRaw === null ? 0 : emOf(lsRaw, cls, 'letter-spacing');
+  if (supFontSizeEm === null) {
+    for (const [tag, p] of Object.entries(rows)) {
+      const want = letterSpacingEm * p.fontSizePx;
+      if (Math.abs(p.letterSpacingPx - want) > 1e-9) {
+        fail(`${cls}: ${tag} letter-spacing ${p.letterSpacingPx}px != ${letterSpacingEm}em × ${p.fontSizePx}px`);
+      }
+    }
+  }
+
+  // ---- family and weight, both of which a row may only inherit from `body`.
+  const fontRaw = authored('font-family');
+  const fontToken = fontRaw === null ? BODY_FONT_TOKEN : tokenRef(fontRaw, `${cls} font-family`, cls);
+  for (const [tag, p] of Object.entries(rows)) {
+    const theme = passTheme(tag);
+    const token = theme.root[fontToken];
+    if (!token) fail(`${cls}: ${fontToken} is not a measured token in ${tag}`);
+    if (firstFamily(token.raw, `${tag} ${fontToken}`) !== p.fontFamily) {
+      fail(`${cls}: ${tag} probe family ${p.fontFamily} != first family of ${fontToken} (${token.raw})`);
+    }
+  }
+  const weightRaw = authored('font-weight');
+  const fontWeight = weightRaw === null ? 400 : parseInt(weightRaw, 10);
+  if (!(fontWeight % 100 === 0 && fontWeight >= 100 && fontWeight <= 900)) {
+    fail(`${cls}: unportable authored font-weight \`${weightRaw}\``);
+  }
+  for (const [tag, p] of Object.entries(rows)) {
+    if (p.fontWeight !== fontWeight) fail(`${cls}: ${tag} probe weight ${p.fontWeight} != authored ${fontWeight}`);
+  }
+
+  // ---- colour: the row's own `var(--token)`, or the body colour it inherits.
+  const colourRaw = authored('color');
+  const inheritsColor = colourRaw === null;
+  const colourToken = colourRaw === null ? BODY_COLOUR_TOKEN : tokenRef(colourRaw, `${cls} colour`, cls);
+  for (const [tag, p] of Object.entries(rows)) {
+    const theme = passTheme(tag);
+    const want = authoredColour(
+      colourRaw === null ? `var(${BODY_COLOUR_TOKEN})` : colourRaw,
+      theme,
+      tag,
+      `${cls} colour`,
+      cls,
+    );
+    if (p.colour.hex !== want.srgb.hex || p.colour.alpha !== want.srgb.alpha) {
+      fail(`${cls}: ${tag} probe colour ${p.colour.rgba} != ${colourToken} ${want.srgb.rgba}`);
+    }
+  }
+
+  // ---- the four metrics only the authored sheet shows a port.
+  const numericRaw = authored('font-variant-numeric');
+  if (numericRaw !== null && numericRaw !== 'tabular-nums') {
+    fail(`${cls}: font-variant-numeric \`${numericRaw}\` is not the tabular-nums the port knows`);
+  }
+  const wrapRaw = authored('overflow-wrap');
+  if (wrapRaw !== null && wrapRaw !== 'anywhere') fail(`${cls}: overflow-wrap \`${wrapRaw}\` is not \`anywhere\``);
+  const minWidthRaw = authored('min-width');
+  if (minWidthRaw !== null && !/^0(px)?$/.test(minWidthRaw)) fail(`${cls}: min-width \`${minWidthRaw}\` is not zero`);
+  const sup = {
+    verticalAlignEm: decl.has('vertical-align') ? emOf(authored('vertical-align'), cls, 'vertical-align') : null,
+    marginLeftEm: decl.has('margin-left') ? emOf(authored('margin-left'), cls, 'margin-left') : null,
+  };
+  if (cls === '.numeral-sup' && (sup.verticalAlignEm === null || sup.marginLeftEm === null)) {
+    fail(`${cls}: the sup row has to author both its lift and its gap`);
+  }
+  if (cls !== '.numeral-sup' && (sup.verticalAlignEm !== null || sup.marginLeftEm !== null)) {
+    fail(`${cls}: only the sup row may author vertical-align or margin-left`);
+  }
+
+  return {
+    cls,
+    restSrc: `src/index.css:${rest.line}`,
+    sizeRaw,
+    light: lp,
+    dark: dp,
+    fontFamily: lp.fontFamily,
+    displayCss: lp.displayCss,
+    fontSizeEm: supFontSizeEm,
+    heroWidthFraction,
+    letterSpacingEm,
+    heightRatio,
+    fontWeight,
+    tabularNums: numericRaw !== null,
+    overflowWrapAnywhere: wrapRaw !== null,
+    minWidthZero: minWidthRaw !== null,
+    inheritsColor,
+    colourToken,
+    verticalAlignEm: sup.verticalAlignEm,
+    marginLeftEm: sup.marginLeftEm,
+  };
+});
+
+const heroRow = numerals.find((r) => r.cls === '.numeral-hero');
+const supRow = numerals.find((r) => r.cls === '.numeral-sup');
+if (!heroRow.heroWidthFraction || !supRow.fontSizeEm) fail('the hero fraction and the sup ems are item 7 constants');
+
+/** One emitted row. The metrics are the phone pass; the colour is the brightness. */
+const numeralExpr = (r, passName) =>
+  [
+    `      cssClass: ${dartStr(r.cls)},`,
+    `      authoredSrc: ${dartStr(r.restSrc)},`,
+    `      displayCss: ${dartStr(r.displayCss)},`,
+    `      fontFamily: ${dartStr(r.fontFamily)},`,
+    `      fontSizePx: ${fmt(r[passName].fontSizePx)},`,
+    `      fontWeight: ${r.fontWeight},`,
+    `      heightRatio: ${fmt(r.heightRatio)},`,
+    `      letterSpacingPx: ${fmt(r[passName].letterSpacingPx)},`,
+    `      letterSpacingEm: ${fmt(r.letterSpacingEm)},`,
+    `      tabularNums: ${r.tabularNums ? 'true' : 'false'},`,
+    `      overflowWrapAnywhere: ${r.overflowWrapAnywhere ? 'true' : 'false'},`,
+    `      minWidthZero: ${r.minWidthZero ? 'true' : 'false'},`,
+    `      textColor: ${dartSurfaceColour(r[passName].colour)},`,
+    `      inheritsColor: ${r.inheritsColor ? 'true' : 'false'},`,
+    `      authoredColorToken: ${r.inheritsColor ? 'null' : dartStr(r.colourToken)},`,
+  ].join('\n');
+
+banner();
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  '/// One numeral/money type class of `src/index.css`, measured on a detached',
+  '/// element at the phone pass and re-derived from the rule that authored it.',
+  '///',
+  '/// These classes carry a font size and nothing but a font size: they paint no',
+  '/// fill, no border, no shadow and no padding, and every row proves it — the',
+  '/// probe measured a transparent box on all four passes. `displayCss` is the',
+  "/// detached <div>'s own default, not a design fact: a numeral is a `<p>`",
+  '/// at its call sites and `.numeral-sup` an inline `<span>`.',
+  '///',
+  '/// `letterSpacingEm` is the authored `em` multiplier and `letterSpacingPx` the',
+  '/// phone resolution of it, which is why they agree only at 38px or 30px: CSS',
+  "/// resolves tracking against the element's used font size, so a row painted at",
+  '/// another size has to re-derive it — see [AppNumeralSpec.styleAt].',
+  'class AppNumeralSpec {',
+  '  const AppNumeralSpec({',
+  '    required this.cssClass,',
+  '    required this.authoredSrc,',
+  '    required this.displayCss,',
+  '    required this.fontFamily,',
+  '    required this.fontSizePx,',
+  '    required this.fontWeight,',
+  '    required this.heightRatio,',
+  '    required this.letterSpacingPx,',
+  '    required this.letterSpacingEm,',
+  '    required this.tabularNums,',
+  '    required this.overflowWrapAnywhere,',
+  '    required this.minWidthZero,',
+  '    required this.textColor,',
+  '    required this.inheritsColor,',
+  '    required this.authoredColorToken,',
+  '  });',
+  '',
+  '  final String cssClass;',
+  '',
+  '  /// Where the rule that authored this row lives.',
+  '  final String authoredSrc;',
+  '',
+  "  /// The probe element's computed `display` — `block` on a detached `<div>`, so",
+  '  /// it says nothing about the call site. Carried as data, never used.',
+  '  final String displayCss;',
+  '',
+  '  /// The first family of the measured stack. It is a name, not a promise: the',
+  '  /// glyphs only land when the UI_SPEC §3.1 font bundle arrives, and until then',
+  '  /// Flutter falls back to the system font.',
+  '  final String fontFamily;',
+  '  final double fontSizePx;',
+  '  final int fontWeight;',
+  '',
+  '  /// The authored unitless line-height, or the ratio `body` measured (`1.5`) for',
+  '  /// the rows that author none — every one of them resolves to it, which the',
+  '  /// generator proves per pass. Flutter `TextStyle.height` takes the multiplier',
+  '  /// as-is, so a resized row keeps its proportion.',
+  '  final double heightRatio;',
+  '',
+  '  /// `letterSpacing` at the phone pass, and the `em` multiplier that produced it',
+  '  /// (`0` where the row authors none and the probe measured `normal`).',
+  '  final double letterSpacingPx;',
+  '  final double letterSpacingEm;',
+  '',
+  '  /// `font-variant-numeric: tabular-nums`, which Flutter answers with',
+  '  /// [FontFeature.tabularFigures] — a font feature, so it is only visible once',
+  '  /// the bundled fonts are the ones rendering.',
+  '  final bool tabularNums;',
+  '',
+  '  /// `overflow-wrap: anywhere`, which this Flutter SDK has no engine knob for',
+  '  /// (`TextStyle` and `Text` carry neither `overflowWrap` nor `WordBreak`). The',
+  '  /// flag is the authored fact; [AppNumeral] records the deviation it forces.',
+  '  final bool overflowWrapAnywhere;',
+  '',
+  '  /// `min-width: 0` — a flex-item hint that lets a long figure shrink below its',
+  "  /// content width. Flutter gives a `Text` its parent's max width already, so",
+  '  /// there is nothing to port; the flag records why not.',
+  '  final bool minWidthZero;',
+  '',
+  '  final Color textColor;',
+  '',
+  "  /// True when the row's colour is `body`'s, not its own — the numeral faces",
+  '  /// never author a colour, so what they measured is the theme’s ink, and a call',
+  '  /// site’s own `text-*` utility overrides it exactly as it does on the web.',
+  '  final bool inheritsColor;',
+  '  final String? authoredColorToken;',
+  '',
+  '  FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];',
+  '',
+  '  List<FontFeature> get fontFeatures => tabularNums',
+  '      ? const <FontFeature>[FontFeature.tabularFigures()]',
+  '      : const <FontFeature>[];',
+  '',
+  '  /// The row as the phone measured it.',
+  '  TextStyle get textStyle => styleAt(fontSizePx);',
+  '',
+  '  /// The row at another font size — the hero’s `min()` and the sup’s `em` both',
+  '  /// need this, because CSS resolves tracking against the used font size. The',
+  '  /// line-height is the authored multiplier, so it travels with the size —',
+  '  /// except for an inline span, which [AppNumerals.supAt] asks for without it:',
+  '  /// a CSS line-height on an inline span never grows its parent’s line box,',
+  '  /// while Flutter `TextStyle.height` does.',
+  '  TextStyle styleAt(double sizePx, {bool includeLineHeight = true}) => TextStyle(',
+  '    fontFamily: fontFamily,',
+  '    color: textColor,',
+  '    fontSize: sizePx,',
+  '    fontWeight: weight,',
+  '    height: includeLineHeight ? heightRatio : null,',
+  '    letterSpacing: letterSpacingEm * sizePx,',
+  '    fontFeatures: fontFeatures,',
+  '  );',
+  '}',
+  '',
+  '/// What [AppNumerals.supAt] hands back: the sup’s own style plus the two',
+  '/// offsets the authored `em` values resolve to at that size.',
+  'class AppNumeralSupBox {',
+  '  const AppNumeralSupBox({',
+  '    required this.style,',
+  '    required this.liftPx,',
+  '    required this.gapPx,',
+  '  });',
+  '',
+  '  final TextStyle style;',
+  '',
+  '  /// `vertical-align: 0.62em`, upward — the span sits above the parent baseline.',
+  '  final double liftPx;',
+  '',
+  '  /// `margin-left: 0.28em` of its own font size.',
+  '  final double gapPx;',
+  '}',
+  '',
+  '/// The numeral/money rows, keyed by CSS class — one map per measured brightness',
+  '/// pass, with the metrics taken from that pass’s phone probe (UI_SPEC §3: the',
+  '/// port uses the phone column).',
+  'abstract final class AppNumerals {',
+  '  /// The root font size the measurement resolved against: `body` authors no',
+  '  /// font size, so its probe is the 16px every `em` and `vw` in this block',
+  '  /// inherits from. A `.money` overlay with no size from its caller is this big.',
+  `  static const double rootFontSizePx = ${fmt(rootFontSizePx)};`,
+  '',
+  '  /// `.numeral-hero` authors `font-size: min(var(--text-num), 15cqi)`',
+  '  /// (' + heroRow.restSrc + ') — the fraction of its `.hero-face` container the figure',
+  '  /// takes when the card is narrower than the numeral’s own size.',
+  `  static const double heroWidthFraction = ${fmt(heroRow.heroWidthFraction)};`,
+  '',
+  '  /// `.numeral-sup` (' + supRow.restSrc + ') authors all four of its metrics in `em`.',
+  '  /// Its standalone probe row is unusable as a call-site value: Chrome floors a',
+  '  /// tiny used font size up to 6px while `letter-spacing` keeps resolving from',
+  '  /// the specified `0.28 × 16px`, which is what the row’s measured `0.1792px`',
+  '  /// says. The hero is a 38px parent, well clear of any floor, so the port',
+  '  /// resolves these ratios against the numeral they sit in.',
+  `  static const double supFontSizeEm = ${fmt(supRow.fontSizeEm)};`,
+  `  static const double supLetterSpacingEm = ${fmt(supRow.letterSpacingEm)};`,
+  `  static const double supVerticalAlignEm = ${fmt(supRow.verticalAlignEm)};`,
+  `  static const double supMarginLeftEm = ${fmt(supRow.marginLeftEm)};`,
+  '',
+);
+for (const [passName, themeTag] of [
+  ['light', 'light-phone'],
+  ['dark', 'dark-phone'],
+]) {
+  L.push(
+    `  /// ${passName} pass (UI_SPEC §3/§6, \`${themeTag}\`).`,
+    `  static const Map<String, AppNumeralSpec> ${passName} =`,
+    '      <String, AppNumeralSpec>{',
+  );
+  for (const r of numerals) {
+    L.push(`    ${dartStr(r.cls)}: AppNumeralSpec(`, numeralExpr(r, passName), '    ),');
+  }
+  L.push('  };', '');
+}
+L.push(
+  '  /// The measured row for a class. An unknown class is a programming error,',
+  '  /// not a fallback.',
+  '  static AppNumeralSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppNumeralSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppNumeralSpec? spec = table[cssClass];',
+  "    if (spec == null) throw ArgumentError('$cssClass is not a numeral class');",
+  '    return spec;',
+  '  }',
+  '',
+  '  /// The `numeral numeral-hero` stack’s font size at the width its `.hero-face`',
+  "  /// container offers: `.numeral`'s own measured size, capped by",
+  '  /// [heroWidthFraction] of the container. An unbounded box keeps the numeral',
+  '  /// size, which is what CSS does when the query container is the viewport at',
+  '  /// the phone column — the probe this was checked against.',
+  '  static double heroFontSizePx(',
+  '    double containerInlineSizePx,',
+  '    Brightness brightness,',
+  '  ) {',
+  "    final double cap = resolve('.numeral', brightness).fontSizePx;",
+  '    final double cqi = heroWidthFraction * containerInlineSizePx;',
+  '    return cqi < cap ? cqi : cap;',
+  '  }',
+  '',
+  '  /// The `.numeral-sup` span as the hero composes it, at the parent numeral’s',
+  '  /// font size. `height` is dropped: CSS line-height on an inline span never',
+  "  /// grows the parent's line box, while Flutter `TextStyle.height` does, so the",
+  '  /// figure’s own height is the one that has to stand.',
+  '  static AppNumeralSupBox supAt(',
+  '    double parentFontSizePx,',
+  '    Brightness brightness,',
+  '  ) {',
+  "    final AppNumeralSpec sup = resolve('.numeral-sup', brightness);",
+  '    final double size = supFontSizeEm * parentFontSizePx;',
+  '    return AppNumeralSupBox(',
+  '      style: sup.styleAt(size, includeLineHeight: false),',
+  '      liftPx: supVerticalAlignEm * size,',
+  '      gapPx: supMarginLeftEm * size,',
+  '    );',
+  '  }',
+  '}',
+  '',
+);
+finish('app_numerals.dart');
+
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
   fs.writeFileSync(path.join(OUT_DIR, name), text, 'utf8');
@@ -6346,6 +6943,7 @@ console.log(
     `  §6 chips emitted:            ${pills.length} classes x 2 passes + the face chip  -> AppChips`,
     `  §6 segment rows emitted:     ${segment.rows.length} classes x 2 passes  -> AppSegments`,
     `  §6 bar classes emitted:      ${bars.length} classes x 2 passes  -> AppBars`,
+    `  numeral/money rows emitted:  ${numerals.length} classes x 2 passes  -> AppNumerals`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );
