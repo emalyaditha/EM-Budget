@@ -16,13 +16,16 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:em_budget/core/theme/app_controls.dart';
+import 'package:em_budget/core/theme/app_bars.dart';
+import 'package:em_budget/core/theme/app_chips.dart';
 import 'package:em_budget/core/theme/app_colors.dart';
+import 'package:em_budget/core/theme/app_controls.dart';
 import 'package:em_budget/core/theme/app_fields.dart';
 import 'package:em_budget/core/theme/app_icon_buttons.dart';
 import 'package:em_budget/core/theme/app_modals.dart';
 import 'package:em_budget/core/theme/app_navs.dart';
 import 'package:em_budget/core/theme/app_radii.dart';
+import 'package:em_budget/core/theme/app_segments.dart';
 import 'package:em_budget/core/theme/app_shadows.dart';
 import 'package:em_budget/core/theme/app_skeletons.dart';
 import 'package:em_budget/core/theme/app_spacing.dart';
@@ -6478,6 +6481,1378 @@ void main() {
           ),
           fill,
           reason: 'the fill does not move with the viewport',
+        );
+      }
+    });
+  });
+
+  group('UI_SPEC 6 chips', () {
+    /// The §6 chrome chip family `AppIconChip`, `AppPill`, `AppChipSelect`,
+    /// `AppDeltaChip` and their theme rows are generated from. `.pill-active`
+    /// is read through its `.pill.pill-active` composite probe — a bare
+    /// `.pill-active` element has the override without the geometry the app
+    /// composes it onto, which is exactly why the generator keyed the row to
+    /// the composite; the standalone probe is asserted against that below.
+    const List<String> chipClasses = <String>[
+      '.icon-chip',
+      '.pill',
+      '.pill-active',
+      '.chip-select',
+      '.delta-chip',
+      '.delta-up',
+      '.delta-down',
+    ];
+    const Map<String, String> chipProbeKey = <String, String>{
+      '.pill-active': '.pill.pill-active',
+    };
+    String probeKeyFor(String cls) => chipProbeKey[cls] ?? cls;
+    Map<String, dynamic> probesFor(Brightness brightness) =>
+        brightness == Brightness.light ? lightProbes : darkProbes;
+    Map<String, dynamic> rootFor(Brightness brightness) =>
+        brightness == Brightness.light ? light : dark;
+    Map<String, String> restDecls(String cls) =>
+        _cssDecls(cssLines, '$cls {', cls);
+    String srgbRgba(Map<String, dynamic> root, String token) =>
+        (_token(root, token)['srgb']! as Map<String, dynamic>)['rgba']!
+            as String;
+
+    test('AppChips holds exactly the measured chip classes, per pass', () {
+      final List<String> expected = chipClasses.toList()..sort();
+      expect(AppChips.light.keys.toList()..sort(), expected);
+      expect(AppChips.dark.keys.toList()..sort(), expected);
+      expect(
+        AppChips.light.containsKey('.icon-chip-lg'),
+        isFalse,
+        reason: '.icon-chip-lg authors only a size override no element uses',
+      );
+    });
+
+    for (final String cls in chipClasses) {
+      for (final Brightness brightness in Brightness.values) {
+        final String pass = brightness == Brightness.light
+            ? 'light-desktop'
+            : 'dark-desktop';
+        test('$cls $pass matches its probe row', () {
+          final Map<String, dynamic> p = _probe(
+            probesFor(brightness),
+            probeKeyFor(cls),
+            pass,
+          );
+          final AppChipSpec spec = AppChips.resolve(cls, brightness);
+          expect(spec.cssClass, cls);
+          expect(spec.displayCss, _probeValue(p, 'display', cls));
+          expect(
+            spec.radiusPx,
+            _pxOf(_probeValue(p, 'borderRadius', cls), '$cls radius'),
+          );
+          expect(
+            spec.borderWidthPx,
+            _pxOf(_probeValue(p, 'borderTopWidth', cls), '$cls border width'),
+          );
+          expect(spec.borderColor, _probeColour(p, 'borderTopColor', cls));
+          expect(spec.fillColor, _probeColour(p, 'backgroundColor', cls));
+          expect(spec.textColor, _probeColour(p, 'color', cls));
+          expect(
+            spec.fontFamily,
+            _probeValue(
+              p,
+              'fontFamily',
+              cls,
+            ).split(',').first.replaceAll(RegExp("[\"']"), '').trim(),
+            reason: 'the first family of the measured stack, as everywhere',
+          );
+          expect(
+            spec.fontSizePx,
+            _pxOf(_probeValue(p, 'fontSize', cls), '$cls font-size'),
+          );
+          expect(spec.fontWeight, int.parse(_probeValue(p, 'fontWeight', cls)));
+          expect(
+            spec.lineHeightPx,
+            _pxOf(_probeValue(p, 'lineHeight', cls), '$cls line-height'),
+          );
+          final String spacing = _probeValue(p, 'letterSpacing', cls);
+          expect(
+            spec.letterSpacingPx,
+            spacing == 'normal' ? 0.0 : _pxOf(spacing, '$cls letter-spacing'),
+            reason: 'CSS prints `normal` where the used value is zero',
+          );
+          final List<double> pad = _probeValue(p, 'padding', cls)
+              .split(RegExp(r'\s+'))
+              .map((String s) => _pxOf(s, '$cls padding'))
+              .toList();
+          expect(spec.paddingVerticalPx, pad.first);
+          expect(
+            spec.paddingHorizontalPx,
+            pad.length > 1 ? pad[1] : pad.first,
+            reason: 'a one-value padding shorthand is symmetric',
+          );
+          expect(
+            _probeValue(p, 'boxShadow', cls),
+            'none',
+            reason:
+                'AppChipSpec carries no shadow field; no §6 chip authors one',
+          );
+          expect(
+            _probeValue(p, 'backgroundImage', cls),
+            'none',
+            reason:
+                'no §6 chip paints a gradient; the face chip is its own spec',
+          );
+        });
+      }
+    }
+
+    test('chip rows do not move on the phone', () {
+      const List<String> fields = <String>[
+        'display',
+        'fontFamily',
+        'fontSize',
+        'fontWeight',
+        'lineHeight',
+        'letterSpacing',
+        'padding',
+        'borderRadius',
+        'borderTopWidth',
+        'borderTopColor',
+        'backgroundColor',
+        'color',
+        'boxShadow',
+        'backgroundImage',
+        'backdropFilter',
+      ];
+      final Map<String, List<Map<String, dynamic>>> pairs =
+          <String, List<Map<String, dynamic>>>{
+            'light-phone': <Map<String, dynamic>>[
+              lightPhoneProbes,
+              lightProbes,
+            ],
+            'dark-phone': <Map<String, dynamic>>[darkPhoneProbes, darkProbes],
+          };
+      for (final String cls in chipClasses) {
+        for (final MapEntry<String, List<Map<String, dynamic>>> entry
+            in pairs.entries) {
+          final String phonePass = entry.key;
+          final String desktopPass = phonePass.replaceAll('-phone', '-desktop');
+          for (final String field in fields) {
+            expect(
+              _probeValue(
+                _probe(entry.value[0], probeKeyFor(cls), phonePass),
+                field,
+                cls,
+              ),
+              _probeValue(
+                _probe(entry.value[1], probeKeyFor(cls), desktopPass),
+                field,
+                cls,
+              ),
+              reason:
+                  '$phonePass moves $field for $cls and AppChips ports one '
+                  'row per brightness to paint it from',
+            );
+          }
+        }
+      }
+    });
+
+    for (final String cls in chipClasses) {
+      test(
+        '$cls gap and tabular-nums travel as the authored facts they are',
+        () {
+          final Map<String, String> decls = restDecls(cls);
+          final AppChipSpec lightSpec = AppChips.resolve(cls, Brightness.light);
+          final AppChipSpec darkSpec = AppChips.resolve(cls, Brightness.dark);
+          // Chrome computed `gap` is not in the detached-element field set, so
+          // the probe cannot confirm or deny it; the resting rule is the
+          // source, and both passes read the same authored number.
+          expect(
+            lightSpec.gapPx,
+            decls.containsKey('gap') ? _pxOf(decls['gap']!, '$cls gap') : null,
+            reason: '$cls gap comes from its own rule',
+          );
+          expect(darkSpec.gapPx, lightSpec.gapPx);
+          final String? fvN = decls['font-variant-numeric'];
+          expect(lightSpec.tabularNums, fvN == 'tabular-nums');
+          expect(darkSpec.tabularNums, lightSpec.tabularNums);
+        },
+      );
+    }
+
+    test('only .pill has press and disabled faces, read from its own rules', () {
+      for (final String cls in chipClasses) {
+        final bool authorsActive = cssLines.any(
+          (String l) => l.startsWith('$cls:active'),
+        );
+        final bool authorsDisabled = cssLines.any(
+          (String l) => l.startsWith('$cls:disabled'),
+        );
+        if (!authorsActive) {
+          expect(
+            AppChips.light[cls]!.pressFillColor,
+            isNull,
+            reason: '$cls authors no press state; the row must not invent one',
+          );
+        }
+        if (!authorsDisabled) {
+          expect(
+            AppChips.light[cls]!.disabledOpacity,
+            isNull,
+            reason: '$cls authors no disabled face',
+          );
+        }
+      }
+      final Map<String, String> act = _cssDecls(
+        cssLines,
+        '.pill:active {',
+        '.pill',
+      );
+      expect(
+        act.keys.toList()..sort(),
+        <String>['background'],
+        reason:
+            '.pill:active sets exactly what AppChipSpec can hold — a '
+            'transform or box move here would need fields the row does not have',
+      );
+      final RegExpMatch? varRef = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+          .firstMatch(act['background']!);
+      expect(
+        varRef,
+        isNotNull,
+        reason:
+            '.pill:active background "${act['background']}" is not a bare var',
+      );
+      final String token = varRef!.group(1)!;
+      for (final Brightness brightness in Brightness.values) {
+        final AppChipSpec spec = AppChips.resolve('.pill', brightness);
+        final Map<String, dynamic> root = rootFor(brightness);
+        expect(
+          spec.pressFillColor,
+          _measuredColour(root, token),
+          reason:
+              '.pill pressed fill is $token as the $brightness pass measures it',
+        );
+        expect(
+          spec.pressFillColor,
+          isNot(spec.fillColor),
+          reason: 'a pressed fill equal to the resting one is a no-op rule',
+        );
+      }
+      final Map<String, String> dis = _cssDecls(
+        cssLines,
+        '.pill:disabled,',
+        '.pill',
+      );
+      expect(dis.keys.toList()..sort(), <String>[
+        'cursor',
+        'opacity',
+      ], reason: 'the disabled rule is a fade and a pointer, nothing else');
+      expect(dis['cursor'], 'not-allowed');
+      expect(
+        AppChips.light['.pill']!.disabledOpacity,
+        double.parse(dis['opacity']!),
+      );
+      expect(
+        AppChips.dark['.pill']!.disabledOpacity,
+        AppChips.light['.pill']!.disabledOpacity,
+        reason: 'the rule is unlayered, so both passes compute the same fade',
+      );
+    });
+
+    test('.pill-active composes the pill box and swaps ink for accent-fg', () {
+      final Map<String, String> active = restDecls('.pill-active');
+      expect(active.keys.toList()..sort(), <String>[
+        'background',
+        'border-color',
+        'color',
+      ], reason: '.pill-active is an override of exactly these three');
+      final Map<String, String> tokensByProp = <String, String>{};
+      for (final MapEntry<String, String> entry in active.entries) {
+        final RegExpMatch? m = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+            .firstMatch(entry.value);
+        expect(
+          m,
+          isNotNull,
+          reason:
+              '.pill-active ${entry.key} "${entry.value}" is not a bare var; '
+              'the composite probe cross-check cannot substitute it',
+        );
+        tokensByProp[entry.key] = m!.group(1)!;
+      }
+      for (final Brightness brightness in Brightness.values) {
+        final Map<String, dynamic> root = rootFor(brightness);
+        final Map<String, dynamic> composite = _probe(
+          probesFor(brightness),
+          '.pill.pill-active',
+          brightness == Brightness.light ? 'light-desktop' : 'dark-desktop',
+        );
+        final AppChipSpec spec = AppChips.resolve('.pill-active', brightness);
+        expect(
+          spec.fillColor,
+          _measuredColour(root, tokensByProp['background']!),
+          reason: 'the composite probe measured the ink the rule names',
+        );
+        expect(
+          spec.fillColor,
+          _probeColour(composite, 'backgroundColor', '.pill-active'),
+        );
+        expect(spec.textColor, _measuredColour(root, tokensByProp['color']!));
+        expect(
+          spec.textColor,
+          _probeColour(composite, 'color', '.pill-active'),
+        );
+        expect(
+          spec.borderColor,
+          _measuredColour(root, tokensByProp['border-color']!),
+        );
+        expect(
+          spec.borderWidthPx,
+          _pxOf(
+            _probeValue(composite, 'borderTopWidth', '.pill-active'),
+            '.pill-active border width',
+          ),
+        );
+        expect(
+          spec.radiusPx,
+          _pxOf(
+            _probeValue(composite, 'borderRadius', '.pill-active'),
+            '.pill-active radius',
+          ),
+        );
+        // The composite is a `.pill` carrying the override, so the box the app
+        // paints is the pill’s own: the row must agree with the `.pill` row on
+        // everything a color-only override cannot move.
+        final AppChipSpec pill = AppChips.resolve('.pill', brightness);
+        expect(spec.displayCss, pill.displayCss);
+        expect(spec.paddingVerticalPx, pill.paddingVerticalPx);
+        expect(spec.paddingHorizontalPx, pill.paddingHorizontalPx);
+        expect(spec.fontSizePx, pill.fontSizePx);
+        expect(spec.fontWeight, pill.fontWeight);
+        expect(spec.lineHeightPx, pill.lineHeightPx);
+      }
+      // …and the standalone probe of the same class proves why the composite
+      // is the honest key: without `.pill` the element has no padding.
+      final Map<String, dynamic> bare = _probe(
+        lightProbes,
+        '.pill-active',
+        'light-desktop',
+      );
+      expect(
+        _probeValue(bare, 'padding', '.pill-active'),
+        isNot(
+          _probeValue(
+            _probe(lightProbes, '.pill', 'light-desktop'),
+            'padding',
+            '.pill',
+          ),
+        ),
+        reason:
+            'a bare .pill-active measured no pill geometry — that came '
+            'from the class it rides on',
+      );
+    });
+
+    test('chip clocks are the authored single durations', () {
+      for (final String cls in chipClasses) {
+        final RegExpMatch? tRaw = RegExp(r'transition:\s*([^;]+);')
+            .firstMatch(_cssRuleText(cssLines, '$cls {', cls));
+        final AppChipSpec lightSpec = AppChips.resolve(cls, Brightness.light);
+        if (tRaw == null) {
+          expect(
+            lightSpec.transitionMs,
+            isNull,
+            reason: '$cls transitions nothing; the row must not ease a snap',
+          );
+          expect(lightSpec.transitionProps, isNull);
+          expect(lightSpec.easeX1, isNull);
+          continue;
+        }
+        final List<String> items = tRaw
+            .group(1)!
+            .trim()
+            .split(',')
+            .map((String s) => s.trim())
+            .where((String s) => s.isNotEmpty)
+            .toList();
+        final List<String> props = <String>[];
+        final Set<String> durTokens = <String>{};
+        final Set<String> easeTokens = <String>{};
+        for (final String item in items) {
+          final List<String> parts = item
+              .split(RegExp(r'\s+'))
+              .where((String s) => s.isNotEmpty)
+              .toList();
+          expect(
+            parts,
+            hasLength(3),
+            reason: '"$item" is not `property var(--dur) var(--ease)`',
+          );
+          props.add(parts[0]);
+          final RegExpMatch? d = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+              .firstMatch(parts[1]);
+          final RegExpMatch? e = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+              .firstMatch(parts[2]);
+          expect(d, isNotNull, reason: '${parts[1]} is not a bare token');
+          expect(e, isNotNull, reason: '${parts[2]} is not a bare token');
+          durTokens.add(d!.group(1)!);
+          easeTokens.add(e!.group(1)!);
+        }
+        expect(durTokens, hasLength(1), reason: 'one box runs one clock');
+        expect(easeTokens, hasLength(1), reason: 'one box runs one curve');
+        final String durToken = durTokens.single;
+        final String easeToken = easeTokens.single;
+        expect(
+          lightSpec.transitionProps,
+          props.join(', '),
+          reason: 'the row carries the authored property list, in order',
+        );
+        for (final Brightness brightness in Brightness.values) {
+          final Map<String, dynamic> root = rootFor(brightness);
+          final AppChipSpec spec = AppChips.resolve(cls, brightness);
+          final Duration ms = _duration(_raw(root, durToken));
+          expect(
+            spec.transitionMs,
+            ms.inMilliseconds,
+            reason: '$cls transitions on $durToken as the pass measures it',
+          );
+          expect(
+            spec.pressDuration,
+            ms,
+            reason: 'the getter is the measured milliseconds, unchanged',
+          );
+          final Cubic authored = _cubic(_raw(root, easeToken));
+          expect(
+            <double>[spec.easeX1!, spec.easeY1!, spec.easeX2!, spec.easeY2!],
+            <double>[authored.a, authored.b, authored.c, authored.d],
+            reason: '$cls runs on $easeToken as the pass measures it',
+          );
+          expect(
+            AppTokens.durationsByToken[durToken],
+            ms,
+            reason: 'the chip row and the §4 token table are one measurement',
+          );
+          final Cubic tableCurve = AppTokens.curvesByToken[easeToken]! as Cubic;
+          expect(
+            <double>[tableCurve.a, tableCurve.b, tableCurve.c, tableCurve.d],
+            <double>[spec.easeX1!, spec.easeY1!, spec.easeX2!, spec.easeY2!],
+          );
+        }
+      }
+    });
+
+    test('chips blur only where the probe saw a blur', () {
+      for (final String cls in chipClasses) {
+        for (final Brightness brightness in Brightness.values) {
+          final Map<String, dynamic> p = _probe(
+            probesFor(brightness),
+            probeKeyFor(cls),
+            brightness == Brightness.light ? 'light-desktop' : 'dark-desktop',
+          );
+          final AppChipSpec spec = AppChips.resolve(cls, brightness);
+          final String raw = _probeValue(p, 'backdropFilter', cls);
+          if (raw == 'none') {
+            expect(spec.blurPx, isNull, reason: '$cls measured no backdrop');
+            expect(spec.blurSaturate, isNull);
+            expect(spec.blurSigmaPx, isNull);
+          } else {
+            final RegExpMatch? m = RegExp(r'^blur\(([\d.]+)px\)$')
+                .firstMatch(raw);
+            expect(
+              m,
+              isNotNull,
+              reason: '$cls backdrop "$raw" is not a lone blur()',
+            );
+            expect(spec.blurPx, double.parse(m!.group(1)!));
+            expect(
+              spec.blurSaturate,
+              isNull,
+              reason: 'no saturate() was measured for $cls',
+            );
+            expect(
+              spec.blurSigmaPx,
+              spec.blurPx! / 2,
+              reason: 'CSS blur px → Flutter sigma (UI_SPEC D-U8)',
+            );
+          }
+        }
+      }
+    });
+
+    test('.icon-chip is a 40px square; .icon-chip-lg ports nowhere', () {
+      final Map<String, String> decls = restDecls('.icon-chip');
+      expect(decls['width'], '40px');
+      expect(decls['height'], '40px');
+      for (final Brightness brightness in Brightness.values) {
+        final AppChipSpec spec = AppChips.resolve('.icon-chip', brightness);
+        expect(
+          spec.sizePx,
+          _pxOf(decls['width']!, '.icon-chip width'),
+          reason: 'the square side is the authored width, height agrees',
+        );
+        expect(spec.sizePx, _pxOf(decls['height']!, '.icon-chip height'));
+      }
+      for (final String cls in chipClasses.where(
+        (String c) => c != '.icon-chip',
+      )) {
+        expect(
+          AppChips.light[cls]!.sizePx,
+          isNull,
+          reason: '$cls authors no square',
+        );
+      }
+      final Map<String, String> lg = _cssDecls(
+        cssLines,
+        '.icon-chip-lg {',
+        '.icon-chip-lg',
+      );
+      expect(
+        lg.keys.toList()..sort(),
+        <String>['height', 'width'],
+        reason:
+            'the skipped row is size-only, exactly as .card-sm was, and '
+            'no element under src/ carries the class (asserted at generation)',
+      );
+      expect(lg['width'], '44px');
+      expect(lg['height'], '44px');
+    });
+
+    test('the unported hover states are colour-only decoration', () {
+      // D-U1 drops :hover — a phone has no hover. Pinning the property sets
+      // here means a web that widens a hover rule into a box change is heard
+      // about, because the rule can no longer be dropped without losing it.
+      final Map<String, Map<String, String>> hovers =
+          <String, Map<String, String>>{
+            '.pill:hover': _cssDecls(cssLines, '.pill:hover {', '.pill'),
+            '.chip-select:hover': _cssDecls(
+              cssLines,
+              '.chip-select:hover {',
+              '.chip-select',
+            ),
+            '.pill-active:hover': _cssDecls(
+              cssLines,
+              '.pill-active:hover {',
+              '.pill-active',
+            ),
+          };
+      for (final MapEntry<String, Map<String, String>> entry
+          in hovers.entries) {
+        expect(
+          entry.value.keys.toList()..sort(),
+          <String>['background', 'border-color'],
+          reason:
+              '${entry.key} now sets something beyond paint, and the port '
+              'silently drops hover',
+        );
+      }
+    });
+
+    test(
+      'AppFaceChips is the probe box, the token gradient and the ::after ring',
+      () {
+        const String cls = '.card-face-chip';
+        final Map<String, String> rest = restDecls(cls);
+        expect(rest.keys.toList()..sort(), <String>[
+          'background',
+          'border-radius',
+          'height',
+          'position',
+          'width',
+        ]);
+        expect(rest['position'], 'relative');
+        final AppFaceChipSpec spec = AppFaceChips.spec;
+        expect(spec.cssClass, cls);
+        expect(spec.widthPx, _pxOf(rest['width']!, '$cls width'));
+        expect(spec.heightPx, _pxOf(rest['height']!, '$cls height'));
+        expect(spec.radiusPx, _pxOf(rest['border-radius']!, '$cls radius'));
+        final RegExpMatch? grad = RegExp(
+          r'^linear-gradient\(([\d.]+)deg, var\((--[a-z0-9-]+)\) ([\d.]+)%, '
+          r'var\((--[a-z0-9-]+)\) ([\d.]+)%\)$',
+        ).firstMatch(rest['background']!);
+        expect(
+          grad,
+          isNotNull,
+          reason:
+              '.card-face-chip background "${rest['background']}" is not the '
+              'authored two-token 0%/100% gradient',
+        );
+        final Map<String, String> after = _cssDecls(
+          cssLines,
+          '.card-face-chip::after {',
+          cls,
+        );
+        expect(
+          after.keys.toList()..sort(),
+          <String>['border', 'border-radius', 'content', 'inset', 'position'],
+          reason:
+              'the ring is a pseudo-element: absolute, inset, framed, round',
+        );
+        expect(after['position'], 'absolute');
+        expect(after['content'], "''");
+        expect(spec.ringInsetPx, _pxOf(after['inset']!, '$cls ring inset'));
+        final RegExpMatch? ring = RegExp(r'^([\d.]+)px solid (rgba\([^)]*\))$')
+            .firstMatch(after['border']!);
+        expect(ring, isNotNull, reason: 'ring border "${after['border']}"');
+        expect(spec.ringBorderWidthPx, double.parse(ring!.group(1)!));
+        expect(spec.ringColor, _parseRgba(ring.group(2)!));
+        expect(
+          spec.ringRadiusPx,
+          _pxOf(after['border-radius']!, '$cls ring radius'),
+        );
+        // Both passes measured the same gold on the same box, which is what
+        // makes one spec (not a per-brightness table) the honest port.
+        final Map<String, dynamic> lp = _probe(
+          lightProbes,
+          cls,
+          'light-desktop',
+        );
+        final Map<String, dynamic> dp = _probe(darkProbes, cls, 'dark-desktop');
+        for (final Map<String, dynamic> pair in <Map<String, dynamic>>[
+          lp,
+          dp,
+        ]) {
+          expect(_probeValue(pair, 'position', cls), 'relative');
+          expect(_probeValue(pair, 'boxShadow', cls), 'none');
+          expect(_probeValue(pair, 'borderTopWidth', cls), '0px');
+          expect(
+            _probeColour(pair, 'backgroundColor', cls).a,
+            0,
+            reason:
+                'the gradient is the whole paint; the fill measured through',
+          );
+          expect(
+            spec.radiusPx,
+            _pxOf(_probeValue(pair, 'borderRadius', cls), '$cls probe radius'),
+          );
+          final Map<String, dynamic> root = identical(pair, lp) ? light : dark;
+          final _GradientExpectation authored = _gradientValue(
+            'linear-gradient(${grad!.group(1)}deg, '
+            '${srgbRgba(root, grad.group(2)!)} ${grad.group(3)}%, '
+            '${srgbRgba(root, grad.group(4)!)} ${grad.group(5)}%)',
+          );
+          final _GradientExpectation measured = _gradientValue(
+            _probeValue(pair, 'backgroundImage', cls),
+          );
+          expect(
+            authored.colors,
+            measured.colors,
+            reason: 'the named tokens substitute to what the probe measured',
+          );
+          expect(authored.stops, measured.stops);
+          final LinearGradient painted = spec.fillGradient;
+          final Alignment begin = painted.begin as Alignment;
+          final Alignment end = painted.end as Alignment;
+          expect(begin.x, closeTo(authored.begin.x, 1e-9));
+          expect(begin.y, closeTo(authored.begin.y, 1e-9));
+          expect(end.x, closeTo(authored.end.x, 1e-9));
+          expect(end.y, closeTo(authored.end.y, 1e-9));
+          expect(painted.colors, authored.colors);
+          expect(painted.stops, authored.stops);
+        }
+        expect(
+          _probeValue(lp, 'backgroundImage', cls),
+          _probeValue(dp, 'backgroundImage', cls),
+          reason:
+              'light and dark measured one gold — the single spec is honest',
+        );
+        expect(spec.borderRadius, BorderRadius.circular(spec.radiusPx));
+        expect(spec.ringBorderRadius, BorderRadius.circular(spec.ringRadiusPx));
+        expect(
+          spec.ringBorder,
+          Border.all(color: spec.ringColor, width: spec.ringBorderWidthPx),
+        );
+      },
+    );
+
+    test(
+      'the derived chip getters divide measured numbers, never invent one',
+      () {
+        for (final String cls in chipClasses) {
+          for (final Brightness brightness in Brightness.values) {
+            final AppChipSpec spec = AppChips.resolve(cls, brightness);
+            expect(spec.borderRadius, BorderRadius.circular(spec.radiusPx));
+            expect(
+              spec.border,
+              spec.borderWidthPx == 0
+                  ? isNull
+                  : Border.all(
+                      color: spec.borderColor,
+                      width: spec.borderWidthPx,
+                    ),
+            );
+            expect(
+              spec.padding,
+              EdgeInsets.symmetric(
+                vertical: spec.paddingVerticalPx,
+                horizontal: spec.paddingHorizontalPx,
+              ),
+            );
+            expect(
+              spec.weight,
+              FontWeight.values[spec.fontWeight ~/ 100 - 1],
+              reason: 'the 100-900 step indexes the Dart enum',
+            );
+            expect(
+              spec.lineHeightRatio,
+              spec.lineHeightPx! / spec.fontSizePx,
+              reason:
+                  'Flutter line-height is a multiple, CSS line-height a length',
+            );
+            expect(
+              spec.pressDuration,
+              spec.transitionMs == null
+                  ? isNull
+                  : Duration(milliseconds: spec.transitionMs!),
+            );
+            if (spec.easeX1 != null) {
+              final Cubic curve = spec.pressCurve! as Cubic;
+              expect(
+                <double>[curve.a, curve.b, curve.c, curve.d],
+                <double>[
+                  spec.easeX1!,
+                  spec.easeY1!,
+                  spec.easeX2!,
+                  spec.easeY2!,
+                ],
+              );
+            } else {
+              expect(spec.pressCurve, isNull);
+            }
+          }
+        }
+      },
+    );
+
+    test('an unknown chip class is an error, not a Material default', () {
+      for (final Brightness brightness in Brightness.values) {
+        expect(
+          () => AppChips.resolve('.chip-imaginary', brightness),
+          throwsArgumentError,
+        );
+      }
+    });
+  });
+
+  group('UI_SPEC 6 segmented', () {
+    const String track = '.segment';
+    const String item = '.segment-item';
+    const String selectedProbe = ".segment-item;aria-selected=true";
+    Map<String, String> segDecls(String cls) =>
+        _cssDecls(cssLines, '$cls {', cls);
+    Map<String, dynamic> probesFor(Brightness brightness) =>
+        brightness == Brightness.light ? lightProbes : darkProbes;
+    Map<String, dynamic> rootFor(Brightness brightness) =>
+        brightness == Brightness.light ? light : dark;
+    Map<String, dynamic> segSrgb(Map<String, dynamic> root, String token) =>
+        _token(root, token)['srgb']! as Map<String, dynamic>;
+
+    test('AppSegments holds the track and the item, per pass', () {
+      final List<String> expected = (<String>[item, track]).toList()..sort();
+      expect(AppSegments.light.keys.toList()..sort(), expected);
+      expect(AppSegments.dark.keys.toList()..sort(), expected);
+    });
+
+    for (final Brightness brightness in Brightness.values) {
+      final String pass = brightness == Brightness.light
+          ? 'light-desktop'
+          : 'dark-desktop';
+      test('the $pass track is a box with no type of its own', () {
+        final Map<String, dynamic> p = _probe(
+          probesFor(brightness),
+          track,
+          pass,
+        );
+        final AppSegmentSpec spec = AppSegments.resolve(track, brightness);
+        expect(spec.cssClass, track);
+        expect(spec.displayCss, _probeValue(p, 'display', track));
+        expect(
+          spec.radiusPx,
+          _pxOf(_probeValue(p, 'borderRadius', track), '$track radius'),
+        );
+        expect(
+          spec.borderWidthPx,
+          _pxOf(_probeValue(p, 'borderTopWidth', track), '$track border width'),
+        );
+        expect(spec.borderColor, _probeColour(p, 'borderTopColor', track));
+        final List<double> pad = _probeValue(p, 'padding', track)
+            .split(RegExp(r'\s+'))
+            .map((String s) => _pxOf(s, '$track padding'))
+            .toList();
+        expect(spec.paddingVerticalPx, pad.first);
+        expect(spec.paddingHorizontalPx, pad.length > 1 ? pad[1] : pad.first);
+        // The track rule authors no font and no ink: the probe’s 16px/24px is
+        // body inheritance, so the row ports nulls, not the measurement.
+        final Map<String, String> decls = segDecls(track);
+        for (final String prop in <String>[
+          'color',
+          'font-size',
+          'font-weight',
+          'line-height',
+        ]) {
+          expect(
+            decls.containsKey(prop),
+            isFalse,
+            reason:
+                '.segment now authors $prop; the null font fields would '
+                'be a lie and the row must grow instead',
+          );
+        }
+        expect(spec.textColor, isNull);
+        expect(spec.fontFamily, isNull);
+        expect(spec.fontSizePx, isNull);
+        expect(spec.fontWeight, isNull);
+        expect(spec.lineHeightPx, isNull);
+        expect(spec.letterSpacingPx, isNull);
+        // color-mix(in srgb, var(--surface-2) 72%, transparent): the token’s
+        // own rgb at the authored percentage.
+        final RegExpMatch? mix = RegExp(
+          r'^color-mix\(in srgb, var\((--[a-z0-9-]+)\) ([\d.]+)%, transparent\)$',
+        ).firstMatch(decls['background']!);
+        expect(
+          mix,
+          isNotNull,
+          reason:
+              '.segment background "${decls['background']}" is not the '
+              'authored color-mix over transparent',
+        );
+        final Map<String, dynamic> s = segSrgb(
+          rootFor(brightness),
+          mix!.group(1)!,
+        );
+        expect(
+          spec.fillColor,
+          Color.fromRGBO(
+            (s['r']! as num).round(),
+            (s['g']! as num).round(),
+            (s['b']! as num).round(),
+            double.parse(mix.group(2)!) / 100.0,
+          ),
+          reason:
+              'the mix is ${mix.group(1)} at ${mix.group(2)}%, and the '
+              'probe measured exactly that',
+        );
+        expect(spec.fillColor, _probeColour(p, 'backgroundColor', track));
+        expect(spec.gapPx, _pxOf(decls['gap']!, '$track gap'));
+        final String bf = _probeValue(p, 'backdropFilter', track);
+        final RegExpMatch? blur = RegExp(r'^blur\(([\d.]+)px\)$')
+            .firstMatch(bf);
+        expect(
+          blur,
+          isNotNull,
+          reason: '.segment backdrop "$bf" is not a lone blur()',
+        );
+        expect(
+          spec.blurPx,
+          double.parse(blur!.group(1)!),
+          reason: 'the track blurs exactly what the authored rule names',
+        );
+        expect(spec.blurSaturate, isNull);
+        expect(spec.blurSigmaPx, spec.blurPx! / 2);
+        expect(
+          _probeValue(p, 'boxShadow', track),
+          'none',
+          reason: 'AppSegmentSpec carries no resting shadow field',
+        );
+      });
+
+      test(
+        'the $pass item is a resting pill-box carrying the selected state',
+        () {
+          final Map<String, dynamic> p = _probe(
+            probesFor(brightness),
+            item,
+            pass,
+          );
+          final AppSegmentSpec spec = AppSegments.resolve(item, brightness);
+          expect(spec.cssClass, item);
+          expect(spec.displayCss, _probeValue(p, 'display', item));
+          expect(
+            spec.radiusPx,
+            _pxOf(_probeValue(p, 'borderRadius', item), '$item radius'),
+          );
+          expect(
+            spec.borderWidthPx,
+            _pxOf(_probeValue(p, 'borderTopWidth', item), '$item border width'),
+          );
+          expect(spec.borderColor, _probeColour(p, 'borderTopColor', item));
+          expect(spec.fillColor, _probeColour(p, 'backgroundColor', item));
+          expect(spec.textColor, _probeColour(p, 'color', item));
+          expect(
+            spec.fontFamily,
+            _probeValue(
+              p,
+              'fontFamily',
+              item,
+            ).split(',').first.replaceAll(RegExp("[\"']"), '').trim(),
+          );
+          expect(
+            spec.fontSizePx,
+            _pxOf(_probeValue(p, 'fontSize', item), '$item font-size'),
+          );
+          expect(
+            spec.fontWeight,
+            int.parse(_probeValue(p, 'fontWeight', item)),
+          );
+          expect(
+            spec.lineHeightPx,
+            _pxOf(_probeValue(p, 'lineHeight', item), '$item line-height'),
+          );
+          final String spacing = _probeValue(p, 'letterSpacing', item);
+          expect(
+            spec.letterSpacingPx,
+            spacing == 'normal' ? 0.0 : _pxOf(spacing, '$item letter-spacing'),
+          );
+          final List<double> pad = _probeValue(p, 'padding', item)
+              .split(RegExp(r'\s+'))
+              .map((String s) => _pxOf(s, '$item padding'))
+              .toList();
+          expect(spec.paddingVerticalPx, pad.first);
+          expect(spec.paddingHorizontalPx, pad.length > 1 ? pad[1] : pad.first);
+          expect(spec.gapPx, isNull, reason: '.segment-item authors no gap');
+          expect(
+            segDecls(item)['background'],
+            'transparent',
+            reason: 'the resting item is invisible until picked',
+          );
+          expect(spec.fillColor.a, 0);
+          expect(spec.blurPx, isNull);
+          expect(spec.blurSaturate, isNull);
+        },
+      );
+
+      test(
+        'the $pass selected state is one authored rule, probe-confirmed',
+        () {
+          final Map<String, String> decls = _cssDecls(
+            cssLines,
+            ".segment-item[aria-selected='true'],",
+            item,
+          );
+          expect(
+            decls.keys.toList()..sort(),
+            <String>['background', 'box-shadow', 'color'],
+            reason: 'the selected rule sets exactly what AppSegmentSpec holds',
+          );
+          final RegExpMatch? bg = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+              .firstMatch(decls['background']!);
+          final RegExpMatch? fg = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+              .firstMatch(decls['color']!);
+          final RegExpMatch? ring = RegExp(
+            r'^inset 0 0 0 ([\d.]+)px var\((--[a-z0-9-]+)\)$',
+          ).firstMatch(decls['box-shadow']!);
+          expect(
+            bg,
+            isNotNull,
+            reason: 'selected background must be a bare var',
+          );
+          expect(fg, isNotNull, reason: 'selected color must be a bare var');
+          expect(
+            ring,
+            isNotNull,
+            reason:
+                'selected box-shadow "${decls['box-shadow']}" must be a '
+                'single inset ring of one token',
+          );
+          final Map<String, dynamic> root = rootFor(brightness);
+          final AppSegmentSpec spec = AppSegments.resolve(item, brightness);
+          expect(spec.selectedFillColor, _measuredColour(root, bg!.group(1)!));
+          expect(spec.selectedTextColor, _measuredColour(root, fg!.group(1)!));
+          expect(
+            spec.selectedRingColor,
+            _measuredColour(root, ring!.group(2)!),
+          );
+          expect(
+            spec.selectedRingWidthPx,
+            double.parse(ring.group(1)!),
+            reason: 'the authored ring width is the number the regex unwrapped',
+          );
+          // The probe of the selected element confirms the authored rule, in
+          // the substituted rgba form Chrome printed it in.
+          final Map<String, dynamic> p = _probe(
+            probesFor(brightness),
+            selectedProbe,
+            pass,
+          );
+          final String bs = _probeValue(p, 'boxShadow', item);
+          final RegExpMatch? measured = RegExp(
+            r'^rgba\((\d+), (\d+), (\d+), ([\d.]+)\) '
+            r'0px 0px 0px ([\d.]+)px inset$',
+          ).firstMatch(bs);
+          expect(
+            measured,
+            isNotNull,
+            reason: 'the selected probe shadow "$bs" is not one inset ring',
+          );
+          expect(
+            Color.fromRGBO(
+              int.parse(measured!.group(1)!),
+              int.parse(measured.group(2)!),
+              int.parse(measured.group(3)!),
+              double.parse(measured.group(4)!),
+            ),
+            spec.selectedRingColor,
+            reason: 'the ring the probe saw is the token the rule names',
+          );
+          expect(double.parse(measured.group(5)!), spec.selectedRingWidthPx);
+          expect(
+            spec.selectedFillColor,
+            _probeColour(p, 'backgroundColor', item),
+          );
+          expect(spec.selectedTextColor, _probeColour(p, 'color', item));
+          // Selection paints over the same box: nothing about the item’s
+          // geometry moves when it is picked.
+          for (final String field in <String>[
+            'borderRadius',
+            'padding',
+            'fontSize',
+            'fontWeight',
+            'lineHeight',
+            'borderTopWidth',
+          ]) {
+            expect(
+              _probeValue(p, field, item),
+              _probeValue(
+                _probe(probesFor(brightness), item, pass),
+                field,
+                item,
+              ),
+              reason: 'the selected state must not move $field',
+            );
+          }
+          expect(
+            AppSegments.resolve(track, brightness).selectedFillColor,
+            isNull,
+            reason:
+                'the track selector cannot match an item; null, not inherited',
+          );
+          expect(
+            AppSegments.resolve(track, brightness).selectedRingColor,
+            isNull,
+          );
+        },
+      );
+    }
+
+    test('segment rows do not move on the phone', () {
+      const List<String> fields = <String>[
+        'display',
+        'fontFamily',
+        'fontSize',
+        'fontWeight',
+        'lineHeight',
+        'letterSpacing',
+        'padding',
+        'borderRadius',
+        'borderTopWidth',
+        'borderTopColor',
+        'backgroundColor',
+        'color',
+        'boxShadow',
+        'backdropFilter',
+      ];
+      final Map<String, List<Map<String, dynamic>>> pairs =
+          <String, List<Map<String, dynamic>>>{
+            'light-phone': <Map<String, dynamic>>[
+              lightPhoneProbes,
+              lightProbes,
+            ],
+            'dark-phone': <Map<String, dynamic>>[darkPhoneProbes, darkProbes],
+          };
+      for (final String cls in <String>[track, item, selectedProbe]) {
+        for (final MapEntry<String, List<Map<String, dynamic>>> entry
+            in pairs.entries) {
+          final String phonePass = entry.key;
+          final String desktopPass = phonePass.replaceAll('-phone', '-desktop');
+          for (final String field in fields) {
+            expect(
+              _probeValue(_probe(entry.value[0], cls, phonePass), field, cls),
+              _probeValue(_probe(entry.value[1], cls, desktopPass), field, cls),
+              reason: '$phonePass moves $field for $cls',
+            );
+          }
+        }
+      }
+    });
+
+    test('the item transitions its two paints on one authored clock', () {
+      final RegExpMatch? tRaw = RegExp(r'transition:\s*([^;]+);')
+          .firstMatch(_cssRuleText(cssLines, '$item {', item));
+      expect(tRaw, isNotNull);
+      final List<String> props = tRaw!
+          .group(1)!
+          .trim()
+          .split(',')
+          .map((String s) => s.trim())
+          .where((String s) => s.isNotEmpty)
+          .map((String s) => s.split(RegExp(r'\s+')).first)
+          .toList();
+      final AppSegmentSpec lightSpec = AppSegments.resolve(
+        item,
+        Brightness.light,
+      );
+      expect(lightSpec.transitionProps, props.join(', '));
+      for (final Brightness brightness in Brightness.values) {
+        final Map<String, dynamic> root = rootFor(brightness);
+        final AppSegmentSpec spec = AppSegments.resolve(item, brightness);
+        expect(
+          spec.transitionDuration,
+          _duration(_raw(root, '--dur-fast')),
+          reason: 'the item names --dur-fast; the row carries its measurement',
+        );
+        final Cubic authored = _cubic(_raw(root, '--ease-out'));
+        final Cubic painted = spec.transitionCurve! as Cubic;
+        expect(
+          <double>[painted.a, painted.b, painted.c, painted.d],
+          <double>[authored.a, authored.b, authored.c, authored.d],
+        );
+      }
+      final AppSegmentSpec trackSpec = AppSegments.resolve(
+        track,
+        Brightness.light,
+      );
+      expect(
+        trackSpec.transitionMs,
+        isNull,
+        reason: '.segment authors no transition; only the item animates',
+      );
+      expect(trackSpec.transitionCurve, isNull);
+      // .segment-item:hover lifts the ink to --ink — decoration dropped per
+      // D-U1, pinned here so a widened hover is heard about.
+      final Map<String, String> hover = _cssDecls(
+        cssLines,
+        '.segment-item:hover {',
+        item,
+      );
+      expect(
+        hover.keys.toList(),
+        <String>['color'],
+        reason: 'the hover grew beyond ink; dropping it would lose a box move',
+      );
+    });
+
+    test('segment getters divide measured numbers, never invent one', () {
+      for (final String cls in <String>[track, item]) {
+        for (final Brightness brightness in Brightness.values) {
+          final AppSegmentSpec spec = AppSegments.resolve(cls, brightness);
+          expect(spec.borderRadius, BorderRadius.circular(spec.radiusPx));
+          expect(
+            spec.border,
+            spec.borderWidthPx == 0
+                ? isNull
+                : Border.all(
+                    color: spec.borderColor,
+                    width: spec.borderWidthPx,
+                  ),
+          );
+          expect(
+            spec.padding,
+            EdgeInsets.symmetric(
+              vertical: spec.paddingVerticalPx,
+              horizontal: spec.paddingHorizontalPx,
+            ),
+          );
+          expect(
+            spec.weight,
+            spec.fontWeight == null
+                ? isNull
+                : FontWeight.values[spec.fontWeight! ~/ 100 - 1],
+          );
+        }
+      }
+    });
+
+    test('an unknown segment class is an error, not a Material default', () {
+      for (final Brightness brightness in Brightness.values) {
+        expect(
+          () => AppSegments.resolve('.segment-imaginary', brightness),
+          throwsArgumentError,
+        );
+      }
+    });
+  });
+
+  group('UI_SPEC 6 progress bars', () {
+    const List<String> pastelBars = <String>[
+      '.bar-pink',
+      '.bar-mint',
+      '.bar-yellow',
+      '.bar-lavender',
+      '.bar-blue',
+    ];
+    const String rainbow = '.rainbow-bar';
+    Map<String, String> barDecls(String cls) =>
+        _cssDecls(cssLines, '$cls {', cls);
+    Map<String, dynamic> probesFor(Brightness brightness) =>
+        brightness == Brightness.light ? lightProbes : darkProbes;
+    Map<String, dynamic> rootFor(Brightness brightness) =>
+        brightness == Brightness.light ? light : dark;
+
+    test('AppBars holds exactly the six measured bar classes, per pass', () {
+      final List<String> expected = (<String>[...pastelBars, rainbow]).toList()
+        ..sort();
+      expect(AppBars.light.keys.toList()..sort(), expected);
+      expect(AppBars.dark.keys.toList()..sort(), expected);
+    });
+
+    for (final String cls in pastelBars) {
+      for (final Brightness brightness in Brightness.values) {
+        final String pass = brightness == Brightness.light
+            ? 'light-desktop'
+            : 'dark-desktop';
+        test('$cls $pass is a token fill and nothing else', () {
+          final Map<String, String> decls = barDecls(cls);
+          expect(
+            decls.keys.toList(),
+            <String>['background'],
+            reason:
+                '$cls is a one-declaration rule; a second declaration '
+                'means the row needs a field for it',
+          );
+          final RegExpMatch? varRef = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+              .firstMatch(decls['background']!);
+          expect(
+            varRef,
+            isNotNull,
+            reason:
+                '$cls background "${decls['background']}" is not a bare var',
+          );
+          final Map<String, dynamic> p = _probe(
+            probesFor(brightness),
+            cls,
+            pass,
+          );
+          final AppBarSpec spec = AppBars.resolve(cls, brightness);
+          expect(spec.cssClass, cls);
+          expect(spec.displayCss, _probeValue(p, 'display', cls));
+          final String token = varRef!.group(1)!;
+          final Color measured = _measuredColour(rootFor(brightness), token);
+          expect(
+            spec.fillColor,
+            measured,
+            reason: '$cls fills $token as the $pass pass measures it',
+          );
+          expect(spec.fillColor, _probeColour(p, 'backgroundColor', cls));
+          expect(
+            spec.fillGradient,
+            isNull,
+            reason: 'the pastel probe painted no gradient',
+          );
+          expect(
+            spec.heightPx,
+            isNull,
+            reason: 'the class authors no height; it is the caller’s geometry',
+          );
+          expect(
+            spec.radiusPx,
+            _pxOf(_probeValue(p, 'borderRadius', cls), '$cls probe radius'),
+          );
+          expect(_probeValue(p, 'boxShadow', cls), 'none');
+          expect(_probeValue(p, 'backgroundImage', cls), 'none');
+          expect(_probeValue(p, 'backdropFilter', cls), 'none');
+        });
+      }
+    }
+
+    for (final Brightness brightness in Brightness.values) {
+      final String pass = brightness == Brightness.light
+          ? 'light-desktop'
+          : 'dark-desktop';
+      test('$pass $rainbow is the --rainbow token in its own round box', () {
+        final Map<String, String> decls = barDecls(rainbow);
+        expect(
+          decls.keys.toList()..sort(),
+          <String>['background', 'border-radius', 'height'],
+          reason: 'the rainbow brings its own box; anything more needs a field',
+        );
+        final RegExpMatch? varRef = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+            .firstMatch(decls['background']!);
+        expect(varRef, isNotNull);
+        final Map<String, dynamic> root = rootFor(brightness);
+        final String token = varRef!.group(1)!;
+        final _GradientExpectation authored = _gradient(root, token);
+        final Map<String, dynamic> p = _probe(
+          probesFor(brightness),
+          rainbow,
+          pass,
+        );
+        final _GradientExpectation measured = _gradientValue(
+          _probeValue(p, 'backgroundImage', rainbow),
+        );
+        expect(
+          authored.colors,
+          measured.colors,
+          reason: 'the named token substitutes to what the probe measured',
+        );
+        expect(authored.stops, measured.stops);
+        final AppBarSpec spec = AppBars.resolve(rainbow, brightness);
+        expect(spec.cssClass, rainbow);
+        expect(spec.displayCss, _probeValue(p, 'display', rainbow));
+        expect(spec.heightPx, _pxOf(decls['height']!, '$rainbow height'));
+        expect(
+          spec.radiusPx,
+          _pxOf(decls['border-radius']!, '$rainbow radius'),
+        );
+        expect(
+          spec.radiusPx,
+          _pxOf(
+            _probeValue(p, 'borderRadius', rainbow),
+            '$rainbow probe radius',
+          ),
+        );
+        expect(
+          spec.fillColor,
+          isNull,
+          reason: 'the bar’s paint is the gradient; the fill measured through',
+        );
+        expect(_probeColour(p, 'backgroundColor', rainbow).a, 0);
+        final LinearGradient painted = spec.fillGradient!;
+        final Alignment begin = painted.begin as Alignment;
+        final Alignment end = painted.end as Alignment;
+        expect(begin.x, closeTo(authored.begin.x, 1e-9));
+        expect(begin.y, closeTo(authored.begin.y, 1e-9));
+        expect(end.x, closeTo(authored.end.x, 1e-9));
+        expect(end.y, closeTo(authored.end.y, 1e-9));
+        expect(painted.colors, authored.colors);
+        expect(painted.stops, authored.stops);
+        expect(spec.borderRadius, BorderRadius.circular(spec.radiusPx));
+        expect(_probeValue(p, 'boxShadow', rainbow), 'none');
+      });
+    }
+
+    test('bar rows do not move on the phone', () {
+      const List<String> fields = <String>[
+        'display',
+        'borderRadius',
+        'backgroundColor',
+        'backgroundImage',
+        'boxShadow',
+      ];
+      final Map<String, List<Map<String, dynamic>>> pairs =
+          <String, List<Map<String, dynamic>>>{
+            'light-phone': <Map<String, dynamic>>[
+              lightPhoneProbes,
+              lightProbes,
+            ],
+            'dark-phone': <Map<String, dynamic>>[darkPhoneProbes, darkProbes],
+          };
+      for (final String cls in <String>[...pastelBars, rainbow]) {
+        for (final MapEntry<String, List<Map<String, dynamic>>> entry
+            in pairs.entries) {
+          final String phonePass = entry.key;
+          final String desktopPass = phonePass.replaceAll('-phone', '-desktop');
+          for (final String field in fields) {
+            expect(
+              _probeValue(_probe(entry.value[0], cls, phonePass), field, cls),
+              _probeValue(_probe(entry.value[1], cls, desktopPass), field, cls),
+              reason: '$phonePass moves $field for $cls',
+            );
+          }
+        }
+      }
+    });
+
+    test('an unknown bar class is an error, not a Material default', () {
+      for (final Brightness brightness in Brightness.values) {
+        expect(
+          () => AppBars.resolve('.bar-imaginary', brightness),
+          throwsArgumentError,
         );
       }
     });

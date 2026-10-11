@@ -4989,6 +4989,1312 @@ L.push(
   '',
 );
 finish('app_modals.dart');
+
+// ---------------------------------------------------------------- §6 chips (UI_SPEC pill family)
+// The §6 chrome chips: the icon chip, the pill (with its measured active
+// composite and its authored press/disable states), the chip-select, the delta
+// box and its two tint classes. Every resting value is a §6 probe of a detached
+// element carrying exactly that class; the states a probe cannot see are read
+// from the same pinned `src/index.css`, and where a class authors a colour as a
+// bare `var(--token)`, the probe and the token substituted through this pass's
+// measured `:root` must agree — generation fails otherwise.
+// `.icon-chip-lg` is deliberately absent: its only authored declaration is a
+// size override (`width: 44px; height: 44px`), and no element under `src/` ever
+// carries the class — the `.card-sm` precedent. Its rule and its probe are
+// asserted below so the absence stays a fact, not an oversight.
+const CHIP_CLASSES = ['.icon-chip', '.pill', '.pill-active', '.chip-select', '.delta-chip', '.delta-up', '.delta-down'];
+const CHIP_PROBE_KEY = { '.pill-active': '.pill.pill-active' };
+const chipProbe = (theme, cls) => {
+  const key = CHIP_PROBE_KEY[cls] || cls;
+  const p = theme.probes[key];
+  if (!p) fail(`${theme.tag}: no ${key} probe`);
+  return p;
+};
+
+/** `blur(10px)` alone, `blur(22px) saturate(1.4)`, or `none` -> nulls. The
+ *  icon-button reader maps `none` to px 0; the chip family wants "no backdrop"
+ *  to be a null, so §6's `(none)` convention survives the port unchanged. */
+const chipBackdrop = (p, cls) => {
+  const bf = p.backdropFilter;
+  if (!bf) fail(`${cls}: no backdropFilter probe`);
+  const raw = bf.raw.trim();
+  if (raw === 'none') return { px: null, saturate: null };
+  const blur = /^blur\(([\d.]+)px\)$/.exec(raw);
+  if (blur) return { px: parseFloat(blur[1]), saturate: null };
+  const both = /^blur\(([\d.]+)px\) saturate\(([\d.]+)\)$/.exec(raw);
+  if (both) return { px: parseFloat(both[1]), saturate: parseFloat(both[2]) };
+  fail(`${cls}: unportable backdrop-filter "${bf.raw}"`);
+};
+
+/** An authored declaration, or null when the rule simply does not carry it —
+ *  unlike `cssDecl`, which fails. Callers name which properties are optional. */
+const cssDeclOpt = (rule, prop) => {
+  const m = new RegExp(`${prop}:\\s*([^;]+);`).exec(rule.text);
+  return m ? m[1].trim() : null;
+};
+
+const chipProbeRow = (cls, tag, theme) => {
+  const p = chipProbe(theme, cls);
+  if (probeRaw(p, 'boxShadow', cls) !== 'none') {
+    fail(
+      `${cls}: the resting probe carries a box-shadow (${probeRaw(p, 'boxShadow', cls)}); the resting §6 chip row ports none`,
+    );
+  }
+  const pad = probePadding(p, cls);
+  const lineRaw = probeRaw(p, 'lineHeight', cls);
+  const spaceRaw = probeRaw(p, 'letterSpacing', cls);
+  const bd = chipBackdrop(p, cls);
+  return {
+    displayCss: probeRaw(p, 'display', cls),
+    radiusPx: probePx(p, 'borderRadius', cls),
+    borderWidthPx: probePx(p, 'borderTopWidth', cls),
+    borderColor: probeSrgb(p, 'borderTopColor', cls),
+    fillColor: probeSrgb(p, 'backgroundColor', cls),
+    gradient: probeGradient(p, cls),
+    textColor: probeSrgb(p, 'color', cls),
+    fontFamily: probeFamily(p, cls),
+    fontSizePx: probePx(p, 'fontSize', cls),
+    fontWeight: (() => {
+      const w = probeRaw(p, 'fontWeight', cls);
+      if (!/^([1-9]00)$/.test(w)) fail(`${cls}: fontWeight "${w}" is not a 100-900 step`);
+      return parseInt(w, 10);
+    })(),
+    lineHeightPx: lineRaw === 'normal' ? null : lengthPx(lineRaw, `${cls} lineHeight`),
+    letterSpacingPx: spaceRaw === 'normal' ? 0.0 : lengthPx(spaceRaw, `${cls} letterSpacing`),
+    paddingVerticalPx: pad.vertical,
+    paddingHorizontalPx: pad.horizontal,
+    blurPx: bd.px,
+    blurSaturate: bd.saturate,
+  };
+};
+
+const CHIP_COLOUR_FIELDS = ['borderColor', 'fillColor', 'textColor'];
+const chipRowKey = (row) => {
+  const out = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (CHIP_COLOUR_FIELDS.includes(key)) out[key] = value.hex;
+    else if (value === null || value === undefined || typeof value !== 'object') out[key] = value;
+    else fail(`${key} (chip): the ${key} field is an object the pass check cannot compare`);
+  }
+  return out;
+};
+const CHIP_STABLE_FIELDS = [
+  'displayCss',
+  'radiusPx',
+  'borderWidthPx',
+  'fontFamily',
+  'fontSizePx',
+  'fontWeight',
+  'lineHeightPx',
+  'letterSpacingPx',
+  'paddingVerticalPx',
+  'paddingHorizontalPx',
+];
+
+/** One `gap: Npx` (or a bare length) from the resting rule, or null. */
+const authoredGap = (rule, cls) => {
+  const g = cssDeclOpt(rule, 'gap');
+  if (g === null) return null;
+  if (!/^[\d.]+px$/.test(g)) fail(`${cls}: authored gap "${g}" is not a plain px length`);
+  return parseFloat(g);
+};
+
+const CHIP_TRANSITION_PROPS = ['border-color', 'background-color', 'color'];
+
+/** Authored properties the chip/segment rest rules may name. Anything else
+ *  fails the run: a declaration outside this vocabulary is a web fact the §6
+ *  chip family spec has no field for, and a silently dropped one is a phone
+ *  that disagrees with the browser the moment the class is composed. The
+ *  behaviour/layout properties that ride on the box without painting it
+ *  (cursor, white-space, user-select, flex-shrink, position) are listed so
+ *  their presence stays reviewed; they travel as data or not at all. */
+const CHIP_REST_ALLOWED = [
+  'display',
+  'align-items',
+  'justify-content',
+  'gap',
+  'padding',
+  'border-radius',
+  'background',
+  'background-color',
+  'border',
+  'border-color',
+  'color',
+  'font-size',
+  'font-weight',
+  'font-family',
+  'line-height',
+  'letter-spacing',
+  'cursor',
+  'white-space',
+  'user-select',
+  'flex-shrink',
+  'position',
+  'transition',
+  'backdrop-filter',
+  '-webkit-backdrop-filter',
+  'font-variant-numeric',
+  'width',
+  'height',
+];
+const checkChipProps = (props, allowed, label, cls, line) => {
+  for (const [prop] of props) {
+    if (!allowed.includes(prop)) {
+      fail(`${cls}: ${label} sets \`${prop}\` (src/index.css:${line}); the §6 chip-family spec cannot port it`);
+    }
+  }
+};
+
+const pills = CHIP_CLASSES.map((cls) => {
+  const l = chipProbeRow(cls, 'light-desktop', LIGHT);
+  const d = chipProbeRow(cls, 'dark-desktop', DARK);
+  if (l.gradient || d.gradient) fail(`${cls}: the §6 chip family paints flat fills; a probe gradient is a new fact`);
+  for (const [tag, theme, want] of [
+    ['light-phone', LIGHT_PHONE, l],
+    ['dark-phone', DARK_PHONE, d],
+  ]) {
+    const fp = chipRowKey(chipProbeRow(cls, tag, theme));
+    const fw = chipRowKey(want);
+    for (const [key, value] of Object.entries(fp)) {
+      if (fw[key] !== value) {
+        fail(`${cls}: ${key} is "${value}" on ${tag} but "${fw[key]}" on its desktop pass`);
+      }
+    }
+  }
+  for (const key of CHIP_STABLE_FIELDS) {
+    if (l[key] !== d[key]) {
+      fail(`${cls}: ${key} is "${l[key]}" in light and "${d[key]}" in dark; §6 prints one row`);
+    }
+  }
+  if (chipRowKey(l).blurPx !== chipRowKey(d).blurPx || chipRowKey(l).blurSaturate !== chipRowKey(d).blurSaturate) {
+    fail(`${cls}: the backdrop differs between the two schemes`);
+  }
+
+  const rest = cssRule(new RegExp(`^\\${cls} \\{$`), cls, 24);
+  checkChipProps(ruleProps(rest, cls), CHIP_REST_ALLOWED, 'the rest rule', cls, rest.line);
+  const gapPx = authoredGap(rest, cls);
+  const tabular = (cssDeclOpt(rest, 'font-variant-numeric') || '') === 'tabular-nums';
+  const trRaw = cssDeclOpt(rest, 'transition');
+  const tr = trRaw === null ? null : controlTransition(rest, cls, CHIP_TRANSITION_PROPS);
+  const hoverIdx = CSS_LINES.findIndex((x) => new RegExp(`^\\${cls}:hover( |\\{)`).test(x));
+
+  let sizePx = null;
+  let pressFill = null;
+  let dPressFill = null;
+  let disabledOpacity = null;
+  let pressSrc = 'none';
+  let disabledSrc = 'none';
+  if (cls === '.icon-chip') {
+    const wRaw = cssDecl(rest, 'width', cls);
+    const hRaw = cssDecl(rest, 'height', cls);
+    sizePx = lengthPx(wRaw, `${cls} width`);
+    if (lengthPx(hRaw, `${cls} height`) !== sizePx) {
+      fail(`${cls}: width ${wRaw} != height ${hRaw}; the port paints one square chip`);
+    }
+    if (l.radiusPx < sizePx / 2) {
+      fail(`${cls}: radius ${l.radiusPx} is less than half the ${sizePx}px box`);
+    }
+  }
+  if (cls === '.pill') {
+    const act = cssRule(new RegExp(`^\\${cls}:active \\{$`), cls);
+    const bg = cssDecl(act, 'background', cls);
+    pressFill = authoredColour(bg, LIGHT, 'light-desktop', ':active background', cls);
+    dPressFill = authoredColour(bg, DARK, 'dark-desktop', ':active background', cls);
+    if (pressFill.token !== dPressFill.token) fail(`${cls}: the :active token differs between passes`);
+    if (pressFill.srgb.hex === l.fillColor.hex || dPressFill.srgb.hex === d.fillColor.hex) {
+      fail(`${cls}: :active repaints the resting fill in some pass; the port must say so`);
+    }
+    const off = cssRule(new RegExp(`^\\${cls}:disabled,$`), cls);
+    checkStateProps(ruleProps(off, cls), ['opacity', 'cursor'], ':disabled', cls, off.line);
+    disabledOpacity = parseFloat(cssDecl(off, 'opacity', cls));
+    if (!Number.isFinite(disabledOpacity) || disabledOpacity <= 0 || disabledOpacity > 1) {
+      fail(`${cls}: disabled opacity "${cssDecl(off, 'opacity', cls)}" is not a fraction`);
+    }
+    if (cssDeclOpt(act, 'transform') !== null) fail(`${cls}: :active moves the box; AppChipSpec ports no offset`);
+    checkStateProps(ruleProps(act, cls), ['background'], ':active', cls, act.line);
+    if (
+      tr &&
+      !(tr.props.includes('background-color') && tr.props.includes('border-color') && tr.props.includes('color'))
+    ) {
+      fail(`${cls}: the :active/:disabled state needs the transition to cover fill, border and colour`);
+    }
+    pressSrc = `src/index.css:${act.line}`;
+    disabledSrc = `src/index.css:${off.line}`;
+  }
+  return {
+    cls,
+    l,
+    d,
+    gapPx,
+    tabular,
+    sizePx,
+    pressFill,
+    dPressFill,
+    disabledOpacity,
+    transitionMs: tr ? tr.ms : null,
+    transitionEase: tr ? tr.curve : null,
+    transitionProps: tr ? tr.props.join(', ') : null,
+    transitionDurToken: tr ? tr.dur.name : null,
+    transitionEaseToken: tr ? tr.ease.name : null,
+    restSrc: `src/index.css:${rest.line}`,
+    pressSrc,
+    disabledSrc,
+    hoverSrc: hoverIdx < 0 ? 'none' : `src/index.css:${hoverIdx + 1}`,
+  };
+});
+
+// The `.pill-active` composite must agree with its own probe, per pass: the
+// authored rule names three tokens, the detached composite element was
+// measured, and the port refuses a generator that lets the two disagree.
+{
+  const cls = '.pill-active';
+  const row = pills.find((x) => x.cls === cls);
+  const pa = cssRule(/^\.pill-active \{$/, cls);
+  checkStateProps(ruleProps(pa, cls), ['background', 'color', 'border-color'], cls, cls, pa.line);
+  for (const [pass, theme, themeTag] of [
+    [row.l, LIGHT, 'light-desktop'],
+    [row.d, DARK, 'dark-desktop'],
+  ]) {
+    const bg = authoredColour(cssDecl(pa, 'background', cls), theme, themeTag, `${cls} background`, cls);
+    const fg = authoredColour(cssDecl(pa, 'color', cls), theme, themeTag, `${cls} colour`, cls);
+    const bc = authoredColour(cssDecl(pa, 'border-color', cls), theme, themeTag, `${cls} border`, cls);
+    for (const [what, want] of [
+      ['fill', bg.srgb.hex],
+      ['text', fg.srgb.hex],
+      ['border', bc.srgb.hex],
+    ]) {
+      const got = what === 'fill' ? pass.fillColor.hex : what === 'text' ? pass.textColor.hex : pass.borderColor.hex;
+      if (got !== want) {
+        fail(`${cls} ${themeTag}: probe ${what} ${got} != authored token substitution ${want}`);
+      }
+    }
+  }
+}
+
+// `.icon-chip-lg`: absent from the port on purpose. Assert the two facts the
+// decision rests on — one size-only rule, zero call sites — and print them.
+{
+  const lg = cssRule(/^\.icon-chip-lg \{$/, '.icon-chip-lg');
+  const props = ruleProps(lg, '.icon-chip-lg');
+  for (const [prop] of props) {
+    if (prop !== 'width' && prop !== 'height') {
+      fail(`.icon-chip-lg authors \`${prop}\`; it is no longer a size-only override`);
+    }
+  }
+  if (lengthPx(cssDecl(lg, 'width', '.icon-chip-lg'), 'lg width') !== 44) {
+    fail('.icon-chip-lg width moved off 44px; revisit the skip');
+  }
+}
+const iconChipLgUses = require('child_process')
+  .execSync('git grep -l "icon-chip-lg" -- src', { cwd: ROOT, encoding: 'utf8' })
+  .trim()
+  .split('\n')
+  .filter((s) => s.length && s !== 'src/index.css' && !/\.test\.tsx?$/.test(s));
+if (iconChipLgUses.length !== 0) {
+  fail(`.icon-chip-lg now has call sites (${iconChipLgUses.join(', ')}); port it instead of skipping it`);
+}
+
+// The rest of the family authors its resting colours as bare `var(--token)`
+// references; the probe measured the substitution Chrome actually made. Both
+// readings must name the same colour in the same pass, per field, or generation
+// fails — the port emits the probe, and this is what keeps the probe honest.
+{
+  const CHIP_CROSSCHECK = [
+    ['.icon-chip', 'background', 'fillColor'],
+    ['.icon-chip', 'color', 'textColor'],
+    ['.pill', 'background', 'fillColor'],
+    ['.chip-select', 'color', 'textColor'],
+    ['.delta-up', 'background', 'fillColor'],
+    ['.delta-up', 'color', 'textColor'],
+    ['.delta-down', 'background', 'fillColor'],
+    ['.delta-down', 'color', 'textColor'],
+  ];
+  for (const [cls, prop, field] of CHIP_CROSSCHECK) {
+    const row = pills.find((x) => x.cls === cls);
+    const rule = cssRule(new RegExp(`^\\${cls} \\{$`), cls, 24);
+    for (const [pass, theme, themeTag] of [
+      [row.l, LIGHT, 'light-desktop'],
+      [row.d, DARK, 'dark-desktop'],
+    ]) {
+      const want = authoredColour(collapse(cssDecl(rule, prop, cls)), theme, themeTag, `${cls} ${prop}`, cls);
+      const got = pass[field];
+      if (got.hex !== want.srgb.hex || got.alpha !== want.srgb.alpha) {
+        fail(`${cls} ${themeTag}: probe ${field} ${got.rgba} != authored ${want.token} ${want.srgb.rgba}`);
+      }
+    }
+  }
+}
+
+/** Two parsed gradients, field by field — an angle, a stop count, and every
+ *  stop's channel, alpha and position must match exactly. `JSON.stringify`
+ *  would also do, but this names the field that moved. */
+const gEq = (a, b, where) => {
+  if (a.angle !== b.angle) fail(`${where}: gradient angle ${b.angle} != ${a.angle}`);
+  if (a.stops.length !== b.stops.length) {
+    fail(`${where}: gradient has ${b.stops.length} stops, expected ${a.stops.length}`);
+  }
+  a.stops.forEach((s, i) => {
+    const t = b.stops[i];
+    for (const [key, want] of [
+      ['r', s.colour.r],
+      ['g', s.colour.g],
+      ['b', s.colour.b],
+      ['a', s.colour.a],
+      ['at', s.at],
+    ]) {
+      const got = key === 'at' ? t.at : t.colour[key];
+      if (got !== want) fail(`${where}: stop ${i} ${key} is ${got}, authored/token says ${want}`);
+    }
+  });
+};
+
+// ---------------------------------------------------------------- face chip
+// `.card-face-chip` — the 30×22 gold EMV block on the card faces. The probe
+// cannot see `::after`, so the inset ring is read from the pinned CSS
+// (`icon-btn`'s composed context and `.skeleton::after` set that precedent).
+// Both measured passes print the same gold, so the port carries one const.
+const faceChip = (() => {
+  const cls = '.card-face-chip';
+  const read = (tag, theme) => {
+    const p = theme.probes[cls];
+    if (!p) fail(`${tag}: no ${cls} probe`);
+    if (probeRaw(p, 'boxShadow', cls) !== 'none') fail(`${cls}: the resting probe carries a box-shadow`);
+    if (probeRaw(p, 'borderTopWidth', cls) !== '0px') fail(`${cls}: the chip now measures a border`);
+    const bg = probeSrgb(p, 'backgroundColor', cls);
+    if (bg.alpha !== 0) fail(`${cls}: background-color is no longer transparent; the port paints only the gradient`);
+    return {
+      radiusPx: probePx(p, 'borderRadius', cls),
+      gradient: probeGradient(p, cls),
+      position: probeRaw(p, 'position', cls),
+    };
+  };
+  const l = read('light-desktop', LIGHT);
+  const d = read('dark-desktop', DARK);
+  for (const [tag, theme, want] of [
+    ['light-phone', LIGHT_PHONE, l],
+    ['dark-phone', DARK_PHONE, d],
+  ]) {
+    const r = read(tag, theme);
+    if (r.radiusPx !== want.radiusPx) fail(`${cls}: ${tag} radius ${r.radiusPx} != desktop ${want.radiusPx}`);
+    if (JSON.stringify(r.gradient) !== JSON.stringify(want.gradient))
+      fail(`${cls}: ${tag} gradient differs from desktop`);
+  }
+  if (JSON.stringify(l.gradient) !== JSON.stringify(d.gradient)) fail(`${cls}: the gold differs between the schemes`);
+  if (!l.gradient) fail(`${cls}: the probe measured no gradient; this class authors \`var(--chip-gold)\``);
+
+  const rest = cssRule(/^\.card-face-chip \{$/, cls);
+  checkChipProps(
+    ruleProps(rest, cls),
+    ['width', 'height', 'border-radius', 'background', 'position'],
+    'the rest rule',
+    cls,
+    rest.line,
+  );
+  const widthPx = lengthPx(cssDecl(rest, 'width', cls), `${cls} width`);
+  const heightPx = lengthPx(cssDecl(rest, 'height', cls), `${cls} height`);
+  const radiusAuthored = lengthPx(cssDecl(rest, 'border-radius', cls), `${cls} radius`);
+  if (radiusAuthored !== l.radiusPx || radiusAuthored !== d.radiusPx) {
+    fail(`${cls}: authored radius ${radiusAuthored} != probe radius (l ${l.radiusPx}, d ${d.radiusPx})`);
+  }
+  if (l.position !== 'relative' || d.position !== 'relative') {
+    fail(`${cls}: the chip no longer measures position: relative; the ::after ring needs the positioned box`);
+  }
+  const bgRaw = collapse(cssDecl(rest, 'background', cls));
+  const gm = /^linear-gradient\(([\d.]+)deg, var\((--[a-z0-9-]+)\) ([\d.]+)%, var\((--[a-z0-9-]+)\) ([\d.]+)%\)$/.exec(
+    bgRaw,
+  );
+  if (!gm) fail(`${cls}: background "${bgRaw}" is not the two-token angled gradient the port paints`);
+  for (const [theme, themeTag, probe] of [
+    [LIGHT, 'light-desktop', l],
+    [DARK, 'dark-desktop', d],
+  ]) {
+    const [t0, t1] = [gm[2], gm[4]].map((name) => {
+      const tok = theme.root[name];
+      if (!tok || !tok.srgb) fail(`${cls}: ${name} is not a measured colour in ${themeTag}`);
+      return tok.srgb;
+    });
+    const want = {
+      angle: parseFloat(gm[1]),
+      stops: [
+        { colour: { r: t0.r, g: t0.g, b: t0.b, a: t0.alpha }, at: parseFloat(gm[3]) / 100 },
+        { colour: { r: t1.r, g: t1.g, b: t1.b, a: t1.alpha }, at: parseFloat(gm[5]) / 100 },
+      ],
+    };
+    gEq(want, probe.gradient, `${cls} ${themeTag}`);
+  }
+
+  const after = cssRule(/^\.card-face-chip::after \{$/, cls);
+  checkChipProps(
+    ruleProps(after, cls),
+    ['content', 'position', 'inset', 'border', 'border-radius'],
+    '::after',
+    cls,
+    after.line,
+  );
+  if (cssDecl(after, 'position', cls) !== 'absolute') fail(`${cls}::after is not absolutely positioned`);
+  const insetRaw = cssDecl(after, 'inset', cls);
+  if (!/^([\d.]+)px$/.test(insetRaw)) fail(`${cls}::after inset "${insetRaw}" is not a single px length`);
+  const ringBorder = /^([\d.]+)px solid rgba\((\d+), (\d+), (\d+), ([\d.]+)\)$/.exec(
+    collapse(cssDecl(after, 'border', cls)),
+  );
+  if (!ringBorder) fail(`${cls}::after border "${cssDecl(after, 'border', cls)}" is not \`Npx solid rgba(…)\``);
+  return {
+    cls,
+    widthPx,
+    heightPx,
+    radiusPx: radiusAuthored,
+    gradient: l.gradient,
+    ringInsetPx: parseFloat(insetRaw),
+    ringWidthPx: parseFloat(ringBorder[1]),
+    ringColour: { r: +ringBorder[2], g: +ringBorder[3], b: +ringBorder[4], a: parseFloat(ringBorder[5]) },
+    ringRadiusPx: lengthPx(cssDecl(after, 'border-radius', cls), `${cls}::after radius`),
+    restSrc: `src/index.css:${rest.line}`,
+    afterSrc: `src/index.css:${after.line}`,
+  };
+})();
+
+// ================================================================ app_chips.dart
+banner();
+const chipExpr = (c, rowName, pressName) => {
+  const pass = c[rowName];
+  const press = c[pressName];
+  const num = (v) => (v === null || v === undefined ? 'null' : fmt(v));
+  const ease = c.transitionEase;
+  return [
+    `      cssClass: ${dartStr(c.cls)},`,
+    `      displayCss: ${dartStr(pass.displayCss)},`,
+    `      radiusPx: ${fmt(pass.radiusPx)},`,
+    `      borderWidthPx: ${fmt(pass.borderWidthPx)},`,
+    `      borderColor: ${dartSurfaceColour(pass.borderColor)},`,
+    `      fillColor: ${dartSurfaceColour(pass.fillColor)},`,
+    `      textColor: ${dartSurfaceColour(pass.textColor)},`,
+    `      fontFamily: ${dartStr(pass.fontFamily)},`,
+    `      fontSizePx: ${fmt(pass.fontSizePx)},`,
+    `      fontWeight: ${pass.fontWeight},`,
+    `      lineHeightPx: ${num(pass.lineHeightPx)},`,
+    `      letterSpacingPx: ${num(pass.letterSpacingPx)},`,
+    `      paddingVerticalPx: ${fmt(pass.paddingVerticalPx)},`,
+    `      paddingHorizontalPx: ${fmt(pass.paddingHorizontalPx)},`,
+    `      gapPx: ${num(c.gapPx)},`,
+    `      tabularNums: ${c.tabular ? 'true' : 'false'},`,
+    `      blurPx: ${num(pass.blurPx)},`,
+    `      blurSaturate: ${num(pass.blurSaturate)},`,
+    `      sizePx: ${num(c.sizePx)},`,
+    `      pressFillColor: ${press === null ? 'null' : dartSurfaceColour(press.srgb)},`,
+    `      disabledOpacity: ${num(c.disabledOpacity)},`,
+    `      transitionMs: ${c.transitionMs === null ? 'null' : c.transitionMs},`,
+    `      transitionProps: ${c.transitionProps === null ? 'null' : dartStr(c.transitionProps)},`,
+    `      easeX1: ${ease === null ? 'null' : fmt(ease[0])},`,
+    `      easeY1: ${ease === null ? 'null' : fmt(ease[1])},`,
+    `      easeX2: ${ease === null ? 'null' : fmt(ease[2])},`,
+    `      easeY2: ${ease === null ? 'null' : fmt(ease[3])},`,
+  ].join('\n');
+};
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  '/// One §6 chrome chip — the icon chip, the pill, the pill’s active',
+  '/// composite, the chip-select, the delta box and its two tints — measured',
+  '/// on a detached element carrying exactly that class, plus the authored',
+  '/// facts the probe cannot see (flex `gap`, `tabular-nums`, the `.icon-chip`',
+  '/// square, `:active`/`:disabled`) read from the same pinned `src/index.css`.',
+  '/// A widget under `lib/presentation/` restates none of it.',
+  '///',
+  '/// Rows are honest per class, and composition is the widget’s job:',
+  '/// * `.pill-active` is the composed measurement — a `.pill` carrying the',
+  '///   override (probe key `.pill.pill-active`). Its three authored tokens are',
+  '///   cross-checked against that composite at generation.',
+  '/// * `.delta-up`/`.delta-down` are measured standalone (display `block`, no',
+  '///   radius) because that is what the probe saw; in the app they ride on the',
+  '///   same element as `.delta-chip`, which supplies the pill geometry. The',
+  '///   widget paints the chip row’s box with the tint row’s fill and ink.',
+  '/// * `.delta-chip` itself authors no colour: its measured transparent fill',
+  '///   and inherited ink are exactly that fact, not a colour to paint.',
+  '/// * `.icon-chip` authors no type; its 16px/400 row is the inherited body',
+  '///   font, and the widget paints an icon, not text, into the box.',
+  '/// * `.icon-chip-lg` is deliberately absent: its rule authors only a',
+  '///   44px square override and no element under `src/` carries the class —',
+  '///   asserted at generation, the `.card-sm` precedent.',
+  'class AppChipSpec {',
+  '  const AppChipSpec({',
+  '    required this.cssClass,',
+  '    required this.displayCss,',
+  '    required this.radiusPx,',
+  '    required this.borderWidthPx,',
+  '    required this.borderColor,',
+  '    required this.fillColor,',
+  '    required this.textColor,',
+  '    required this.fontFamily,',
+  '    required this.fontSizePx,',
+  '    required this.fontWeight,',
+  '    required this.lineHeightPx,',
+  '    required this.letterSpacingPx,',
+  '    required this.paddingVerticalPx,',
+  '    required this.paddingHorizontalPx,',
+  '    required this.gapPx,',
+  '    required this.tabularNums,',
+  '    required this.blurPx,',
+  '    required this.blurSaturate,',
+  '    required this.sizePx,',
+  '    required this.pressFillColor,',
+  '    required this.disabledOpacity,',
+  '    required this.transitionMs,',
+  '    required this.transitionProps,',
+  '    required this.easeX1,',
+  '    required this.easeY1,',
+  '    required this.easeX2,',
+  '    required this.easeY2,',
+  '  });',
+  '',
+  '  /// The CSS class this row was measured from.',
+  '  final String cssClass;',
+  '',
+  '  /// The computed `display`, carried as data; the widget composes the row.',
+  '  final String displayCss;',
+  '',
+  '  final double radiusPx;',
+  '  final double borderWidthPx;',
+  '  final Color borderColor;',
+  '',
+  '  /// The resting fill and ink, from the detached probe of exactly this class',
+  '  /// (`.pill-active` via its `.pill.pill-active` composite). Where a bare',
+  '  /// `var(--token)` authored the colour, the probe and the token’s measured',
+  '  /// substitution were checked equal at generation.',
+  '  final Color fillColor;',
+  '  final Color textColor;',
+  '',
+  '  /// Measured type — the first family of the computed stack, as everywhere',
+  '  /// in the generated theme. Rows whose class authors no type carry the',
+  '  /// inherited body font as measured; see the class comment.',
+  '  final String fontFamily;',
+  '  final double fontSizePx;',
+  '  final int fontWeight;',
+  '  final double? lineHeightPx;',
+  '  final double letterSpacingPx;',
+  '',
+  '  final double paddingVerticalPx;',
+  '  final double paddingHorizontalPx;',
+  '',
+  '  /// The authored flex `gap`; null where the rule authors none. Chrome’s',
+  '  /// computed `gap` was not in the detached-element field set, so this is',
+  '  /// read from the resting rule — a documented authored fact, not a default.',
+  '  final double? gapPx;',
+  '',
+  '  /// `font-variant-numeric: tabular-nums`, authored by `.delta-chip` alone.',
+  '  final bool tabularNums;',
+  '',
+  '  /// `backdrop-filter` blur in CSS px; null is the measured `none`',
+  '  /// (`.chip-select` blurs 10px; the rest of the family does not). The',
+  '  /// `saturate()` travels as recorded data, unimplemented — the same finding',
+  '  /// [AppSurfaceSpec] and [AppNavSpec] carry.',
+  '  final double? blurPx;',
+  '  final double? blurSaturate;',
+  '',
+  '  /// `.icon-chip`’s authored square side; null on every other row.',
+  '  final double? sizePx;',
+  '',
+  '  /// `.pill:active`’s repaint — `var(--surface-3)` substituted from each',
+  '  /// pass’s measured `:root`, because the probe only sees the resting box.',
+  '  /// Null where the class authors no press state. The rule moves no box',
+  '  /// (a `transform` here would have failed generation).',
+  '  final Color? pressFillColor;',
+  '',
+  '  /// `.pill:disabled` opacity (`cursor: not-allowed` travels with it as the',
+  '  /// same fact); null where the class authors no disabled face.',
+  '  final double? disabledOpacity;',
+  '',
+  '  /// The one clock the class’s own `transition` names (duration token,',
+  '  /// easing token, and the properties it covers); null where the rule',
+  '  /// transitions nothing. `.pill` animates fill, border and colour;',
+  '  /// `.chip-select` animates fill and border.',
+  '  final int? transitionMs;',
+  '  final String? transitionProps;',
+  '  final double? easeX1;',
+  '  final double? easeY1;',
+  '  final double? easeX2;',
+  '  final double? easeY2;',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '',
+  '  /// `null` where the class measured no frame, rather than a zero-width one.',
+  '  Border? get border =>',
+  '      borderWidthPx == 0',
+  '          ? null',
+  '          : Border.all(color: borderColor, width: borderWidthPx);',
+  '',
+  '  EdgeInsets get padding =>',
+  '      EdgeInsets.symmetric(vertical: paddingVerticalPx, horizontal: paddingHorizontalPx);',
+  '',
+  '  /// The measured `font-weight`, mapped the way [AppControlSpec.weight] does.',
+  '  FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];',
+  '',
+  '  double? get lineHeightRatio =>',
+  '      lineHeightPx == null ? null : lineHeightPx! / fontSizePx;',
+  '',
+  '  /// CSS blur radius → Flutter sigma (UI_SPEC D-U8); null where no backdrop.',
+  '  double? get blurSigmaPx => blurPx == null ? null : blurPx! / 2;',
+  '',
+  '  Duration? get pressDuration {',
+  '    final int? ms = transitionMs;',
+  '    return ms == null ? null : Duration(milliseconds: ms);',
+  '  }',
+  '',
+  '  Curve? get pressCurve =>',
+  '      easeX1 == null ? null : Cubic(easeX1!, easeY1!, easeX2!, easeY2!);',
+  '}',
+  '',
+  '/// The card-face gold chip: the box, the probe-substituted',
+  '/// `--chip-gold → --chip-gold-deep` 135° gradient, and the inset ring the',
+  '/// authored `::after` paints 4px inside it. Both measured passes print the',
+  '/// same gold and the same box (asserted at generation), so there is one',
+  '/// spec, not a per-brightness table.',
+  'class AppFaceChipSpec {',
+  '  const AppFaceChipSpec({',
+  '    required this.cssClass,',
+  '    required this.widthPx,',
+  '    required this.heightPx,',
+  '    required this.radiusPx,',
+  '    required this.fillGradient,',
+  '    required this.ringInsetPx,',
+  '    required this.ringBorderWidthPx,',
+  '    required this.ringColor,',
+  '    required this.ringRadiusPx,',
+  '  });',
+  '',
+  '  final String cssClass;',
+  '  final double widthPx;',
+  '  final double heightPx;',
+  '  final double radiusPx;',
+  '  final LinearGradient fillGradient;',
+  '',
+  '  /// The `::after` ring: `inset: 4px`, `border: 1px solid rgba(0, 0, 0,',
+  '  /// 0.25)`, `border-radius: 3px` (src/index.css read because a pseudo-',
+  '  /// element is invisible to a detached-element probe).',
+  '  final double ringInsetPx;',
+  '  final double ringBorderWidthPx;',
+  '  final Color ringColor;',
+  '  final double ringRadiusPx;',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '  BorderRadius get ringBorderRadius => BorderRadius.circular(ringRadiusPx);',
+  '  Border get ringBorder => Border.all(color: ringColor, width: ringBorderWidthPx);',
+  '}',
+  '',
+  '/// The §6 chip rows, keyed by CSS class — one map per measured pass.',
+  'abstract final class AppChips {',
+);
+for (const [passName, rowName, pressName, themeTag] of [
+  ['light', 'l', 'pressFill', 'light-desktop'],
+  ['dark', 'd', 'dPressFill', 'dark-desktop'],
+]) {
+  L.push(
+    `  /// ${passName} pass (UI_SPEC §6, \`${themeTag}\`; states, gap and`,
+    '  /// tabular-nums from the authored rules of the same pinned file).',
+    `  static const Map<String, AppChipSpec> ${passName} =`,
+    '      <String, AppChipSpec>{',
+  );
+  for (const c of pills) {
+    L.push(`    ${dartStr(c.cls)}: AppChipSpec(`, chipExpr(c, rowName, pressName), '    ),');
+  }
+  L.push('  };', '');
+}
+const hoverOf = (cls) => pills.find((x) => x.cls === cls).hoverSrc;
+const restSrcOf = (cls) => pills.find((x) => x.cls === cls).restSrc;
+L.push(
+  '  /// The sources, printed once: resting rules',
+  `  /// (${pills.map((c) => `${c.cls} @ ${c.restSrc}`).join('; ')});`,
+  '  /// `.pill:active` and `.pill:disabled` are ported as fields above.',
+  '  ///',
+  '  /// Unported authored states — decoration, dropped per UI_SPEC D-U1:',
+  `  /// * \`.pill:hover\` at ${hoverOf('.pill')} and`,
+  `  ///   \`.chip-select:hover\` at ${hoverOf('.chip-select')} lift the border to`,
+  '  ///   `--line-strong` and repaint the fill (`--surface-2` / plain',
+  '  ///   `--surface-2`); both sit on the clock the row already ports.',
+  `  /// * \`.pill-active:hover\` at ${hoverOf('.pill-active')}` + ' mixes',
+  '  ///   `color-mix(in srgb, var(--ink) 90%, var(--surface))` for fill and',
+  '  ///   border — a hover-only mix the port evaluates nowhere.',
+  '  ///',
+  '  /// The measured rows for a class and brightness. An unknown class is a',
+  '  /// programming error, not a fallback: nothing in this layer may quietly',
+  '  /// become a Material default.',
+  '  static AppChipSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppChipSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppChipSpec? spec = table[cssClass];',
+  "    if (spec == null) throw ArgumentError('$cssClass is not a §6 chip class');",
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+  '/// The card-face chip, once per the note on [AppFaceChipSpec]. Sources:',
+  `/// resting ${faceChip.restSrc}, ring ${faceChip.afterSrc}.`,
+  'abstract final class AppFaceChips {',
+  '  static const AppFaceChipSpec spec = AppFaceChipSpec(',
+  `    cssClass: ${dartStr(faceChip.cls)},`,
+  `    widthPx: ${fmt(faceChip.widthPx)},`,
+  `    heightPx: ${fmt(faceChip.heightPx)},`,
+  `    radiusPx: ${fmt(faceChip.radiusPx)},`,
+  `    fillGradient: ${gradientExpr(faceChip.gradient)},`,
+  `    ringInsetPx: ${fmt(faceChip.ringInsetPx)},`,
+  `    ringBorderWidthPx: ${fmt(faceChip.ringWidthPx)},`,
+  `    ringColor: ${dartSurfaceColour({ ...faceChip.ringColour, alpha: faceChip.ringColour.a })},`,
+  `    ringRadiusPx: ${fmt(faceChip.ringRadiusPx)},`,
+  '  );',
+  '}',
+  '',
+);
+finish('app_chips.dart');
+
+// ================================================================ app_segments.dart
+// The segmented control is three readings: the track, a resting item, and the
+// selected item — the last carrying an inset ring, which no resting probe of
+// the §6 chrome family has ever shown, so it gets its own parser. The selected
+// rule’s three declarations are cross-checked against that probe per pass.
+const SEG_TRACK = '.segment';
+const SEG_ITEM = '.segment-item';
+const SEG_SELECTED_PROBE = '.segment-item;aria-selected=true';
+const segment = (() => {
+  const trackRest = cssRule(/^\.segment \{$/, SEG_TRACK, 24);
+  const itemRest = cssRule(/^\.segment-item \{$/, SEG_ITEM, 24);
+  checkChipProps(ruleProps(trackRest, SEG_TRACK), CHIP_REST_ALLOWED, 'the rest rule', SEG_TRACK, trackRest.line);
+  checkChipProps(ruleProps(itemRest, SEG_ITEM), CHIP_REST_ALLOWED, 'the rest rule', SEG_ITEM, itemRest.line);
+  for (const [prop] of ruleProps(trackRest, SEG_TRACK)) {
+    if (['font-size', 'font-weight', 'color', 'line-height'].includes(prop)) {
+      fail(`${SEG_TRACK} authors type (${prop}); the track row ports none — the probe value is inheritance`);
+    }
+  }
+  const trackGap = authoredGap(trackRest, SEG_TRACK);
+  const itemTr = controlTransition(itemRest, SEG_ITEM, ['background-color', 'color']);
+  const itemHoverIdx = CSS_LINES.findIndex((x) => /^\.segment-item:hover( |\{)/.test(x));
+  const itemHover = cssRule(/^\.segment-item:hover \{$/, SEG_ITEM);
+  checkChipProps(ruleProps(itemHover, SEG_ITEM), ['color'], ':hover', SEG_ITEM, itemHover.line);
+
+  const selRule = cssRule(/^\.segment-item\[aria-selected='true'\],$/, SEG_ITEM, 24);
+  checkChipProps(
+    ruleProps(selRule, SEG_ITEM),
+    ['background', 'color', 'box-shadow'],
+    '[aria-selected]',
+    SEG_ITEM,
+    selRule.line,
+  );
+  const selRead = (tag, theme) => {
+    const p = theme.probes[SEG_SELECTED_PROBE];
+    if (!p) fail(`${tag}: no ${SEG_SELECTED_PROBE} probe`);
+    const bs = p.boxShadow;
+    if (!bs) fail(`${SEG_SELECTED_PROBE}: no boxShadow probe`);
+    // Chrome computed the shadow in the authored `oklch(…)` space; the
+    // measurement carries the token-substituted rgba form beside it, which is
+    // what every other §6 shadow reader here parses (`probeShadowList`).
+    const ringRaw = bs.substituted || bs.raw;
+    const m = /^rgba\((\d+), (\d+), (\d+), ([\d.]+)\) 0px 0px 0px ([\d.]+)px inset$/.exec(ringRaw);
+    if (!m) fail(`${SEG_SELECTED_PROBE}: box-shadow "${ringRaw}" is not a single inset ring`);
+    if (probeRaw(p, 'borderTopWidth', SEG_SELECTED_PROBE) !== '0px') {
+      fail(`${SEG_SELECTED_PROBE}: the selected item measures a border; the rule paints the ring as a shadow`);
+    }
+    return {
+      fill: probeSrgb(p, 'backgroundColor', SEG_SELECTED_PROBE),
+      text: probeSrgb(p, 'color', SEG_SELECTED_PROBE),
+      ring: { r: +m[1], g: +m[2], b: +m[3], a: parseFloat(m[4]), widthPx: parseFloat(m[5]) },
+      radiusPx: probePx(p, 'borderRadius', SEG_SELECTED_PROBE),
+      padding: probePadding(p, SEG_SELECTED_PROBE),
+    };
+  };
+  const selBg = cssDecl(selRule, 'background', SEG_ITEM);
+  const selFg = cssDecl(selRule, 'color', SEG_ITEM);
+  const selSh = collapse(cssDecl(selRule, 'box-shadow', SEG_ITEM));
+  const shm = /^inset 0 0 0 ([\d.]+)px var\((--[a-z0-9-]+)\)$/.exec(selSh);
+  if (!shm) fail(`${SEG_ITEM}: [aria-selected] box-shadow "${selSh}" is not \`inset 0 0 0 Npx var(--token)\``);
+  const sel = {};
+  for (const [passName, theme, themeTag] of [
+    ['l', LIGHT, 'light-desktop'],
+    ['d', DARK, 'dark-desktop'],
+  ]) {
+    const r = selRead(themeTag, theme);
+    const bg = authoredColour(collapse(selBg), theme, themeTag, '[aria-selected] background', SEG_ITEM);
+    const fg = authoredColour(collapse(selFg), theme, themeTag, '[aria-selected] colour', SEG_ITEM);
+    const ring = theme.root[shm[2]];
+    if (!ring || !ring.srgb) fail(`${SEG_ITEM}: the ring token ${shm[2]} is not a measured colour in ${themeTag}`);
+    if (r.fill.hex !== bg.srgb.hex || r.fill.alpha !== bg.srgb.alpha) {
+      fail(`${SEG_ITEM}[selected] ${themeTag}: probe fill ${r.fill.rgba} != ${bg.token} ${bg.srgb.rgba}`);
+    }
+    if (r.text.hex !== fg.srgb.hex || r.text.alpha !== fg.srgb.alpha) {
+      fail(`${SEG_ITEM}[selected] ${themeTag}: probe text ${r.text.rgba} != ${fg.token} ${fg.srgb.rgba}`);
+    }
+    for (const [key, want] of [
+      ['r', ring.srgb.r],
+      ['g', ring.srgb.g],
+      ['b', ring.srgb.b],
+      ['a', ring.srgb.alpha],
+    ]) {
+      if (r.ring[key] !== want)
+        fail(`${SEG_ITEM}[selected] ${themeTag}: probe ring ${key} ${r.ring[key]} != ${shm[2]} ${want}`);
+    }
+    if (r.ring.widthPx !== parseFloat(shm[1])) {
+      fail(`${SEG_ITEM}[selected] ${themeTag}: probe ring width ${r.ring.widthPx} != authored ${shm[1]}`);
+    }
+    sel[passName] = r;
+  }
+  // The phone passes must show the same selected box.
+  for (const [tag, theme, want] of [
+    ['light-phone', LIGHT_PHONE, sel.l],
+    ['dark-phone', DARK_PHONE, sel.d],
+  ]) {
+    const r = selRead(tag, theme);
+    if (JSON.stringify(r) !== JSON.stringify(want)) fail(`${SEG_ITEM}[selected]: ${tag} differs from its desktop pass`);
+  }
+
+  const trackL = chipProbeRow(SEG_TRACK, 'light-desktop', LIGHT);
+  const trackD = chipProbeRow(SEG_TRACK, 'dark-desktop', DARK);
+  const itemL = chipProbeRow(SEG_ITEM, 'light-desktop', LIGHT);
+  const itemD = chipProbeRow(SEG_ITEM, 'dark-desktop', DARK);
+  for (const [row, selRow] of [
+    [itemL, sel.l],
+    [itemD, sel.d],
+  ]) {
+    if (selRow.radiusPx !== row.radiusPx)
+      fail(`${SEG_ITEM}: selected radius ${selRow.radiusPx} != resting ${row.radiusPx}`);
+    if (selRow.padding.vertical !== row.paddingVerticalPx || selRow.padding.horizontal !== row.paddingHorizontalPx) {
+      fail(`${SEG_ITEM}: the selected state moves the box`);
+    }
+  }
+  for (const [tag, theme, want] of [
+    ['light-phone', LIGHT_PHONE, trackL],
+    ['dark-phone', DARK_PHONE, trackD],
+  ]) {
+    const fp = chipRowKey(chipProbeRow(SEG_TRACK, tag, theme));
+    const fw = chipRowKey(want);
+    for (const [key, value] of Object.entries(fp)) {
+      if (fw[key] !== value) fail(`${SEG_TRACK}: ${key} is "${value}" on ${tag} but "${fw[key]}" on desktop`);
+    }
+  }
+  for (const [tag, theme, want] of [
+    ['light-phone', LIGHT_PHONE, itemL],
+    ['dark-phone', DARK_PHONE, itemD],
+  ]) {
+    const fp = chipRowKey(chipProbeRow(SEG_ITEM, tag, theme));
+    const fw = chipRowKey(want);
+    for (const [key, value] of Object.entries(fp)) {
+      if (fw[key] !== value) fail(`${SEG_ITEM}: ${key} is "${value}" on ${tag} but "${fw[key]}" on desktop`);
+    }
+  }
+  for (const key of CHIP_STABLE_FIELDS) {
+    if (trackL[key] !== trackD[key]) fail(`${SEG_TRACK}: ${key} is "${trackL[key]}" light / "${trackD[key]}" dark`);
+    if (itemL[key] !== itemD[key]) fail(`${SEG_ITEM}: ${key} is "${itemL[key]}" light / "${itemD[key]}" dark`);
+  }
+  // The item’s authored ink must be its probe ink, and its `transparent`
+  // background must have measured transparent.
+  for (const [pass, theme, themeTag] of [
+    [itemL, LIGHT, 'light-desktop'],
+    [itemD, DARK, 'dark-desktop'],
+  ]) {
+    const fg = authoredColour(
+      collapse(cssDecl(itemRest, 'color', SEG_ITEM)),
+      theme,
+      themeTag,
+      '.segment-item colour',
+      SEG_ITEM,
+    );
+    if (pass.textColor.hex !== fg.srgb.hex || pass.textColor.alpha !== fg.srgb.alpha) {
+      fail(`${SEG_ITEM} ${themeTag}: probe text ${pass.textColor.rgba} != ${fg.token} ${fg.srgb.rgba}`);
+    }
+    if (collapse(cssDecl(itemRest, 'background', SEG_ITEM)) !== 'transparent' || pass.fillColor.alpha !== 0) {
+      fail(`${SEG_ITEM}: the resting background moved off \`transparent\``);
+    }
+    if (pass.borderWidthPx !== 0)
+      fail(`${SEG_ITEM}: the resting item measures a border; the rule authors \`border: none\``);
+  }
+  return {
+    trackGap,
+    itemTr,
+    itemHoverSrc: itemHoverIdx < 0 ? 'none' : `src/index.css:${itemHoverIdx + 1}`,
+    selSrc: `src/index.css:${selRule.line}`,
+    rows: [
+      {
+        cls: SEG_TRACK,
+        l: {
+          ...trackL,
+          displayCss: trackL.displayCss,
+          textColor: null,
+          fontFamily: null,
+          fontSizePx: null,
+          fontWeight: null,
+          lineHeightPx: null,
+          letterSpacingPx: null,
+        },
+        d: {
+          ...trackD,
+          textColor: null,
+          fontFamily: null,
+          fontSizePx: null,
+          fontWeight: null,
+          lineHeightPx: null,
+          letterSpacingPx: null,
+        },
+        gapPx: trackGap,
+        selected: null,
+        tr: null,
+        restSrc: `src/index.css:${trackRest.line}`,
+      },
+      {
+        cls: SEG_ITEM,
+        l: itemL,
+        d: itemD,
+        gapPx: null,
+        selected: sel,
+        tr: itemTr,
+        restSrc: `src/index.css:${itemRest.line}`,
+      },
+    ],
+  };
+})();
+banner();
+const segExpr = (c, rowName) => {
+  const pass = c[rowName];
+  const sel = c.selected === null ? null : c.selected[rowName];
+  const num = (v) => (v === null || v === undefined ? 'null' : fmt(v));
+  const tr = c.tr;
+  return [
+    `      cssClass: ${dartStr(c.cls)},`,
+    `      displayCss: ${dartStr(pass.displayCss)},`,
+    `      radiusPx: ${fmt(pass.radiusPx)},`,
+    `      borderWidthPx: ${fmt(pass.borderWidthPx)},`,
+    `      borderColor: ${dartSurfaceColour(pass.borderColor)},`,
+    `      fillColor: ${dartSurfaceColour(pass.fillColor)},`,
+    `      textColor: ${pass.textColor === null ? 'null' : dartSurfaceColour(pass.textColor)},`,
+    `      fontFamily: ${pass.fontFamily === null ? 'null' : dartStr(pass.fontFamily)},`,
+    `      fontSizePx: ${num(pass.fontSizePx)},`,
+    `      fontWeight: ${pass.fontWeight === null ? 'null' : pass.fontWeight},`,
+    `      lineHeightPx: ${num(pass.lineHeightPx)},`,
+    `      letterSpacingPx: ${num(pass.letterSpacingPx)},`,
+    `      paddingVerticalPx: ${fmt(pass.paddingVerticalPx)},`,
+    `      paddingHorizontalPx: ${fmt(pass.paddingHorizontalPx)},`,
+    `      gapPx: ${num(c.gapPx)},`,
+    `      blurPx: ${num(pass.blurPx)},`,
+    `      blurSaturate: ${num(pass.blurSaturate)},`,
+    `      selectedFillColor: ${sel === null ? 'null' : dartSurfaceColour(sel.fill)},`,
+    `      selectedTextColor: ${sel === null ? 'null' : dartSurfaceColour(sel.text)},`,
+    `      selectedRingColor: ${sel === null ? 'null' : dartSurfaceColour({ ...sel.ring, alpha: sel.ring.a })},`,
+    `      selectedRingWidthPx: ${sel === null ? 'null' : fmt(sel.ring.widthPx)},`,
+    `      transitionMs: ${tr === null ? 'null' : tr.ms},`,
+    `      transitionProps: ${tr === null ? 'null' : dartStr(tr.props.join(', '))},`,
+    `      easeX1: ${tr === null ? 'null' : fmt(tr.curve[0])},`,
+    `      easeY1: ${tr === null ? 'null' : fmt(tr.curve[1])},`,
+    `      easeX2: ${tr === null ? 'null' : fmt(tr.curve[2])},`,
+    `      easeY2: ${tr === null ? 'null' : fmt(tr.curve[3])},`,
+  ].join('\n');
+};
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  '/// The §6 segmented control: the track and a resting item, each measured',
+  '/// on a detached element carrying exactly that class, plus the selected',
+  '/// state — the one §6 chrome reading whose resting probe carries an inset',
+  '/// ring. The selected rule’s background, colour and ring token are',
+  '/// cross-checked against that probe at generation, per pass; the ring',
+  '/// travels as a colour and width, painted inside the item’s own box.',
+  '///',
+  '/// Two rows share one shape because one widget composes them:',
+  '/// * `.segment` authors no type and no text: its font fields are `null` —',
+  '///   the probe’s 16px/24px is body inheritance, not a fact about the track.',
+  '///   Its `gap` travels from the authored rule (Chrome computed `gap` is not',
+  '///   in the probe field set), as in [AppChipSpec].',
+  '/// * `.segment-item` carries the selected state; the track row leaves those',
+  '///   fields `null` because the selector cannot match it.',
+  '/// * `.segment-item:hover` (at',
+  `  /// ${segment.itemHoverSrc}) changes only`,
+  '///   `color` to `--ink` — decoration, dropped per UI_SPEC D-U1; the selected',
+  '///   rule’s own ink is ported.',
+  '///',
+  '/// The family has no call sites under `src/` today (a comment at',
+  '/// `src/components/ReportsCentre.tsx:161` is its only mention); it is ported',
+  '/// because the phase ruling orders it, exactly as the measurement shows.',
+  'class AppSegmentSpec {',
+  '  const AppSegmentSpec({',
+  '    required this.cssClass,',
+  '    required this.displayCss,',
+  '    required this.radiusPx,',
+  '    required this.borderWidthPx,',
+  '    required this.borderColor,',
+  '    required this.fillColor,',
+  '    required this.textColor,',
+  '    required this.fontFamily,',
+  '    required this.fontSizePx,',
+  '    required this.fontWeight,',
+  '    required this.lineHeightPx,',
+  '    required this.letterSpacingPx,',
+  '    required this.paddingVerticalPx,',
+  '    required this.paddingHorizontalPx,',
+  '    required this.gapPx,',
+  '    required this.blurPx,',
+  '    required this.blurSaturate,',
+  '    required this.selectedFillColor,',
+  '    required this.selectedTextColor,',
+  '    required this.selectedRingColor,',
+  '    required this.selectedRingWidthPx,',
+  '    required this.transitionMs,',
+  '    required this.transitionProps,',
+  '    required this.easeX1,',
+  '    required this.easeY1,',
+  '    required this.easeX2,',
+  '    required this.easeY2,',
+  '  });',
+  '',
+  '  final String cssClass;',
+  '  final String displayCss;',
+  '  final double radiusPx;',
+  '  final double borderWidthPx;',
+  '  final Color borderColor;',
+  '',
+  '  /// The resting fill and ink. The track measured',
+  '  /// `color-mix(… var(--surface-2) 72%, transparent)`; the item measured',
+  '  /// transparent over its `--ink-2`.',
+  '  final Color fillColor;',
+  '  final Color? textColor;',
+  '',
+  '  final String? fontFamily;',
+  '  final double? fontSizePx;',
+  '  final int? fontWeight;',
+  '  final double? lineHeightPx;',
+  '  final double? letterSpacingPx;',
+  '',
+  '  final double paddingVerticalPx;',
+  '  final double paddingHorizontalPx;',
+  '  final double? gapPx;',
+  '',
+  '  /// The track’s `blur(10px)`; null on the item, which measured `none`.',
+  '  final double? blurPx;',
+  '  final double? blurSaturate;',
+  '',
+  "  /// The [aria-selected='true'] / [data-active='true'] state: fill,",
+  '  /// ink, and the inset ring (`box-shadow: inset 0 0 0 1px',
+  '  /// var(--line-strong)` measured as one layer). Null on the track row.',
+  '  final Color? selectedFillColor;',
+  '  final Color? selectedTextColor;',
+  '  final Color? selectedRingColor;',
+  '  final double? selectedRingWidthPx;',
+  '',
+  '  /// The item’s `transition` (background-colour and colour on the',
+  '  /// `--dur-fast`/`--ease-out` clock); null on the track.',
+  '  final int? transitionMs;',
+  '  final String? transitionProps;',
+  '  final double? easeX1;',
+  '  final double? easeY1;',
+  '  final double? easeX2;',
+  '  final double? easeY2;',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '  Border? get border =>',
+  '      borderWidthPx == 0',
+  '          ? null',
+  '          : Border.all(color: borderColor, width: borderWidthPx);',
+  '  EdgeInsets get padding =>',
+  '      EdgeInsets.symmetric(vertical: paddingVerticalPx, horizontal: paddingHorizontalPx);',
+  '  FontWeight? get weight =>',
+  '      fontWeight == null ? null : FontWeight.values[fontWeight! ~/ 100 - 1];',
+  '  double? get blurSigmaPx => blurPx == null ? null : blurPx! / 2;',
+  '  Duration? get transitionDuration {',
+  '    final int? ms = transitionMs;',
+  '    return ms == null ? null : Duration(milliseconds: ms);',
+  '  }',
+  '  Curve? get transitionCurve =>',
+  '      easeX1 == null ? null : Cubic(easeX1!, easeY1!, easeX2!, easeY2!);',
+  '}',
+  '',
+  '/// The §6 segmented rows, keyed by CSS class — one map per measured pass.',
+  'abstract final class AppSegments {',
+);
+for (const [passName, themeTag] of [
+  ['light', 'light-desktop'],
+  ['dark', 'dark-desktop'],
+]) {
+  L.push(
+    `  /// ${passName} pass (UI_SPEC §6, \`${themeTag}\`; the selected state and`,
+    '  /// the track gap from the authored rules of the same pinned file).',
+    `  static const Map<String, AppSegmentSpec> ${passName} =`,
+    '      <String, AppSegmentSpec>{',
+  );
+  for (const c of segment.rows) {
+    L.push(`    ${dartStr(c.cls)}: AppSegmentSpec(`, segExpr(c, passName === 'light' ? 'l' : 'd'), '    ),');
+  }
+  L.push('  };', '');
+}
+L.push(
+  '  /// Sources: resting rules',
+  `  /// (${segment.rows.map((c) => `${c.cls} @ ${c.restSrc}`).join('; ')});`,
+  "  /// selected `.segment-item[aria-selected='true']` at " + segment.selSrc + '.',
+  '  ///',
+  '  /// The measured rows for a class and brightness. An unknown class is a',
+  '  /// programming error, not a fallback.',
+  '  static AppSegmentSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppSegmentSpec> table =',
+  '        brightness == Brightness.dark ? dark : light;',
+  '    final AppSegmentSpec? spec = table[cssClass];',
+  '    if (spec == null) {',
+  "      throw ArgumentError('$cssClass is not a §6 segment class');",
+  '    }',
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+);
+finish('app_segments.dart');
+
+// ================================================================ app_bars.dart
+// Progress fills come in two authored shapes: the five `.bar-*` classes, which
+// author nothing but `background: var(--pastel-*)` — size and rounding are
+// composed from utilities at every call site — and `.rainbow-bar`, which authors
+// its own 3px pill and the measured `var(--rainbow)` gradient.
+const BAR_CLASSES = ['.bar-pink', '.bar-mint', '.bar-yellow', '.bar-lavender', '.bar-blue', '.rainbow-bar'];
+const bars = BAR_CLASSES.map((cls) => {
+  const read = (tag, theme) => {
+    const p = theme.probes[cls];
+    if (!p) fail(`${tag}: no ${cls} probe`);
+    if (probeRaw(p, 'boxShadow', cls) !== 'none') fail(`${cls}: the resting probe carries a box-shadow`);
+    if (probeRaw(p, 'borderTopWidth', cls) !== '0px') fail(`${cls}: the bar measures a border`);
+    return {
+      displayCss: probeRaw(p, 'display', cls),
+      radiusPx: probePx(p, 'borderRadius', cls),
+      fill: probeSrgb(p, 'backgroundColor', cls),
+      gradient: probeGradient(p, cls),
+    };
+  };
+  const l = read('light-desktop', LIGHT);
+  const d = read('dark-desktop', DARK);
+  for (const [tag, theme, want] of [
+    ['light-phone', LIGHT_PHONE, l],
+    ['dark-phone', DARK_PHONE, d],
+  ]) {
+    const r = read(tag, theme);
+    if (r.radiusPx !== want.radiusPx) fail(`${cls}: ${tag} radius ${r.radiusPx} != desktop ${want.radiusPx}`);
+    if (r.fill.hex !== want.fill.hex || r.fill.alpha !== want.fill.alpha) {
+      fail(`${cls}: ${tag} fill ${r.fill.rgba} != desktop ${want.fill.rgba}`);
+    }
+    if (JSON.stringify(r.gradient) !== JSON.stringify(want.gradient))
+      fail(`${cls}: ${tag} gradient differs from desktop`);
+  }
+
+  const rest = cssRule(new RegExp(`^\\${cls} \\{$`), cls);
+  const bgRaw = collapse(cssDecl(rest, 'background', cls));
+  let heightPx = null;
+  if (cls === '.rainbow-bar') {
+    checkChipProps(ruleProps(rest, cls), ['height', 'border-radius', 'background'], 'the rest rule', cls, rest.line);
+    if (!l.gradient) fail(`${cls}: the probe measured no gradient; this class authors \`var(--rainbow)\``);
+    const name = tokenRef(bgRaw, `${cls} background`, cls);
+    for (const [theme, themeTag, probe] of [
+      [LIGHT, 'light-desktop', l],
+      [DARK, 'dark-desktop', d],
+    ]) {
+      const tok = theme.root[name];
+      if (!tok || !tok.substituted) fail(`${cls}: ${name} is not a measured substituted gradient in ${themeTag}`);
+      gEq(parseGradient(collapse(tok.substituted), `${themeTag} ${name}`), probe.gradient, `${cls} ${themeTag}`);
+    }
+    heightPx = lengthPx(cssDecl(rest, 'height', cls), `${cls} height`);
+    const rRaw = lengthPx(cssDecl(rest, 'border-radius', cls), `${cls} radius`);
+    if (rRaw !== l.radiusPx || rRaw !== d.radiusPx) {
+      fail(`${cls}: authored radius ${rRaw} != probe radius (l ${l.radiusPx}, d ${d.radiusPx})`);
+    }
+  } else {
+    checkChipProps(ruleProps(rest, cls), ['background'], 'the rest rule', cls, rest.line);
+    if (l.gradient || d.gradient) fail(`${cls}: a pastel bar measured a gradient`);
+    for (const [theme, themeTag, probe] of [
+      [LIGHT, 'light-desktop', l],
+      [DARK, 'dark-desktop', d],
+    ]) {
+      const want = authoredColour(bgRaw, theme, themeTag, `${cls} background`, cls);
+      if (probe.fill.hex !== want.srgb.hex || probe.fill.alpha !== want.srgb.alpha) {
+        fail(`${cls} ${themeTag}: probe fill ${probe.fill.rgba} != ${want.token} ${want.srgb.rgba}`);
+      }
+    }
+  }
+  return { cls, l, d, heightPx, gradient: !!l.gradient, restSrc: `src/index.css:${rest.line}` };
+});
+banner();
+const barExpr = (b, rowName) => {
+  const row = b[rowName];
+  return [
+    `      cssClass: ${dartStr(b.cls)},`,
+    `      displayCss: ${dartStr(row.displayCss)},`,
+    `      radiusPx: ${fmt(row.radiusPx)},`,
+    `      fillColor: ${row.gradient ? 'null' : dartSurfaceColour(row.fill)},`,
+    `      fillGradient: ${row.gradient ? gradientExpr(row.gradient) : 'null'},`,
+    `      heightPx: ${b.heightPx === null ? 'null' : fmt(b.heightPx)},`,
+  ].join('\n');
+};
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  '/// One §6 progress-bar class, measured on a detached element carrying it.',
+  '/// The five pastels author a flat colour and nothing else: size and',
+  '/// rounding at the call site are Tailwind utilities, so the row’s',
+  '/// `radiusPx` is the measured `0px` and `heightPx` is `null` — the caller’s',
+  '/// own geometry, never a default invented here.',
+  '///',
+  '/// `.rainbow-bar` is the one class that brings its own box: 3px tall,',
+  '/// fully round, painted with the measured `--rainbow` gradient (lavender →',
+  '/// blue at 45% → transparent), which was cross-checked against the §2.2',
+  '/// gradient token’s measured substitution, per pass.',
+  'class AppBarSpec {',
+  '  const AppBarSpec({',
+  '    required this.cssClass,',
+  '    required this.displayCss,',
+  '    required this.radiusPx,',
+  '    required this.fillColor,',
+  '    required this.fillGradient,',
+  '    required this.heightPx,',
+  '  });',
+  '',
+  '  final String cssClass;',
+  '',
+  '  /// The computed `display` — `block` on every bar; carried as data.',
+  '  final String displayCss;',
+  '  final double radiusPx;',
+  '',
+  '  /// Exactly one of these two is non-null, because the probe is either a',
+  '  /// flat colour or a gradient, never both.',
+  '  final Color? fillColor;',
+  '  final LinearGradient? fillGradient;',
+  '',
+  '  /// Authored height — 3px for `.rainbow-bar`, `null` for the pastels,',
+  '  /// which author none.',
+  '  final double? heightPx;',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '}',
+  '',
+  '/// The §6 bar rows, keyed by CSS class — one map per measured pass.',
+  'abstract final class AppBars {',
+);
+for (const [passName, themeTag] of [
+  ['light', 'light-desktop'],
+  ['dark', 'dark-desktop'],
+]) {
+  L.push(
+    `  /// ${passName} pass (UI_SPEC §6, \`${themeTag}\`).`,
+    `  static const Map<String, AppBarSpec> ${passName} =`,
+    '      <String, AppBarSpec>{',
+  );
+  for (const b of bars) {
+    L.push(`    ${dartStr(b.cls)}: AppBarSpec(`, barExpr(b, passName === 'light' ? 'l' : 'd'), '    ),');
+  }
+  L.push('  };', '');
+}
+L.push(
+  '  /// Sources: every rule is a one-or-three-declaration authored rule;',
+  `  /// (${bars.map((b) => `${b.cls} @ ${b.restSrc}`).join('; ')}).`,
+  '  ///',
+  '  /// The measured rows for a class and brightness. An unknown class is a',
+  '  /// programming error, not a fallback.',
+  '  static AppBarSpec resolve(String cssClass, Brightness brightness) {',
+  '    final Map<String, AppBarSpec> table = brightness == Brightness.dark ? dark : light;',
+  '    final AppBarSpec? spec = table[cssClass];',
+  "    if (spec == null) throw ArgumentError('$cssClass is not a §6 bar class');",
+  '    return spec;',
+  '  }',
+  '}',
+  '',
+);
+finish('app_bars.dart');
+
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
   fs.writeFileSync(path.join(OUT_DIR, name), text, 'utf8');
@@ -5037,6 +6343,9 @@ console.log(
     `  §6 icon buttons emitted:     ${iconButtons.length} classes x 2 passes  -> AppIconButtons`,
     `  §6 nav emitted:              ${navs.length} classes x 2 passes  -> AppNavs`,
     `  §6 modal/sheet shells:       ${modalVariantData.length} variants x 2 passes  -> AppModals`,
+    `  §6 chips emitted:            ${pills.length} classes x 2 passes + the face chip  -> AppChips`,
+    `  §6 segment rows emitted:     ${segment.rows.length} classes x 2 passes  -> AppSegments`,
+    `  §6 bar classes emitted:      ${bars.length} classes x 2 passes  -> AppBars`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );
