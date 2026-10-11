@@ -1,32 +1,33 @@
 # STATUS.md — migration state at a glance
 
 **Repo:** `D:\Emcode\EM-Budget` · **Playbook:** `D:\Emcode\MIGRATION_PLAYBOOK.md`
-**Updated:** 2026-10-11 — Phase 5 in flight on `phase5-design-system` (**PR #8, draft**): the
-generator ships 13 theme files, seven widgets are ported, and the **#56 Modal/Sheet port lands in
-this commit** — one `AppModal` primitive with a dialog and a sheet variant, deviations 1–11 accepted
-by the user. Earlier: Phase 4 **gate rulings D36–D41 recorded**; D40 defers OCR out of mobile v1
+**Updated:** 2026-10-11 — Phase 5 in flight on `phase5-design-system` (**PR #8, draft**, green at
+`5d0df70`): the generator ships 13 theme files, seven widgets are ported, and the #56 Modal/Sheet
+port landed in `5d0df70` — one `AppModal` primitive with a dialog and a sheet variant, deviations
+1–11 accepted by the user. **This commit records the breakpoint enumeration run**, closing
+deviation 1. Earlier: Phase 4 **gate rulings D36–D41 recorded**; D40 defers OCR out of mobile v1
 and parks #65, D41 fixes the `.gitattributes` rule that would corrupt the screenshot baselines and its
 follow-up `7fac3fa` restores the seven samples already damaged by it. Branch `chore/d35-srcTree-restamp`, PR #9 open.
 
 ## Tasks
 
-| #       | Task                                                                                                            | State                                                                                                                                                                                                                                                                                                                             |
-| ------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| —       | Phases 0–3 (inventory, specs+goldens, scaffold, data/auth layer)                                                | DONE — merged to `origin/main` via PR #2/#4                                                                                                                                                                                                                                                                                       |
-| #60–#63 | money port · five mid-size units · cycle engine · net-worth aggregates                                          | DONE — `049b772`, `cc8b247`, `fe8102d`, `5485b7f`                                                                                                                                                                                                                                                                                 |
-| #64a    | transaction-service re-record, `PROJECTION_DEBT` emptied, D35 `srcTree` stamps                                  | DONE — in `98ac2b8`; `validate.ts` PASS 14/1108                                                                                                                                                                                                                                                                                   |
-| #64b    | live harness `parity/live/` (D34), 16-case `app-handlers.json`, Dart port of the nine `App.tsx` handlers        | DONE — in `98ac2b8`; `flutter test` 769/769                                                                                                                                                                                                                                                                                       |
-| #64c    | INVENTORY §13m write-up                                                                                         | DONE — `INVENTORY.md:1326-1392`, pushed with the gate docs                                                                                                                                                                                                                                                                        |
-| #64     | Phase 4 logic port as a whole                                                                                   | DONE — this is the last gate commit on the branch                                                                                                                                                                                                                                                                                 |
-| #65     | Three-way OCR contract (D28/D32)                                                                                | **PARKED — D40.** OCR deferred out of mobile v1. Recorder scaffold lives on `feature/ocr-three-way-contract` (local commit, no push, no PR). Re-opened only when OCR returns to scope                                                                                                                                             |
-| —       | `fix/audit-lockfile` — lockfile-only refresh of `compression`, `proxy-addr`, `source-map-js`                    | **MERGED** as PR #6 — never `npm audit fix`, no `package.json` change; 24/24 e2e green, audit exit 0                                                                                                                                                                                                                              |
-| —       | Coverage option 2 — `AuditPanel.test.tsx`                                                                       | DONE — 35 behaviour tests, `67dfdc9` → `307b5df`; all four thresholds pass with margin; D35 `srcTree` unmoved                                                                                                                                                                                                                     |
-| —       | D35 re-stamp after B-23 landed — branch `chore/d35-srcTree-restamp`                                             | OPEN — fourteen fixtures move `srcTree` `9921f3a4…` → `b5e5bcc8…` and **no case in any of them moves**; `app-handlers.json` re-measured by a live harness run, all sixteen `expected` ledgers byte-identical; `validate.ts` PASS 14 units / 1108 cases. Pushed as **PR #9**, open, **not merged**                                 |
-| —       | Phase 4 gate → Phase 5 (design system)                                                                          | OPEN — the gate has nothing outstanding on it; #65 was the last item and D40 removed it                                                                                                                                                                                                                                           |
-| #46–#49 | `parity/generate_theme.cjs` + generated `mobile/lib/core/theme/` (13 files) + `ui_tokens_test.dart` drift suite | DONE — fail-rather-than-guess emitter, idempotent across all 13 outputs by sha256, drift tests re-derive every value from `ui-tokens.json`/`index.css` — no pinned literals                                                                                                                                                       |
-| #50–#60 | AppCard · AppButton · AppFormField · AppSkeleton · AppIconButton (+ `.glass-pill` context) · AppNav             | DONE — each from its measured row with pixel/behaviour tests on the same pipeline                                                                                                                                                                                                                                                 |
-| #61–#62 | Toast and Modal/Sheet utility-stack measurement tiers                                                           | DONE — `66c5e91`, `b7759d1`; the toast rows stay Phase 6, the modal rows feed the port below                                                                                                                                                                                                                                      |
-| #63–#68 | **Modal/Sheet port — one `AppModal` primitive, dialog + sheet variants**                                        | **DONE — this commit.** Gates: format 0-changed, `--fatal-infos` clean, `flutter test` **1062** (baseline 1041: +9 drift re-derivations, +12 behaviour tests), generator idempotent, prettier clean, `UI_SPEC.md` unchanged, the 12 older generated files byte-identical to HEAD. Deviations 1–11 accepted; see the section below |
+| #       | Task                                                                                                            | State                                                                                                                                                                                                                                                                                                                           |
+| ------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| —       | Phases 0–3 (inventory, specs+goldens, scaffold, data/auth layer)                                                | DONE — merged to `origin/main` via PR #2/#4                                                                                                                                                                                                                                                                                     |
+| #60–#63 | money port · five mid-size units · cycle engine · net-worth aggregates                                          | DONE — `049b772`, `cc8b247`, `fe8102d`, `5485b7f`                                                                                                                                                                                                                                                                               |
+| #64a    | transaction-service re-record, `PROJECTION_DEBT` emptied, D35 `srcTree` stamps                                  | DONE — in `98ac2b8`; `validate.ts` PASS 14/1108                                                                                                                                                                                                                                                                                 |
+| #64b    | live harness `parity/live/` (D34), 16-case `app-handlers.json`, Dart port of the nine `App.tsx` handlers        | DONE — in `98ac2b8`; `flutter test` 769/769                                                                                                                                                                                                                                                                                     |
+| #64c    | INVENTORY §13m write-up                                                                                         | DONE — `INVENTORY.md:1326-1392`, pushed with the gate docs                                                                                                                                                                                                                                                                      |
+| #64     | Phase 4 logic port as a whole                                                                                   | DONE — this is the last gate commit on the branch                                                                                                                                                                                                                                                                               |
+| #65     | Three-way OCR contract (D28/D32)                                                                                | **PARKED — D40.** OCR deferred out of mobile v1. Recorder scaffold lives on `feature/ocr-three-way-contract` (local commit, no push, no PR). Re-opened only when OCR returns to scope                                                                                                                                           |
+| —       | `fix/audit-lockfile` — lockfile-only refresh of `compression`, `proxy-addr`, `source-map-js`                    | **MERGED** as PR #6 — never `npm audit fix`, no `package.json` change; 24/24 e2e green, audit exit 0                                                                                                                                                                                                                            |
+| —       | Coverage option 2 — `AuditPanel.test.tsx`                                                                       | DONE — 35 behaviour tests, `67dfdc9` → `307b5df`; all four thresholds pass with margin; D35 `srcTree` unmoved                                                                                                                                                                                                                   |
+| —       | D35 re-stamp after B-23 landed — branch `chore/d35-srcTree-restamp`                                             | OPEN — fourteen fixtures move `srcTree` `9921f3a4…` → `b5e5bcc8…` and **no case in any of them moves**; `app-handlers.json` re-measured by a live harness run, all sixteen `expected` ledgers byte-identical; `validate.ts` PASS 14 units / 1108 cases. Pushed as **PR #9**, open, **not merged**                               |
+| —       | Phase 4 gate → Phase 5 (design system)                                                                          | OPEN — the gate has nothing outstanding on it; #65 was the last item and D40 removed it                                                                                                                                                                                                                                         |
+| #46–#49 | `parity/generate_theme.cjs` + generated `mobile/lib/core/theme/` (13 files) + `ui_tokens_test.dart` drift suite | DONE — fail-rather-than-guess emitter, idempotent across all 13 outputs by sha256, drift tests re-derive every value from `ui-tokens.json`/`index.css` — no pinned literals                                                                                                                                                     |
+| #50–#60 | AppCard · AppButton · AppFormField · AppSkeleton · AppIconButton (+ `.glass-pill` context) · AppNav             | DONE — each from its measured row with pixel/behaviour tests on the same pipeline                                                                                                                                                                                                                                               |
+| #61–#62 | Toast and Modal/Sheet utility-stack measurement tiers                                                           | DONE — `66c5e91`, `b7759d1`; the toast rows stay Phase 6, the modal rows feed the port below                                                                                                                                                                                                                                    |
+| #63–#68 | **Modal/Sheet port — one `AppModal` primitive, dialog + sheet variants**                                        | **DONE — `5d0df70`.** Gates: format 0-changed, `--fatal-infos` clean, `flutter test` **1062** (baseline 1041: +9 drift re-derivations, +12 behaviour tests), generator idempotent, prettier clean, `UI_SPEC.md` unchanged, the 12 older generated files byte-identical to HEAD. Deviations 1–11 accepted; see the section below |
 
 ## Branches & PRs
 
@@ -37,7 +38,7 @@ follow-up `7fac3fa` restores the seven samples already damaged by it. Branch `ch
 | `bugfix/b23-credit-card-purchases` @ `1f6a1ce` | **MERGED** into `main` as `96a200f`. The fixture cost of that merge is the `D35 re-stamp` Tasks row, and `INVENTORY.md` §13m carries the measurement                                                                                                                                                                                                                                           |
 | `fix/audit-lockfile` @ `307b5df`               | **MERGED** as PR #6 — its two commits are the lockfile-only 9-line refresh `67dfdc9` and `AuditPanel.test.tsx` `307b5df`, both ancestors of `origin/main`. This is the merge that turned Enterprise green above                                                                                                                                                                                |
 | `feature/ocr-three-way-contract` @ `7fac3fa`   | Parked #65 recorder scaffold, **local only** (no push, no PR). `83aa220` committed its 7 sample PNGs under the pre-D41 rule and damaged them; `7fac3fa` carries the `binary` lines and restores them — no history rewrite                                                                                                                                                                      |
-| `phase5-design-system`                         | **OPEN as draft PR #8** — the Flutter design system: generator, seven ported widgets, and this modal/sheet port. Pushed; CI reported at the gate. Only the user merges                                                                                                                                                                                                                         |
+| `phase5-design-system`                         | **OPEN as draft PR #8** — the Flutter design system: generator, seven ported widgets, and the modal/sheet port `5d0df70` (CI green at that SHA). Pushed; only the user merges                                                                                                                                                                                                                  |
 
 ## Open decisions waiting for the user
 
@@ -99,7 +100,7 @@ drift group; the public parameters are `isOpen, onClose, title, closeGlyph, chil
 wideBreakpointPx, variant, veil, widthToken`.
 
 Accepted deviations, as ruled: (1) **breakpoint caller-supplied** — no evidence measures the Tailwind
-`sm:` width; resolved by the planned breakpoint enumeration run, never hardcoded to a Tailwind
+`sm:` width; resolved by the breakpoint enumeration run below, never hardcoded to a Tailwind
 default; (2) shell `overflow-y` kept as row data only — the measured caps keep the shell column inside
 every captured viewport, and a Flutter scroll port would coat the veil with an opaque hit target and
 break outside-tap dismissal; (3) mount-while-open plays the enter from `didChangeDependencies`;
@@ -128,6 +129,41 @@ sheet open. Produced instead by the pixel-free route: geometry assertions at the
 the behaviour suite. A visual pair needs a new capture run on both sides, which this gate did not
 authorize.
 
+## Breakpoint enumeration (item 1 — closes modal deviation 1)
+
+Read-only run on 2026-10-11, measured rather than assumed, per the gate ruling.
+
+| Breakpoint | Source truth                                                                                                                | px at the capture root |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `sm`       | `--breakpoint-sm: 40rem` — installed Tailwind `4.3.0` defaults (`node_modules/tailwindcss/theme.css:327-331`)               | `640`                  |
+| `md`       | `48rem`                                                                                                                     | `768`                  |
+| `lg`       | `64rem`                                                                                                                     | `1024`                 |
+| `xl`       | `80rem`                                                                                                                     | `1280`                 |
+| `2xl`      | `96rem` — **emitted once, by `.container{max-width:96rem}` (`DatePicker.tsx`); no `2xl:` variant utility exists in `src/`** | `1536`                 |
+
+The chain, each link checked: `@theme` in `src/index.css:286-290` defines only the three font
+families — **no `--breakpoint-*` override**; the `html`/`body` BASE rules (`src/index.css:295-309`)
+set **no `font-size`**, so `1rem = 16px` of the harness Chromium default, the same condition every
+baseline was captured under (the only `font-size: 10px` near the top of the cascade is `.eyebrow`,
+`:367`). The shipped stylesheet — `npx vite build` (8.64 s, frontend only; the `build` script's
+esbuild step was deliberately not run so `api/index.js` stays untouched), then
+`grep '@media' dist/assets/index-*.css`, 116,227 bytes — contains exactly these min-width preludes:
+`(min-width:40rem)` ×2, `48rem` ×2, `64rem` ×2, `80rem` ×2, `96rem` ×1, plus two hand-authored px
+queries: `(min-width:1024px)` hiding `.floating-nav` (`src/index.css:1166-1172`, whose own comment
+demands it "match the sidebar's `lg` breakpoint exactly" — it does), and `(min-width:420px)` for a
+single arbitrary variant `min-[420px]:grid-cols-3` (`ReportsCentre.tsx:263`) — a one-off grid
+toggle, **not a theme breakpoint**.
+
+**What this fixes for the port.** Every divergent pair on the two modal shells switches at `sm` —
+`p-4 sm:p-6` (shell `Modal.tsx:49`, body `:92`, `BottomSheet.tsx:63`), `items-end
+sm:items-center` (`BottomSheet.tsx:23`), `border-t sm:border` / `rounded-t-2xl sm:rounded-2xl` /
+grip `sm:hidden` (`:40`, `:42`) — so `AppModal`'s `wideBreakpointPx` is **640**, still
+caller-supplied (the widget stays evidence-driven; callers now pass the measured number), and the
+behaviour suite's 390/1440 pair straddles it. The nav surface flips at `lg` = **1024**. The
+wide-baseline plan reads from this table: a 1440 set is past `sm`/`md`/`lg` and inside `xl`
+(`xl:` utilities are in live use — `hidden xl:flex`, `xl:grid`, `xl:col-span-*`); a 1280 set sits
+exactly at the `xl` edge; `2xl` changes nothing in this app.
+
 ## Phase 6 checklist (recorded at this gate, nothing built here)
 
 - Feature-modal compositions on `AppModal`: QuickAction, DebtDetail (its literal 6px veil blur is
@@ -138,15 +174,14 @@ authorize.
   veil re-layout behaviour, measured or explicitly deviated.
 - **Large system font setting, for every modal with inputs** — the caps are viewport fractions, so a
   text-scale pass must be re-measured against the 80/85vh behaviour before shipping.
-- The breakpoint enumeration run, closing deviation 1.
+- ~~The breakpoint enumeration run, closing deviation 1.~~ **Done in Phase 5** — see the
+  Breakpoint enumeration section above; `sm` = 640 is the shells' answer.
 
 ## Exact next step
 
-Close the Phase 4 gate. Nothing on it is outstanding: #64 shipped, coverage passes on
-`fix/audit-lockfile`, and D40 took the last open item off the checklist. Then Phase 5 (design system),
-after the user merges PR #5 and the audit-lockfile PR lands the green `npm audit`.
-**One edit is deliberately uncommitted:** the D41-follow-up wording approved on 2026-10-09 (decision 6
-closed, `7fac3fa` in the branch table, the standing rule above) sits in the working tree and must be
-folded into the next commit that moves `phase4-logic-units`, never committed standalone. A dirty
-`parity/STATUS.md` here is expected, not drift.
+Phase 5 under the scope ruling of 2026-10-11: item 1 (this commit) done; **items 2–6 run as one
+batch with one gate and one commit set** (icon chip · pill/chip cluster · segmented · glass panel ·
+progress bars); items 7–9 a gate each; item 10 fonts approved with the file list + sha256 + source
+URLs shown before committing; items 11–12 move to Phase 6 (Dashboard/Wallets screens), item 13 to
+Phase 9; item 14 (golden CI job, Linux path only) last, after fonts, over the final widget set.
 Nothing is committed, pushed, merged or deleted without the user's word.
