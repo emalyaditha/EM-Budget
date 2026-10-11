@@ -105,8 +105,8 @@ abstract final class AppTypography {
 
   // ------------------------------------------------------------- §3 probe classes, phone column
   /// `.money-display` at the phone viewport (§3): 30px / lh 31.5px / ls -0.6px / weight 800.
-  /// Font family `Plus Jakarta Sans` only renders once the §3.1 font-bundle approval lands;
-  /// until then Flutter falls back to the system font. height = lineHeight px / font-size px.
+  /// Font family `Plus Jakarta Sans`: bundled by item 10 (UI_SPEC §3.1), so this is the face
+  /// that renders — not a name waiting for a file. height = lineHeight px / font-size px.
   static const TextStyle moneyDisplay = TextStyle(
     fontSize: 30.0,
     height: 1.05,
@@ -116,8 +116,8 @@ abstract final class AppTypography {
   );
 
   /// `.numeral` at the phone viewport (§3): 38px / lh 38px / ls -1.14px / weight 300.
-  /// Font family `Plus Jakarta Sans` only renders once the §3.1 font-bundle approval lands;
-  /// until then Flutter falls back to the system font. height = lineHeight px / font-size px.
+  /// Font family `Plus Jakarta Sans`: bundled by item 10 (UI_SPEC §3.1), so this is the face
+  /// that renders — not a name waiting for a file. height = lineHeight px / font-size px.
   static const TextStyle numeral = TextStyle(
     fontSize: 38.0,
     height: 1.0,
@@ -127,8 +127,8 @@ abstract final class AppTypography {
   );
 
   /// `.numeral-hero` at the phone viewport (§3): 38px / lh 57px / ls normal / weight 400.
-  /// Font family `Inter` only renders once the §3.1 font-bundle approval lands;
-  /// until then Flutter falls back to the system font. height = lineHeight px / font-size px.
+  /// Font family `Inter`: bundled by item 10 (UI_SPEC §3.1), so this is the face
+  /// that renders — not a name waiting for a file. height = lineHeight px / font-size px.
   static const TextStyle numeralHero = TextStyle(
     fontSize: 38.0,
     height: 1.5,
@@ -138,8 +138,8 @@ abstract final class AppTypography {
   );
 
   /// `.numeral-md` at the phone viewport (§3): 26px / lh 39px / ls normal / weight 400.
-  /// Font family `Inter` only renders once the §3.1 font-bundle approval lands;
-  /// until then Flutter falls back to the system font. height = lineHeight px / font-size px.
+  /// Font family `Inter`: bundled by item 10 (UI_SPEC §3.1), so this is the face
+  /// that renders — not a name waiting for a file. height = lineHeight px / font-size px.
   static const TextStyle numeralMd = TextStyle(
     fontSize: 26.0,
     height: 1.5,
@@ -149,8 +149,8 @@ abstract final class AppTypography {
   );
 
   /// `.numeral-sup` at the phone viewport (§3): 6px / lh 9px / ls 0.1792px / weight 500.
-  /// Font family `Inter` only renders once the §3.1 font-bundle approval lands;
-  /// until then Flutter falls back to the system font. height = lineHeight px / font-size px.
+  /// Font family `Inter`: bundled by item 10 (UI_SPEC §3.1), so this is the face
+  /// that renders — not a name waiting for a file. height = lineHeight px / font-size px.
   static const TextStyle numeralSup = TextStyle(
     fontSize: 6.0,
     height: 1.5,

@@ -337,9 +337,124 @@ therefore has two numbers, and the port must use the **phone** column.
 - `JetBrains Mono` weights 400, 500, 700
 
 Flutter cannot load a stylesheet from a CDN at runtime the way this line does, so the three families
-must be bundled as assets (all three are SIL Open Font Licence and may be redistributed with the app).
-That is a packaging decision, not a design change, but it is listed here because a missing font asset
-silently changes every glyph in the golden screenshots. **Needs approval: bundle the fonts.**
+are bundled as assets. Item 10 did that: `mobile/pubspec.yaml` declares them, `mobile/assets/fonts/`
+carries them. The tables below are rendered from `parity/fixtures/fonts.json` — the record that
+`node parity/get_fonts.cjs --check` re-verifies against the bytes on disk — so every digest here is
+one the checker recomputes, not one copied into prose.
+
+**Provenance.** Each face is the weight the stylesheet asks for, taken from the official upstream —
+Google Fonts’ `css2` endpoint requested with a pre-`woff2` User-Agent, which serves one
+**unsubsetted TrueType** file per weight from `fonts.gstatic.com` (the same font release the
+stylesheet points at). The face set is parsed from that `@import` line, not typed, so a weight the
+web stopped requesting cannot quietly stay in the bundle. `get_fonts.cjs` accepts a file only when
+its name table says `family` = the declared family and `subfamily` = the file stem, its
+`OS/2.usWeightClass` equals the declared weight, and its byte count and sha256 match the record:
+
+| file                          | family            | weight | bytes   | sha256                                                           |
+| ----------------------------- | ----------------- | ------ | ------- | ---------------------------------------------------------------- |
+| Inter-Light.ttf               | Inter             | 300    | 325,748 | d0f4bc7faca468376e3db9b5e57afcdc2192134c9ac82a9511f32767b56853a4 |
+| Inter-Regular.ttf             | Inter             | 400    | 324,820 | 1b08e7fc267a5c7e1d614100f604b83e7e8a0be241f0f288faa2b3ac93a683ba |
+| Inter-Medium.ttf              | Inter             | 500    | 325,304 | 8c883f63b2c4157d997319f2c8bc6995ed4357ef371940d31ca159004a4aae63 |
+| Inter-SemiBold.ttf            | Inter             | 600    | 326,048 | e7a1aaf7eda9f2fad4131725fa556265ec75ca7b2d756260173a040363e8d4f7 |
+| JetBrainsMono-Regular.ttf     | JetBrains Mono    | 400    | 112,172 | 44ce4a84f20d60f24539bd0cef11f79c29e38609e0f8adf18551c9794a5d9dc3 |
+| JetBrainsMono-Medium.ttf      | JetBrains Mono    | 500    | 112,204 | 3386a05f6ece969e4537de6be894170d20558e82f7d56c8c5d332972ef172160 |
+| JetBrainsMono-Bold.ttf        | JetBrains Mono    | 700    | 112,092 | a1d92abc6b02a87faed23d98067ab1027e8e95242fd7c9978a072ea383b89d1a |
+| PlusJakartaSans-Light.ttf     | Plus Jakarta Sans | 300    | 63,372  | c96871f21917248bceb319a3d52a452bbec760c6ea8f7b9a0448572274f1d5b8 |
+| PlusJakartaSans-Regular.ttf   | Plus Jakarta Sans | 400    | 63,336  | 076831b98043f50f829b6c91db3be4a844641f1c95bccff5c886ed87c661a852 |
+| PlusJakartaSans-Medium.ttf    | Plus Jakarta Sans | 500    | 63,404  | b4fc14ec283d54236fd302cdb92546f98ae0ff061ca5ee23453a02bdf4628791 |
+| PlusJakartaSans-SemiBold.ttf  | Plus Jakarta Sans | 600    | 63,412  | 50357df108c5d297ec4ece76aeddf49561f3794f67af077cfc2c711b7a75b439 |
+| PlusJakartaSans-Bold.ttf      | Plus Jakarta Sans | 700    | 63,336  | 32971ad7976930539a11c79ce91ce84092df7f25c5be716b594601842f10a7ae |
+| PlusJakartaSans-ExtraBold.ttf | Plus Jakarta Sans | 800    | 63,372  | d9e0ddb4a15a0054ad84b4ded3b4b9f354a0b7df426e21a1363d6933728da9d5 |
+
+Recorded per face in `parity/fixtures/fonts.json`: `sourceUrl` (the exact `fonts.gstatic.com`
+object fetched) and `cssUrl` (the stylesheet that served it). `localPath` values are POSIX so the
+Dart-side checker is portable across hosts.
+
+**Licences.** All three families are SIL Open Font Licence 1.1. The licence texts ship as assets
+alongside the faces, so the app carries the attribution the licence requires:
+
+| file                    | bytes | sha256                                                           | upstream repo                               |
+| ----------------------- | ----- | ---------------------------------------------------------------- | ------------------------------------------- |
+| Inter-OFL.txt           | 4,377 | 5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57 | https://github.com/rsms/inter               |
+| JetBrainsMono-OFL.txt   | 4,399 | b2fe5e8987594e9ffd1d2ca52a2f5d73eb8335243893c5d6254b5ad69269591d | https://github.com/JetBrains/JetBrainsMono  |
+| PlusJakartaSans-OFL.txt | 4,402 | 995c7199cab65954f545996326755daee7b63cc6b42b06c13da1f9502ab08a99 | https://github.com/tokotype/PlusJakartaSans |
+
+Retrieved from `google/fonts (main)` (`SIL OPEN FONT LICENSE Version 1.1`); each record's
+`sourceUrl` is the raw `OFL.txt` and its `copyrightLine` the notice upstream carries.
+
+**What this costs, honestly.** 2,018,620 bytes of font binary (13 faces) plus
+13,178 bytes of licence text. The web pays far less for the same type because Google serves it
+as `woff2` split into `unicode-range` subsets and a browser downloads only the subsets a page
+touches. Flutter has no equivalent lazy subsetting here, so the bundle carries every glyph each face
+has, most of it unrendered on any given screen. Subsetting is a later packaging decision, not a parity
+one, and is an open item in `parity/STATUS.md`: a subset could only ever be smaller, never a
+different design.
+
+**Weight resolution differs from CSS.** `src/index.css` requests exactly the weights above, so no
+normal web render reaches an unbundled weight. A Flutter `TextStyle` can, and there the family falls
+back to the **nearest bundled bracket** with no synthetic bolding: `FontWeight.w100`/`w200` in Inter
+land on 300 Light and `w700`/`w800`/`w900` land on 600 SemiBold. Measured in the test harness at 38px
+on `'0123456789'`, the advances really do differ per weight — Inter 300 220.374 / 400 224.771 / 500
+228.353 / 600 231.859, Plus Jakarta Sans 300 221.730 / 400 225.074 / 800 228.076, JetBrains Mono 400
+and 700 both 228.000, which is what a monospace face does to digits. So an asked-for weight never
+becomes a synthesised blur, but it can become a _neighbour_.
+`mobile/test/theme/app_fonts_test.dart` pins that bracketing per family, and every ported widget’s
+numeral spec names a weight this bundle carries.
+
+**`tabularNums` is a feature of the face, not a wish.** Inter’s proportional digits are measurably
+uneven (at 38px, `1111111111` 154.561 against `5555555555` 225.439); `FontFeature.tabularFigures()`
+makes both 246.406 — and wider than proportional `0123456789` at 224.771. In a fallback family the
+flag does nothing at all. This is why the numeral rows assert relations rather than literals.
+
+**Coverage holes the bundle cannot draw.** Of the 47 codepoints the
+money fixtures produce (`ar-EG`, `bn-BD`, `cs-CZ`, `de-DE`, `en-IN`, `en-LK`, `en-US`, `fr-FR`, `hi-IN`, `si-LK`), 23 are absent from at least
+one bundled face:
+
+- `U+0660–U+0669` (Arabic-Indic digits) — needed by **ar-EG**. In **no** bundled face.
+- `U+066B–U+066C` (Arabic decimal and thousands separators) — needed by **ar-EG**. In **no** bundled face.
+- `U+09E6–U+09EF` (Bengali digits) — needed by **bn-BD**. In **no** bundled face.
+- `U+202F` (narrow no-break space, the French figure separator) — needed by **fr-FR**. Absent from `JetBrains Mono` and `Plus Jakarta Sans` (9 of 13 faces); the rest draw it.
+
+Separately, of the currency and dash marks probed:
+
+- `U+09f3 ৳` is in no face of `Inter` or `JetBrains Mono` or `Plus Jakarta Sans` (13 of 13 faces).
+- `U+20a6 ₦` is in no face of `JetBrains Mono` (3 of 13 faces).
+- `U+20a8 ₨` is in no face of `JetBrains Mono` (3 of 13 faces).
+- `U+20a9 ₩` is in no face of `JetBrains Mono` (3 of 13 faces).
+- `U+20b9 ₹` is in no face of `JetBrains Mono` (3 of 13 faces).
+
+No `money.json` expected string uses any codepoint above — that is the assertion
+`app_fonts_test.dart` makes for every fixture figure against every face, and it is what stops these
+gaps being silent.
+
+These are not regressions against the web: the web loads the same three families, and a
+`unicode-range` subset can only cover _less_ than the unsubsetted face, so the set above is an upper
+bound on the web’s own holes for the same locales.
+
+**One difference is real, though: the port names one family where the CSS names a stack.**
+`--font-display` is `'Plus Jakarta Sans', 'Inter', system-ui, sans-serif` (§3.2), and the measured
+`.numeral`/`.money-display` rows resolved to Plus Jakarta Sans, so that single family is what
+`AppNumeralSpec.fontFamily` carries. A CSS stack falls through _per glyph_: a codepoint Plus Jakarta
+Sans lacks but Inter has — U+202F above — renders from Inter in the browser, and one that neither
+family has falls to `system-ui`, which is a device font and cannot be bundled. So for fr-FR the web
+and the phone would disagree, and for ar-EG/bn-BD neither side has the digits in the design-system
+faces: the web shows a system font, the phone shows nothing.
+
+en-LK — the locale in the screenshot evidence, and the one item 7 gated on — hits neither case,
+which is why that gate could close. Porting `fontFamilyFallback` alongside the measured family, or
+accepting the difference, is an open item for `parity/STATUS.md` rather than a decision to slip into
+a font commit. Whether the running app can be set to ar-EG, bn-BD or fr-FR is a product question
+this section cannot answer; if it can, the gap above is visible, not theoretical.
+
+**The other fixture locales draw every figure from every face**:
+`cs-CZ`, `de-DE`, `en-IN`, `en-LK`, `en-US`, `hi-IN`, `si-LK`, including the `.numeral` row the 320px screenshot
+showed (en-LK). `app_fonts_test.dart` re-derives this set from the fixtures on every run, so a new
+fixture locale is checked against the bundle the day it is added.
+
+**Testing harness.** `flutter test` does not load the faces an app declares, so
+`mobile/test/flutter_test_config.dart` registers the bundle from `FontManifest.json` through
+`FontLoader`. Without it every family measures as the harness fallback — exactly 1em per glyph,
+`'0123456789'` at 38px = 380.000 — and the loader is provably load-bearing: deleting it fails 6 tests.
 
 ### 3.2 Stacks
 
@@ -840,7 +955,7 @@ split, bug-compatible. Every other row in this table still awaits your approval.
 | D-U6  | OKLCH / `color-mix()` / Display-P3                     | 114 colour-bearing tokens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Flutter `Color` has no OKLCH and no mix. Values are baked from Chrome’s own conversion (§2).                                                                                                                                                                                                                              | Accept the baked table as the source of truth; re-run this file if the CSS changes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | D-U7  | Translucent shadows                                    | every `--shadow*` token, α 0.05–0.55                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | A flat hex cannot carry them: `hex` ignores alpha, and an 8-bit canvas cannot carry the colour either (§1.1).                                                                                                                                                                                                             | Use `Color.fromRGBO(r, g, b, alpha)` from §2.2. Never derive a shadow from its hex.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | D-U8  | `backdrop-filter: blur()`                              | `.glass-panel`, `.glass-pill`, `.floating-nav`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Reproduces, but costs real frames on low-end Android.                                                                                                                                                                                                                                                                     | Port at the same sigma, with a documented fallback to a solid fill if the golden test can’t hold 60fps.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| D-U9  | Google Fonts `@import`                                 | `src/index.css:1`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | No CDN stylesheet at runtime on native.                                                                                                                                                                                                                                                                                   | **Bundle the three families as assets** (OFL). A missing font silently invalidates every screenshot golden.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| D-U9  | Google Fonts `@import`                                 | `src/index.css:1`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | No CDN stylesheet at runtime on native.                                                                                                                                                                                                                                                                                   | **Bundle the three families as assets** (OFL). A missing font silently invalidates every screenshot golden. **Landed — item 10:** §3.1 lists the 13 faces with their digests and the licence texts; `node parity/get_fonts.cjs --check` verifies the bytes, and `mobile/test/flutter_test_config.dart` loads them into the test harness.                                                                                                                                                                                                                                                                                                                                                                                                       |
 | D-U10 | `clamp()` type sizes                                   | §3 rows marked **resizes**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | The phone resolves them to a different pixel size than the desktop.                                                                                                                                                                                                                                                       | Hard-code the 390px value per style, since the phone viewport is the target.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | D-U11 | Desktop-only layout block                              | @media (min-width: …): `1024px`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | The ≥1024px rules are sidebar/desktop chrome; the base rules are the mobile ones.                                                                                                                                                                                                                                         | Port the base rules only. The phone _is_ the layout Flutter ships.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | D-U12 | Service worker / PWA                                   | none exists                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Nothing to port, nothing to add.                                                                                                                                                                                                                                                                                          | No action.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -955,7 +1070,9 @@ npm run dev                      # the app, unmodified, on http://localhost:3000
 node parity/run_baselines.cjs    # §9: drives qa-shot.cjs; writes parity/screenshots/
 node parity/ui-tokens.cjs        # measures; writes parity/ui-tokens.json
 npx prettier --write parity/ui-tokens.json
-node parity/render_ui_spec.cjs   # renders this document from that file
+node parity/get_fonts.cjs        # §3.1: fetches the bundle; writes parity/fixtures/fonts.json
+node parity/get_fonts.cjs --check  # re-verifies those bytes; changes nothing
+node parity/render_ui_spec.cjs   # renders this document from those files
 ```
 
 The renderer refuses to write if `src/index.css` is not blob-identical to tag `pre-flutter`, and the probe refuses to

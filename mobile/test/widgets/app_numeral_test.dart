@@ -23,14 +23,18 @@ import '../data/web_source.dart';
 /// site's utility classes override the row property by property the way the
 /// class list does, and that a seven-figure amount stays inside the phone.
 ///
-/// ## The font caveat, which is the mandate's
+/// ## The fonts, which item 10 supplied
 ///
-/// `mobile/pubspec.yaml` bundles none of the faces these rows name, so every
-/// glyph here is drawn in the test harness's fallback, whose advance is 1em per
-/// character and whose `letterSpacing` lands after the last glyph too. Widths
-/// and line counts therefore measure the fallback, not Plus Jakarta Sans. Each
-/// such assertion is tagged `ITEM-10 RECHECK` and says what the bundled face
-/// will make of it; nothing else in this file does.
+/// The three families these rows name are declared in `mobile/pubspec.yaml`
+/// and `mobile/test/flutter_test_config.dart` hands them to the harness,
+/// because `flutter test` does not load app fonts by itself. Without that
+/// step every glyph here is drawn in the fallback, whose advance is 1em per
+/// character and whose `letterSpacing` lands after the last glyph too: the
+/// right string in the right style, measured in the wrong face. That is why
+/// the width assertions here are relations (one line, inside 360dp,
+/// narrower than the fallback) rather than literals, and why
+/// `test/theme/app_fonts_test.dart` measures the faces themselves — a bundle
+/// that stopped resolving is reported there, not read here as a design change.
 void main() {
   // ------------------------------------------------------------ the fixtures
   //
@@ -507,9 +511,8 @@ void main() {
         heights["formatMoney('Rs.',-500,signed)"],
         heights["formatMoney('Rs.',-500)"],
         reason:
-            'both fit one line, so both are $lineHeight tall — '
-            'ITEM-10 RECHECK: a wider face could push the longer string onto '
-            'a second line, and then this is the wrong shape of assertion',
+            'both fit one line, so both are $lineHeight tall — the signed '
+            'form is one glyph longer and the bundled face still fits 360dp',
       );
       expect(heights.values.first, lineHeight);
     });
@@ -840,36 +843,39 @@ void main() {
       }
     });
 
-    testWidgets('it wraps rather than clips — and that is the fallback’s '
-        'arithmetic, not the web’s', (WidgetTester tester) async {
-      // ITEM-10 RECHECK. The harness fallback advances 1em per glyph and puts
-      // `letterSpacing` after the last one too, so 12 characters at 38px measure
-      // 12 × (38 − 1.14) = 442.3px and cannot fit 360: the figure takes a second
-      // line. Plus Jakarta Sans tabular figures are far narrower (a little over
-      // 0.5em), and the phone the web was measured on showed one line. When the
-      // bundle lands this assertion flips to a single line, and the `overflow-
-      // wrap: anywhere` deviation recorded in STATUS.md stops mattering here —
-      // until then wrapping is the honest behaviour of the fallback, and the
-      // thing that must never happen — a clipped or overflowing number — is what
-      // the test above pins.
+    testWidgets('it takes one line, which is what the phone showed', (
+      WidgetTester tester,
+    ) async {
+      // This is the assertion item 10 was booked to flip, and it flipped the
+      // way the web behaves. In the harness fallback these twelve glyphs
+      // measured 12 × (38 − 1.14) = 442.3px, did not fit 360dp and took a
+      // second line; Plus Jakarta Sans Light with `tnum` is far narrower and
+      // the figure now stays on one line inside the width. The fallback
+      // arithmetic is not lost — app_fonts_test.dart measures it directly, so
+      // a bundle that stopped resolving would not hide behind this passing.
       const String digits = 'LKR2,588,660';
-      await pumpFigure(tester, AppNumeral(text: digits));
-      final double line = numeralPx * 1.0; // `.numeral`: line-height 1
-      final double height = figureParagraph(tester).size.height;
+      await pumpFigure(tester, const AppNumeral(text: digits));
+      final Size painted = figureParagraph(tester).size;
       expect(
-        height,
-        greaterThan(line * 1.5),
-        reason:
-            'twelve fallback glyphs at 38px measure ${12 * (38 - 1.14)}px, '
-            'so the figure takes a second line inside 360dp',
+        painted.height,
+        lineHeight(figureText(tester).style!, digits),
+        reason: 'one line, at the row’s own leading',
       );
+      expect(
+        painted.height,
+        closeTo(numeralPx, 0.01),
+        reason: 'one line of a row whose line-height is 1',
+      );
+      expect(painted.width, lessThan(360), reason: digits);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('the card figure, which is what the 320px capture showed, '
-        'fits on one line even in the fallback', (WidgetTester tester) async {
-      // ITEM-10 RECHECK for the same reason, in the other direction: 19px × 12
-      // characters is ~226px, so this one does fit and a real font can only
-      // make it narrower.
+        'holds one line in the real face as well', (WidgetTester tester) async {
+      // Twelve glyphs at the call site’s 19px: this one fitted even in the
+      // fallback at ~226px, so it is the case that proves the bundle did not
+      // cost the card its single line. What a wider face could have done —
+      // push a figure onto a second line — is what the test above now pins.
       const String digits = 'LKR2,588,660';
       await pumpFigure(
         tester,
@@ -929,25 +935,6 @@ void main() {
       await pumpFigure(tester, const AppNumeral(text: 'Rs.12345678901234567'));
       expect(tester.takeException(), isNull);
       expect(figureParagraph(tester).size.width, lessThanOrEqualTo(360));
-    });
-
-    test('the named faces are still only names until item 10', () {
-      expect(
-        AppNumerals.resolve('.numeral', Brightness.light).fontFamily,
-        'Plus Jakarta Sans',
-      );
-      final File pubspec = File(
-        '${repoRoot()}${Platform.pathSeparator}mobile'
-        '${Platform.pathSeparator}pubspec.yaml',
-      );
-      expect(
-        pubspec.readAsStringSync(),
-        isNot(contains('Plus Jakarta Sans')),
-        reason:
-            'item 10 bundles the faces; until then every glyph in this file '
-            'is the harness fallback, which is why the width assertions are '
-            'tagged ITEM-10 RECHECK',
-      );
     });
   });
 }

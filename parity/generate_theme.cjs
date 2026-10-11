@@ -468,8 +468,8 @@ for (const { cls } of typeClasses) {
   L.push(
     `  /// \`${cls}\` at the phone viewport (§3): ${p.fontSize} / lh ${p.lineHeight} / ls ${p.letterSpacing} / weight ${p.fontWeight}.`,
   );
-  L.push(`  /// Font family \`${family}\` only renders once the §3.1 font-bundle approval lands;`);
-  L.push('  /// until then Flutter falls back to the system font. height = lineHeight px / font-size px.');
+  L.push(`  /// Font family \`${family}\`: bundled by item 10 (UI_SPEC §3.1), so this is the face`);
+  L.push('  /// that renders — not a name waiting for a file. height = lineHeight px / font-size px.');
   L.push(`  static const TextStyle ${ident(cls.replace(/^\./, ''))} = TextStyle(`);
   L.push(`    fontSize: ${fmt(fsPx)},`);
   L.push(`    height: ${fmt(lh / fsPx)},`);
@@ -836,9 +836,13 @@ L.push('/// surface where the spec never measured one. Text roles map monotonica
 L.push('/// onto the measured `--text-*` ladder, each rung a §2.3 value and the clamp');
 L.push('/// rungs the §3 phone column; weights are not attached to Material roles');
 L.push('/// because the measurement attaches them to §3 classes, not to text tokens.');
-L.push('/// Font families are intentionally NOT set: §3.1 makes bundling the three');
-L.push('/// web families an open approval, and a missing family silently re-glyphs');
-L.push('/// every golden screenshot.');
+L.push('/// The ladder carries no `fontFamily`, and that is a known gap rather than a');
+L.push('/// waiting room: item 10 bundled the three web families (UI_SPEC §3.1) and every');
+L.push('/// §3 class style in `app_typography.dart` names its measured one, so what renders');
+L.push('/// through a measured row is the real face. This ladder is the Material roles,');
+L.push('/// which the web answers with `body`’s `--font-sans` stack; no ported widget');
+L.push('/// reads it yet, so leaving it family-free is recorded as an open item, not a');
+L.push('/// silence — and a missing family is exactly what would re-glyph a golden.');
 L.push('ThemeData appThemeData({required bool isDark}) {');
 L.push('  Color c(String token) => AppTokens.colorOf(token, isDark: isDark);');
 L.push('  final ColorScheme scheme =');
@@ -6721,9 +6725,10 @@ L.push(
   '  /// it says nothing about the call site. Carried as data, never used.',
   '  final String displayCss;',
   '',
-  '  /// The first family of the measured stack. It is a name, not a promise: the',
-  '  /// glyphs only land when the UI_SPEC §3.1 font bundle arrives, and until then',
-  '  /// Flutter falls back to the system font.',
+  '  /// The first family of the measured stack. Item 10 bundled it (UI_SPEC §3.1),',
+  '  /// so it is the face that renders; `app_fonts_test.dart` fails if a named family',
+  '  /// ever stops resolving, because a fallback would draw this row at the wrong',
+  '  /// width while looking exactly like the right design.',
   '  final String fontFamily;',
   '  final double fontSizePx;',
   '  final int fontWeight;',
@@ -6740,8 +6745,10 @@ L.push(
   '  final double letterSpacingEm;',
   '',
   '  /// `font-variant-numeric: tabular-nums`, which Flutter answers with',
-  '  /// [FontFeature.tabularFigures] — a font feature, so it is only visible once',
-  '  /// the bundled fonts are the ones rendering.',
+  '  /// [FontFeature.tabularFigures] — a font feature, so it does nothing in a',
+  '  /// fallback and equalises the digit advances in the bundled face. That',
+  '  /// difference is what `app_fonts_test.dart` measures, on the face rather than',
+  '  /// on a widget, so a row that silently lost tnum would be reported there.',
   '  final bool tabularNums;',
   '',
   '  /// `overflow-wrap: anywhere`, which this Flutter SDK has no engine knob for',

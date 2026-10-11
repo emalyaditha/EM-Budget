@@ -48,9 +48,10 @@ class AppNumeralSpec {
   /// it says nothing about the call site. Carried as data, never used.
   final String displayCss;
 
-  /// The first family of the measured stack. It is a name, not a promise: the
-  /// glyphs only land when the UI_SPEC §3.1 font bundle arrives, and until then
-  /// Flutter falls back to the system font.
+  /// The first family of the measured stack. Item 10 bundled it (UI_SPEC §3.1),
+  /// so it is the face that renders; `app_fonts_test.dart` fails if a named family
+  /// ever stops resolving, because a fallback would draw this row at the wrong
+  /// width while looking exactly like the right design.
   final String fontFamily;
   final double fontSizePx;
   final int fontWeight;
@@ -67,8 +68,10 @@ class AppNumeralSpec {
   final double letterSpacingEm;
 
   /// `font-variant-numeric: tabular-nums`, which Flutter answers with
-  /// [FontFeature.tabularFigures] — a font feature, so it is only visible once
-  /// the bundled fonts are the ones rendering.
+  /// [FontFeature.tabularFigures] — a font feature, so it does nothing in a
+  /// fallback and equalises the digit advances in the bundled face. That
+  /// difference is what `app_fonts_test.dart` measures, on the face rather than
+  /// on a widget, so a row that silently lost tnum would be reported there.
   final bool tabularNums;
 
   /// `overflow-wrap: anywhere`, which this Flutter SDK has no engine knob for

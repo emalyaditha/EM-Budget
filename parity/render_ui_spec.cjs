@@ -57,6 +57,11 @@ const esc = (s) => String(s).replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
 const cell = (s) => '`' + esc(s) + '`';
 const mdRow = (cols) => '| ' + cols.map(esc).join(' | ') + ' |';
 
+/** The font record stores a codepoint the way the font tables print it: lowercase, at
+ *  least four digits. `cpLabel` is the same value written the way Unicode names it. */
+const cpHex = (n) => n.toString(16).padStart(4, '0');
+const cpLabel = (n) => 'U+' + cpHex(n).toUpperCase();
+
 /** One measured colour, in the form the Dart theme needs. The alpha is Chrome’s own
  *  float, not a255/255 — Color.fromRGBO takes a double, so the author value survives. */
 const dart = (c) => {
@@ -217,6 +222,33 @@ const cssLineOf = (needle) => {
   const lines = CSS_TEXT.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) if (lines[i].includes(needle)) return i + 1;
   return null;
+};
+
+/**
+ * Every string the money fixtures expect, tagged with the locale that produced it.
+ * `money.json` is single-locale — its `_provenance` says which — while
+ * `number-locale.json` names the locale inside each case name. This is the same
+ * reading `mobile/test/theme/app_fonts_test.dart` makes, so the document and the
+ * test cannot disagree about what the fixtures cover.
+ */
+const fixtureStrings = () => {
+  const out = [];
+  for (const file of ['money.json', 'number-locale.json']) {
+    const root = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', file), 'utf8'));
+    const provenanceLocale = root._provenance && root._provenance.locale;
+    if (!provenanceLocale) throw new Error(`parity/fixtures/${file}: _provenance.locale is missing`);
+    for (const c of root.cases || []) {
+      if (typeof c.expected !== 'string') continue;
+      let locale = provenanceLocale;
+      if (file === 'number-locale.json') {
+        const m = /"([A-Za-z-]+)"/.exec(c.name);
+        if (!m) throw new Error(`parity/fixtures/${file}: case "${c.name}" names no locale`);
+        locale = m[1];
+      }
+      out.push({ locale, text: c.expected });
+    }
+  }
+  return out;
 };
 
 const IMPORTANTS = importantRules();
@@ -483,11 +515,239 @@ put(
       )
     : [];
   put(...(fams.length ? fams : ['(family import not parsed — see the raw @import line)']), '');
+}
+put(
+  'Flutter cannot load a stylesheet from a CDN at runtime the way this line does, so the three families',
+  'are bundled as assets. Item 10 did that: `mobile/pubspec.yaml` declares them, `mobile/assets/fonts/`',
+  'carries them. The tables below are rendered from `parity/fixtures/fonts.json` — the record that',
+  '`node parity/get_fonts.cjs --check` re-verifies against the bytes on disk — so every digest here is',
+  'one the checker recomputes, not one copied into prose.',
+  '',
+);
+{
+  /**
+   * Every number in this section comes from the bundle record, so the spec cannot
+   * claim a file the tool did not fetch. A missing record is a hard error rather
+   * than an empty table: an absent font section would read like "nothing to bundle".
+   */
+  const recPath = path.join(__dirname, 'fixtures', 'fonts.json');
+  if (!fs.existsSync(recPath)) {
+    throw new Error(
+      'parity/fixtures/fonts.json is missing. Render the font section only after `node parity/get_fonts.cjs`, ' +
+        'which writes the record; an empty §3.1 would read as "there is nothing to bundle".',
+    );
+  }
+  const REC = JSON.parse(fs.readFileSync(recPath, 'utf8'));
+  const grp = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  // Ordinal, not localeCompare: a sort that reads a different order on a different host's
+  // ICU would make this generated document non-reproducible (D33).
+  const byName = (a, b) => (a.family < b.family ? -1 : a.family > b.family ? 1 : a.weight - b.weight);
+  const faces = [...REC.faces].sort(byName);
+  /**
+   * The record writes cmap holes as the font tables print them, and two of the Google
+   * files print `066B` where the tool that hashed them stored `0660`. Case-fold once,
+   * into a Set per face, so a coverage claim here cannot be wrong because of a letter.
+   */
+  const holes = new Map(REC.faces.map((f) => [f, new Set(f.missingFixtureCodepoints.map((h) => h.toLowerCase()))]));
+
   put(
-    'Flutter cannot load a stylesheet from a CDN at runtime the way this line does, so the three families',
-    'must be bundled as assets (all three are SIL Open Font Licence and may be redistributed with the app).',
-    'That is a packaging decision, not a design change, but it is listed here because a missing font asset',
-    'silently changes every glyph in the golden screenshots. **Needs approval: bundle the fonts.**',
+    '**Provenance.** Each face is the weight the stylesheet asks for, taken from the official upstream —',
+    'Google Fonts’ `css2` endpoint requested with a pre-`woff2` User-Agent, which serves one',
+    '**unsubsetted TrueType** file per weight from `fonts.gstatic.com` (the same font release the',
+    'stylesheet points at). The face set is parsed from that `@import` line, not typed, so a weight the',
+    'web stopped requesting cannot quietly stay in the bundle. `get_fonts.cjs` accepts a file only when',
+    'its name table says `family` = the declared family and `subfamily` = the file stem, its',
+    '`OS/2.usWeightClass` equals the declared weight, and its byte count and sha256 match the record:',
+    '',
+  );
+  table(
+    ['file', 'family', 'weight', 'bytes', 'sha256'],
+    faces.map((f) => [f.fileName, f.family, String(f.weight), grp(f.bytes), f.sha256]),
+  );
+  put(
+    `Recorded per face in \`parity/fixtures/fonts.json\`: \`sourceUrl\` (the exact \`fonts.gstatic.com\``,
+    'object fetched) and `cssUrl` (the stylesheet that served it). `localPath` values are POSIX so the',
+    'Dart-side checker is portable across hosts.',
+    '',
+  );
+
+  put(
+    '**Licences.** All three families are SIL Open Font Licence 1.1. The licence texts ship as assets',
+    'alongside the faces, so the app carries the attribution the licence requires:',
+    '',
+  );
+  table(
+    ['file', 'bytes', 'sha256', 'upstream repo'],
+    [...REC.licenses]
+      .sort((a, b) => (a.family < b.family ? -1 : a.family > b.family ? 1 : 0))
+      .map((l) => [l.fileName, grp(l.bytes), l.sha256, l.upstreamRepo]),
+  );
+  put(
+    `Retrieved from \`${REC._provenance.licenseFrom}\` (\`${REC._provenance.license}\`); each record's`,
+    '`sourceUrl` is the raw `OFL.txt` and its `copyrightLine` the notice upstream carries.',
+    '',
+  );
+
+  const faceBytes = REC.faces.reduce((n, f) => n + f.bytes, 0);
+  const licBytes = REC.licenses.reduce((n, l) => n + l.bytes, 0);
+  put(
+    `**What this costs, honestly.** ${grp(faceBytes)} bytes of font binary (${REC.faces.length} faces) plus`,
+    `${grp(licBytes)} bytes of licence text. The web pays far less for the same type because Google serves it`,
+    'as `woff2` split into `unicode-range` subsets and a browser downloads only the subsets a page',
+    'touches. Flutter has no equivalent lazy subsetting here, so the bundle carries every glyph each face',
+    'has, most of it unrendered on any given screen. Subsetting is a later packaging decision, not a parity',
+    'one, and is an open item in `parity/STATUS.md`: a subset could only ever be smaller, never a',
+    'different design.',
+    '',
+  );
+
+  put(
+    '**Weight resolution differs from CSS.** `src/index.css` requests exactly the weights above, so no',
+    'normal web render reaches an unbundled weight. A Flutter `TextStyle` can, and there the family falls',
+    'back to the **nearest bundled bracket** with no synthetic bolding: `FontWeight.w100`/`w200` in Inter',
+    'land on 300 Light and `w700`/`w800`/`w900` land on 600 SemiBold. Measured in the test harness at 38px',
+    "on `'0123456789'`, the advances really do differ per weight — Inter 300 220.374 / 400 224.771 / 500",
+    '228.353 / 600 231.859, Plus Jakarta Sans 300 221.730 / 400 225.074 / 800 228.076, JetBrains Mono 400',
+    'and 700 both 228.000, which is what a monospace face does to digits. So an asked-for weight never',
+    'becomes a synthesised blur, but it can become a *neighbour*.',
+    '`mobile/test/theme/app_fonts_test.dart` pins that bracketing per family, and every ported widget’s',
+    'numeral spec names a weight this bundle carries.',
+    '',
+  );
+  put(
+    '**`tabularNums` is a feature of the face, not a wish.** Inter’s proportional digits are measurably',
+    'uneven (at 38px, `1111111111` 154.561 against `5555555555` 225.439); `FontFeature.tabularFigures()`',
+    'makes both 246.406 — and wider than proportional `0123456789` at 224.771. In a fallback family the',
+    'flag does nothing at all. This is why the numeral rows assert relations rather than literals.',
+    '',
+  );
+
+  const gaps = [...new Set(REC.faces.flatMap((f) => [...holes.get(f)]))]
+    .map((h) => parseInt(h, 16))
+    .sort((a, b) => a - b);
+  const runs = [];
+  for (const cp of gaps) {
+    const last = runs[runs.length - 1];
+    if (last && cp === last.end + 1) last.end = cp;
+    else runs.push({ start: cp, end: cp });
+  }
+  /**
+   * Which locales a gap belongs to is read from the fixtures, not asserted here: the
+   * codepoints are the ones the expected strings are made of, so a locale is named
+   * only if one of its figures actually needs that codepoint. The human-readable
+   * block name is the only hand-typed part, and an unnamed run still prints with its
+   * codepoints and locales rather than quietly dropping, because a coverage hole
+   * nobody can locate is not a record.
+   */
+  const BLOCK_NAMES = {
+    0x0660: 'Arabic-Indic digits',
+    0x066b: 'Arabic decimal and thousands separators',
+    0x09e6: 'Bengali digits',
+    0x202f: 'narrow no-break space, the French figure separator',
+  };
+  const FIXTURES = fixtureStrings();
+  const fixtureLocales = [...new Set(FIXTURES.map((f) => f.locale))].sort();
+  const localesNeeding = (run) => {
+    const set = new Set();
+    for (const f of FIXTURES) {
+      for (let cp = run.start; cp <= run.end; cp++) {
+        if (f.text.includes(String.fromCodePoint(cp))) set.add(f.locale);
+      }
+    }
+    return [...set].sort();
+  };
+  const facesMissing = (run) =>
+    REC.faces.filter((f) => {
+      for (let cp = run.start; cp <= run.end; cp++) if (holes.get(f).has(cpHex(cp))) return true;
+      return false;
+    });
+  put(
+    `**Coverage holes the bundle cannot draw.** Of the ${REC.faces[0].fixtureCodepointCount} codepoints the`,
+    `money fixtures produce (\`${fixtureLocales.join('\`, \`')}\`), ${gaps.length} are absent from at least`,
+    'one bundled face:',
+    '',
+  );
+  for (const run of runs) {
+    const name = BLOCK_NAMES[run.start];
+    const span = run.end === run.start ? cpLabel(run.start) : `${cpLabel(run.start)}–${cpLabel(run.end)}`;
+    const bad = facesMissing(run);
+    const locs = localesNeeding(run);
+    const fams = [...new Set(bad.map((x) => x.family))].sort();
+    put(
+      `- \`${span}\` ${name ? `(${name})` : '(block name not recorded here)'} — needed by ${
+        locs.length ? `**${locs.join('**, **')}**` : 'no fixture locale (check the fixtures)'
+      }. ` +
+        (bad.length === REC.faces.length
+          ? 'In **no** bundled face.'
+          : `Absent from ${fams.map((x) => `\`${x}\``).join(' and ')} (${bad.length} of ${REC.faces.length} faces); the rest draw it.`),
+    );
+  }
+  put('');
+  const markGaps = new Map();
+  for (const f of REC.faces) {
+    for (const [mark, has] of Object.entries(f.marks)) {
+      if (!has) {
+        if (!markGaps.has(mark)) markGaps.set(mark, []);
+        markGaps.get(mark).push(f);
+      }
+    }
+  }
+  if (markGaps.size) {
+    put('Separately, of the currency and dash marks probed:', '');
+    for (const [mark, list] of [...markGaps].sort()) {
+      const fams = [...new Set(list.map((f) => f.family))].sort();
+      put(
+        `- \`${mark}\` is in no face of ${fams.map((f) => `\`${f}\``).join(' or ')} (${list.length} of ${REC.faces.length} faces).`,
+      );
+    }
+    put('');
+  }
+  put(
+    'No `money.json` expected string uses any codepoint above — that is the assertion',
+    '`app_fonts_test.dart` makes for every fixture figure against every face, and it is what stops these',
+    'gaps being silent.',
+    '',
+  );
+  put(
+    'These are not regressions against the web: the web loads the same three families, and a',
+    '`unicode-range` subset can only cover *less* than the unsubsetted face, so the set above is an upper',
+    'bound on the web’s own holes for the same locales.',
+    '',
+  );
+  put(
+    '**One difference is real, though: the port names one family where the CSS names a stack.**',
+    "`--font-display` is `'Plus Jakarta Sans', 'Inter', system-ui, sans-serif` (§3.2), and the measured",
+    '`.numeral`/`.money-display` rows resolved to Plus Jakarta Sans, so that single family is what',
+    '`AppNumeralSpec.fontFamily` carries. A CSS stack falls through *per glyph*: a codepoint Plus Jakarta',
+    'Sans lacks but Inter has — U+202F above — renders from Inter in the browser, and one that neither',
+    'family has falls to `system-ui`, which is a device font and cannot be bundled. So for fr-FR the web',
+    'and the phone would disagree, and for ar-EG/bn-BD neither side has the digits in the design-system',
+    'faces: the web shows a system font, the phone shows nothing.',
+    '',
+  );
+  put(
+    'en-LK — the locale in the screenshot evidence, and the one item 7 gated on — hits neither case,',
+    'which is why that gate could close. Porting `fontFamilyFallback` alongside the measured family, or',
+    'accepting the difference, is an open item for `parity/STATUS.md` rather than a decision to slip into',
+    'a font commit. Whether the running app can be set to ar-EG, bn-BD or fr-FR is a product question',
+    'this section cannot answer; if it can, the gap above is visible, not theoretical.',
+    '',
+  );
+  const gapLocales = new Set(runs.flatMap((r) => localesNeeding(r)));
+  const cleanLocales = fixtureLocales.filter((l) => !gapLocales.has(l));
+  put(
+    '**The other fixture locales draw every figure from every face**:',
+    `${cleanLocales.map((l) => `\`${l}\``).join(', ')}, including the \`.numeral\` row the 320px screenshot`,
+    'showed (en-LK). `app_fonts_test.dart` re-derives this set from the fixtures on every run, so a new',
+    'fixture locale is checked against the bundle the day it is added.',
+    '',
+  );
+
+  put(
+    '**Testing harness.** `flutter test` does not load the faces an app declares, so',
+    '`mobile/test/flutter_test_config.dart` registers the bundle from `FontManifest.json` through',
+    '`FontLoader`. Without it every family measures as the harness fallback — exactly 1em per glyph,',
+    "`'0123456789'` at 38px = 380.000 — and the loader is provably load-bearing: deleting it fails 6 tests.",
     '',
   );
 }
@@ -953,7 +1213,7 @@ put(
       'Google Fonts `@import`',
       `\`src/index.css:${cssLineOf("@import url('https://fonts.googleapis.com")}\``,
       'No CDN stylesheet at runtime on native.',
-      '**Bundle the three families as assets** (OFL). A missing font silently invalidates every screenshot golden.',
+      '**Bundle the three families as assets** (OFL). A missing font silently invalidates every screenshot golden. **Landed — item 10:** §3.1 lists the 13 faces with their digests and the licence texts; `node parity/get_fonts.cjs --check` verifies the bytes, and `mobile/test/flutter_test_config.dart` loads them into the test harness.',
     ],
     [
       'D-U10',
@@ -1158,7 +1418,9 @@ put(
   'node parity/run_baselines.cjs    # §9: drives qa-shot.cjs; writes parity/screenshots/',
   'node parity/ui-tokens.cjs        # measures; writes parity/ui-tokens.json',
   'npx prettier --write parity/ui-tokens.json',
-  'node parity/render_ui_spec.cjs   # renders this document from that file',
+  'node parity/get_fonts.cjs        # §3.1: fetches the bundle; writes parity/fixtures/fonts.json',
+  'node parity/get_fonts.cjs --check  # re-verifies those bytes; changes nothing',
+  'node parity/render_ui_spec.cjs   # renders this document from those files',
   '```',
   '',
 );

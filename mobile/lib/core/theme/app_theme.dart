@@ -199,9 +199,13 @@ class AppTokens extends ThemeExtension<AppTokens> {
 /// onto the measured `--text-*` ladder, each rung a §2.3 value and the clamp
 /// rungs the §3 phone column; weights are not attached to Material roles
 /// because the measurement attaches them to §3 classes, not to text tokens.
-/// Font families are intentionally NOT set: §3.1 makes bundling the three
-/// web families an open approval, and a missing family silently re-glyphs
-/// every golden screenshot.
+/// The ladder carries no `fontFamily`, and that is a known gap rather than a
+/// waiting room: item 10 bundled the three web families (UI_SPEC §3.1) and every
+/// §3 class style in `app_typography.dart` names its measured one, so what renders
+/// through a measured row is the real face. This ladder is the Material roles,
+/// which the web answers with `body`’s `--font-sans` stack; no ported widget
+/// reads it yet, so leaving it family-free is recorded as an open item, not a
+/// silence — and a missing family is exactly what would re-glyph a golden.
 ThemeData appThemeData({required bool isDark}) {
   Color c(String token) => AppTokens.colorOf(token, isDark: isDark);
   final ColorScheme scheme =

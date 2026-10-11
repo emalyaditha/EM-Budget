@@ -19,3 +19,9 @@ parity/**/*.png binary
 parity/**/*.jpg binary
 parity/**/*.jpeg binary
 parity/**/*.webp binary
+
+# Item 10: the bundled design-system faces. An sfnt font begins with a NUL byte, so
+# git's content sniffing already classifies these as binary — but the D41 lesson is
+# that an explicit rule is cheaper than a heuristic, and core.autocrlf is true on this
+# box: a CRLF pair inside a .ttf is glyph data, not a line ending.
+mobile/assets/fonts/*.ttf binary
