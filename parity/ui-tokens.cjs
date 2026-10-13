@@ -37,9 +37,28 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
+const prettier = require('prettier');
 
 const BASE = process.env.QA_BASE || 'http://localhost:3000';
 const OUT = path.join(__dirname, 'ui-tokens.json');
+
+/**
+ * The record is written through the formatter CI checks it with. Enterprise CI
+ * runs `npx prettier --check .` over the whole repo and this file is in it, and
+ * prettier prints a short array on one line where `JSON.stringify` gives every
+ * item its own — so a measurement that wrote its own text would land dirty, and
+ * the next `--check` would fail on evidence nobody changed. Formatting only:
+ * prettier never reorders keys and never rewrites a number it was given.
+ */
+async function writeJson(record) {
+  const config = (await prettier.resolveConfig(OUT)) || {};
+  const text = await prettier.format(JSON.stringify(record, null, 2), {
+    ...config,
+    parser: 'json',
+    filepath: OUT,
+  });
+  fs.writeFileSync(OUT, text, 'utf8');
+}
 /**
  * `--stacks-only` measures the utility-stack tier and merges it into the record
  * that is already there, touching nothing else. It exists because the pinned
@@ -1962,7 +1981,7 @@ async function stacksOnlyMerge(browser) {
     throw new Error('the merge moved something outside themes.<pass>.stacks and utilityStacks; nothing was written');
   }
 
-  fs.writeFileSync(OUT, JSON.stringify(merged, null, 2) + '\n', 'utf8');
+  await writeJson(merged);
   console.log(
     `\nstacks-only merge wrote ${path.relative(process.cwd(), OUT)}: ` +
       `${pinnedRows.length} rows kept, ${ALL_STACKS.length - pinnedRows.length} added, ` +
@@ -2216,7 +2235,7 @@ async function main() {
   }
   result.unresolvedColourTokens = unresolved;
 
-  fs.writeFileSync(OUT, JSON.stringify(result, null, 2) + '\n', 'utf8');
+  await writeJson(result);
   console.log(`\nwrote ${path.relative(process.cwd(), OUT)}`);
   console.log(`colour tokens not resolved: ${unresolved.length}`);
   for (const u of unresolved.slice(0, 20)) console.log('  - ' + u);

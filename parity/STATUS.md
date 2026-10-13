@@ -521,6 +521,21 @@ secret sweep: 0 hits over the 205,704-line diff and the new generated file · D4
 change, no screenshot touched, staged OID == `hash-object` == `hash-object --no-filters` verified at
 commit.
 
+**CI caught one of these gates, and it was right.** Enterprise `validate` → "Format check" ran
+`npx prettier --check .` over the pushed branch and warned on `parity/ui-tokens.json`, which had been
+committed by hand after `--write` on three earlier paths but never over the record itself. The probe
+wrote its own text with `JSON.stringify(record, null, 2)`, and prettier prints a short numeric array on
+one line where that gives every item its own — so 73,805 lines of the file were formatting the formatter
+disagrees with, and every future measurement would have re-dirtied it. Fixed at the writer, not at the
+file: `parity/ui-tokens.cjs` now has `writeJson`, which takes the config prettier resolves for that path
+(`.prettierrc.json` → `printWidth: 120`, not prettier's own default 80) and formats through it before
+writing; both write sites — the `--stacks-only` merge and the full run — go through it. `prettier.format`
+is async and key-order-preserving and rewrites no number, so the record's content is unchanged: the
+reformatted file and `git show HEAD:parity/ui-tokens.json` parse to the same JSON, byte-for-byte
+`JSON.stringify` equal. Re-run of the probe reproduces the committed text exactly (same sha256 across
+three runs), `--check` is clean on both paths, and the gates above re-ran green after the change: format
+0 changed, analyze clean, `flutter test` **1299**.
+
 **Three older tier assertions moved with the evidence, none weakened.** The #55 verbatim test now
 recognises both fragment shapes — a `cls` must sit verbatim on the line it names, and an inline `style`
 must have every cited declaration verbatim on its line, every `var(--token)` it computed named by a line
