@@ -21,16 +21,40 @@
  * The same pass also measures the colour-bearing Tailwind utilities the components
  * write in `className` strings, which exist only in the generated stylesheet.
  *
- * Requires the dev server on BASE (npm run dev). Writes parity/ui-tokens.json.
- * Usage: node parity/ui-tokens.cjs
+ * Requires the app's pages served on BASE. The API server is not measured and is
+ * not needed: `npx vite --port 3000 --strictPort` is enough, and the theme the
+ * probe waits for (`html.light` / `html.dark`) is set client-side from
+ * localStorage, so a page with no backend still applies it. Writes
+ * parity/ui-tokens.json.
+ *
+ * Usage:
+ *   node parity/ui-tokens.cjs                  the whole record
+ *   node parity/ui-tokens.cjs --stacks-only    the stack tier only, merged into
+ *                                              the record that is already there
  */
 
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const cp = require('child_process');
 
 const BASE = process.env.QA_BASE || 'http://localhost:3000';
 const OUT = path.join(__dirname, 'ui-tokens.json');
+/**
+ * `--stacks-only` measures the utility-stack tier and merges it into the record
+ * that is already there, touching nothing else. It exists because the pinned
+ * sections of this file — `themes.<pass>.root`, `body`, `probes`, `utilities`,
+ * the dark matrix — were captured on 2026-10-06 against the app's own server,
+ * and a ruling keeps them there until it says otherwise. A full re-run on this
+ * machine is not equivalent: Tailwind v4 emits theme variables per module it has
+ * scanned, so the dev server's `:root` carries `--breakpoint-sm`, `--shadow-lg`,
+ * `--shadow-2xl` and the two `--color-zinc-*` steps the 2026-10-06 capture never
+ * had, and it drops `--tw-scroll-snap-strictness`. That is not drift in the
+ * stylesheet; it is a different set of modules loaded in the page. Adding a
+ * family to the stack tier therefore re-measures the stack tier, and the merge
+ * refuses to write if anything else in the record moved.
+ */
+const ONLY_STACKS = process.argv.includes('--stacks-only');
 
 /** Selectors whose appearance is rule-declared, so a detached element carrying
  *  the class resolves them the same way the real component does. Nested-only
@@ -518,7 +542,275 @@ const MODAL_STACKS = [
     ],
   },
 ];
-const ALL_STACKS = [...UTILITY_STACKS, ...MODAL_STACKS];
+/**
+ * Item 8 — the ledger family: the transaction row, its three cells, the day
+ * header that groups them, the rule that divides them, the scroll box that
+ * holds them and the two empty states that replace them. Same tier as #55/#56:
+ * every row is a verbatim slice of the pinned component source, measured on one
+ * detached element against the unclassed control in all four passes.
+ *
+ * Two things this tier had to grow to measure the family honestly, both
+ * additive — no row that was here before changes:
+ *
+ *   * a `style` part. `TransactionRow` and `CategoryChip` put colour on the
+ *     element as an inline style, not as a class, and a `color-mix(in oklab, …)`
+ *     written there is exactly as unportable to Flutter as one written in CSS.
+ *     The inline style therefore goes on the probe element verbatim and the
+ *     engine reads it, so no one hand-runs an oklab mix to find out what pink
+ *     looks like on a mint surface.
+ *   * a `tag` and a `wrap`. The row is a `<button>`, not a `<div>`, so its UA
+ *     padding, border and text-align are part of what the class has to beat;
+ *     and a `divide-y` rule only paints on an element that has a preceding
+ *     sibling inside a dividing parent, so that parent is built for the probe.
+ *
+ * The chip's tone tables are read out of `CategoryChip.tsx` rather than retyped
+ * here, for the same reason the colours are measured rather than converted: a
+ * second copy of a table is a second implementation, and it drifts silently.
+ */
+const CHIP_SRC = 'src/components/ui/CategoryChip.tsx';
+const TXROW_SRC = 'src/components/ui/TransactionRow.tsx';
+const DASH_SRC = 'src/components/Dashboard.tsx';
+const REPORTS_SRC = 'src/components/ReportsCentre.tsx';
+
+const srcLines = (rel) =>
+  fs
+    .readFileSync(path.join(__dirname, '..', rel), 'utf8')
+    .split(/\r?\n/)
+    .map((text, i) => ({ n: i + 1, text }));
+
+/** One `key: 'var(--x)',` block inside a `const NAME: Record<…> = { … }`. */
+const varTable = (lines, name) => {
+  const start = lines.findIndex((l) => new RegExp(`^const ${name}: `).test(l.text));
+  if (start < 0) throw new Error(`${CHIP_SRC}: no \`const ${name}\` table`);
+  const end = lines.findIndex((l, i) => i > start && /^\};/.test(l.text));
+  const out = {};
+  for (const l of lines.slice(start + 1, end)) {
+    const m = /^(\w+): '(var\(--[a-z0-9-]+\))',$/.exec(l.text.trim());
+    if (!m) throw new Error(`${CHIP_SRC}:${l.n}: inside \`${name}\`, unexpected line "${l.text}"`);
+    if (out[m[1]]) throw new Error(`${CHIP_SRC}:${l.n}: tone ${m[1]} declared twice`);
+    out[m[1]] = { cssVar: m[2], line: l.n };
+  }
+  if (Object.keys(out).length === 0) throw new Error(`${CHIP_SRC}: \`${name}\` is empty`);
+  return out;
+};
+
+/** `const dims = size === 'xs' ? 22 : …` — the size table, keyed by size name. */
+const sizeTernary = (lines, name) => {
+  const hit = lines.find((l) => new RegExp(`^  const ${name} = size === 'xs'`).test(l.text));
+  if (!hit) throw new Error(`${CHIP_SRC}: no \`const ${name} = size === 'xs' …\` line`);
+  const m = new RegExp(
+    `^  const ${name} = size === 'xs' \\? (\\d+) : size === 'sm' \\? (\\d+) : size === 'lg' \\? (\\d+) : (\\d+);$`,
+  ).exec(hit.text);
+  if (!m)
+    throw new Error(`${CHIP_SRC}:${hit.n}: \`${name}\` is not the four-arm ternary this probe reads: ${hit.text}`);
+  return { xs: +m[1], sm: +m[2], lg: +m[3], md: +m[4], line: hit.n };
+};
+
+const CHIP_LINES = srcLines(CHIP_SRC);
+const CHIP_TONE_BG = varTable(CHIP_LINES, 'TONE_BG');
+const CHIP_DIMS = sizeTernary(CHIP_LINES, 'dims');
+const CHIP_GLYPHS = sizeTernary(CHIP_LINES, 'glyph');
+const CHIP_DIMS_RAW = CHIP_LINES[CHIP_DIMS.line - 1].text.trim();
+const CHIP_GLYPH_RAW = CHIP_LINES[CHIP_GLYPHS.line - 1].text.trim();
+const CHIP_CLASS = (() => {
+  const hit = CHIP_LINES.find((l) => /^\s+className="grid place-items-center rounded-full shrink-0"$/.test(l.text));
+  if (!hit) throw new Error(`${CHIP_SRC}: the chip's className line is not where this probe reads it`);
+  return { cls: 'grid place-items-center rounded-full shrink-0', line: hit.n };
+})();
+const CHIP_STYLE_BLOCK = (() => {
+  const open = CHIP_LINES.find((l) => /^\s+style=\{\{$/.test(l.text));
+  const close = CHIP_LINES.find((l) => open && l.n > open.n && /^\s+\}\},?$/.test(l.text));
+  if (!open || !close)
+    throw new Error(`${CHIP_SRC}: the chip's inline style block is not braced as this probe reads it`);
+  return { from: open.n, to: close.n, text: CHIP_LINES.slice(open.n, close.n).map((l) => l.text) };
+})();
+/** The three declarations the inline style is built from, verbatim, with lines. */
+const CHIP_STYLE_SRC = ['width', 'height', 'background', 'border', 'color'].map((prop) => {
+  const hit = CHIP_LINES.slice(CHIP_STYLE_BLOCK.from - 1, CHIP_STYLE_BLOCK.to).find((l) =>
+    new RegExp(`^\\s*${prop}: `).test(l.text),
+  );
+  if (!hit) throw new Error(`${CHIP_SRC}: the chip's style block authors no \`${prop}\``);
+  return { prop, text: hit.text.trim(), line: hit.n };
+});
+
+/** The inline style one (size, tone) pair produces, in the source's own order. */
+const chipStyle = (size, tone) => {
+  const dim = CHIP_DIMS[size];
+  const ref = CHIP_TONE_BG[tone];
+  if (!ref) throw new Error(`${CHIP_SRC}: no tone ${tone}`);
+  return [
+    `width: ${dim}px`,
+    `height: ${dim}px`,
+    `background: color-mix(in oklab, ${ref.cssVar} 55%, var(--surface))`,
+    `border: 1px solid color-mix(in oklab, ${ref.cssVar} 70%, var(--line))`,
+    'color: var(--ink)',
+  ].join('; ');
+};
+
+const LEDGER_STACKS = [
+  ...Object.keys(CHIP_TONE_BG).map((tone) => ({
+    name: `cat-chip-md-${tone}`,
+    src: CHIP_SRC,
+    tag: 'span',
+    note: `CategoryChip at its default md size (${CHIP_DIMS.md}px), tone ${tone} from ${CHIP_TONE_BG[tone].cssVar}`,
+    parts: [
+      { cls: CHIP_CLASS.cls, line: CHIP_CLASS.line },
+      {
+        style: chipStyle('md', tone),
+        tone,
+        toneVar: CHIP_TONE_BG[tone].cssVar,
+        toneVarLine: CHIP_TONE_BG[tone].line,
+        dims: CHIP_DIMS.md,
+        dimsLine: CHIP_DIMS.line,
+        glyph: CHIP_GLYPHS.md,
+        glyphLine: CHIP_GLYPHS.line,
+        styleSrc: CHIP_STYLE_SRC,
+        styleBlock: [CHIP_STYLE_BLOCK.from, CHIP_STYLE_BLOCK.to],
+      },
+    ],
+  })),
+  ...['xs', 'sm', 'lg'].map((size) => ({
+    name: `cat-chip-${size}`,
+    src: CHIP_SRC,
+    tag: 'span',
+    note: `the size arms only — tone held at lavender so the fill cannot move the geometry`,
+    parts: [
+      { cls: CHIP_CLASS.cls, line: CHIP_CLASS.line },
+      {
+        style: chipStyle(size, 'lavender'),
+        tone: 'lavender',
+        toneVar: CHIP_TONE_BG.lavender.cssVar,
+        toneVarLine: CHIP_TONE_BG.lavender.line,
+        size,
+        dims: CHIP_DIMS[size],
+        dimsLine: CHIP_DIMS.line,
+        glyph: CHIP_GLYPHS[size],
+        glyphLine: CHIP_GLYPHS.line,
+        styleSrc: CHIP_STYLE_SRC,
+        styleBlock: [CHIP_STYLE_BLOCK.from, CHIP_STYLE_BLOCK.to],
+      },
+    ],
+  })),
+  {
+    name: 'txrow-box',
+    src: TXROW_SRC,
+    tag: 'button',
+    note: 'the row as the component mounts it: a <button type="button">, whose UA padding, border and centred text the class has to beat',
+    attrs: { type: 'button' },
+    extra: ['textAlign', 'cursor'],
+    parts: [{ cls: 'tx-row w-full text-left pressable', line: 28 }],
+  },
+  {
+    name: 'txrow-title',
+    src: TXROW_SRC,
+    parts: [{ cls: 'block text-[13px] font-semibold tracking-tight text-[var(--ink)] truncate', line: 31 }],
+  },
+  {
+    name: 'txrow-meta',
+    src: TXROW_SRC,
+    parts: [{ cls: 'block text-[11px] text-[var(--ink-3)] mt-0.5 truncate', line: 32 }],
+  },
+  {
+    name: 'txrow-text-wrap',
+    src: TXROW_SRC,
+    extra: ['minWidth'],
+    parts: [{ cls: 'min-w-0 flex-1', line: 30 }],
+  },
+  {
+    name: 'txrow-amount-wrap',
+    src: TXROW_SRC,
+    extra: ['textAlign'],
+    parts: [{ cls: 'text-right shrink-0', line: 36 }],
+  },
+  ...[
+    ['in', 'var(--success)', 39],
+    ['out', 'var(--danger)', 39],
+  ].map(([dir, cssVar, line]) => ({
+    name: `txrow-amount-${dir}`,
+    src: TXROW_SRC,
+    note: `the ternary's ${dir} arm: the class authors no colour, the inline style decides it`,
+    parts: [
+      { cls: 'money inline-flex items-center gap-1 text-[13px] font-bold', line: 38 },
+      { style: `color: ${cssVar}`, styleSrcLine: line, dir },
+    ],
+  })),
+  {
+    name: 'txrow-trailing-pill',
+    src: REPORTS_SRC,
+    note:
+      'the Reports Centre type pill. `hidden sm:inline-flex` is meant to drop it below `sm`, and both passes ' +
+      'measure it painted: `.pill` (src/index.css:909, unlayered) authors `display: inline-flex`, and an ' +
+      'unlayered rule beats Tailwind’s layered utilities at any specificity, so `hidden` never applies to it. ' +
+      'The `hidden` class and the `sm:` variant are both inert here; the row below the note records it.',
+    parts: [{ cls: 'pill mono !text-[9px] !py-0.5 !px-2 hidden sm:inline-flex', line: 522 }],
+  },
+  {
+    name: 'day-head-label',
+    src: DASH_SRC,
+    note: 'the group header is `.day-head` (sticky, blurred) carrying `.eyebrow` and an !important size override',
+    extra: ['textTransform'],
+    parts: [{ cls: 'day-head eyebrow !text-[10px]', line: 422 }],
+  },
+  {
+    name: 'ledger-scroll',
+    src: DASH_SRC,
+    parts: [{ cls: 'min-h-0 lg:max-h-[34rem] lg:overflow-y-auto lg:pr-1', line: 419 }],
+  },
+  {
+    name: 'ledger-divides',
+    src: DASH_SRC,
+    note: 'the parent itself: `divide-y` paints its children, so this row is the recipe, not the line',
+    extra: ['borderBottomColor'],
+    parts: [{ cls: 'divide-y divide-[var(--line)]', line: 423 }],
+  },
+  {
+    name: 'ledger-row-last',
+    src: DASH_SRC,
+    wrap: 'divide-y divide-[var(--line)]',
+    before: true,
+    note: 'a divided child that is also last: `divide-y` would give it a bottom border and `[&:last-child]:border-b-0` takes it away — this pair is the divider rule',
+    extra: ['borderBottomColor'],
+    parts: [{ cls: '[&:last-child]:border-b-0', line: 431 }],
+  },
+  {
+    name: 'ledger-row-middle',
+    src: DASH_SRC,
+    wrap: 'divide-y divide-[var(--line)]',
+    before: true,
+    after: true,
+    note: 'the same child with a following sibling, so `:last-child` does not match and the divider stays',
+    extra: ['borderBottomColor'],
+    parts: [{ cls: '[&:last-child]:border-b-0', line: 431 }],
+  },
+  {
+    name: 'ledger-empty',
+    src: DASH_SRC,
+    extra: ['textAlign', 'borderTopStyle'],
+    parts: [
+      {
+        cls: 'py-10 text-center rounded-[var(--r-sm)] border border-dashed border-[var(--line)] bg-[var(--surface-2)]',
+        line: 408,
+      },
+    ],
+  },
+  {
+    name: 'ledger-list-scroll',
+    src: REPORTS_SRC,
+    parts: [{ cls: 'space-y-1 max-h-[460px] overflow-y-auto pr-1', line: 492 }],
+  },
+  {
+    name: 'ledger-empty-rc',
+    src: REPORTS_SRC,
+    note: '`empty` is written here and declared nowhere in src/index.css — the drift test pins that absence',
+    parts: [{ cls: 'empty py-10 flex flex-col items-center gap-2', line: 494 }],
+  },
+  {
+    name: 'ledger-empty-rc-line',
+    src: REPORTS_SRC,
+    parts: [{ cls: 'mono text-[12px]', line: 496 }],
+  },
+];
+const ALL_STACKS = [...UTILITY_STACKS, ...MODAL_STACKS, ...LEDGER_STACKS];
 const AUTHORED_NON_CSS = [
   {
     name: 'toast-auto-dismiss',
@@ -709,7 +1001,138 @@ const MODAL_AUTHORED = [
     ],
   },
 ];
-const ALL_AUTHORED = [...AUTHORED_NON_CSS, ...MODAL_AUTHORED];
+/**
+ * Item 8's authored rows: the facts about the ledger family that no computed
+ * style can show. Two of them are the reason the row is a *presentation* widget
+ * rather than a formatter — the amount string arrives already formatted, and the
+ * two screens that call it disagree about both the sign and what counts as
+ * income, so the row must not pick a side.
+ */
+const LEDGER_AUTHORED = [
+  {
+    name: 'txrow-arrow-sizes',
+    src: TXROW_SRC,
+    tier: 'authored-js',
+    note: 'the direction arrow is a 12px lucide glyph inside the amount span, so it sits on the money baseline, not on the row',
+    parts: [{ text: '{isIncome ? <ArrowDownLeft size={12} /> : <ArrowUpRight size={12} />}', line: 41 }],
+  },
+  {
+    name: 'txrow-meta-composition',
+    src: TXROW_SRC,
+    tier: 'authored-js',
+    note: "the second line is either the caller's whole `meta` string or `subtitle · category`, joined in the component",
+    parts: [{ text: "{meta ?? [subtitle, category].filter(Boolean).join(' · ')}", line: 33 }],
+  },
+  {
+    name: 'txrow-amount-signed-vs-absolute',
+    src: TXROW_SRC,
+    tier: 'authored-js',
+    note: 'the same widget fed two different ways: Dashboard formats the signed amount, Reports Centre takes the absolute value first — the row receives a string either way',
+    parts: [
+      { text: 'amountText={formatMoney(state.currency, t.amount)}', src: DASH_SRC, line: 437 },
+      { text: 'const absAmount = Math.abs(t.amount);', src: REPORTS_SRC, line: 505 },
+      { text: 'amountText={formatMoney(currency, absAmount)}', src: REPORTS_SRC, line: 518 },
+    ],
+  },
+  {
+    name: 'txrow-isincome-predicates-disagree',
+    src: TXROW_SRC,
+    tier: 'authored-js',
+    note: 'the two call sites do not compute direction identically: Reports Centre also treats a `Transfer In` category as income. Recorded, not resolved — a design-system row cannot vote on it.',
+    parts: [
+      { text: "t.type === 'income' ||", src: DASH_SRC, line: 426 },
+      { text: "t.type === 'financing' ||", src: DASH_SRC, line: 428 },
+      { text: "(t.type === 'transfer' && t.amount > 0);", src: DASH_SRC, line: 429 },
+      { text: "t.type === 'income' ||", src: REPORTS_SRC, line: 501 },
+      {
+        text: "(t.type === 'transfer' && (t.category === 'Transfer In' || t.amount > 0));",
+        src: REPORTS_SRC,
+        line: 504,
+      },
+    ],
+  },
+  {
+    name: 'cat-chip-tone-choice',
+    src: CHIP_SRC,
+    tier: 'authored-js',
+    note: 'the tint is chosen by hashing the category name, so it is stable per category and unknown to any CSS probe',
+    parts: [
+      { text: "const TONE_CYCLE: ChipTone[] = ['lavender', 'blue', 'mint', 'yellow', 'pink'];", line: 63 },
+      { text: 'function hashString(s: string): number {', line: 65 },
+      { text: 'let h = 0;', line: 66 },
+      { text: 'for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;', line: 67 },
+      { text: 'return h;', line: 68 },
+      { text: 'return TONE_CYCLE[hashString(category.toLowerCase().trim()) % TONE_CYCLE.length];', line: 72 },
+    ],
+  },
+  {
+    name: 'cat-chip-icon-and-size-tables',
+    src: CHIP_SRC,
+    tier: 'authored-js',
+    note: 'the category→glyph map, the fallback glyph, and the two size tables the inline style and the glyph are built from',
+    parts: [
+      { text: 'const CATEGORY_ICONS: Record<string, LucideIcon> = {', line: 23 },
+      { text: 'const Icon = iconOverride ?? CATEGORY_ICONS[key] ?? Receipt;', line: 84 },
+      { text: CHIP_DIMS_RAW, line: CHIP_DIMS.line },
+      { text: CHIP_GLYPH_RAW, line: CHIP_GLYPHS.line },
+      { text: '<Icon size={glyph} strokeWidth={2} />', line: 100 },
+    ],
+  },
+  {
+    name: 'ledger-day-grouping-and-header',
+    src: DASH_SRC,
+    tier: 'authored-js',
+    note: 'consecutive same-day runs become one group, and the header is rendered only in the View All pass — the Recent pass has the rows and no headers',
+    parts: [
+      { text: "const label = dayLabel(item.date || item.dateGiven || '');", line: 294 },
+      { text: 'if (last && last.day === label) last.items.push(item);', line: 296 },
+      { text: '{activityView === \'all\' && <p className="day-head eyebrow !text-[10px]">{group.day}</p>}', line: 422 },
+    ],
+  },
+  {
+    name: 'ledger-empty-copy',
+    src: DASH_SRC,
+    tier: 'authored-js',
+    note: 'the empty box switches its headline on the view and its second line on whether the ledger has ever been written to',
+    parts: [
+      { text: "{activityView === 'recent' ? 'Nothing today' : 'No activity'}", line: 409 },
+      {
+        text: "{activityLog.length === 0 ? 'No ledger entries yet.' : 'Switch to View All for earlier entries.'}",
+        line: 411,
+      },
+      { text: '<p className="mono text-[12px]">No entries match this filter.</p>', src: REPORTS_SRC, line: 496 },
+    ],
+  },
+  {
+    name: 'ledger-empty-class-declared-nowhere',
+    src: REPORTS_SRC,
+    tier: 'authored-inline',
+    note: '`empty` is applied here and declared nowhere in src/index.css, so it paints nothing; asserted at capture so the port cannot inherit a colour it never had',
+    parts: [{ text: '<div className="empty py-10 flex flex-col items-center gap-2">', line: 494 }],
+  },
+  {
+    name: 'pill-hidden-utility-is-inert',
+    src: REPORTS_SRC,
+    tier: 'authored-inline',
+    note:
+      '`hidden` is a Tailwind utility, and utilities live in a cascade layer, while `.pill` ' +
+      '(src/index.css:909) is written unlayered — so an unlayered `display` beats `hidden` at any ' +
+      'specificity and at any width. Measured, not reasoned: at innerWidth 390 a `pill hidden` box ' +
+      'computes inline-flex, while `card hidden`, `input hidden`, `day-head hidden` and `money hidden` ' +
+      'all compute none (they author no display) and `icon-chip hidden` computes flex. So the Reports ' +
+      'Centre type pill is shown on the phone even though the source says hide it below `sm`, and the ' +
+      '`sm:inline-flex` beside it is redundant. Recorded as the app paints it; the class that should ' +
+      'have removed it belongs to the web app to decide, not to the port.',
+    parts: [
+      { text: 'display: inline-flex;', src: 'src/index.css', line: 917 },
+      {
+        text: '<span className="pill mono !text-[9px] !py-0.5 !px-2 hidden sm:inline-flex">{t.type}</span>',
+        line: 522,
+      },
+    ],
+  },
+];
+const ALL_AUTHORED = [...AUTHORED_NON_CSS, ...MODAL_AUTHORED, ...LEDGER_AUTHORED];
 
 const PROBE_PAGE = (selectors, utilities, stacks) => {
   const cv = document.createElement('canvas');
@@ -941,7 +1364,7 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
       const many = resolveInside(raw);
       return many ? { raw, substituted: many.substituted, stops: many.stops } : { raw };
     };
-    return {
+    const props = {
       display: cs.display,
       position: cs.position,
       color: pick('color'),
@@ -961,13 +1384,29 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
       padding: cs.padding,
       opacity: cs.opacity,
     };
+    return props;
   };
+
+  /* Item 8: the only properties a row may ask for beyond the base readout. An
+   *  unknown name is a programming error, so it throws rather than recording
+   *  "undefined" as a measurement. `borderTopStyle` is the one that proves
+   *  `border-dashed` painted at all — a width alone would be read the same for a
+   *  solid hairline. */
+  const STACK_EXTRA_PROPS = [
+    'borderBottomColor',
+    'borderTopStyle',
+    'textAlign',
+    'textTransform',
+    'minWidth',
+    'flexWrap',
+    'cursor',
+  ];
 
   /** The stack tier's wider read. Same engine, more properties: a utility stack
    *  also lays the box out (padding, gap, offsets, max-width, flex), so those
    *  computed values are recorded next to the paint ones. Colour-bearing props
    *  go through the same pick/compound engine path as everywhere else. */
-  const stackProps = (el) => {
+  const stackProps = (el, extra) => {
     const cs = getComputedStyle(el);
     // Same readers as styleOf, rebuilt here rather than hoisted, so editing
     // this tier can never move a value in the tiers above.
@@ -988,7 +1427,7 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
       const many = resolveInside(raw);
       return many ? { raw, substituted: many.substituted, stops: many.stops } : { raw };
     };
-    return {
+    const props = {
       display: cs.display,
       position: cs.position,
       top: cs.top,
@@ -1034,6 +1473,16 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
       textOverflow: cs.textOverflow,
       opacity: cs.opacity,
     };
+    // A row asks for the readouts its own family needs. `borderBottomColor` is
+    // what `divide-[var(--line)]` paints, `textTransform` is what `.eyebrow`
+    // authors, `minWidth` is what `truncate` depends on — none of them were part
+    // of the tier when the toast and modal rows were captured, and none of them
+    // appear on a row that did not ask, so those rows keep their record.
+    for (const name of extra) {
+      if (!STACK_EXTRA_PROPS.includes(name)) throw new Error(`unknown stack extra "${name}"`);
+      props[name] = /Color$/.test(name) ? pick(name) : cs[name];
+    }
+    return props;
   };
 
   const probes = {};
@@ -1092,7 +1541,7 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
     el.textContent = 'probe';
     document.body.appendChild(el);
     const s = styleOf(el);
-    const st = stackProps(el);
+    const st = stackProps(el, STACK_EXTRA_PROPS);
     el.remove();
     return { s, st };
   })();
@@ -1121,14 +1570,46 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
   // element, read wider than the paint-only tiers. `changed` names every
   // property the stack actually moves against the control — a rule Tailwind
   // never emits shows up as a property missing from it, not as a silent lie.
+  //
+  // Item 8 grows the readout for the rows that need it, and grows it only for
+  // them: a row's `props` object has exactly the keys the base set plus that
+  // row's own `extra` list, so a row recorded before this family was added
+  // keeps the byte-for-byte record it had. The control is read with every extra
+  // so each row can be diffed against the same untouched baseline.
   const stacksPainted = {};
   for (const stack of stacks) {
-    const el = document.createElement('div');
-    el.className = stack.parts.map((p) => p.cls).join(' ');
+    const tag = stack.tag || 'div';
+    const el = document.createElement(tag);
+    el.className = stack.parts
+      .map((p) => p.cls)
+      .filter(Boolean)
+      .join(' ');
+    // The inline styles a component writes in `style={{…}}` go on the probe
+    // element verbatim, because a `color-mix(in oklab, …)` authored in JS is as
+    // unportable as one authored in CSS and has to be read by the same engine.
+    const style = stack.parts
+      .map((p) => p.style)
+      .filter(Boolean)
+      .join('; ');
+    if (style) el.setAttribute('style', style);
+    for (const [k, v] of Object.entries(stack.attrs || {})) el.setAttribute(k, v);
     el.textContent = 'probe';
-    document.body.appendChild(el);
-    const props = stackProps(el);
+    let wrap = null;
+    if (stack.wrap) {
+      wrap = document.createElement('div');
+      wrap.className = stack.wrap;
+      wrap.appendChild(el);
+      // `divide-y` and `[&:last-child]:` both answer to sibling position, so the
+      // parent has to carry the siblings the component carries.
+      if (stack.before) wrap.insertBefore(document.createElement('span'), el);
+      if (stack.after) wrap.appendChild(document.createElement('span'));
+      document.body.appendChild(wrap);
+    } else {
+      document.body.appendChild(el);
+    }
+    const props = stackProps(el, stack.extra || []);
     el.remove();
+    if (wrap) wrap.remove();
     const changed = Object.keys(props).filter((k) => JSON.stringify(props[k]) !== JSON.stringify(controlStack[k]));
     stacksPainted[stack.name] = { changed, props };
   }
@@ -1152,8 +1633,350 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
   };
 };
 
+/** What the stack section says about itself. Both the full run and the
+ *  `--stacks-only` merge write this one string, so the two cannot describe the
+ *  tier differently. */
+const STACKS_NOTE =
+  'The #55 utility-stack tier: boxes whose look is a stack of Tailwind utilities written in a ' +
+  'className string, not a class in src/index.css. Each row is a verbatim slice of the pinned ' +
+  'component source; the whole class list goes on one detached element and its computed style is ' +
+  'read against an unclassed control, in themes.<pass>.stacks. "changed" names the properties the ' +
+  'stack actually moves — a utility Tailwind never emits (or a variant gated off in this pass, like ' +
+  'a dark: fragment under a light preference) shows as a property absent from it. authoredNonCss is ' +
+  'not a measurement: timers and motion values are JS, recorded verbatim so the port never invents ' +
+  'them. measuredAt/base/toolchain describe THIS section only: a stack capture can postdate the ' +
+  'pinned sections in themes/root, which are not re-synced until the ruling says so. #56 extended ' +
+  'the tier to the modal/sheet family: rows from more than one file carry their own src, and the ' +
+  'top-level source is only the fallback for the rows that were already here. #75 (item 8, the ' +
+  'transaction row and the ledger) grew the readout per row rather than globally: `extra` names the ' +
+  "properties only some boxes need (a `divide-y` hairline colour, a sticky day header's " +
+  'text-transform), `tag`/`attrs` build the element the component really uses — the row is a ' +
+  '`button`, so its UA text-align and cursor are facts of the box, not of the class list — `style` ' +
+  'carries an inline `color-mix(in oklab, …)` authored in JS, which the engine has to resolve just ' +
+  'like one authored in CSS, and `wrap`/`before`/`after` give an element the siblings its rule ' +
+  'answers to, because `divide-y` paints the children of a dividing parent and ' +
+  '`[&:last-child]:border-b-0` only matches the last of them.';
+
+/** The Tailwind that generated the stylesheet the stacks resolve against. */
+const tailwindVersion = () =>
+  JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'node_modules', 'tailwindcss', 'package.json'), 'utf8'))
+    .version;
+
+/** Byte-for-byte comparison of two JSON values, the test every pinned check uses. */
+const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * The font gate.
+ *
+ * `src/index.css:1` imports the app's faces from `fonts.googleapis.com`, and a
+ * browser fetches a webfont lazily, when text that needs it is first laid out.
+ * So the same stylesheet measured twice can produce two different numbers,
+ * depending on which arrived first: a shrink-to-fit box is as wide as its text,
+ * and Inter and the system fallback differ by a couple of pixels on the word
+ * "probe". That is exactly what the #55 capture recorded — the toast container
+ * came back 42.125px wide, which is the fallback, and re-measures 44.2812px once
+ * the import has actually resolved.
+ *
+ * Item 8's ruling says the ledger is measured against Plus Jakarta Sans and
+ * Inter, so a race is not an acceptable source for its numbers. Before anything
+ * is measured the page is asked to load every family the pinned stylesheet names
+ * and then to prove each one is really in use, by rendering text with it and
+ * without it. A family that makes no difference is a family that did not load,
+ * and the run stops there rather than recording a fallback metric as the app's
+ * appearance.
+ */
+const GOOGLE_FAMILIES = (() => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.css'), 'utf8');
+  const m = /@import url\(['"]https:\/\/fonts\.googleapis\.com\/css2\?([^'"]*)['"]\)/.exec(css);
+  if (!m) throw new Error('src/index.css imports no Google font set; the font gate has nothing to check');
+  const families = [
+    ...new Set(
+      m[1]
+        .split('&')
+        .filter((p) => p.startsWith('family='))
+        .map((p) => p.slice('family='.length).split(':')[0].replace(/\+/g, ' ')),
+    ),
+  ];
+  if (families.length === 0) throw new Error('the Google font import in src/index.css lists no family');
+  return families;
+})();
+
+/** Load the named families, then render with and without each one. Run in the page. */
+const fontGateInPage = async (families) => {
+  const width = (fam) => {
+    const s = document.createElement('span');
+    s.style.cssText = `position:fixed;left:-9999px;top:0;white-space:pre;font-size:64px;font-weight:400;font-family:${fam}`;
+    s.textContent = 'probe';
+    document.body.appendChild(s);
+    const w = s.getBoundingClientRect().width;
+    s.remove();
+    return w;
+  };
+  await Promise.all(families.map((f) => document.fonts.load(`64px "${f}"`, 'probe')));
+  await document.fonts.ready;
+  const bogus = width('"em-budget-no-such-family", monospace');
+  const inUse = {};
+  for (const f of families) inUse[f] = width(`"${f}", monospace`) !== bogus;
+  return { status: document.fonts.status, loaded: document.fonts.size, inUse };
+};
+
+/** Refuse a page whose fonts have not all rendered. */
+const fontGate = async (page) => {
+  const gate = await page.evaluate(fontGateInPage, GOOGLE_FAMILIES);
+  const missing = GOOGLE_FAMILIES.filter((f) => !gate.inUse[f]);
+  if (missing.length > 0) {
+    throw new Error(
+      `the stylesheet's own fonts never rendered: ${missing.join(', ')} ` +
+        `(document.fonts.status=${gate.status}, ${gate.loaded} faces). Measuring now would record ` +
+        'the fallback font and call it the app, which item 8 forbids.',
+    );
+  }
+  return gate;
+};
+
+/** Measure a pass, but only after the fonts are proven to be the app's own. */
+const measureWithFontGate = (page, selectors, utilities, stacks) =>
+  fontGate(page).then(() =>
+    page.evaluate(
+      `(${PROBE_PAGE.toString()})(${JSON.stringify(selectors)},${JSON.stringify(utilities)},${JSON.stringify(stacks)})`,
+    ),
+  );
+
+/**
+ * The rows whose committed numbers are known to have been taken before the
+ * webfont arrived. Each entry names the row and the exact property set the font
+ * gate is allowed to correct, and nothing else: an unexpected row, or an
+ * expected row moving an unlisted property, still fails the merge.
+ *
+ * Filled in by running the gate — it is a record of what the race actually
+ * touched, not a tolerance.
+ */
+const FONT_RACE_CORRECTIONS = [
+  {
+    name: 'toast-container',
+    props: ['left', 'width'],
+    note:
+      'The toast is the one captured row that sizes itself to its text, so its width — and the `left` that ' +
+      'follows from a right-anchored box — are the width of the word "probe" in whatever font had loaded ' +
+      'when #55 read it. The record has 42.125px, the system fallback; over Inter, which is what the page ' +
+      'actually paints once src/index.css:1 resolves, it is 44.2812px. Only the two desktop passes carry ' +
+      'the difference: the phone pass pins the container to a side, so nothing there is text-metric. Both ' +
+      'numbers are in the same row, and the row is the only one of the captured 51 that moved.',
+  },
+];
+const isFontRaceCorrection = (m) => FONT_RACE_CORRECTIONS.some((c) => c.name === m.name && sameJson(c.props, m.props));
+
+/**
+ * `--stacks-only`: measure the stack tier and merge it into the committed record,
+ * writing only if everything the run did not measure is still byte-for-byte what
+ * it was. See the flag's declaration for why a full re-run is not equivalent.
+ *
+ * The checks are the point of the mode, not decoration for it:
+ *   1. `src/index.css` must still be the `pre-flutter` blob. The stylesheet is
+ *      what every stack resolves against; if it moved, a stack capture taken now
+ *      would describe a web app the Flutter port is not mirroring.
+ *   2. Each pass must come back with the root class, viewport width and
+ *      `prefers-color-scheme` the pinned pass recorded, or the numbers being
+ *      written are from a different rendering context than the ones beside them.
+ *   3. Every stack row already in the record must re-measure identically, and the
+ *      pinned row/`authoredNonCss` lists must still be prefixes of the lists in
+ *      this script. A row that moved is a transcription error in the new family
+ *      or a component that changed under a citation, and neither may be written
+ *      as if it were an addition.
+ *   4. Nothing outside `themes.<pass>.stacks` and `utilityStacks` is touched, and
+ *      `generatedAt` keeps the date the pinned sections were captured.
+ */
+async function stacksOnlyMerge(browser) {
+  const git = (args) => cp.execFileSync('git', args, { cwd: path.join(__dirname, '..'), encoding: 'utf8' }).trim();
+  const CSS_REL = 'src/index.css';
+  const tagBlob = git(['rev-parse', `pre-flutter:${CSS_REL}`]);
+  const workBlob = git(['hash-object', CSS_REL]);
+  if (tagBlob !== workBlob) {
+    throw new Error(
+      `src/index.css is not the pre-flutter blob (tag ${tagBlob}, working tree ${workBlob}); ` +
+        'a stack capture taken against a moved stylesheet would not describe the app the port mirrors',
+    );
+  }
+
+  const pinned = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+  const pinnedRows = pinned.utilityStacks.rows;
+  const pinnedAuthored = pinned.utilityStacks.authoredNonCss;
+  if (pinnedRows.length > ALL_STACKS.length || pinnedAuthored.length > ALL_AUTHORED.length) {
+    throw new Error(
+      `the record holds ${pinnedRows.length} rows / ${pinnedAuthored.length} authored entries ` +
+        `but this script authors ${ALL_STACKS.length} / ${ALL_AUTHORED.length}`,
+    );
+  }
+  // A row already in the record has two halves. Its measurement shape — the class
+  // list, the element it is built on, the attributes, the inline style, the
+  // wrapper and siblings, the extra readouts it asks for, and every cited line —
+  // decides what the number in the record means, and may never move. Its `note`
+  // is prose about that number, and prose is allowed to be corrected: the toast
+  // finding and the `hidden`-is-inert finding below were both written wrong first.
+  //
+  // The families captured before item 8 (`#55`, `#56`) keep both halves frozen,
+  // prose included, because a ruling pinned them; only the item-8 family below
+  // that boundary may have its text revised.
+  const rowShape = ({ note: _note, ...rest }) => rest;
+  const PINNED_STACK_ROWS = UTILITY_STACKS.length + MODAL_STACKS.length;
+  const PINNED_AUTHORED_ROWS = AUTHORED_NON_CSS.length + MODAL_AUTHORED.length;
+  for (const [i, row] of pinnedRows.entries()) {
+    const now = ALL_STACKS[i];
+    if (!now || row.name !== now.name) {
+      throw new Error(`stack row #${i} "${row.name}" is not where the record left it — additions must append`);
+    }
+    if (i < PINNED_STACK_ROWS ? !sameJson(row, now) : !sameJson(rowShape(row), rowShape(now))) {
+      throw new Error(
+        `stack row #${i} "${row.name}" ${i < PINNED_STACK_ROWS ? 'moved' : 're-measures differently than the record says'}; ` +
+          'the class list, element, style, wrapper, extras or citations of a captured row are not edited, they are re-captured',
+      );
+    }
+  }
+  for (const [i, row] of pinnedAuthored.entries()) {
+    const now = ALL_AUTHORED[i];
+    if (!now || row.name !== now.name) {
+      throw new Error(`authoredNonCss #${i} "${row.name}" is not where the record left it`);
+    }
+    if (i < PINNED_AUTHORED_ROWS ? !sameJson(row, now) : !sameJson(rowShape(row), rowShape(now))) {
+      throw new Error(
+        `authoredNonCss #${i} "${row.name}" ${i < PINNED_AUTHORED_ROWS ? 'moved' : 're-cites differently'}; ` +
+          'a recorded row is not restated, only explained better',
+      );
+    }
+  }
+
+  const merged = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+  const movedByPass = [];
+  for (const theme of ['light', 'dark']) {
+    for (const vp of VIEWPORTS) {
+      const key = `${theme}-${vp.name}`;
+      const before = merged.themes[key];
+      if (!before) throw new Error(`the record has no ${key} pass to merge into`);
+      const pinnedStackCount = Object.keys(before.stacks || {}).length;
+      if (!sameJson(before.viewport, vp)) {
+        throw new Error(
+          `${key}: the record's viewport ${JSON.stringify(before.viewport)} is not ${JSON.stringify(vp)}`,
+        );
+      }
+      const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 });
+      await ctx.addInitScript(
+        ([t]) => {
+          localStorage.setItem('em-budget-theme', t);
+          localStorage.setItem('theme', t);
+        },
+        [theme],
+      );
+      const page = await ctx.newPage();
+      const problems = [];
+      page.on('pageerror', (e) => problems.push(String(e.message)));
+      await page.goto(BASE + '/', { waitUntil: 'load' });
+      await page.waitForSelector(theme === 'dark' ? 'html.dark' : 'html.light', { timeout: 45000 });
+      const data = await measureWithFontGate(page, [], [], ALL_STACKS);
+      await ctx.close();
+
+      if (problems.length > 0) {
+        throw new Error(`${key}: ${problems.length} page error(s) during the stack capture: ${problems[0]}`);
+      }
+      if (data.badSelectors.length > 0) throw new Error(`unparseable probe selectors: ${data.badSelectors.join(', ')}`);
+      for (const [prop, expected] of [
+        ['innerWidth', before.innerWidth],
+        ['appliedClass', before.appliedClass],
+        ['mediaDark', before.mediaDark],
+      ]) {
+        if (data[prop] !== expected) {
+          throw new Error(
+            `${key}: ${prop} is ${JSON.stringify(data[prop])} now, ${JSON.stringify(expected)} when the record was captured`,
+          );
+        }
+      }
+      const brief = (v) => {
+        if (v === undefined) return 'absent';
+        const s = v.srgb ? v.srgb.rgba : v.substituted ? v.substituted : v.raw !== undefined ? v.raw : v;
+        return String(JSON.stringify(s)).slice(0, 60);
+      };
+      const moved = Object.keys(before.stacks || {})
+        .filter((name) => !sameJson(before.stacks[name], data.stacks[name]))
+        .map((name) => {
+          const was = before.stacks[name].props;
+          const now = data.stacks[name].props;
+          const keys = [...new Set([...Object.keys(was), ...Object.keys(now)])];
+          const differs = keys.filter((k) => !sameJson(was[k], now[k]));
+          return { pass: key, name, props: differs.slice().sort() };
+        });
+      const missing = Object.keys(ALL_STACKS.reduce((a, s) => ({ ...a, [s.name]: 1 }), {})).filter(
+        (name) => data.stacks[name] === undefined,
+      );
+      if (missing.length > 0) throw new Error(`${key}: no measurement for ${missing.join(', ')}`);
+      for (const m of moved) {
+        m.diff = m.props.map(
+          (k) => `${k} ${brief(before.stacks[m.name].props[k])} -> ${brief(data.stacks[m.name].props[k])}`,
+        );
+      }
+      movedByPass.push(...moved);
+      before.stacks = data.stacks;
+      console.log(
+        `${key}: ${Object.keys(data.stacks).length}/${ALL_STACKS.length} stacks measured over ${GOOGLE_FAMILIES.join(', ')}, ` +
+          `of which ${pinnedStackCount} were already in the record (${moved.length} re-measured differently)`,
+      );
+    }
+  }
+
+  // A row already in the record that re-measures differently is one of two things:
+  // either the tier moved under a family that was already captured, which is the
+  // failure this mode exists to catch, or the pinned number was taken before the
+  // webfont arrived and the font gate above has now corrected it. Only the second
+  // is allowed, and only as an enumerated list checked name and property by
+  // property — so a genuinely new difference cannot hide among the known ones.
+  const unexplained = movedByPass.filter((m) => !isFontRaceCorrection(m));
+  if (unexplained.length > 0) {
+    throw new Error(
+      `${unexplained.length} stack row(s) already in the record re-measured differently for a reason the ` +
+        'font race does not explain; a family added to the tier must not move the families already in it\n  - ' +
+        unexplained
+          .slice(0, 8)
+          .map((m) => `${m.pass} ${m.name}: ${m.diff.join(', ')}`)
+          .join('\n  '),
+    );
+  }
+  for (const m of movedByPass) {
+    console.log(`  font-gate correction: ${m.pass} ${m.name}: ${m.diff.join(', ')}`);
+  }
+
+  merged.utilityStacks.note = STACKS_NOTE;
+  merged.utilityStacks.source = STACK_SOURCE;
+  merged.utilityStacks.rows = ALL_STACKS;
+  merged.utilityStacks.authoredNonCss = ALL_AUTHORED;
+  merged.utilityStacks.measuredAt = new Date().toISOString();
+  merged.utilityStacks.base = BASE;
+  merged.utilityStacks.toolchain = tailwindVersion();
+
+  // The promise of the mode, checked against the record it started from rather
+  // than assumed from the code above: only the two stack-bearing keys may differ.
+  const stripped = (o) => {
+    const copy = JSON.parse(JSON.stringify(o));
+    for (const pass of Object.values(copy.themes || {})) pass.stacks = null;
+    copy.utilityStacks = null;
+    return JSON.stringify(copy);
+  };
+  if (stripped(pinned) !== stripped(merged)) {
+    throw new Error('the merge moved something outside themes.<pass>.stacks and utilityStacks; nothing was written');
+  }
+
+  fs.writeFileSync(OUT, JSON.stringify(merged, null, 2) + '\n', 'utf8');
+  console.log(
+    `\nstacks-only merge wrote ${path.relative(process.cwd(), OUT)}: ` +
+      `${pinnedRows.length} rows kept, ${ALL_STACKS.length - pinnedRows.length} added, ` +
+      `generatedAt stays ${merged.generatedAt}`,
+  );
+}
+
 async function main() {
   const browser = await chromium.launch();
+  if (ONLY_STACKS) {
+    await stacksOnlyMerge(browser);
+    await browser.close();
+    return;
+  }
   const result = {
     generatedAt: new Date().toISOString(),
     base: BASE,
@@ -1174,18 +1997,7 @@ async function main() {
       scanned: UTILITIES.length,
     },
     utilityStacks: {
-      note:
-        'The #55 utility-stack tier: boxes whose look is a stack of Tailwind utilities written in a ' +
-        'className string, not a class in src/index.css. Each row is a verbatim slice of the pinned ' +
-        'component source; the whole class list goes on one detached element and its computed style is ' +
-        'read against an unclassed control, in themes.<pass>.stacks. "changed" names the properties the ' +
-        'stack actually moves — a utility Tailwind never emits (or a variant gated off in this pass, like ' +
-        'a dark: fragment under a light preference) shows as a property absent from it. authoredNonCss is ' +
-        'not a measurement: timers and motion values are JS, recorded verbatim so the port never invents ' +
-        'them. measuredAt/base/toolchain describe THIS section only: a stack capture can postdate the ' +
-        'pinned sections in themes/root, which are not re-synced until the ruling says so. #56 extended ' +
-        'the tier to the modal/sheet family: rows from more than one file carry their own src, and the ' +
-        'top-level source is only the fallback for the rows that were already here.',
+      note: STACKS_NOTE,
       source: STACK_SOURCE,
       rows: ALL_STACKS,
       authoredNonCss: ALL_AUTHORED,
@@ -1212,11 +2024,12 @@ async function main() {
       await page.goto(BASE + '/', { waitUntil: 'load' });
       await page.waitForSelector(theme === 'dark' ? 'html.dark' : 'html.light', { timeout: 45000 });
 
-      // All measurement lives inside PROBE_PAGE; only the selector and utility lists
-      // are interpolated, as JSON, so no page-source text is hand-escaped here.
-      const data = await page.evaluate(
-        `(${PROBE_PAGE.toString()})(${JSON.stringify(PROBE_SELECTORS)},${JSON.stringify(UTILITIES)},${JSON.stringify(ALL_STACKS)})`,
-      );
+      // All measurement lives inside PROBE_PAGE; only the selector and utility
+      // lists are interpolated, as JSON, so no page-source text is hand-escaped
+      // here. The font gate runs first for the same reason it runs in
+      // `--stacks-only`: a box that sizes itself to its text has no stable answer
+      // until the stylesheet's own faces are the ones being used.
+      const data = await measureWithFontGate(page, PROBE_SELECTORS, UTILITIES, ALL_STACKS);
       if (data.badSelectors.length > 0) throw new Error(`unparseable probe selectors: ${data.badSelectors.join(', ')}`);
       data.media = { width: data.innerWidth, floatingNavDisplay: data.floatingNavDisplay };
 
@@ -1233,9 +2046,7 @@ async function main() {
 
   result.utilityStacks.measuredAt = result.generatedAt;
   result.utilityStacks.base = BASE;
-  result.utilityStacks.toolchain = JSON.parse(
-    fs.readFileSync(path.join(__dirname, '..', 'node_modules', 'tailwindcss', 'package.json'), 'utf8'),
-  ).version;
+  result.utilityStacks.toolchain = tailwindVersion();
 
   // Tailwind v4 resolves the `dark:` variant from `prefers-color-scheme` unless the
   // stylesheet rebinds it with `@custom-variant dark`, and src/index.css does not.

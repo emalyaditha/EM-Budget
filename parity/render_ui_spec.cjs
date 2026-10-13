@@ -1134,6 +1134,360 @@ put('### 6.5 The `dark:` variant answers the operating system, not the app theme
   );
 }
 
+// ---------------------------------------------------------------- 6.6 the ledger family
+put('### 6.6 The ledger family — stacks the components write themselves', '');
+put(
+  '§6.1–§6.2 probe classes that `src/index.css` declares. The transaction row and the list around it are the',
+  'other half of the app: their boxes are Tailwind utilities written into `.tsx` string literals, plus inline',
+  'styles a component computes at render. A stylesheet probe cannot see either — it can only see a rule, and',
+  'there is no rule for `text-[13px]` until a component asks for one. So `parity/ui-tokens.cjs` mounts each',
+  'stack **as the component mounts it** — same tag, same attributes, nested where the component nests — inside',
+  'the themed document, and reads what computed at both viewports. Those records are `utilityStacks` in',
+  '`parity/ui-tokens.json`: the class string, the line it is written on, the inline style, and the result.',
+  '`parity/generate_theme.cjs` refuses to emit a row it cannot find there, so this section and',
+  '`mobile/lib/core/theme/app_rows.dart` are two views of one measurement.',
+  '',
+);
+{
+  const US = TOKENS.utilityStacks;
+  if (!US || !Array.isArray(US.rows)) throw new Error('ui-tokens.json has no utilityStacks.rows tier');
+  if (!Array.isArray(US.authoredNonCss)) throw new Error('ui-tokens.json has no utilityStacks.authoredNonCss tier');
+  const rec = (name) => {
+    const r = US.rows.find((x) => x.name === name);
+    if (!r) throw new Error('no utility stack ' + name + ' in ui-tokens.json');
+    return r;
+  };
+  const st = (pass, name) => {
+    const s = TOKENS.themes[pass].stacks && TOKENS.themes[pass].stacks[name];
+    if (!s) throw new Error('stack ' + name + ' is cited but was not measured at ' + pass);
+    return s;
+  };
+  const paintKeys = [
+    'color',
+    'backgroundColor',
+    'borderTopColor',
+    'borderLeftColor',
+    'boxShadow',
+    'backdropFilter',
+    'backgroundImage',
+  ];
+  const valOf = (props, key) => {
+    const v = props[key];
+    if (v === undefined || v === null) return '—';
+    if (typeof v === 'string') return v;
+    if (v.srgb) return v.srgb.a255 === 0 ? 'transparent' : dart(v.srgb);
+    return v.substituted || v.raw || '—';
+  };
+  /** The element the probe mounted: the component’s own tag and attributes, so a `<button>`
+   *  is measured against the UA padding its class has to beat, not against a neutral `<div>`. */
+  const mountedAs = (r) => {
+    const attrs = Object.entries(r.attrs || {}).map(([k, v]) => ' ' + k + '="' + v + '"');
+    return '<' + (r.tag || 'div') + attrs.join('') + '>';
+  };
+  const authoredClasses = (r) =>
+    [mountedAs(r)]
+      .concat(r.parts.map((p) => (p.cls ? '`' + p.cls + '`' : p.style ? 'style `' + p.style + '`' : '')))
+      .filter(Boolean)
+      .join('<br>');
+  /** Every file+line the stack is written at, the same grouping the emitter cites with. */
+  const citedAt = (r) => {
+    const byFile = new Map();
+    for (const p of r.parts || []) {
+      const file = p.src || r.src || US.source;
+      const set = byFile.get(file) || [];
+      for (const l of [p.line, p.styleSrcLine, p.toneVarLine, p.dimsLine, ...(p.styleSrc || []).map((s) => s.line)]) {
+        if (l !== undefined && !set.includes(l)) set.push(l);
+      }
+      byFile.set(file, set);
+    }
+    return [...byFile].map(([f, ls]) => '`' + f + ':' + ls.sort((a, b) => a - b).join(',') + '`').join('<br>');
+  };
+  const geometryOf = (name) => {
+    const s = st('light-phone', name);
+    const moved = s.changed.filter((k) => !paintKeys.includes(k));
+    return moved.map((k) => k + ' `' + valOf(s.props, k) + '`').join(' · ') || '—';
+  };
+  const typeOf = (name) => {
+    const p = st('light-phone', name).props;
+    return ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing'].map((k) => '`' + valOf(p, k) + '`').join(' · ');
+  };
+  const textOf = (name) => {
+    const l = valOf(st('light-phone', name).props, 'color');
+    const d = valOf(st('dark-phone', name).props, 'color');
+    return d === l ? cell(l) + ' ⇒ equal' : cell(l) + ' ⇒ dark: ' + cell(d);
+  };
+  const paintOf = (name) => {
+    const p = st('light-phone', name).props;
+    const bits = [];
+    const bg = valOf(p, 'backgroundColor');
+    if (bg !== 'transparent' && bg !== '—') bits.push('fill ' + cell(bg));
+    const img = p.backgroundImage && p.backgroundImage.raw !== 'none' ? p.backgroundImage.raw : '';
+    if (img) bits.push('image ' + cell(img));
+    if (p.borderTopWidth !== '0px') bits.push('border ' + cell(p.borderTopWidth + ' ' + valOf(p, 'borderTopColor')));
+    const sh = p.boxShadow && p.boxShadow.raw !== 'none' ? p.boxShadow.substituted || p.boxShadow.raw : '';
+    if (sh) bits.push('shadow ' + cell(sh));
+    if (p.backdropFilter && p.backdropFilter.raw !== 'none') bits.push('backdrop ' + cell(p.backdropFilter.raw));
+    if (p.opacity !== '1') bits.push('opacity ' + cell(p.opacity));
+    if (p.cursor && p.cursor !== 'auto') bits.push('cursor ' + cell(p.cursor));
+    return bits.join(' · ') || '(paints nothing itself)';
+  };
+  /** The one honest wide/narrow split: a stack that computes differently at 1440px than at 390px. */
+  const splitOf = (name) => {
+    const a = st('light-phone', name);
+    const b = st('light-desktop', name);
+    const keys = [...new Set([...a.changed, ...b.changed])];
+    const out = [];
+    for (const k of keys) {
+      const av = valOf(a.props, k);
+      const bv = valOf(b.props, k);
+      if (av !== bv) out.push(k + ' 390px ' + cell(av) + ' · 1440px ' + cell(bv));
+    }
+    return out.join('<br>') || '—';
+  };
+
+  const ledgerStacks = US.rows.filter((r) => /^(txrow-|day-head-label$|ledger-)/.test(r.name)).map((r) => r.name);
+  if (!ledgerStacks.length) throw new Error('ui-tokens.json cites no txrow/ledger stack');
+  put('#### 6.6.1 The row and the list around it', '');
+  table(
+    [
+      'stack',
+      'mounted as, and the stack it carries',
+      'authored at',
+      'type @390',
+      'text @390 (light ⇒ dark)',
+      'what it paints',
+      'geometry the utilities moved',
+      '390px ≠ 1440px',
+    ],
+    ledgerStacks.map((name) => {
+      const r = rec(name);
+      return [
+        cell(name),
+        authoredClasses(r),
+        citedAt(r),
+        typeOf(name),
+        textOf(name),
+        paintOf(name),
+        geometryOf(name),
+        splitOf(name),
+      ];
+    }),
+  );
+  const split = ledgerStacks.filter((n) => splitOf(n) !== '—');
+  put(
+    'The *geometry* column is the difference the utilities make: only what the stack changed from the browser',
+    'default, prop by prop, which is the same list the emitter reads before it will write a Dart row for it.',
+    'The last column is the only place in this family where the two viewports disagree —',
+    split.length + ' stack' + (split.length === 1 ? '' : 's') + ': ' + split.map((n) => '`' + n + '`').join(', ') + '.',
+    'In each of them the properties that move are the `lg:` variants, which is what the phone never applies.',
+    'The bar itself is not a value in the measurement file, so the port does not invent one: the rails are',
+    'emitted as a wide/narrow pair and the breakpoint stays caller-supplied, exactly as `AppModal` takes',
+    '`wideBreakpointPx`. The `lg` width belongs to the breakpoint enumeration in `parity/STATUS.md`.',
+    '',
+  );
+  const divides = rec('ledger-divides').name;
+  const lastMoved = st('light-phone', 'ledger-row-last').changed;
+  const midBorder = valOf(st('light-phone', 'ledger-row-middle').props, 'borderBottomWidth');
+  if (lastMoved.length || midBorder === '—') {
+    throw new Error('the divide-y reading above has changed: re-read §6.6.1 rather than re-phrase it');
+  }
+  put(
+    'A `—` in the geometry column is a measurement too, not a gap in one. ' +
+      cell(divides) +
+      ' moves nothing because a',
+    '`divide-y` parent paints no line of its own: the hairline lands on the children, which is why',
+    '`ledger-row-middle` carries a `borderBottomWidth` and `ledger-row-last` — the same class list, mounted as',
+    'the last child instead of a middle one — moves nothing at all. That is the whole of the divider contract,',
+    'and the port draws it as one hairline between rows plus no line under the last.',
+    '',
+  );
+  put(
+    'Two columns need reading, not just measuring. The *text* column is the computed colour of a detached',
+    'element: where a class authors no colour the row shows what the stack inherited, which is why',
+    '`txrow-amount-in` and `txrow-amount-out` are the only two whose colour is a decision the component makes',
+    'in an inline style rather than in its class list. The *what it paints* column prints a transparent fill as',
+    '`(paints nothing itself)` for the same reason §6.1 prints `(none)`: what must be drawn is whatever is',
+    'behind the row, not a colour the port should copy.',
+    '',
+  );
+
+  const mono = (v) => (v === '—' || v === '(none)' ? v : cell(v));
+  const toneRows = US.rows.filter((r) => /^cat-chip-md-[a-z]+$/.test(r.name));
+  if (toneRows.length < 2) throw new Error('ui-tokens.json cites no cat-chip tone stack');
+  const styleOf = (r) => {
+    const p = r.parts.find((x) => x.style);
+    if (!p) throw new Error(r.name + ': the tone stack carries no inline style');
+    return p.style;
+  };
+  const mixOf = (who, style, prop) => {
+    const decl = (style || '')
+      .split(';')
+      .map((d) => d.trim())
+      .find((d) => d.startsWith(prop + ':'));
+    const m = /color-mix\(in oklab,\s*var\((--[\w-]+)\)\s+([\d.]+)%,\s*var\((--[\w-]+)\)\)/.exec(decl || '');
+    if (!m) throw new Error(who + ': no oklab mix authored for ' + prop + ' — ' + decl);
+    return { token: m[1], percent: m[2], into: m[3] };
+  };
+  put('#### 6.6.2 The category chip’s tones, and the mix that makes them', '');
+  table(
+    [
+      'tone',
+      'authored tone token',
+      'fill @390 light',
+      'fill @390 dark',
+      'border light',
+      'border dark',
+      'text @390 (light ⇒ dark)',
+      'authored at',
+    ],
+    toneRows.map((r) => {
+      const style = styleOf(r);
+      const fill = mixOf(r.name, style, 'background');
+      const border = mixOf(r.name, style, 'border');
+      const l = st('light-phone', r.name).props;
+      const d = st('dark-phone', r.name).props;
+      return [
+        cell(r.name.replace('cat-chip-md-', '')),
+        mono(fill.token) +
+          ' ' +
+          fill.percent +
+          '% into ' +
+          mono(fill.into) +
+          '<br>' +
+          mono(border.token) +
+          ' ' +
+          border.percent +
+          '% into ' +
+          mono(border.into),
+        mono(valOf(l, 'backgroundColor')),
+        mono(valOf(d, 'backgroundColor')),
+        mono(valOf(l, 'borderTopColor')),
+        mono(valOf(d, 'borderTopColor')),
+        textOf(r.name),
+        citedAt(r),
+      ];
+    }),
+  );
+  const nonPastel = toneRows.filter((r) => !mixOf(r.name, styleOf(r), 'background').token.startsWith('--pastel-'));
+  put(
+    'Every tone is authored as one `color-mix(in oklab, …)` per property, in an inline style the component',
+    'builds from its own size and tone tables — the tint is never a class, so no stylesheet rule describes it.',
+    'Flutter `Color` has no mix and no OKLCH (D-U6), so the resolved sRGB bytes above **are** the port’s values;',
+    'the mix is recorded here only to show which token they came from.',
+    nonPastel.length
+      ? 'Not every row of it is a pastel: ' +
+          nonPastel
+            .map(
+              (r) =>
+                '`' +
+                r.name.replace('cat-chip-md-', '') +
+                '` mixes ' +
+                cell(mixOf(r.name, styleOf(r), 'background').token),
+            )
+            .join(' and ') +
+          ' — the neutral tone, carried as the same mix rather than as one more colour.'
+      : 'Every tone in the table mixes a `--pastel-*` token.',
+    'The *text* column is the same authored token at every tone — the component gives the glyph one colour and',
+    'lets it flip with the theme, so none of the tints carries a text colour of its own.',
+    '',
+  );
+
+  const chipRows = US.rows.filter((x) => /^cat-chip-/.test(x.name));
+  const chipCls = (r) => (r.parts.find((p) => p.cls) || {}).cls || '';
+  const sharedCls = new Set(chipRows.map(chipCls));
+  if (sharedCls.size !== 1)
+    throw new Error('cat-chip stacks do not share one class list: ' + [...sharedCls].join(' | '));
+  const dimsBySize = new Map();
+  for (const r of chipRows) {
+    const part = r.parts.find((p) => p.dims !== undefined);
+    if (!part) continue;
+    const size = part.size || 'md';
+    const seen = dimsBySize.get(size);
+    if (seen && (seen.part.dims !== part.dims || seen.part.glyph !== part.glyph)) {
+      throw new Error('cat-chip size ' + size + ' is authored with two different dimension tables');
+    }
+    if (!seen) dimsBySize.set(size, { size, name: r.name, part, src: r.src || US.source });
+  }
+  const chipSizes = ['xs', 'sm', 'md', 'lg'].map((s) => {
+    const found = dimsBySize.get(s);
+    if (!found) throw new Error('ui-tokens.json cites no cat-chip ' + s + ' stack');
+    return found;
+  });
+  put('#### 6.6.3 The chip sizes', '');
+  table(
+    ['size', 'side authored', 'side measured @390', 'radius measured', 'glyph authored', 'cited stack', 'authored at'],
+    chipSizes.map(({ size, name, part, src }) => {
+      const p = st('light-phone', name).props;
+      return [
+        cell(size),
+        mono(part.dims + 'px'),
+        mono(valOf(p, 'width') + ' × ' + valOf(p, 'height')),
+        mono(valOf(p, 'borderRadius')),
+        mono(part.glyph + 'px'),
+        cell(name),
+        cell(src + ':' + [part.dimsLine, part.glyphLine].filter((l) => l !== undefined).join(',')),
+      ];
+    }),
+  );
+  const mdDims = new Set(toneRows.map((r) => (r.parts.find((p) => p.dims !== undefined) || {}).dims));
+  if (mdDims.size !== 1 || mdDims.has(undefined)) throw new Error('the cat-chip tone stacks disagree on the md box');
+  put(
+    'Every chip carries the same class list — `' +
+      [...sharedCls][0] +
+      '` — and every number in this table comes from the inline',
+    'style the component builds from its own two size tables, one for the box and one for the glyph, so a chip',
+    'has two sizes and one box. `rounded-full` computes the clamp in the *radius measured* column, which is how',
+    'a browser reports a circle rather than a radius the port should copy; the Dart side draws an infinite',
+    'radius on a square box. `md` is cited from a tone stack because the default size is measured on every tone',
+    'at once — all ' +
+      toneRows.length +
+      ' agree on ' +
+      cell([...mdDims][0] + 'px') +
+      ', which this table asserts rather than assumes.',
+    'The `side measured @390` column is the proof the inline style reached the box at all. `parity/icon-map.tsv`',
+    'pairs each category with the Lucide name the component picks for it, and the icon dependency itself has',
+    'not landed, so `app_rows.dart` carries those names as strings the caller resolves rather than drawing',
+    'icons it cannot import.',
+    '',
+  );
+
+  const facts = US.authoredNonCss.filter((r) => /^(txrow-|cat-chip-|ledger-|pill-hidden)/.test(r.name));
+  if (!facts.length) throw new Error('ui-tokens.json cites no ledger authored record');
+  put('#### 6.6.4 What the ledger does that no probe can see', '');
+  put(
+    'These are the facts about this family that are not a computed style at all: state the component holds in',
+    'JS, tables it builds its inline styles from, the copy it renders, and the two places where a class is',
+    'applied that paints nothing. They are recorded per line so a drift test can re-read them from `src/`.',
+    '',
+  );
+  table(
+    ['record', 'tier', 'as written', 'authored at', 'what it decides'],
+    facts.map((r) => [
+      cell(r.name),
+      cell(r.tier || 'authored-js'),
+      r.parts.map((p) => '`' + p.text + '`').join('<br>'),
+      citedAt(r),
+      r.note || '',
+    ]),
+  );
+  put(
+    'Some of these records decide what the port paints, not what the markup appears to ask for. `empty` is',
+    'applied by `ReportsCentre.tsx` and declared by no stylesheet, so the box paints nothing and the port must',
+    'not inherit a colour it never had. `hidden` is a Tailwind utility, and utilities live in a cascade layer,',
+    'while the class the pill also carries is written unlayered — so the utility loses at any width and the pill',
+    'shows on the phone. The two call sites of the row disagree about what counts as income and about whether',
+    'what counts as income and about whether the amount arrives signed or absolute; a design-system row takes',
+    'the string it is handed and cannot vote, so both readings are recorded and neither is fixed here.',
+    '',
+  );
+  put(
+    'The Dart side of this family is `mobile/lib/core/theme/app_rows.dart`, emitted from the same records by',
+    '`node parity/generate_theme.cjs` and re-derived property by property by `mobile/test/theme/` drift tests.',
+    'Port deviations this family forces are listed with their ids in `parity/STATUS.md`, not silently applied.',
+    '',
+  );
+}
+
 // ---------------------------------------------------------------- 7. deviations
 put('## 7. Phone-forced deviations — every one needs your approval', '');
 put(
@@ -1421,6 +1775,7 @@ put(
   'node parity/get_fonts.cjs        # §3.1: fetches the bundle; writes parity/fixtures/fonts.json',
   'node parity/get_fonts.cjs --check  # re-verifies those bytes; changes nothing',
   'node parity/render_ui_spec.cjs   # renders this document from those files',
+  'node parity/generate_theme.cjs   # the same JSON -> mobile/lib/core/theme/*.dart (needs DART_BIN or FLUTTER_ROOT)',
   '```',
   '',
 );

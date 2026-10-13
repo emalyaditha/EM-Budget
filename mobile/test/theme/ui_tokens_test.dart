@@ -26,6 +26,7 @@ import 'package:em_budget/core/theme/app_modals.dart';
 import 'package:em_budget/core/theme/app_navs.dart';
 import 'package:em_budget/core/theme/app_numerals.dart';
 import 'package:em_budget/core/theme/app_radii.dart';
+import 'package:em_budget/core/theme/app_rows.dart';
 import 'package:em_budget/core/theme/app_segments.dart';
 import 'package:em_budget/core/theme/app_shadows.dart';
 import 'package:em_budget/core/theme/app_skeletons.dart';
@@ -4311,29 +4312,120 @@ void main() {
       List<String> linesOf(String src) =>
           fileLines.putIfAbsent(src, () => webSource(src).split('\n'));
 
+      /// The line a fragment cites, or a failure that names the record and the
+      /// file rather than a range check that says nothing.
+      String readAt(
+        Object? line,
+        String src,
+        String text,
+        String name,
+        String label,
+      ) {
+        expect(
+          line,
+          isNotNull,
+          reason: '$label cites no line of $src for "$text"',
+        );
+        final List<String> lines = linesOf(src);
+        final int at = (line! as num).toInt();
+        expect(
+          at,
+          inInclusiveRange(1, lines.length),
+          reason:
+              '$name cites line $at of $src, which has ${lines.length} lines',
+        );
+        return lines[at - 1];
+      }
+
       void check(
         Map<String, dynamic> part,
         String textKey,
         String src,
         String name,
       ) {
-        final List<String> lines = linesOf(src);
-        final int line = (part['line']! as num).toInt();
+        final String text = part[textKey]! as String;
         expect(
-          line,
-          inInclusiveRange(1, lines.length),
+          readAt(part['line'], src, text, name, name),
+          contains(text),
           reason:
-              '$name cites line $line of $src, which has '
-              '${lines.length} lines',
+              'the JSON slice "$text" must still be verbatim at the line the '
+              'tier cites in $src — the component moved, the tier has to move '
+              'with it',
         );
-        expect(
-          lines[line - 1],
-          contains(part[textKey]! as String),
-          reason:
-              'the JSON slice "${part[textKey]}" must still be verbatim at '
-              'line $line of $src — the component moved, the tier has to '
-              'move with it',
-        );
+      }
+
+      /// An inline-style fragment is not one source line: the probe froze the
+      /// declarations the component writes, each with the line it was read from,
+      /// plus the table line the tone variable comes off. So the verbatim test
+      /// for these is per declaration, and the computed style's custom properties
+      /// must all be named by the lines the fragment cites.
+      void checkStyle(Map<String, dynamic> part, String src, String name) {
+        final List<String> citedTexts = <String>[];
+        for (final dynamic sAny
+            in (part['styleSrc'] ?? const <dynamic>[]) as List<dynamic>) {
+          final Map<String, dynamic> dec = sAny as Map<String, dynamic>;
+          citedTexts.add(
+            readAt(
+              dec['line'],
+              src,
+              '"${dec['text']}"',
+              name,
+              '$name ${dec['prop']}',
+            ),
+          );
+          expect(
+            citedTexts.last,
+            contains(dec['text']! as String),
+            reason:
+                'the declaration "${dec['text']}" must still be verbatim at '
+                'the line $name cites it from in $src',
+          );
+        }
+        final Object? single = part['styleSrcLine'];
+        if (single != null) {
+          citedTexts.add(
+            readAt(single, src, part['style']! as String, name, name),
+          );
+        }
+        final Object? toneVar = part['toneVar'];
+        final Object? toneVarLine = part['toneVarLine'];
+        if (toneVar != null) {
+          expect(
+            toneVarLine,
+            isNotNull,
+            reason:
+                '$name gives a tone variable without naming the table line it '
+                'was read from',
+          );
+          final String line = readAt(
+            toneVarLine,
+            src,
+            toneVar as String,
+            name,
+            name,
+          );
+          expect(
+            line,
+            contains(toneVar),
+            reason:
+                '$name: ${part['tone']} resolves to $toneVar at the line the '
+                'record cites, which no longer says so',
+          );
+          citedTexts.add(line);
+        }
+        for (final RegExpMatch m in RegExp(
+          r'var\((--[a-z0-9-]+)\)',
+        ).allMatches(part['style']! as String)) {
+          final String token = m.group(1)!;
+          expect(
+            citedTexts.any((String l) => l.contains(token)),
+            isTrue,
+            reason:
+                '$name computed $token, but none of the lines it cites in $src '
+                'names it — the style came from somewhere the record does not '
+                'point at',
+          );
+        }
       }
 
       for (final dynamic rowAny in rows) {
@@ -4341,12 +4433,19 @@ void main() {
         final String src = (row['src'] ?? stacks['source'])! as String;
         for (final dynamic p in row['parts']! as List<dynamic>) {
           final Map<String, dynamic> part = p as Map<String, dynamic>;
-          check(
-            part,
-            'cls',
-            (part['src'] ?? src)! as String,
-            row['name']! as String,
+          final String name = row['name']! as String;
+          expect(
+            part['cls'] != null || part['style'] != null,
+            isTrue,
+            reason:
+                '$name carries a fragment that is neither a className nor an '
+                'inline style, so the tier cannot say what it was read from',
           );
+          if (part['cls'] != null) {
+            check(part, 'cls', (part['src'] ?? src)! as String, name);
+          } else {
+            checkStyle(part, (part['src'] ?? src)! as String, name);
+          }
         }
       }
       for (final dynamic entryAny in nonCss) {
@@ -4969,7 +5068,7 @@ void main() {
     // recorded verbatim because that is what any reader of the tier sees.
     const String fullRadius = '3.35544e+07px';
 
-    test('the family is 19 toast rows plus 32 rows from six modal files', () {
+    test('the family is 19 toast rows, 32 from six modal files and 26 from the ledger’s four', () {
       final Map<String, int> bySource = <String, int>{};
       for (final dynamic r in rows) {
         final Map<String, dynamic> row = r as Map<String, dynamic>;
@@ -4986,10 +5085,20 @@ void main() {
           'src/components/DebtDetailModal.tsx': 4,
           'src/components/TransactionEditModal.tsx': 4,
           'src/components/SettingsModal.tsx': 3,
+          'src/components/ui/CategoryChip.tsx': 9,
+          'src/components/ui/TransactionRow.tsx': 7,
+          'src/components/Dashboard.tsx': 6,
+          'src/components/ReportsCentre.tsx': 4,
         },
         reason:
-            'a component joining or leaving the family means the tier '
-            'was re-measured against a different source set',
+            'a component joining or leaving the family means the tier was '
+            're-measured against a different source set. #76 added the four '
+            'ledger files to the seven the chrome families already named.',
+      );
+      expect(
+        bySource.values.fold(0, (int a, int b) => a + b),
+        rows.length,
+        reason: 'and every row belongs to one of them',
       );
     });
 
@@ -5737,9 +5846,10 @@ void main() {
     test('the extended stack props are read in every pass, not just moved', () {
       // The #56 rows asked stackProps for marginTop/marginRight/flexShrink/
       // height/maxHeight/overflowX/overflowY/letterSpacing/whiteSpace/
-      // textOverflow. The full readout must carry them wherever they exist,
-      // whether or not `changed` lists them — the changed set is movement
-      // against the control, the props map is the record.
+      // textOverflow, and #76 asked the ledger rows for the same. The full
+      // readout must carry them wherever they exist, whether or not `changed`
+      // lists them — the changed set is movement against the control, the props
+      // map is the record.
       const List<String> extended = <String>[
         'marginTop',
         'marginRight',
@@ -5778,7 +5888,13 @@ void main() {
             ].contains(name),
           )
           .toList();
-      expect(modalNames.length, 32);
+      expect(
+        modalNames.length,
+        58,
+        reason:
+            'the 32 rows the #56 family brought plus the 26 #76 brought for '
+            'the ledger — both asked for the same readout, so both get it',
+      );
       for (final String pass in passes) {
         for (final String name in modalNames) {
           for (final String key in extended) {
@@ -8521,22 +8637,4755 @@ void main() {
         );
       }
     });
+  });
 
-    test('an unknown numeral class is an error, not a Material default', () {
-      for (final Brightness brightness in Brightness.values) {
-        for (final String cls in <String>[
-          '.eyebrow',
-          '.btn-primary',
-          '.bar-pink',
-          '.delta-chip',
-          '.numeral-super',
+  group('ledger stacks — the #75 row and list measured whole', () {
+    // #75 extended the utility-stack tier to the ledger: TransactionRow's seven
+    // slots, CategoryChip's nine (six tones and three size arms), the day head
+    // and the six list-level stacks Dashboard and Reports Centre write. Each row
+    // puts the class list the component really writes — plus, beside it, the
+    // inline style that element writes — on one detached element and reads the
+    // computed value against an unclassed control, in all four passes. The
+    // tier-wide tests in the #55 group already prove every cited fragment is
+    // verbatim at its cited line and that every pass measured every row, so this
+    // group reads the ledger's own evidence instead: what the box is mounted as,
+    // the two states in src/index.css no probe can see, and where the two
+    // viewports disagree. Nothing here builds a widget.
+    final Map<String, dynamic> ledStacks =
+        measurement['utilityStacks']! as Map<String, dynamic>;
+    final List<dynamic> ledRows = ledStacks['rows']! as List<dynamic>;
+    final List<dynamic> ledNonCss =
+        ledStacks['authoredNonCss']! as List<dynamic>;
+    const List<String> ledPasses = <String>[
+      'light-desktop',
+      'dark-desktop',
+      'light-phone',
+      'dark-phone',
+    ];
+    const String chipSrc = 'src/components/ui/CategoryChip.tsx';
+    const String rowSrc = 'src/components/ui/TransactionRow.tsx';
+    const String dashSrc = 'src/components/Dashboard.tsx';
+    const String rcSrc = 'src/components/ReportsCentre.tsx';
+    const String cssSrc = 'src/index.css';
+    // Chrome's serialisation of `rounded-full`, whose `calc(infinity * 1px)` the
+    // engine clamps to its own float. Recorded verbatim, because that is what
+    // every reader of the tier sees.
+    const String fullRadius = '3.35544e+07px';
+
+    final RegExp ledFamilyName = RegExp(
+      r'^(txrow-|day-head-label$|ledger-|cat-chip-)',
+    );
+    final List<String> ledFamily = ledRows
+        .map((dynamic r) => (r as Map<String, dynamic>)['name']! as String)
+        .where((String name) => ledFamilyName.hasMatch(name))
+        .toList();
+
+    /// The six tone rows, in the order `TONE_BG` declares them. The three size
+    /// arms are excluded because they hold one tone on purpose.
+    final List<String> ledToneChips = <String>[
+      'cat-chip-md-pink',
+      'cat-chip-md-mint',
+      'cat-chip-md-yellow',
+      'cat-chip-md-lavender',
+      'cat-chip-md-blue',
+      'cat-chip-md-ink',
+    ];
+
+    /// The nine chips: six tones plus the three size arms.
+    List<String> ledChips(List<String> family) => <String>[
+      for (final String n in family)
+        if (n.startsWith('cat-chip-')) n,
+    ]..sort();
+
+    /// The ten `authoredNonCss` records the ledger added, sorted. Everything
+    /// else in that array belongs to the chrome families #55 and #56.
+    const List<String> ledRecordNames = <String>[
+      'cat-chip-icon-and-size-tables',
+      'cat-chip-tone-choice',
+      'ledger-day-grouping-and-header',
+      'ledger-empty-class-declared-nowhere',
+      'ledger-empty-copy',
+      'pill-hidden-utility-is-inert',
+      'txrow-amount-signed-vs-absolute',
+      'txrow-arrow-sizes',
+      'txrow-isincome-predicates-disagree',
+      'txrow-meta-composition',
+    ];
+    bool ledIsRecord(String name) => ledRecordNames.contains(name);
+
+    Map<String, dynamic> ledCite(String name) {
+      for (final dynamic r in ledRows) {
+        final Map<String, dynamic> row = r as Map<String, dynamic>;
+        if (row['name'] == name) return row;
+      }
+      throw StateError('ui-tokens.json cites no stack row "$name"');
+    }
+
+    Map<String, dynamic> ledAuthored(String name) {
+      for (final dynamic e in ledNonCss) {
+        final Map<String, dynamic> entry = e as Map<String, dynamic>;
+        if (entry['name'] == name) return entry;
+      }
+      throw StateError('ui-tokens.json records no authored entry "$name"');
+    }
+
+    /// The citation lines of one authored entry, with the file each was read from.
+    List<List<Object>> ledAuthoredParts(String name) {
+      final Map<String, dynamic> rec = ledAuthored(name);
+      return <List<Object>>[
+        for (final dynamic p in rec['parts']! as List<dynamic>)
+          <Object>[
+            (p as Map<String, dynamic>)['text']! as String,
+            (p['src'] ?? rec['src'] ?? ledStacks['source'])! as String,
+            (p['line']! as num).toInt(),
+          ],
+      ];
+    }
+
+    Map<String, dynamic> ledProps(String pass, String name) {
+      final Object? r =
+          (_theme(measurement, pass)['stacks']! as Map<String, dynamic>)[name];
+      if (r == null) throw StateError('no stack $name measured at $pass');
+      return (r as Map<String, dynamic>)['props']! as Map<String, dynamic>;
+    }
+
+    List<String> ledChanged(String pass, String name) {
+      final Object? r =
+          (_theme(measurement, pass)['stacks']! as Map<String, dynamic>)[name];
+      if (r == null) throw StateError('no stack $name measured at $pass');
+      return ((r as Map<String, dynamic>)['changed']! as List<dynamic>)
+          .cast<String>();
+    }
+
+    /// `true` where the row carries the property at all. A stack holds the fixed
+    /// set the probe always reads plus whatever the class list moved, so an
+    /// absent key is a fact about the component, not a gap in the measurement.
+    bool ledHas(String pass, String name, String field) =>
+        ledProps(pass, name).containsKey(field);
+
+    String ledVal(String pass, String name, String field) {
+      final Object? value = ledProps(pass, name)[field];
+      if (value == null) {
+        throw StateError('$pass $name: no measured $field');
+      }
+      if (value is String) return value;
+      final Map<String, dynamic> object = value as Map<String, dynamic>;
+      return (object['substituted'] ?? object['raw'])! as String;
+    }
+
+    Color ledColour(String pass, String name, String field) {
+      final Object? value = ledProps(pass, name)[field];
+      if (value is! Map<String, dynamic> || value['srgb'] == null) {
+        throw StateError('$pass $name: $field is not a measured colour');
+      }
+      final Map<String, dynamic> srgb = value['srgb']! as Map<String, dynamic>;
+      return Color.fromRGBO(
+        (srgb['r']! as num).round(),
+        (srgb['g']! as num).round(),
+        (srgb['b']! as num).round(),
+        (srgb['alpha']! as num).toDouble(),
+      );
+    }
+
+    List<int> ledChannels(String pass, String name, String field) {
+      final Map<String, dynamic> srgb =
+          (ledProps(pass, name)[field]! as Map<String, dynamic>)['srgb']!
+              as Map<String, dynamic>;
+      return <int>[
+        (srgb['r']! as num).round(),
+        (srgb['g']! as num).round(),
+        (srgb['b']! as num).round(),
+      ];
+    }
+
+    double ledAlpha(String pass, String name, String field) {
+      final Map<String, dynamic> srgb =
+          (ledProps(pass, name)[field]! as Map<String, dynamic>)['srgb']!
+              as Map<String, dynamic>;
+      return (srgb['alpha']! as num).toDouble();
+    }
+
+    /// A px length Chrome may print in exponential form — the full-round radius
+    /// among them. Anything else is not a length the port could carry.
+    double ledPx(String pass, String name, String field) {
+      final RegExpMatch? m = RegExp(r'^(-?[\d.]+(?:e\+\d+)?)px$')
+          .firstMatch(ledVal(pass, name, field));
+      if (m == null) {
+        throw StateError(
+          '$pass $name: "${ledVal(pass, name, field)}" for $field is not px',
+        );
+      }
+      return double.parse(m.group(1)!);
+    }
+
+    /// A `padding` shorthand as the symmetric pair the port reproduces, which
+    /// generation requires the row to actually have authored.
+    List<double> ledPadSides(String pass, String name) {
+      final List<String> parts = ledVal(pass, name, 'padding').split(' ');
+      if (parts.isEmpty || parts.length > 4) {
+        throw StateError(
+          '$pass $name: padding "${parts.join(' ')}" is not a 1–4 part shorthand',
+        );
+      }
+      final List<double> sides = parts
+          .map((String piece) => _pxOf(piece, '$pass $name padding'))
+          .toList();
+      if (parts.length == 2 || sides[0] != sides[sides.length - 1]) {
+        return sides;
+      }
+      throw StateError(
+        '$pass $name: padding "${parts.join(' ')}" is not the pair this port reads',
+      );
+    }
+
+    /// The one class list the record was measured with. A ledger row cites
+    /// exactly one fragment; a second one means the tier was re-measured against
+    /// a different element.
+    String ledCls(String name) {
+      final List<String> parts = <String>[];
+      for (final dynamic p in ledCite(name)['parts']! as List<dynamic>) {
+        final Map<String, dynamic> part = p as Map<String, dynamic>;
+        final Object? cls = part['cls'];
+        if (cls != null) parts.add(cls as String);
+      }
+      if (parts.length != 1) {
+        throw StateError('$name cites ${parts.length} class lists, not one');
+      }
+      return parts.single;
+    }
+
+    List<String> ledClassTokens(String name) =>
+        ledCls(name)
+            .split(RegExp(r'\s+'))
+            .where((String t) => t.isNotEmpty)
+            .toList();
+
+    /// The inline style a component writes beside its class list, with the line
+    /// that produced it. Only a chip or a money arm has one.
+    Map<String, dynamic> ledStylePart(String name) {
+      for (final dynamic p in ledCite(name)['parts']! as List<dynamic>) {
+        final Map<String, dynamic> part = p as Map<String, dynamic>;
+        if (part['style'] != null) return part;
+      }
+      throw StateError('$name writes no inline style');
+    }
+
+    final Map<String, List<String>> ledFiles = <String, List<String>>{};
+    List<String> ledLines(String src) =>
+        ledFiles.putIfAbsent(src, () => webSource(src).split(RegExp(r'\r?\n')));
+
+    String ledLineAt(String src, int line) {
+      final List<String> lines = ledLines(src);
+      if (line < 1 || line > lines.length) {
+        throw StateError('$src:$line is outside a ${lines.length}-line file');
+      }
+      return lines[line - 1];
+    }
+
+    int ledCiteLine(String name) {
+      final List<dynamic> parts = ledCite(name)['parts']! as List<dynamic>;
+      return ((parts.first as Map<String, dynamic>)['line']! as num).toInt();
+    }
+
+    double ledSpacing(String pass) =>
+        _lengthToPx(_raw(_rootOf(_theme(measurement, pass)), '--spacing'));
+
+    double ledRootTokenPx(String pass, String token) =>
+        _lengthToPx(_raw(_rootOf(_theme(measurement, pass)), token));
+
+    Color ledTokenColour(String pass, String token) =>
+        _measuredColour(_rootOf(_theme(measurement, pass)), token);
+
+    /// A root token's rounded srgb channels — the same three numbers the tier
+    /// prints for any measured colour, so a `color-mix` can be pinned to the
+    /// token it mixed from.
+    List<int> ledTokenChannels(String pass, String token) {
+      final Map<String, dynamic> srgb =
+          _token(_rootOf(_theme(measurement, pass)), token)['srgb']!
+              as Map<String, dynamic>;
+      return <int>[
+        (srgb['r']! as num).round(),
+        (srgb['g']! as num).round(),
+        (srgb['b']! as num).round(),
+      ];
+    }
+
+    /// `const NAME = size === 'xs' ? N : … ;` as one size-keyed table, the
+    /// trailing arm read as `md` because that is the size the ternary falls
+    /// through to and the one every other record cites.
+    Map<String, double> ledTernary(String src, int line, String varName) {
+      final String text = ledLineAt(src, line);
+      if (!text.contains('const $varName = ')) {
+        throw StateError(
+          '$src:$line is no longer `const $varName = …`: "$text"',
+        );
+      }
+      final Map<String, double> out = <String, double>{};
+      for (final RegExpMatch m in RegExp(
+        r"size === '(\w+)' \? ([\d.]+)",
+      ).allMatches(text)) {
+        out[m.group(1)!] = double.parse(m.group(2)!);
+      }
+      final RegExpMatch? fall = RegExp(r':\s*([\d.]+);').firstMatch(text);
+      if (fall == null) {
+        throw StateError('$src:$line has no default arm to call md');
+      }
+      out['md'] = double.parse(fall.group(1)!);
+      if (out.length != 4) {
+        throw StateError('$varName names ${out.length} sizes, not four');
+      }
+      return out;
+    }
+
+    /// The `const isInc = …;` boolean of one call site, split on its top-level
+    /// `||` so a parenthesised clause stays one clause.
+    List<String> ledPredicate(String src) {
+      final List<String> lines = ledLines(src);
+      final int at = lines.indexWhere(
+        (String line) => line.trim() == 'const isInc =',
+      );
+      if (at < 0) throw StateError('$src has no `const isInc =` line to read');
+      final StringBuffer collected = StringBuffer();
+      bool closed = false;
+      for (int i = at + 1; i < lines.length; i++) {
+        collected.write(' ${lines[i].trim()}');
+        if (lines[i].trim().endsWith(';')) {
+          closed = true;
+          break;
+        }
+      }
+      if (!closed) throw StateError('$src: the isInc expression never closes');
+      final String text = collected.toString().trim();
+      final List<String> clauses = <String>[];
+      final StringBuffer current = StringBuffer();
+      int depth = 0;
+      for (int i = 0; i < text.length; i++) {
+        final int code = text.codeUnitAt(i);
+        if (code == 0x28 /* ( */ ) depth++;
+        if (code == 0x29 /* ) */ ) depth--;
+        if (depth == 0 &&
+            code == 0x7C /* | */ &&
+            i + 1 < text.length &&
+            text.codeUnitAt(i + 1) == 0x7C) {
+          clauses.add(current.toString().trim());
+          current.clear();
+          i++;
+        } else {
+          current.writeCharCode(code);
+        }
+      }
+      clauses.add(current.toString().trim().replaceAll(RegExp(r';$'), ''));
+      if (clauses.length < 2 || clauses.any((String c) => c.isEmpty)) {
+        throw StateError('$src parsed ${clauses.length} clauses: $clauses');
+      }
+      return clauses;
+    }
+
+    test('the family is 26 rows across the four files the ledger is written in', () {
+      final Map<String, int> bySource = <String, int>{};
+      for (final dynamic r in ledRows) {
+        final Map<String, dynamic> row = r as Map<String, dynamic>;
+        final String src = (row['src'] ?? ledStacks['source'])! as String;
+        bySource[src] = (bySource[src] ?? 0) + 1;
+      }
+      expect(
+        bySource,
+        <String, int>{
+          'src/context/NotificationContext.tsx': 19,
+          'src/components/ui/Modal.tsx': 7,
+          'src/components/ui/BottomSheet.tsx': 8,
+          'src/components/dashboard/QuickActionModal.tsx': 6,
+          'src/components/DebtDetailModal.tsx': 4,
+          'src/components/TransactionEditModal.tsx': 4,
+          'src/components/SettingsModal.tsx': 3,
+          chipSrc: 9,
+          rowSrc: 7,
+          dashSrc: 6,
+          rcSrc: 4,
+        },
+        reason:
+            'the tier is 77 rows: the #55/#56 families plus the 26 the ledger '
+            'adds. A component joining or leaving moves the count, not this test',
+      );
+      expect(ledFamily.length, 26, reason: 'the ledger family is 26 rows');
+      expect(
+        ledFamily.where((String n) => n.startsWith('cat-chip-')).length,
+        9,
+        reason: 'six tones sampled at md, plus three size arms',
+      );
+      expect(
+        ledFamily.where((String n) => n.startsWith('txrow-')).length,
+        8,
+        reason:
+            'seven slots TransactionRow writes, plus the eighth named for the '
+            'slot it fills — `txrow-trailing-pill` is authored by Reports '
+            'Centre, which is why the prefix count and the per-file count '
+            'disagree by exactly one',
+      );
+      expect(
+        ledFamily.where((String n) => n.startsWith('ledger-')).length,
+        8,
+        reason:
+            'two rails, the divide pair, two last-child arms and two empties',
+      );
+      expect(
+        ledFamily.where((String n) => n == 'day-head-label').length,
+        1,
+        reason: 'the only §6 probe class the family cites by its own name',
+      );
+      expect(
+        ledFamily.where((String n) => ledCite(n)['src'] == null).toList(),
+        isEmpty,
+        reason:
+            'no ledger row hides behind the tier fallback '
+            '("${ledStacks['source']}"): each names the file the component '
+            'writes, so a re-measure cannot silently rehome a citation',
+      );
+      expect(
+        ledRows
+            .where((dynamic r) => (r as Map<String, dynamic>)['src'] == null)
+            .length,
+        19,
+        reason: 'the fallback is the NotificationContext set and nothing else',
+      );
+    });
+
+    test('the box is the <button> the component mounts, UA reset and all', () {
+      final Map<String, dynamic> box = ledCite('txrow-box');
+      expect(
+        box['tag'],
+        'button',
+        reason:
+            'the record mounts the element the component writes, because what '
+            'is being measured is the user-agent sheet a bare <button> brings',
+      );
+      expect(
+        (box['attrs']! as Map<String, dynamic>)['type'],
+        'button',
+        reason: 'type="button" — a ledger row is never a form submit',
+      );
+      expect(
+        ledLineAt(rowSrc, ledCiteLine('txrow-box')),
+        contains('<button type="button" className="${ledCls('txrow-box')}"'),
+        reason: 'the mount and the class list are one line of the component',
+      );
+      for (final String pass in ledPasses) {
+        final Map<String, dynamic> p = ledProps(pass, 'txrow-box');
+        expect(p['display'], 'flex', reason: '$pass: .tx-row');
+        expect(p['alignItems'], 'center');
+        expect(p['rowGap'], '12px', reason: '.tx-row gap, both axes');
+        expect(p['columnGap'], '12px');
+        expect(p['padding'], '12px 10px', reason: '.tx-row padding');
+        expect(
+          p['borderRadius'],
+          '${ledRootTokenPx(pass, '--r-sm').toInt()}px',
+          reason: 'border-radius: var(--r-sm) as this pass resolves it',
+        );
+        expect(
+          p['textAlign'],
+          'left',
+          reason: 'text-left retakes the centred text a <button> ships with',
+        );
+        expect(p['cursor'], 'pointer', reason: '.tx-row, not the UA default');
+        for (final String side in <String>[
+          'borderTopWidth',
+          'borderRightWidth',
+          'borderBottomWidth',
+          'borderLeftWidth',
         ]) {
           expect(
-            () => AppNumerals.resolve(cls, brightness),
-            throwsArgumentError,
-            reason: '$cls is not one of the seven rows',
+            p[side],
+            '0px',
+            reason: '$side: the frame a bare <button> draws is already gone',
           );
         }
+        final List<double> pad = ledPadSides(pass, 'txrow-box');
+        expect(
+          ledPx(pass, 'txrow-box', 'height'),
+          pad[0] * 2 + _lengthToPx(p['lineHeight']! as String),
+          reason: 'the row is its own line box plus the inset it authors',
+        );
+        expect(
+          ledChanged(pass, 'txrow-box').toSet(),
+          <String>{
+            'display',
+            'alignItems',
+            'rowGap',
+            'columnGap',
+            'padding',
+            'height',
+            'borderRadius',
+            'textAlign',
+            'cursor',
+          },
+          reason:
+              '$pass: the nine properties the class list moves off an unclassed '
+              '<button> — everything else the row paints is inheritance',
+        );
+      }
+    });
+
+    test('the row paints nothing at rest, and hover is a state the port drops', () {
+      const String hoverHead = '.tx-row:hover {';
+      final Map<String, String> hover = _cssDecls(
+        cssLines,
+        hoverHead,
+        hoverHead,
+      );
+      expect(
+        hover.keys.toList(),
+        <String>['background'],
+        reason:
+            'the entire hover rule is one background declaration — there is no '
+            'other property for a hover state to carry',
+      );
+      expect(hover['background'], 'var(--surface-2)');
+      expect(
+        ledClassTokens('txrow-box')
+            .where((String token) => token.startsWith('hover:')),
+        isEmpty,
+        reason: 'no hover: utility is authored beside the class either',
+      );
+      for (final String pass in ledPasses) {
+        expect(
+          ledAlpha(pass, 'txrow-box', 'backgroundColor'),
+          0.0,
+          reason:
+              '$pass: what the probe measures is the resting box, and the '
+              'resting box is unpainted in both themes',
+        );
+        expect(
+          ledChanged(pass, 'txrow-box').contains('backgroundColor'),
+          isFalse,
+          reason:
+              '$pass: an unclassed <button> and this one agree — nothing in the '
+              'class list fills the row, so there is no fill to drift',
+        );
+        expect(ledVal(pass, 'txrow-box', 'boxShadow'), 'none');
+        expect(ledVal(pass, 'txrow-box', 'backgroundImage'), 'none');
+        expect(
+          ledColour(pass, 'txrow-box', 'backgroundColor'),
+          isNot(ledTokenColour(pass, '--surface-2')),
+          reason:
+              '$pass: the resting fill is not the hover fill. Ruling D-U1 drops '
+              'the hover, so this row has no state in which to paint it',
+        );
+      }
+    });
+
+    test('two rules claim the press, and the later one is what the row does', () {
+      double scaleOf(String value) {
+        final RegExpMatch? m = RegExp(r'^scale\(([\d.]+)\)$')
+            .firstMatch(value.trim());
+        if (m == null) throw StateError('"$value" is not a bare scale()');
+        return double.parse(m.group(1)!);
+      }
+
+      const String txActive = '.tx-row:active {';
+      const String pressActive = '.pressable:active {';
+      final int txIndex = cssLines.indexOf(txActive);
+      final int pressIndex = cssLines.indexOf(pressActive);
+      expect(
+        txIndex,
+        isNonNegative,
+        reason: 'src/index.css lost .tx-row:active',
+      );
+      expect(
+        pressIndex,
+        isNonNegative,
+        reason: 'src/index.css lost .pressable:active',
+      );
+      final Map<String, String> txDecls = _cssDecls(
+        cssLines,
+        txActive,
+        txActive,
+      );
+      final Map<String, String> pressDecls = _cssDecls(
+        cssLines,
+        pressActive,
+        pressActive,
+      );
+      expect(txDecls.keys.toList(), <String>[
+        'transform',
+      ], reason: 'the row rule is only ever a press');
+      expect(pressDecls.keys.toList(), <String>['transform']);
+      final double txScale = scaleOf(txDecls['transform']!);
+      final double pressScale = scaleOf(pressDecls['transform']!);
+      expect(txScale, 0.995);
+      expect(pressScale, 0.97);
+      expect(
+        pressScale,
+        lessThan(txScale),
+        reason:
+            'the shared utility presses harder than the row does, so the number '
+            'the port must carry is the utility\'s, not the row\'s own',
+      );
+      expect(
+        pressIndex,
+        greaterThan(txIndex),
+        reason:
+            'equal specificity — two class-and-pseudo selectors — so the later '
+            'rule wins. Moving either block in src/index.css changes the press',
+      );
+      expect(
+        ledClassTokens('txrow-box'),
+        containsAll(<String>['tx-row', 'pressable']),
+        reason: 'one box, two claims on it',
+      );
+      final Map<String, dynamic> root = _rootOf(
+        _theme(measurement, 'light-desktop'),
+      );
+      expect(
+        _cssRuleText(cssLines, '.pressable {', '.pressable'),
+        allOf(
+          contains('transition'),
+          contains('transform var(--dur-fast) var(--ease-out)'),
+        ),
+        reason: 'the press animates the transform on the tokens it names',
+      );
+      expect(
+        _cssRuleText(cssLines, '.tx-row {', '.tx-row'),
+        allOf(
+          contains('background-color var(--dur-fast) var(--ease-out)'),
+          contains('transform var(--dur-fast) var(--ease-out)'),
+        ),
+        reason:
+            'the row asks to animate a fill that D-U1 leaves it no way to '
+            'change — the transition outlives the state it was written for',
+      );
+      expect(_raw(root, '--dur-fast'), '130ms');
+      expect(_raw(root, '--ease-out'), 'cubic-bezier(0.22, 1, 0.36, 1)');
+    });
+
+    test('the sheet is unlayered, which is why `hidden` cannot beat `.pill`', () {
+      expect(
+        cssLines.where((String line) => line.contains('@layer')),
+        isEmpty,
+        reason:
+            'src/index.css declares no cascade layer, so every rule in it — '
+            'including .pill\'s display — is unlayered and outranks a Tailwind '
+            'utility at any specificity',
+      );
+      expect(
+        ledLineAt(cssSrc, 2),
+        "@import 'tailwindcss';",
+        reason: 'the utilities the sheet loses to are the layered ones',
+      );
+      expect(
+        _cssDecls(cssLines, '.pill {', '.pill')['display'],
+        'inline-flex',
+        reason: 'the declaration that makes `hidden` inert on a pill',
+      );
+      expect(
+        ledLineAt(cssSrc, 917),
+        '  display: inline-flex;',
+        reason: 'cited by name at its line in the authored record',
+      );
+      expect(
+        ledAuthored('pill-hidden-utility-is-inert')['note'],
+        contains('unlayered'),
+        reason: 'the record states the cascade fact it was measured to prove',
+      );
+      expect(
+        ledClassTokens('txrow-trailing-pill'),
+        containsAll(<String>['hidden', 'sm:inline-flex']),
+        reason: 'the source really does ask for the pill to disappear',
+      );
+      for (final String pass in ledPasses) {
+        expect(
+          ledVal(pass, 'txrow-trailing-pill', 'display'),
+          'inline-flex',
+          reason:
+              '$pass: and the app paints it anyway, at 390 as at 1440 — the '
+              'class that should have removed it is a web-app question, not a '
+              'port question, so the port carries what is painted',
+        );
+      }
+    });
+
+    test('the two money arms differ by exactly the ink the style decides', () {
+      for (final String pass in ledPasses) {
+        final Map<String, dynamic> inProps = ledProps(pass, 'txrow-amount-in');
+        final Map<String, dynamic> outProps = ledProps(
+          pass,
+          'txrow-amount-out',
+        );
+        final List<String> fields = <String>{
+          ...inProps.keys,
+          ...outProps.keys,
+        }.toList()..sort();
+        final List<String> differs = <String>[
+          for (final String field in fields)
+            if (jsonEncode(inProps[field]) != jsonEncode(outProps[field]))
+              field,
+        ];
+        expect(
+          differs,
+          <String>['borderLeftColor', 'borderTopColor', 'color'],
+          reason:
+              '$pass: the ternary decides the ink and nothing else. A border '
+              'shows up because a computed border colour exists even at a '
+              'zero-width border, and it follows currentColor',
+        );
+        expect(
+          ledChanged(pass, 'txrow-amount-in').toSet(),
+          ledChanged(pass, 'txrow-amount-out').toSet(),
+          reason: '$pass: the arms move the same properties off the control',
+        );
+        expect(
+          ledCls('txrow-amount-in'),
+          ledCls('txrow-amount-out'),
+          reason: '$pass: one class list, two mounts',
+        );
+        for (final String name in <String>[
+          'txrow-amount-in',
+          'txrow-amount-out',
+        ]) {
+          expect(ledVal(pass, name, 'display'), 'inline-flex');
+          expect(ledVal(pass, name, 'alignItems'), 'center');
+          expect(ledVal(pass, name, 'columnGap'), '4px', reason: 'gap-1');
+          expect(ledVal(pass, name, 'fontSize'), '13px');
+          expect(ledVal(pass, name, 'fontWeight'), '700', reason: 'font-bold');
+          expect(ledVal(pass, name, 'lineHeight'), '19.5px');
+          expect(
+            ledPx(pass, name, 'letterSpacing') / ledPx(pass, name, 'fontSize'),
+            closeTo(-0.01, 1e-9),
+            reason: '$pass $name: .money authors -0.01em, this is 13px',
+          );
+          expect(
+            ledPx(pass, name, 'height'),
+            _lengthToPx(ledVal(pass, name, 'lineHeight')),
+            reason: '$pass $name: an inline-flex box is its own line',
+          );
+          expect(
+            ledClassTokens(name)
+                .where((String token) => token.contains('var(--')),
+            isEmpty,
+            reason: '$pass $name: the class list writes no colour at all',
+          );
+        }
+        expect(
+          ledStylePart('txrow-amount-in')['style'],
+          'color: var(--success)',
+        );
+        expect(
+          ledStylePart('txrow-amount-out')['style'],
+          'color: var(--danger)',
+        );
+        expect(ledStylePart('txrow-amount-in')['styleSrcLine'], 39);
+        expect(
+          ledColour(pass, 'txrow-amount-in', 'color'),
+          ledTokenColour(pass, '--success'),
+          reason: '$pass: the in arm is --success at this pass',
+        );
+        expect(
+          ledColour(pass, 'txrow-amount-out', 'color'),
+          ledTokenColour(pass, '--danger'),
+          reason: '$pass: the out arm is --danger at this pass',
+        );
+      }
+      final Map<String, String> money = _cssDecls(
+        cssLines,
+        '.money {',
+        '.money',
+      );
+      expect(
+        money.keys.toList(),
+        <String>['font-variant-numeric', 'letter-spacing'],
+        reason:
+            '.money is numerals and tracking only. It has no colour, which is '
+            'what makes the inline style the single source of the sign ink',
+      );
+      expect(money['font-variant-numeric'], 'tabular-nums');
+      expect(money['letter-spacing'], '-0.01em');
+    });
+
+    test('the title and the meta line are token inks that truncate', () {
+      expect(ledClassTokens('txrow-title'), <String>[
+        'block',
+        'text-[13px]',
+        'font-semibold',
+        'tracking-tight',
+        'text-[var(--ink)]',
+        'truncate',
+      ]);
+      expect(ledClassTokens('txrow-meta'), <String>[
+        'block',
+        'text-[11px]',
+        'text-[var(--ink-3)]',
+        'mt-0.5',
+        'truncate',
+      ]);
+      for (final String pass in ledPasses) {
+        expect(ledVal(pass, 'txrow-title', 'display'), 'block');
+        expect(ledVal(pass, 'txrow-title', 'fontSize'), '13px');
+        expect(ledVal(pass, 'txrow-title', 'fontWeight'), '600');
+        expect(
+          ledPx(pass, 'txrow-title', 'letterSpacing') /
+              ledPx(pass, 'txrow-title', 'fontSize'),
+          closeTo(-0.025, 1e-9),
+          reason: '$pass: tracking-tight is an em, resolved at 13px',
+        );
+        expect(
+          ledColour(pass, 'txrow-title', 'color'),
+          ledTokenColour(pass, '--ink'),
+          reason: '$pass: the bracketed class is the same ink as the token',
+        );
+        expect(ledVal(pass, 'txrow-title', 'whiteSpace'), 'nowrap');
+        expect(ledVal(pass, 'txrow-title', 'textOverflow'), 'ellipsis');
+        expect(ledVal(pass, 'txrow-title', 'overflowX'), 'hidden');
+        expect(ledVal(pass, 'txrow-title', 'overflowY'), 'hidden');
+        expect(
+          ledChanged(pass, 'txrow-title').contains('fontWeight'),
+          isTrue,
+          reason: '$pass: font-semibold is what moves the title off 400',
+        );
+        expect(ledVal(pass, 'txrow-meta', 'fontSize'), '11px');
+        expect(ledVal(pass, 'txrow-meta', 'fontWeight'), '400');
+        expect(
+          ledChanged(pass, 'txrow-meta').contains('fontWeight'),
+          isFalse,
+          reason:
+              '$pass: the meta line authors no weight — 400 is the inherited '
+              'one, so nothing moved and nothing is recorded as moved',
+        );
+        expect(ledVal(pass, 'txrow-meta', 'letterSpacing'), 'normal');
+        expect(
+          ledColour(pass, 'txrow-meta', 'color'),
+          ledTokenColour(pass, '--ink-3'),
+        );
+        expect(
+          ledPx(pass, 'txrow-meta', 'marginTop'),
+          ledSpacing(pass) / 2,
+          reason: '$pass: mt-0.5 is half the spacing scale, not half a pixel',
+        );
+        expect(ledVal(pass, 'txrow-meta', 'whiteSpace'), 'nowrap');
+        expect(ledVal(pass, 'txrow-meta', 'textOverflow'), 'ellipsis');
+        expect(
+          ledPx(pass, 'txrow-meta', 'lineHeight') /
+              ledPx(pass, 'txrow-meta', 'fontSize'),
+          closeTo(
+            _probeRatio(_probesOf(_theme(measurement, pass)), 'body'),
+            1e-6,
+          ),
+          reason: '$pass: neither ledger line overrides its own leading',
+        );
+      }
+    });
+
+    test('the two wrapping columns move one property each', () {
+      for (final String pass in ledPasses) {
+        expect(
+          ledChanged(pass, 'txrow-text-wrap').toSet(),
+          <String>{'flexGrow'},
+          reason:
+              '$pass: min-w-0 does not move anything off an unclassed block — '
+              'its own min-width was already 0px — so only the grow shows',
+        );
+        expect(ledVal(pass, 'txrow-text-wrap', 'flexGrow'), '1');
+        expect(ledVal(pass, 'txrow-text-wrap', 'flexShrink'), '1');
+        expect(
+          ledVal(pass, 'txrow-text-wrap', 'minWidth'),
+          '0px',
+          reason:
+              'carried anyway, because the class list names it: the truncate '
+              'pair can only clip inside a column the flex item lets shrink '
+              'below its own content',
+        );
+        expect(ledChanged(pass, 'txrow-amount-wrap').toSet(), <String>{
+          'flexShrink',
+          'textAlign',
+        }, reason: '$pass: the money column takes its width and right-aligns');
+        expect(ledVal(pass, 'txrow-amount-wrap', 'flexShrink'), '0');
+        expect(ledVal(pass, 'txrow-amount-wrap', 'textAlign'), 'right');
+        expect(
+          ledHas(pass, 'txrow-amount-wrap', 'minWidth'),
+          isFalse,
+          reason: '$pass: no min-w-0 here, so no min-width is carried',
+        );
+      }
+      expect(ledClassTokens('txrow-text-wrap'), <String>['min-w-0', 'flex-1']);
+      expect(ledClassTokens('txrow-amount-wrap'), <String>[
+        'text-right',
+        'shrink-0',
+      ]);
+      for (final String name in <String>[
+        'txrow-text-wrap',
+        'txrow-amount-wrap',
+      ]) {
+        expect(
+          ledCite(name)['parts'],
+          hasLength(1),
+          reason: '$name writes a class list and no inline style',
+        );
+        expect(
+          ledCite(name)['tag'],
+          isNull,
+          reason:
+              '$name was read on the tier default <div>, not on the <span> the '
+              'component mounts — sound because a flex item blockifies, so a '
+              'span in this position computes the very display the div did, and '
+              'display is not in either column\'s changed set',
+        );
+        expect(
+          ledChanged('light-desktop', name).contains('display'),
+          isFalse,
+          reason: '$name: the substitution the tier made cannot move display',
+        );
+        expect(
+          ledLineAt(rowSrc, ledCiteLine(name)),
+          contains('<span className="${ledCls(name)}"'),
+          reason: '$name is mounted as the element the component writes',
+        );
+      }
+    });
+
+    test('the type pill is .pill shrunk by four important utilities', () {
+      final Map<String, String> pill = _cssDecls(cssLines, '.pill {', '.pill');
+      expect(pill['display'], 'inline-flex');
+      expect(pill['align-items'], 'center');
+      expect(pill['gap'], '6px');
+      expect(pill['border-radius'], '999px');
+      expect(pill['white-space'], 'nowrap');
+      expect(pill['background'], 'var(--surface)');
+      expect(pill['border'], '1px solid var(--line)');
+      expect(pill['font-size'], '12px');
+      expect(pill['padding'], '8px 14px');
+      expect(ledClassTokens('txrow-trailing-pill'), <String>[
+        'pill',
+        'mono',
+        '!text-[9px]',
+        '!py-0.5',
+        '!px-2',
+        'hidden',
+        'sm:inline-flex',
+      ]);
+      final Map<String, String> mono = _cssDecls(cssLines, '.mono {', '.mono');
+      expect(mono.keys.toList(), <String>[
+        'font-family',
+        'font-variant-numeric',
+      ]);
+      expect(mono['font-family'], 'var(--font-mono)');
+      expect(mono['font-variant-numeric'], 'tabular-nums');
+      for (final String pass in ledPasses) {
+        expect(
+          ledVal(pass, 'txrow-trailing-pill', 'fontSize'),
+          '9px',
+          reason: '$pass: !text-[9px] beats the authored 12px',
+        );
+        final List<double> sides = ledPadSides(pass, 'txrow-trailing-pill');
+        final double spacing = ledSpacing(pass);
+        expect(sides, <double>[
+          spacing / 2,
+          spacing * 2,
+        ], reason: '$pass: !py-0.5 !px-2 in this pass\'s spacing scale');
+        expect(
+          sides.join(' '),
+          isNot(pill['padding']!),
+          reason: '$pass: the inset is the utilities\', not the class\'s',
+        );
+        expect(ledVal(pass, 'txrow-trailing-pill', 'borderRadius'), '999px');
+        expect(ledVal(pass, 'txrow-trailing-pill', 'columnGap'), '6px');
+        expect(ledVal(pass, 'txrow-trailing-pill', 'whiteSpace'), 'nowrap');
+        expect(ledVal(pass, 'txrow-trailing-pill', 'fontWeight'), '600');
+        expect(ledVal(pass, 'txrow-trailing-pill', 'letterSpacing'), 'normal');
+        expect(
+          ledChanged(pass, 'txrow-trailing-pill').contains('letterSpacing'),
+          isFalse,
+          reason: '$pass: neither .pill nor .mono nor the utilities track it',
+        );
+        expect(
+          ledColour(pass, 'txrow-trailing-pill', 'backgroundColor'),
+          ledTokenColour(pass, '--surface'),
+        );
+        expect(
+          ledColour(pass, 'txrow-trailing-pill', 'borderTopColor'),
+          ledTokenColour(pass, '--line'),
+        );
+        expect(
+          ledColour(pass, 'txrow-trailing-pill', 'color'),
+          ledTokenColour(pass, '--ink'),
+        );
+        expect(ledVal(pass, 'txrow-trailing-pill', 'borderTopWidth'), '1px');
+        expect(
+          ledPx(pass, 'txrow-trailing-pill', 'lineHeight') /
+              ledPx(pass, 'txrow-trailing-pill', 'fontSize'),
+          closeTo(
+            _probeRatio(_probesOf(_theme(measurement, pass)), 'body'),
+            1e-6,
+          ),
+          reason: '$pass: shrinking the size did not change the leading ratio',
+        );
+        expect(
+          ledPx(pass, 'txrow-trailing-pill', 'height'),
+          sides[0] * 2 +
+              ledPx(pass, 'txrow-trailing-pill', 'lineHeight') +
+              ledPx(pass, 'txrow-trailing-pill', 'borderTopWidth') +
+              ledPx(pass, 'txrow-trailing-pill', 'borderBottomWidth'),
+          reason: '$pass: the pill is content, inset and frame, added once',
+        );
+      }
+    });
+    test('divide-y paints the children and last-child takes it back', () {
+      expect(ledClassTokens('ledger-divides'), <String>[
+        'divide-y',
+        'divide-[var(--line)]',
+      ]);
+      expect(
+        ledCite('ledger-divides')['note'],
+        contains('paints its children'),
+        reason: 'the parent row is the recipe, not a painted line',
+      );
+      expect(ledClassTokens('ledger-row-middle'), <String>[
+        '[&:last-child]:border-b-0',
+      ]);
+      expect(
+        ledCls('ledger-row-middle'),
+        ledCls('ledger-row-last'),
+        reason: 'one class, two sibling positions — that pair is the rule',
+      );
+      expect(ledCiteLine('ledger-row-middle'), ledCiteLine('ledger-row-last'));
+      for (final String pass in ledPasses) {
+        expect(
+          ledChanged(pass, 'ledger-divides'),
+          isEmpty,
+          reason: '$pass: a parent\'s divide-y moves the parent by nothing',
+        );
+        expect(ledVal(pass, 'ledger-divides', 'borderBottomWidth'), '0px');
+        expect(
+          ledChanged(pass, 'ledger-row-last'),
+          isEmpty,
+          reason:
+              '$pass: the last child measures the same as an unclassed div — '
+              'the utility and the divide cancel exactly',
+        );
+        expect(ledVal(pass, 'ledger-row-last', 'borderBottomWidth'), '0px');
+        expect(ledChanged(pass, 'ledger-row-middle').toSet(), <String>{
+          'height',
+          'borderBottomWidth',
+          'borderTopColor',
+          'borderLeftColor',
+          'borderBottomColor',
+        }, reason: '$pass: the divider that stays');
+        expect(ledVal(pass, 'ledger-row-middle', 'borderBottomWidth'), '1px');
+        expect(ledVal(pass, 'ledger-row-middle', 'borderTopWidth'), '0px');
+        expect(
+          ledColour(pass, 'ledger-row-middle', 'borderBottomColor'),
+          ledTokenColour(pass, '--line'),
+          reason:
+              '$pass: divide-[var(--line)] is the token, not a colour word '
+              'that could drift away from it',
+        );
+        expect(
+          ledPx(pass, 'ledger-row-middle', 'height') -
+              ledPx(pass, 'ledger-row-last', 'height'),
+          1.0,
+          reason: '$pass: the row is one line box, and the rule adds its width',
+        );
+        expect(
+          ledColour(pass, 'ledger-row-last', 'borderBottomColor'),
+          ledColour(pass, 'ledger-row-last', 'color'),
+          reason:
+              '$pass: a zero-width border still computes a colour, and it '
+              'computes currentColor — which is why only the visible side '
+              'shows up as moved',
+        );
+      }
+    });
+
+    test('the rails: one lg: disagreement, and a ceiling that never moves', () {
+      final Set<String> disagree = <String>{};
+      for (final String pair in <String>['light', 'dark']) {
+        for (final String name in ledFamily) {
+          if (ledChanged('$pair-desktop', name).join(' ') !=
+              ledChanged('$pair-phone', name).join(' ')) {
+            disagree.add(name);
+          }
+        }
+      }
+      expect(
+        disagree,
+        <String>{'ledger-scroll'},
+        reason:
+            'the whole 26-row family measures the same at 390 as at 1440 '
+            'except the Dashboard rail, whose three size-bearing utilities '
+            'are all lg: variants',
+      );
+      expect(ledClassTokens('ledger-scroll'), <String>[
+        'min-h-0',
+        'lg:max-h-[34rem]',
+        'lg:overflow-y-auto',
+        'lg:pr-1',
+      ]);
+      expect(
+        ledClassTokens('ledger-scroll')
+            .where((String token) => token.startsWith('lg:')),
+        hasLength(3),
+        reason: 'three of the four are the desktop half of the pair',
+      );
+      for (final String pass in <String>['light-desktop', 'dark-desktop']) {
+        expect(
+          ledPx(pass, 'ledger-scroll', 'maxHeight'),
+          34 * _remPx,
+          reason:
+              '$pass: 34rem resolved at the root size it was authored '
+              'against, which is the ceiling the rail holds itself to',
+        );
+        expect(ledVal(pass, 'ledger-scroll', 'overflowY'), 'auto');
+        expect(
+          ledVal(pass, 'ledger-scroll', 'overflowX'),
+          'auto',
+          reason:
+              '$pass: only overflow-y was written; a visible axis beside a '
+              'scrolled one computes to auto, which is why overflowX is in '
+              'the changed set at all',
+        );
+        expect(
+          ledVal(pass, 'ledger-scroll', 'padding').split(' '),
+          <String>[
+            '0px',
+            '${ledSpacing(pass).toStringAsFixed(0)}px',
+            '0px',
+            '0px',
+          ],
+          reason:
+              '$pass: lg:pr-1 is one step of the spacing scale, and the '
+              'other three sides of the shorthand stay at zero',
+        );
+      }
+      for (final String pass in <String>['light-phone', 'dark-phone']) {
+        expect(
+          ledChanged(pass, 'ledger-scroll'),
+          isEmpty,
+          reason: '$pass: below lg the rail is a plain block again',
+        );
+        expect(ledVal(pass, 'ledger-scroll', 'maxHeight'), 'none');
+        expect(ledVal(pass, 'ledger-scroll', 'overflowY'), 'visible');
+        expect(ledVal(pass, 'ledger-scroll', 'padding'), '0px');
+      }
+      for (final String pass in ledPasses) {
+        expect(
+          ledChanged(pass, 'ledger-list-scroll').toSet(),
+          <String>{'padding', 'maxHeight', 'overflowX', 'overflowY'},
+          reason:
+              '$pass: the Reports Centre rail is un-prefixed, so the phone '
+              'gets the same window the desktop does',
+        );
+        expect(ledPx(pass, 'ledger-list-scroll', 'maxHeight'), 460.0);
+        expect(ledVal(pass, 'ledger-list-scroll', 'overflowY'), 'auto');
+        expect(
+          ledVal(pass, 'ledger-list-scroll', 'padding').split(' '),
+          <String>[
+            '0px',
+            '${ledSpacing(pass).toStringAsFixed(0)}px',
+            '0px',
+            '0px',
+          ],
+          reason: '$pass: the same pr-1 inset, on every pass',
+        );
+      }
+      expect(ledClassTokens('ledger-list-scroll'), <String>[
+        'space-y-1',
+        'max-h-[460px]',
+        'overflow-y-auto',
+        'pr-1',
+      ]);
+      expect(
+        ledClassTokens('ledger-list-scroll')
+            .where((String token) => token.contains(':')),
+        isEmpty,
+        reason:
+            'no variant prefix anywhere — which is exactly why this rail has '
+            'no phone story to tell',
+      );
+    });
+
+    test('the day head is `.day-head` with `.eyebrow` on top of it', () {
+      final Map<String, String> head = _cssDecls(
+        cssLines,
+        '.day-head {',
+        '.day-head',
+      );
+      expect(
+        head.keys.toList(),
+        <String>[
+          'position',
+          'top',
+          'z-index',
+          'background',
+          'backdrop-filter',
+          '-webkit-backdrop-filter',
+          'padding',
+        ],
+        reason:
+            'the sticky chrome and nothing else: every glyph property on '
+            'the header comes from the second class the component writes',
+      );
+      expect(head['position'], 'sticky');
+      expect(head['top'], '0');
+      expect(head['z-index'], '5');
+      expect(head['padding'], '6px 4px');
+      expect(head['backdrop-filter'], 'blur(14px)');
+      expect(
+        head['-webkit-backdrop-filter'],
+        'blur(14px)',
+        reason:
+            'the same radius authored twice, for one engine or the other; the '
+            'tier reads the unprefixed value and a port that took both would '
+            'double the blur',
+      );
+      final RegExpMatch? mix = RegExp(
+        r'^color-mix\(in srgb, var\(--bg\) (\d+)%, transparent\)$',
+      ).firstMatch(head['background']!);
+      expect(
+        mix,
+        isNotNull,
+        reason:
+            'the wash is named as a mix of the page colour, not as a token, so '
+            'the port reads the percentage out of the rule',
+      );
+      final double mixPercent = double.parse(mix!.group(1)!);
+
+      final Map<String, String> eyebrow = _cssDecls(
+        cssLines,
+        '.eyebrow {',
+        '.eyebrow',
+      );
+      expect(eyebrow.keys.toList(), <String>[
+        'font-size',
+        'font-weight',
+        'letter-spacing',
+        'text-transform',
+        'color',
+      ]);
+      expect(eyebrow['font-size'], '10px');
+      expect(eyebrow['font-weight'], '700');
+      expect(eyebrow['letter-spacing'], '0.12em');
+      expect(eyebrow['text-transform'], 'uppercase');
+      expect(eyebrow['color'], 'var(--ink-3)');
+
+      expect(ledClassTokens('day-head-label'), <String>[
+        'day-head',
+        'eyebrow',
+        '!text-[10px]',
+      ]);
+      expect(
+        ledLineAt(dashSrc, ledCiteLine('day-head-label')),
+        contains('className="${ledCls('day-head-label')}"'),
+      );
+      expect(
+        RegExp(r'^!text-\[(\d+px)\]$')
+            .firstMatch(ledClassTokens('day-head-label').last)!
+            .group(1),
+        eyebrow['font-size'],
+        reason:
+            'the one place the ledger writes a size twice. Utility and rule '
+            'agree, which is why the port carries a single 10px rather than a '
+            'value and its override',
+      );
+
+      for (final String pass in ledPasses) {
+        expect(
+          ledChanged(pass, 'day-head-label').toSet(),
+          <String>{
+            'position',
+            'top',
+            'zIndex',
+            'padding',
+            'height',
+            'color',
+            'backgroundColor',
+            'borderTopColor',
+            'borderLeftColor',
+            'backdropFilter',
+            'fontSize',
+            'fontWeight',
+            'lineHeight',
+            'letterSpacing',
+            'textTransform',
+          },
+          reason:
+              '$pass: the two rules, and the two border colours that '
+              'follow currentColor from the ink',
+        );
+        expect(ledVal(pass, 'day-head-label', 'position'), 'sticky');
+        expect(ledVal(pass, 'day-head-label', 'top'), '0px');
+        expect(ledVal(pass, 'day-head-label', 'zIndex'), '5');
+        expect(
+          ledVal(pass, 'day-head-label', 'display'),
+          'block',
+          reason:
+              '$pass: neither rule authors a display, so the head is a '
+              'block the list flows after — nothing here is a flex row',
+        );
+        expect(
+          ledVal(pass, 'day-head-label', 'backdropFilter'),
+          'blur(14px)',
+          reason:
+              '$pass: no pass differs, so the head has no phone story and '
+              'the radius is a number the port fixes once',
+        );
+        expect(ledVal(pass, 'day-head-label', 'textTransform'), 'uppercase');
+        expect(ledVal(pass, 'day-head-label', 'fontSize'), '10px');
+        expect(ledVal(pass, 'day-head-label', 'fontWeight'), '700');
+        expect(ledVal(pass, 'day-head-label', 'lineHeight'), '15px');
+        expect(
+          ledPx(pass, 'day-head-label', 'letterSpacing') /
+              ledPx(pass, 'day-head-label', 'fontSize'),
+          closeTo(0.12, 1e-9),
+          reason:
+              '$pass: the measured 1.2px is the authored 0.12em resolved at '
+              'the 10px this head sets — the em is the portable form',
+        );
+        final List<double> pad = ledPadSides(pass, 'day-head-label');
+        expect(pad, <double>[
+          6,
+          4,
+        ], reason: '$pass: .day-head padding, verbatim');
+        expect(
+          ledPx(pass, 'day-head-label', 'height'),
+          pad[0] * 2 +
+              _lengthToPx(ledVal(pass, 'day-head-label', 'lineHeight')),
+          reason:
+              '$pass: 6 + one 15px line + 6. The probe text is the only '
+              'content the head has, so this is the sticky band as the app '
+              'draws it',
+        );
+        expect(
+          ledColour(pass, 'day-head-label', 'color'),
+          ledTokenColour(pass, '--ink-3'),
+          reason: '$pass: the ink is the third-level ink, from .eyebrow',
+        );
+        expect(
+          ledChannels(pass, 'day-head-label', 'backgroundColor'),
+          ledTokenChannels(pass, '--bg'),
+          reason:
+              '$pass: the mix resolves onto the channels of the page colour',
+        );
+        expect(
+          ledAlpha(pass, 'day-head-label', 'backgroundColor'),
+          closeTo(mixPercent / 100.0, 0.002),
+          reason: '$pass: the 78% the rule names is the alpha the tier reads',
+        );
+      }
+    });
+
+    test('the empty box paints; the class `empty` is declared nowhere', () {
+      expect(
+        cssLines
+            .where((String line) => RegExp(r'\.empty\b').hasMatch(line))
+            .toList(),
+        isEmpty,
+        reason:
+            'Reports Centre writes className="empty …" and src/index.css has no '
+            'such rule, so the tier shows the word as a property the row does '
+            'not move rather than as a fill it forgot',
+      );
+      expect(ledClassTokens('ledger-empty'), <String>[
+        'py-10',
+        'text-center',
+        'rounded-[var(--r-sm)]',
+        'border',
+        'border-dashed',
+        'border-[var(--line)]',
+        'bg-[var(--surface-2)]',
+      ]);
+      expect(ledClassTokens('ledger-empty-rc'), <String>[
+        'empty',
+        'py-10',
+        'flex',
+        'flex-col',
+        'items-center',
+        'gap-2',
+      ]);
+      expect(
+        ledLineAt(dashSrc, ledCiteLine('ledger-empty')),
+        contains('className="${ledCls('ledger-empty')}"'),
+      );
+      expect(
+        ledLineAt(rcSrc, ledCiteLine('ledger-empty-rc')),
+        contains('className="${ledCls('ledger-empty-rc')}"'),
+      );
+
+      for (final String pass in ledPasses) {
+        expect(
+          ledChanged(pass, 'ledger-empty').toSet(),
+          <String>{
+            'padding',
+            'height',
+            'borderRadius',
+            'borderTopWidth',
+            'borderRightWidth',
+            'borderBottomWidth',
+            'borderLeftWidth',
+            'backgroundColor',
+            'borderTopColor',
+            'borderLeftColor',
+            'textAlign',
+            'borderTopStyle',
+          },
+          reason: '$pass: the twelve properties the Dashboard box really moves',
+        );
+        expect(ledVal(pass, 'ledger-empty', 'borderTopStyle'), 'dashed');
+        expect(
+          ledHas(pass, 'ledger-empty', 'borderBottomStyle'),
+          isFalse,
+          reason:
+              '$pass: one style is read; the shorthand authors all four and '
+              'the fixed set keeps only the top',
+        );
+        expect(ledVal(pass, 'ledger-empty', 'textAlign'), 'center');
+        expect(
+          ledPx(pass, 'ledger-empty', 'borderRadius'),
+          ledRootTokenPx(pass, '--r-sm'),
+          reason: '$pass: the radius is named as the token, not as a number',
+        );
+        for (final String side in <String>[
+          'borderTopWidth',
+          'borderRightWidth',
+          'borderBottomWidth',
+          'borderLeftWidth',
+        ]) {
+          expect(
+            ledVal(pass, 'ledger-empty', side),
+            '1px',
+            reason: '$pass $side',
+          );
+        }
+        expect(
+          ledColour(pass, 'ledger-empty', 'backgroundColor'),
+          ledTokenColour(pass, '--surface-2'),
+        );
+        expect(
+          ledColour(pass, 'ledger-empty', 'borderTopColor'),
+          ledTokenColour(pass, '--line'),
+        );
+        expect(
+          ledColour(pass, 'ledger-empty', 'color'),
+          ledTokenColour(pass, '--ink'),
+          reason: '$pass: the copy is page ink, which no class here names',
+        );
+        final List<double> boxPad = ledPadSides(pass, 'ledger-empty');
+        expect(
+          boxPad,
+          <double>[ledSpacing(pass) * 10, 0],
+          reason:
+              '$pass: py-10 is ten spacing units of air and none of it '
+              'sideways — the box is a band, not a card',
+        );
+        expect(
+          ledPx(pass, 'ledger-empty', 'height'),
+          boxPad[0] * 2 +
+              _lengthToPx(ledVal(pass, 'ledger-empty', 'lineHeight')) +
+              2 * _lengthToPx(ledVal(pass, 'ledger-empty', 'borderTopWidth')),
+          reason:
+              '$pass: air, one inherited line of the probe text, and the '
+              'two dashed rules drawn between them',
+        );
+
+        expect(
+          ledChanged(pass, 'ledger-empty-rc').toSet(),
+          <String>{
+            'display',
+            'flexDirection',
+            'alignItems',
+            'rowGap',
+            'columnGap',
+            'padding',
+            'height',
+          },
+          reason:
+              '$pass: geometry only. The word `empty` contributes nothing '
+              'to the paint and the tier says so by naming no colour',
+        );
+        expect(ledVal(pass, 'ledger-empty-rc', 'display'), 'flex');
+        expect(ledVal(pass, 'ledger-empty-rc', 'flexDirection'), 'column');
+        expect(ledVal(pass, 'ledger-empty-rc', 'alignItems'), 'center');
+        expect(ledVal(pass, 'ledger-empty-rc', 'rowGap'), '8px');
+        expect(
+          ledVal(pass, 'ledger-empty-rc', 'columnGap'),
+          '8px',
+          reason:
+              '$pass: gap-2 is both axes at once, which a Flutter column '
+              'reads as the one spacer between its children',
+        );
+        expect(
+          _lengthToPx(ledVal(pass, 'ledger-empty-rc', 'rowGap')),
+          ledSpacing(pass) * 2,
+        );
+        expect(
+          ledVal(pass, 'ledger-empty-rc', 'backgroundColor'),
+          'rgba(0, 0, 0, 0)',
+          reason:
+              '$pass: the whole difference between the two empties — the '
+              'Dashboard box paints, this one stacks on nothing',
+        );
+        expect(
+          ledHas(pass, 'ledger-empty-rc', 'borderTopStyle'),
+          isFalse,
+          reason:
+              '$pass: no border shorthand here, so the control value stands',
+        );
+        expect(
+          ledColour(pass, 'ledger-empty-rc', 'color'),
+          ledTokenColour(pass, '--ink'),
+          reason: '$pass: inherited ink — read, never moved',
+        );
+        expect(
+          ledPx(pass, 'ledger-empty-rc', 'height'),
+          ledPadSides(pass, 'ledger-empty-rc')[0] * 2 +
+              _lengthToPx(ledVal(pass, 'ledger-empty-rc', 'lineHeight')),
+          reason:
+              '$pass: the same 80px of air with no rules to draw, two px '
+              'shorter than the Dashboard box and shorter for that reason alone',
+        );
+
+        expect(
+          ledChanged(pass, 'ledger-empty-rc-line').toSet(),
+          <String>{'height', 'fontSize', 'lineHeight'},
+          reason:
+              '$pass: .mono moves no metric this readout carries, so the '
+              'line is the size utility alone plus the leading it inherits',
+        );
+        expect(ledVal(pass, 'ledger-empty-rc-line', 'fontSize'), '12px');
+        expect(ledVal(pass, 'ledger-empty-rc-line', 'lineHeight'), '18px');
+        expect(
+          ledPx(pass, 'ledger-empty-rc-line', 'height'),
+          _lengthToPx(ledVal(pass, 'ledger-empty-rc-line', 'lineHeight')),
+          reason: '$pass: the mono line is exactly its own leading',
+        );
+        expect(
+          _lengthToPx(ledVal(pass, 'ledger-empty-rc-line', 'lineHeight')) /
+              _lengthToPx(ledVal(pass, 'ledger-empty-rc-line', 'fontSize')),
+          closeTo(_probeRatio(lightProbes, 'body'), 1e-9),
+          reason: '$pass: 18 on 12 is the body ratio, untouched by .mono',
+        );
+        expect(ledClassTokens('ledger-empty-rc-line'), <String>[
+          'mono',
+          'text-[12px]',
+        ]);
+        expect(
+          ledLineAt(rcSrc, ledCiteLine('ledger-empty-rc-line')),
+          contains('<p className="mono text-[12px]">'),
+        );
+      }
+    });
+
+    test('the nine chips are one class list: six tones, three size arms', () {
+      final List<String> chips = ledChips(ledFamily);
+      expect(chips, <String>[
+        'cat-chip-lg',
+        'cat-chip-md-blue',
+        'cat-chip-md-ink',
+        'cat-chip-md-lavender',
+        'cat-chip-md-mint',
+        'cat-chip-md-pink',
+        'cat-chip-md-yellow',
+        'cat-chip-sm',
+        'cat-chip-xs',
+      ]);
+      const String chipClass = 'grid place-items-center rounded-full shrink-0';
+      expect(ledClassTokens('cat-chip-md-pink'), <String>[
+        'grid',
+        'place-items-center',
+        'rounded-full',
+        'shrink-0',
+      ]);
+      for (final String name in chips) {
+        expect(
+          ledCls(name),
+          chipClass,
+          reason: '$name: one className string for every chip the app draws',
+        );
+        expect(
+          ledCiteLine(name),
+          90,
+          reason: '$name: cited at the line that writes it, nowhere else',
+        );
+        expect(
+          ledCite(name)['tag'],
+          'span',
+          reason:
+              '$name: the record mounts the <span> the component writes. The '
+              'grid it lands in is what this row exists to measure, and a div '
+              'would have computed the same',
+        );
+        expect(ledLineAt(chipSrc, 90), contains('className="$chipClass"'));
+        final Map<String, dynamic> style = ledStylePart(name);
+        expect(style['dimsLine'], 85);
+        expect(style['glyphLine'], 86);
+        expect(style['styleBlock'], <int>[91, 97]);
+        expect(
+          ledCite(name)['note'],
+          isNotNull,
+          reason: '$name: the tier says why this row is one of nine',
+        );
+      }
+
+      for (final String pass in ledPasses) {
+        for (final String name in chips) {
+          expect(ledChanged(pass, name).toSet(), <String>{
+            'display',
+            'alignItems',
+            'flexShrink',
+            'width',
+            'height',
+            'borderRadius',
+            'borderTopWidth',
+            'borderRightWidth',
+            'borderBottomWidth',
+            'borderLeftWidth',
+            'backgroundColor',
+            'borderTopColor',
+            'borderLeftColor',
+          }, reason: '$pass $name: thirteen, and `color` is not one of them');
+          expect(
+            ledChanged(pass, name).contains('color'),
+            isFalse,
+            reason:
+                '$pass $name: the inline style authors the ink, so the '
+                'stack cannot move it off the control — the glyph colour is a '
+                'constant the port carries once, per brightness',
+          );
+          expect(ledColour(pass, name, 'color'), ledTokenColour(pass, '--ink'));
+          expect(ledVal(pass, name, 'display'), 'grid');
+          expect(ledVal(pass, name, 'alignItems'), 'center');
+          expect(ledVal(pass, name, 'flexShrink'), '0');
+          expect(ledVal(pass, name, 'borderTopWidth'), '1px');
+          expect(
+            ledVal(pass, name, 'borderRadius'),
+            fullRadius,
+            reason:
+                '$pass $name: `rounded-full` computes to '
+                'calc(infinity * 1px), which Chrome prints as this float — the '
+                'record keeps the string the engine gave, and the port clamps '
+                'it to a radius no side can exceed',
+          );
+          final double dims = (ledStylePart(name)['dims']! as num).toDouble();
+          expect(
+            ledPx(pass, name, 'width'),
+            dims,
+            reason: '$pass $name: the measured square is the inline style',
+          );
+          expect(
+            ledPx(pass, name, 'height'),
+            dims,
+            reason: '$pass $name: width and height are the same `dims`',
+          );
+        }
+        expect(ledPx(pass, 'cat-chip-md-pink', 'width'), 40);
+        expect(ledPx(pass, 'cat-chip-xs', 'width'), 22);
+        expect(ledPx(pass, 'cat-chip-sm', 'width'), 32);
+        expect(ledPx(pass, 'cat-chip-lg', 'width'), 44);
+      }
+    });
+
+    test('the tone table is six tokens and two oklab mixes the port cannot re-derive', () {
+      final Map<String, String> toneBg = <String, String>{};
+      final Map<String, int> toneLine = <String, int>{};
+      for (int line = 55; line <= 60; line++) {
+        final RegExpMatch? m = RegExp(r"^  (\w+): '(var\(--[\w-]+\))',$")
+            .firstMatch(ledLineAt(chipSrc, line));
+        if (m == null) {
+          throw StateError('CategoryChip.tsx:$line is no longer a tone entry');
+        }
+        toneBg[m.group(1)!] = m.group(2)!;
+        toneLine[m.group(1)!] = line;
+      }
+      expect(toneBg.keys.toList()..sort(), <String>[
+        'blue',
+        'ink',
+        'lavender',
+        'mint',
+        'pink',
+        'yellow',
+      ]);
+      expect(
+        toneBg['ink'],
+        'var(--surface-3)',
+        reason:
+            'the sixth tone is not a pastel: it is the raised surface, which is '
+            'why the ink chip is the one row that reads as a rule, not a colour',
+      );
+
+      final Map<String, dynamic> style = ledStylePart('cat-chip-md-pink');
+      expect(style['styleBlock'], <int>[91, 97]);
+      final List<Map<String, dynamic>> src =
+          (style['styleSrc']! as List<dynamic>).cast<Map<String, dynamic>>();
+      expect(src.map((Map<String, dynamic> d) => d['prop']).toList(), <String>[
+        'width',
+        'height',
+        'background',
+        'border',
+        'color',
+      ]);
+      expect(src.map((Map<String, dynamic> d) => d['line']).toList(), <int>[
+        92,
+        93,
+        94,
+        95,
+        96,
+      ]);
+      for (final Map<String, dynamic> decl in src) {
+        expect(
+          ledLineAt(chipSrc, (decl['line']! as num).toInt()).trim(),
+          decl['text'],
+          reason: 'style: line ${decl['line']} is quoted verbatim',
+        );
+      }
+      final Map<String, String> declByProp = <String, String>{
+        for (final Map<String, dynamic> d in src)
+          d['prop']! as String: d['text']! as String,
+      };
+      expect(
+        RegExp(r'(\d+)%, var\(--surface\)\)')
+            .firstMatch(declByProp['background']!)!
+            .group(1),
+        '55',
+      );
+      expect(
+        RegExp(r'(\d+)%, var\(--line\)\)')
+            .firstMatch(declByProp['border']!)!
+            .group(1),
+        '70',
+      );
+
+      for (final String pass in ledPasses) {
+        final List<String> tones = <String>[
+          for (final String name in ledToneChips)
+            ledStylePart(name)['tone']! as String,
+        ]..sort();
+        expect(tones, <String>[
+          'blue',
+          'ink',
+          'lavender',
+          'mint',
+          'pink',
+          'yellow',
+        ]);
+        final Set<int> fills = <int>{};
+        for (final String name in ledToneChips) {
+          final Map<String, dynamic> part = ledStylePart(name);
+          final String tone = part['tone']! as String;
+          final String toneVar = part['toneVar']! as String;
+          expect(
+            toneVar,
+            toneBg[tone],
+            reason:
+                '$pass $name: the row names the same token the table '
+                'holds for that tone',
+          );
+          expect(
+            (part['toneVarLine']! as num).toInt(),
+            toneLine[tone],
+            reason:
+                '$pass $name: cited at the `TONE_BG` entry it reads, and '
+                'the six lines are exactly 55–60',
+          );
+          final String bareToken = toneVar
+              .replaceFirst('var(', '')
+              .replaceFirst(')', '');
+          final Color fill = ledColour(pass, name, 'backgroundColor');
+          final Color border = ledColour(pass, name, 'borderTopColor');
+          expect(
+            fill,
+            isNot(ledTokenColour(pass, bareToken)),
+            reason:
+                '$pass $name: 55% of the tone against --surface is not the '
+                'tone. Chrome resolves it in oklab, which Dart has no primitive '
+                'for, so the port carries this resolved colour and not the mix',
+          );
+          expect(
+            fill,
+            isNot(ledTokenColour(pass, '--surface')),
+            reason: '$pass $name: the mix actually moved the page colour',
+          );
+          expect(
+            border,
+            isNot(ledTokenColour(pass, '--line')),
+            reason: '$pass $name: the 70% border is a colour of its own',
+          );
+          fills.add(fill.toARGB32());
+        }
+        expect(fills.length, 6, reason: '$pass: six tones, six fills');
+        expect(
+          ledColour(pass, 'cat-chip-xs', 'backgroundColor'),
+          ledColour(pass, 'cat-chip-md-lavender', 'backgroundColor'),
+          reason:
+              '$pass: the size arms hold lavender, so a wider chip cannot '
+              'be mistaken for a different tone',
+        );
+        for (final String name in <String>[
+          'cat-chip-xs',
+          'cat-chip-sm',
+          'cat-chip-lg',
+        ]) {
+          expect(ledStylePart(name)['size'], name.split('-').last);
+          expect(ledStylePart(name)['tone'], 'lavender');
+          expect(ledStylePart(name)['toneVarLine'], 58);
+        }
+      }
+    });
+
+    test('two ternaries are the size and glyph tables the chips measured', () {
+      final Map<String, double> dims = ledTernary(chipSrc, 85, 'dims');
+      final Map<String, double> glyphs = ledTernary(chipSrc, 86, 'glyph');
+      expect(dims, <String, double>{'xs': 22, 'sm': 32, 'lg': 44, 'md': 40});
+      expect(glyphs, <String, double>{'xs': 12, 'sm': 14, 'lg': 19, 'md': 17});
+      expect(
+        ledLineAt(chipSrc, 85),
+        isNot(contains("=== 'md'")),
+        reason:
+            'md is the arm the ternary falls through to and is never named — '
+            'which is why six rows are called md and no source line says so',
+      );
+      expect(ledLineAt(chipSrc, 85).trim().endsWith(': 40;'), isTrue);
+      expect(ledLineAt(chipSrc, 86).trim().endsWith(': 17;'), isTrue);
+
+      for (final String pass in ledPasses) {
+        for (final String name in ledChips(ledFamily)) {
+          final Map<String, dynamic> part = ledStylePart(name);
+          final String size = (part['size'] ?? 'md')! as String;
+          expect(
+            (part['dims']! as num).toDouble(),
+            dims[size],
+            reason: '$pass $name: the cited `dims` arm is the table',
+          );
+          expect(
+            ledPx(pass, name, 'width'),
+            dims[size],
+            reason: '$pass $name: and the measured square agrees with it',
+          );
+          expect(
+            (part['glyph']! as num).toDouble(),
+            glyphs[size],
+            reason:
+                '$pass $name: the glyph is the other ternary, at the same arm',
+          );
+        }
+      }
+
+      expect(
+        ledLineAt(chipSrc, 100).trim(),
+        '<Icon size={glyph} strokeWidth={2} />',
+      );
+      expect(
+        RegExp(r'strokeWidth=\{([\d.]+)\}')
+            .firstMatch(ledLineAt(chipSrc, 100))!
+            .group(1),
+        '2',
+        reason: 'the stroke is authored, not inherited from the icon library',
+      );
+      expect(
+        ledLineAt(chipSrc, 84).trim(),
+        'const Icon = iconOverride ?? CATEGORY_ICONS[key] ?? Receipt;',
+        reason:
+            'three ways to get a glyph, and the last is the one the port '
+            'must carry as a fallback',
+      );
+      expect(
+        ledLineAt(chipSrc, 83).trim(),
+        'const key = category.toLowerCase().trim();',
+      );
+    });
+
+    test('the ten authored records are the ledger half of a 26-record tier', () {
+      final List<String> names = <String>[
+        for (final dynamic e in ledNonCss)
+          (e as Map<String, dynamic>)['name']! as String,
+      ]..sort();
+      expect(names.where(ledIsRecord).toList(), ledRecordNames);
+      expect(
+        names.where((String n) => !ledIsRecord(n)).length,
+        16,
+        reason:
+            'the chrome records #55 and #56 left behind are untouched by '
+            'this family — a re-measure that renames one shows up here',
+      );
+      expect(
+        ledNonCss.length,
+        26,
+        reason: '16 chrome records plus the ledger 10',
+      );
+      final Map<String, int> perFile = <String, int>{};
+      for (final dynamic e in ledNonCss) {
+        final Map<String, dynamic> rec = e as Map<String, dynamic>;
+        final String name = rec['name']! as String;
+        if (!ledIsRecord(name)) continue;
+        perFile[rec['src']! as String] =
+            (perFile[rec['src']! as String] ?? 0) + 1;
+      }
+      expect(perFile, <String, int>{
+        rowSrc: 4,
+        chipSrc: 2,
+        dashSrc: 2,
+        rcSrc: 2,
+      });
+      for (final String name in ledRecordNames) {
+        final Map<String, dynamic> rec = ledAuthored(name);
+        expect(
+          rec['tier'],
+          anyOf('authored-js', 'authored-inline'),
+          reason: '$name: which kind of source the record stands in for',
+        );
+        expect(
+          (rec['parts']! as List<dynamic>).isNotEmpty,
+          isTrue,
+          reason: '$name: a record with no citation is a claim, not evidence',
+        );
+      }
+      for (final String name in <String>[
+        'ledger-empty-class-declared-nowhere',
+        'pill-hidden-utility-is-inert',
+      ]) {
+        expect(
+          ledAuthored(name)['tier'],
+          'authored-inline',
+          reason: '$name: the tier separates an inline class from a JS table',
+        );
+      }
+      // The three records that reach across files are the three the port cannot
+      // resolve inside one component.
+      expect(
+        ledAuthoredParts('txrow-amount-signed-vs-absolute')
+            .where((List<Object> p) => p[1] != rowSrc)
+            .map((List<Object> p) => p[1] as String)
+            .toSet(),
+        <String>{dashSrc, rcSrc},
+        reason: 'the same widget fed two ways, in two other files',
+      );
+      expect(
+        ledAuthoredParts('txrow-isincome-predicates-disagree')
+            .map((List<Object> p) => p[1] as String)
+            .toSet(),
+        <String>{dashSrc, rcSrc},
+        reason: 'the predicate is written twice, and the record cites both',
+      );
+      expect(
+        ledAuthoredParts('pill-hidden-utility-is-inert')
+            .where((List<Object> p) => p[1] == cssSrc)
+            .length,
+        1,
+        reason:
+            'the inert `hidden` is proved from src/index.css:917, beside '
+            'the Reports Centre line that writes the class',
+      );
+      expect(
+        ledAuthoredParts('ledger-empty-copy')
+            .where((List<Object> p) => p[1] == rcSrc)
+            .length,
+        1,
+        reason: 'the two empties are one copy decision across two components',
+      );
+    });
+
+    test('the two call sites compute direction, and they do not agree', () {
+      for (final String src in <String>[dashSrc, rcSrc]) {
+        expect(
+          ledLines(src).where((String l) => l.trim() == 'const isInc =').length,
+          1,
+          reason:
+              '$src writes the predicate exactly once, so the parse reads '
+              'the call site the ledger actually uses',
+        );
+      }
+      final List<String> dash = ledPredicate(dashSrc);
+      final List<String> centre = ledPredicate(rcSrc);
+      expect(dash, <String>[
+        "t.type === 'income'",
+        "t.type === 'deposit'",
+        "t.type === 'financing'",
+        "(t.type === 'transfer' && t.amount > 0)",
+      ]);
+      expect(
+        centre.sublist(0, 3),
+        dash.sublist(0, 3),
+        reason: 'the three type tests are word for word the same',
+      );
+      expect(centre.length, dash.length, reason: 'four clauses each');
+      expect(
+        centre.last,
+        "(t.type === 'transfer' && (t.category === 'Transfer In' || t.amount > 0))",
+        reason:
+            'a transfer naming itself Transfer In is income in Reports '
+            'Centre even when the amount says otherwise — recorded, not resolved',
+      );
+      expect(
+        dash.last,
+        isNot(contains('Transfer In')),
+        reason: 'and the same row is an expense on the dashboard',
+      );
+      final List<List<Object>> cited = ledAuthoredParts(
+        'txrow-isincome-predicates-disagree',
+      );
+      expect(
+        cited.map((List<Object> p) => '${p[1]}:${p[2]}').toList(),
+        <String>[
+          '$dashSrc:426',
+          '$dashSrc:428',
+          '$dashSrc:429',
+          '$rcSrc:501',
+          '$rcSrc:504',
+        ],
+        reason:
+            'the record cites the arms it compares — not the `deposit` one '
+            'both files write identically',
+      );
+      for (final List<Object> part in cited) {
+        final List<String> clauses = part[1] == dashSrc ? dash : centre;
+        expect(
+          clauses.any((String c) => (part[0] as String).startsWith(c)),
+          isTrue,
+          reason:
+              '${part[1]}:${part[2]} is one of the clauses this parse found',
+        );
+      }
+    });
+
+    test('the row is handed a string; one caller takes the sign off first', () {
+      expect(ledLineAt(rowSrc, 11).trim(), 'amountText: string;');
+      expect(
+        ledLineAt(rowSrc, 9).trim(),
+        'meta?: string;',
+        reason: 'the second line is the caller\'s string too, or nothing',
+      );
+      final String rowText = ledLines(rowSrc).join('\n');
+      for (final String never in <String>[
+        'formatMoney',
+        'Intl',
+        'NumberFormat',
+        'toFixed',
+      ]) {
+        expect(
+          rowText.contains(never),
+          isFalse,
+          reason:
+              'TransactionRow.tsx never says $never — the widget cannot '
+              'format a number because it never receives one',
+        );
+      }
+      final List<List<Object>> parts = ledAuthoredParts(
+        'txrow-amount-signed-vs-absolute',
+      );
+      expect(parts.length, 3);
+      expect(
+        parts.map((List<Object> p) => '${p[1]}:${p[2]}').toList(),
+        <String>['$dashSrc:437', '$rcSrc:505', '$rcSrc:518'],
+      );
+      expect(
+        ledLineAt(dashSrc, 437),
+        contains('amountText={formatMoney(state.currency, t.amount)}'),
+        reason: 'the dashboard passes the signed amount straight through',
+      );
+      expect(
+        ledLineAt(rcSrc, 505).trim(),
+        'const absAmount = Math.abs(t.amount);',
+        reason: 'Reports Centre removes the sign before the row ever sees it',
+      );
+      expect(
+        ledLineAt(rcSrc, 518),
+        contains('amountText={formatMoney(currency, absAmount)}'),
+      );
+      expect(
+        ledLineAt(dashSrc, 436).trim(),
+        'isIncome={isInc}',
+        reason:
+            'both call sites hand over their own boolean, beside their own '
+            'string: the arrow and the ink are the only sign either one keeps',
+      );
+      expect(ledLineAt(rcSrc, 519).trim(), 'isIncome={isInc}');
+    });
+  });
+
+  group('AppRows — the ported ledger re-derived from the #75 stacks', () {
+    // #77 emits `mobile/lib/core/theme/app_rows.dart` from the utility-stack
+    // tier's twenty-six ledger rows, the ten authored records the ledger added
+    // and the pinned `.tx-row`, `.day-head` and `.eyebrow` rules. This group
+    // reads the same evidence back independently: every field of every
+    // generated spec is re-derived here from a JSON string, an authored source
+    // line or a stylesheet declaration — never copied out of the generated
+    // file, so the two can only agree by both being right. Nothing here builds
+    // a widget; the widgets' own behaviour tests are beside this file.
+    final Map<String, dynamic> appStacks =
+        measurement['utilityStacks']! as Map<String, dynamic>;
+    final List<dynamic> appRowList = appStacks['rows']! as List<dynamic>;
+    const List<String> appPasses = <String>[
+      'light-desktop',
+      'dark-desktop',
+      'light-phone',
+      'dark-phone',
+    ];
+    const String appChipSrc = 'src/components/ui/CategoryChip.tsx';
+    const String appRowSrc = 'src/components/ui/TransactionRow.tsx';
+    const String appDashSrc = 'src/components/Dashboard.tsx';
+    const String appRcSrc = 'src/components/ReportsCentre.tsx';
+    const String appCssSrc = 'src/index.css';
+    // Chrome's serialisation of `rounded-full`, which the engine clamps to its
+    // own float. `AppCategoryChips.fullRoundRadiusPx` carries it because it is
+    // what was measured, not because anyone chose that radius.
+    const String appFullRadius = '3.35544e+07px';
+
+    Map<String, dynamic> appRow(String name) {
+      for (final dynamic r in appRowList) {
+        final Map<String, dynamic> row = r as Map<String, dynamic>;
+        if (row['name'] == name) return row;
+      }
+      throw StateError('ui-tokens.json cites no stack row "$name"');
+    }
+
+    Map<String, dynamic> appProps(String pass, String name) {
+      final Object? r =
+          (_theme(measurement, pass)['stacks']! as Map<String, dynamic>)[name];
+      if (r == null) throw StateError('no stack $name measured at $pass');
+      return (r as Map<String, dynamic>)['props']! as Map<String, dynamic>;
+    }
+
+    String appVal(String pass, String name, String field) =>
+        _probeValue(appProps(pass, name), field, '$pass $name');
+
+    Color appColour(String pass, String name, String field) =>
+        _probeColour(appProps(pass, name), field, '$pass $name');
+
+    /// A px length Chrome may print in exponential form — the full-round radius
+    /// among them. Anything else is not a length this port could carry.
+    double appPx(String pass, String name, String field) {
+      final String raw = appVal(pass, name, field);
+      final RegExpMatch? m = RegExp(r'^(-?[\d.]+(?:e\+\d+)?)px$')
+          .firstMatch(raw);
+      if (m == null) {
+        throw StateError('$pass $name: "$raw" for $field is not a px length');
+      }
+      return double.parse(m.group(1)!);
+    }
+
+    /// A unitless measured number — `flex-grow`, `flex-shrink`, a font weight.
+    double appNumber(String pass, String name, String field) =>
+        double.parse(appVal(pass, name, field));
+
+    bool appHas(String pass, String name, String field) =>
+        appProps(pass, name).containsKey(field);
+
+    /// The `file:lines` string the emitter writes for one row: every line the
+    /// record cites, in the file it was read from, sorted. `dimsLine` and
+    /// `glyphLine` are deliberately not in the union — a chip's square comes
+    /// from the ternary, which the *size* arms cite, while the tone rows cite
+    /// the token and the inline style — so a drift here is a drift in what the
+    /// port says it was read from.
+    String appCite(String name) {
+      final Map<String, dynamic> rec = appRow(name);
+      final Map<String, List<int>> byFile = <String, List<int>>{};
+      for (final dynamic e in rec['parts']! as List<dynamic>) {
+        final Map<String, dynamic> part = e as Map<String, dynamic>;
+        final String file =
+            (part['src'] ?? rec['src'] ?? appStacks['source'])! as String;
+        final List<int> lines = byFile.putIfAbsent(file, () => <int>[]);
+        final List<Object?> found = <Object?>[
+          part['line'],
+          part['styleSrcLine'],
+          part['toneVarLine'],
+          ...((part['styleSrc'] ?? const <dynamic>[]) as List<dynamic>).map(
+            (dynamic s) => (s as Map<String, dynamic>)['line'],
+          ),
+        ];
+        for (final Object? l in found) {
+          if (l == null) continue;
+          final int line = (l as num).toInt();
+          if (!lines.contains(line)) lines.add(line);
+        }
+      }
+      return byFile.entries
+          .map(
+            (MapEntry<String, List<int>> e) =>
+                '${e.key}:${(e.value.toList()..sort()).join(',')}',
+          )
+          .join(' + ');
+    }
+
+    final Map<String, List<String>> appFiles = <String, List<String>>{};
+    List<String> appLinesOf(String src) =>
+        appFiles.putIfAbsent(src, () => webSource(src).split(RegExp(r'\r?\n')));
+
+    String appLineAt(String src, int line) {
+      final List<String> lines = appLinesOf(src);
+      if (line < 1 || line > lines.length) {
+        throw StateError('$src:$line is outside a ${lines.length}-line file');
+      }
+      return lines[line - 1];
+    }
+
+    Map<String, dynamic> appRoot(String pass) =>
+        _rootOf(_theme(measurement, pass));
+
+    double appTokenPx(String pass, String token) =>
+        _lengthToPx(_raw(appRoot(pass), token));
+
+    Color appTokenColour(String pass, String token) =>
+        _measuredColour(appRoot(pass), token);
+
+    /// The first family of a §6 probe — the stack that stack paints in, which
+    /// the 45 measured properties do not carry.
+    String appProbeFamily(String pass, String selector) {
+      final Map<String, dynamic> probe = _probe(
+        _probesOf(_theme(measurement, pass)),
+        selector,
+        pass,
+      );
+      return (_probeValue(
+        probe,
+        'fontFamily',
+        selector,
+      ).split(RegExp(r',\s*')).first).replaceAll(RegExp('^["\']|["\']\$'), '');
+    }
+
+    /// `const NAME = size === 'xs' ? N : … ;` as one size-keyed table, the
+    /// trailing arm read as `md` because that is the size the ternary falls
+    /// through to and the one the tone rows are sampled at.
+    Map<String, double> appTernary(String src, int line, String varName) {
+      final String text = appLineAt(src, line);
+      if (!text.contains('const $varName = ')) {
+        throw StateError(
+          '$src:$line is no longer `const $varName = …`: "$text"',
+        );
+      }
+      final Map<String, double> out = <String, double>{};
+      for (final RegExpMatch m in RegExp(
+        r"size === '(\w+)' \? ([\d.]+)",
+      ).allMatches(text)) {
+        out[m.group(1)!] = double.parse(m.group(2)!);
+      }
+      final RegExpMatch? fall = RegExp(r':\s*([\d.]+);').firstMatch(text);
+      if (fall == null) {
+        throw StateError('$src:$line has no default arm to call md');
+      }
+      out['md'] = double.parse(fall.group(1)!);
+      if (out.length != 4) {
+        throw StateError('$varName names ${out.length} sizes, not four');
+      }
+      return out;
+    }
+
+    test('every citation the file carries is the row it was measured from', () {
+      void cite(String label, AppTxRowSlotSpec slot) {
+        expect(
+          slot.authoredSrc,
+          appCite(slot.stackRow),
+          reason: '$label cites the lines of the row it names',
+        );
+      }
+
+      for (final AppTxRowSpec spec in <AppTxRowSpec>[
+        AppRows.txRowLight,
+        AppRows.txRowDark,
+      ]) {
+        expect(spec.stackRow, 'txrow-box');
+        expect(
+          spec.authoredSrc,
+          appCite('txrow-box'),
+          reason: 'the box cites the element it is mounted on',
+        );
+        for (final MapEntry<String, AppTxRowSlotSpec> slot
+            in <String, AppTxRowSlotSpec>{
+              'title': spec.title,
+              'meta': spec.meta,
+              'textWrap': spec.textWrap,
+              'amountWrap': spec.amountWrap,
+              'amountIn': spec.amountIn,
+              'amountOut': spec.amountOut,
+              'pill': spec.pill,
+            }.entries) {
+          cite(slot.key, slot.value);
+        }
+      }
+      final AppDayHeadSpec head = AppRows.dayHeadLight;
+      expect(head.stackRow, 'day-head-label');
+      expect(head.authoredSrc, appCite('day-head-label'));
+      expect(AppRows.dayHeadDark.authoredSrc, head.authoredSrc);
+      expect(AppRows.emptyLight.stackRow, 'ledger-empty');
+      expect(
+        AppRows.emptyLight.authoredSrc,
+        appCite('ledger-empty'),
+        reason: 'the dashboard empty box cites the div Dashboard writes',
+      );
+      expect(AppRows.emptyRcLight.authoredSrc, appCite('ledger-empty-rc'));
+      expect(
+        AppRows.emptyRcLight.line.authoredSrc,
+        appCite('ledger-empty-rc-line'),
+      );
+      expect(AppRows.ledgerRail.authoredSrc, appCite('ledger-scroll'));
+      expect(AppRows.reportsRail.authoredSrc, appCite('ledger-list-scroll'));
+      for (final AppChipTone tone in AppChipTone.values) {
+        for (final Brightness brightness in Brightness.values) {
+          final AppCategoryChipTintSpec tint = AppCategoryChips.tint(
+            tone,
+            brightness,
+          );
+          expect(
+            tint.authoredSrc,
+            appCite(tint.rowName),
+            reason: '${tone.name} at ${brightness.name} cites its own row',
+          );
+        }
+      }
+      expect(
+        appCite('cat-chip-md-pink'),
+        '$appChipSrc:55,90,92,93,94,95,96',
+        reason:
+            'the tone line, the class list and the five style lines — and '
+            'not the dims/glyph lines at 85 and 86, which the size rows cite',
+      );
+      expect(appCite('txrow-amount-in'), '$appRowSrc:38,39');
+      expect(appCite('txrow-box'), '$appRowSrc:28');
+      expect(
+        head.labelAuthoredSrc,
+        '$appCssSrc:${cssLines.indexOf('.eyebrow {') + 1}',
+        reason: 'the header type is cited at the rule that authors it',
+      );
+    });
+
+    /// The one class list a row was measured with, verbatim from the record.
+    String appCls(String name) {
+      final List<String> found = <String>[];
+      for (final dynamic p in appRow(name)['parts']! as List<dynamic>) {
+        final Object? cls = (p as Map<String, dynamic>)['cls'];
+        if (cls != null) found.add(cls as String);
+      }
+      if (found.length != 1) {
+        throw StateError('$name cites ${found.length} class lists, not one');
+      }
+      return found.single;
+    }
+
+    List<String> appTokens(String name) =>
+        appCls(name)
+            .split(RegExp(r'\s+'))
+            .where((String token) => token.isNotEmpty)
+            .toList();
+
+    /// The `padding` shorthand as the symmetric pair the port reproduces.
+    List<double> appPad(String pass, String name) {
+      final List<String> parts = appVal(pass, name, 'padding').split(' ');
+      if (parts.length != 2) {
+        throw StateError(
+          '$pass $name: padding "${parts.join(' ')}" is not the one '
+          'vertical/horizontal pair this port reads',
+        );
+      }
+      return <double>[
+        _pxOf(parts[0], '$pass $name padding top'),
+        _pxOf(parts[1], '$pass $name padding left'),
+      ];
+    }
+
+    /// `scale(N)` out of a transform the sheet authors.
+    double appScale(String transform, String label) {
+      final RegExpMatch? m = RegExp(r'^scale\(([\d.]+)\)$')
+          .firstMatch(transform.trim());
+      if (m == null) {
+        throw StateError('$label: transform "$transform" is not one scale()');
+      }
+      return double.parse(m.group(1)!);
+    }
+
+    test('the box: what the row paints at rest, and nothing else', () {
+      final Map<String, String> authored = _cssDecls(
+        cssLines,
+        '.tx-row {',
+        '.tx-row',
+      );
+      expect(authored['gap'], '${AppRows.txRowLight.gapPx.round()}px');
+      expect(
+        authored['border-radius'],
+        'var(${AppRows.txRowLight.radiusToken})',
+        reason: 'the radius the sheet authors is the token the port names',
+      );
+      expect(authored['cursor'], AppRows.txRowLight.cursorCss);
+      for (final String pass in appPasses) {
+        final Brightness brightness = pass.startsWith('light')
+            ? Brightness.light
+            : Brightness.dark;
+        final AppTxRowSpec spec = AppRows.txRow(brightness);
+        expect(
+          spec,
+          AppRows.txRow(brightness),
+          reason: '$pass: the accessor hands back the brightness pair',
+        );
+        expect(spec.cssClasses, appCls('txrow-box'));
+        expect(spec.displayCss, appVal(pass, 'txrow-box', 'display'));
+        for (final String field in <String>[
+          'display',
+          'padding',
+          'borderRadius',
+        ]) {
+          final Map<String, dynamic> probe = _probe(
+            _probesOf(_theme(measurement, pass)),
+            '.tx-row',
+            pass,
+          );
+          expect(
+            appVal(pass, 'txrow-box', field),
+            _probeValue(probe, field, '.tx-row'),
+            reason: '$pass txrow-box $field differs from the .tx-row probe',
+          );
+        }
+        expect(spec.alignItemsCss, appVal(pass, 'txrow-box', 'alignItems'));
+        expect(
+          spec.justifyContentCss,
+          appVal(pass, 'txrow-box', 'justifyContent'),
+          reason: 'the row authors no justify-content, and measures normal',
+        );
+        expect(spec.gapPx, appPx(pass, 'txrow-box', 'rowGap'));
+        expect(
+          appPx(pass, 'txrow-box', 'columnGap'),
+          spec.gapPx,
+          reason: '$pass: the row measures one gap on both axes',
+        );
+        final List<double> pad = appPad(pass, 'txrow-box');
+        expect(spec.paddingVerticalPx, pad[0]);
+        expect(spec.paddingHorizontalPx, pad[1]);
+        expect(
+          spec.padding,
+          EdgeInsets.symmetric(vertical: pad[0], horizontal: pad[1]),
+        );
+        expect(spec.radiusPx, appPx(pass, 'txrow-box', 'borderRadius'));
+        expect(
+          spec.radiusPx,
+          appTokenPx(pass, AppRows.txRowLight.radiusToken),
+          reason: '$pass: the measured radius is --r-sm resolved at that pass',
+        );
+        expect(spec.radius, BorderRadius.circular(spec.radiusPx));
+        expect(
+          appColour(pass, 'txrow-box', 'backgroundColor').a,
+          0,
+          reason:
+              '$pass: the resting box paints nothing. Only :hover does, and '
+              'the port drops that (UI_SPEC D-U1)',
+        );
+        for (final String side in <String>[
+          'borderTopWidth',
+          'borderRightWidth',
+          'borderBottomWidth',
+          'borderLeftWidth',
+        ]) {
+          expect(
+            appPx(pass, 'txrow-box', side),
+            0.0,
+            reason: '$pass: $side — the row has no frame at rest',
+          );
+        }
+        expect(appVal(pass, 'txrow-box', 'boxShadow'), 'none');
+        expect(appVal(pass, 'txrow-box', 'backdropFilter'), 'none');
+        expect(
+          spec.inkColor,
+          appColour(pass, 'txrow-box', 'color'),
+          reason: '$pass: the inherited ink is what the box painted',
+        );
+        expect(spec.inkColor, appTokenColour(pass, '--ink'));
+        expect(
+          spec.flexShrink,
+          appNumber(pass, 'txrow-box', 'flexShrink'),
+          reason: '$pass: a row shrinks in its list; nothing authors grow',
+        );
+      }
+    });
+
+    test('the press: two rules claim the box and the spec carries the winner', () {
+      final int txActive = cssLines.indexOf('.tx-row:active {');
+      final int pressActive = cssLines.indexOf('.pressable:active {');
+      expect(txActive, greaterThanOrEqualTo(0));
+      expect(pressActive, greaterThanOrEqualTo(0));
+      expect(
+        pressActive,
+        greaterThan(txActive),
+        reason:
+            'both unlayered rules claim the press and the later one wins '
+            'outright — a reordering of the sheet must move the port',
+      );
+      final double loser = appScale(
+        _cssDecls(cssLines, '.tx-row:active {', '.tx-row:active')['transform']!,
+        '.tx-row:active',
+      );
+      final double winner = appScale(
+        _cssDecls(
+          cssLines,
+          '.pressable:active {',
+          '.pressable:active',
+        )['transform']!,
+        '.pressable:active',
+      );
+      for (final AppTxRowSpec spec in <AppTxRowSpec>[
+        AppRows.txRowLight,
+        AppRows.txRowDark,
+      ]) {
+        expect(spec.pressScale, winner);
+        expect(spec.overriddenPressScale, loser);
+        expect(
+          spec.pressScale,
+          isNot(spec.overriddenPressScale),
+          reason:
+              'the two scales are different numbers, so which is which matters',
+        );
+      }
+      final Duration fast = _duration(
+        _raw(appRoot('light-phone'), '--dur-fast'),
+      );
+      final Cubic out = _cubic(_raw(appRoot('light-phone'), '--ease-out'));
+      final AppTxRowSpec light = AppRows.txRowLight;
+      expect(light.pressDurationMs, fast.inMilliseconds);
+      expect(light.pressDuration, fast);
+      // `Cubic` has no value equality, so the four points are compared, not
+      // the object.
+      final Cubic curve = light.pressCurve;
+      expect(
+        <double>[curve.a, curve.b, curve.c, curve.d],
+        <double>[out.a, out.b, out.c, out.d],
+      );
+      expect(light.easeX1, out.a);
+      expect(light.easeY1, out.b);
+      expect(light.easeX2, out.c);
+      expect(light.easeY2, out.d);
+      expect(
+        AppRows.txRowDark.pressDurationMs,
+        light.pressDurationMs,
+        reason: 'the clock is a root token, not a brightness',
+      );
+      final String transition = _cssRuleText(cssLines, '.tx-row {', '.tx-row');
+      expect(
+        transition,
+        contains('transform var(--dur-fast) var(--ease-out)'),
+        reason: 'the row runs the press on the clock and curve both name',
+      );
+    });
+
+    /// Every field of a slot except the ink it painted — so a pair of slots can
+    /// be proved to differ by one property and by nothing else. Keyed, because
+    /// the answer this file cares about is *which* field moved.
+    Map<String, Object?> appShapeOf(AppTxRowSlotSpec slot) => <String, Object?>{
+      'stackRow': slot.stackRow,
+      'cssClasses': slot.cssClasses,
+      'authoredSrc': slot.authoredSrc,
+      'displayCss': slot.displayCss,
+      'alignItemsCss': slot.alignItemsCss,
+      'gapPx': slot.gapPx,
+      'fontFamily': slot.fontFamily,
+      'fontSizePx': slot.fontSizePx,
+      'fontWeight': slot.fontWeight,
+      'heightRatio': slot.heightRatio,
+      'letterSpacingPx': slot.letterSpacingPx,
+      'letterSpacingEm': slot.letterSpacingEm,
+      'authoredColorToken': slot.authoredColorToken,
+      'truncates': slot.truncates,
+      'flexGrow': slot.flexGrow,
+      'flexShrink': slot.flexShrink,
+      'minWidthZero': slot.minWidthZero,
+      'textAlignCss': slot.textAlignCss,
+      'tabularNums': slot.tabularNums,
+    };
+
+    List<String> appDifferences(
+      Map<String, Object?> a,
+      Map<String, Object?> b,
+    ) {
+      return a.keys.where((String key) => a[key] != b[key]).toList()..sort();
+    }
+
+    /// A root token's rounded srgb channels — the same three numbers the tier
+    /// prints for any measured colour, so a `color-mix` can be pinned to the
+    /// token it mixed from.
+    List<int> appTokenChannels(String pass, String token) {
+      final Map<String, dynamic> srgb =
+          _token(appRoot(pass), token)['srgb']! as Map<String, dynamic>;
+      return <int>[
+        (srgb['r']! as num).round(),
+        (srgb['g']! as num).round(),
+        (srgb['b']! as num).round(),
+      ];
+    }
+
+    /// Every header field, keyed, so a brightness pair answers with the names of
+    /// the fields that moved rather than with a diff of a whole object.
+    Map<String, Object?> appDayShape(AppDayHeadSpec head) => <String, Object?>{
+      'stackRow': head.stackRow,
+      'cssClasses': head.cssClasses,
+      'authoredSrc': head.authoredSrc,
+      'displayCss': head.displayCss,
+      'zIndexCss': head.zIndexCss,
+      'paddingVerticalPx': head.paddingVerticalPx,
+      'paddingHorizontalPx': head.paddingHorizontalPx,
+      'blurPx': head.blurPx,
+      'fillColor': head.fillColor,
+      'fillToken': head.fillToken,
+      'fillMixPercent': head.fillMixPercent,
+      'labelCssClass': head.labelCssClass,
+      'labelAuthoredSrc': head.labelAuthoredSrc,
+      'uppercase': head.uppercase,
+      'redundantSizeOverride': head.redundantSizeOverride,
+      'textColor': head.textColor,
+      'fontSizePx': head.fontSizePx,
+      'fontWeight': head.fontWeight,
+      'heightRatio': head.heightRatio,
+      'letterSpacingPx': head.letterSpacingPx,
+      'letterSpacingEm': head.letterSpacingEm,
+    };
+
+    /// The inline style a component writes beside a class list, which is where
+    /// a money arm's colour and a chip's tint come from.
+    String appStyleText(String name) {
+      for (final dynamic p in appRow(name)['parts']! as List<dynamic>) {
+        final Object? style = (p as Map<String, dynamic>)['style'];
+        if (style != null) return style as String;
+      }
+      throw StateError('$name writes no inline style');
+    }
+
+    test('the slots: one field at a time, read back at all four passes', () {
+      final Map<String, String> money = _cssDecls(
+        cssLines,
+        '.money {',
+        '.money',
+      );
+      final Map<String, String> monoRule = _cssDecls(
+        cssLines,
+        '.mono {',
+        '.mono',
+      );
+      final Map<String, String> pillRule = _cssDecls(
+        cssLines,
+        '.pill {',
+        '.pill',
+      );
+      for (final String pass in appPasses) {
+        final String prefix = pass.split('-').first;
+        final AppTxRowSpec spec = AppRows.txRow(
+          prefix == 'light' ? Brightness.light : Brightness.dark,
+        );
+        final Map<String, AppTxRowSlotSpec> slots = <String, AppTxRowSlotSpec>{
+          'title': spec.title,
+          'meta': spec.meta,
+          'textWrap': spec.textWrap,
+          'amountWrap': spec.amountWrap,
+          'amountIn': spec.amountIn,
+          'amountOut': spec.amountOut,
+          'pill': spec.pill,
+          'emptyRc line': AppRows.emptyRc(
+            prefix == 'light' ? Brightness.light : Brightness.dark,
+          ).line,
+        };
+        for (final MapEntry<String, AppTxRowSlotSpec> entry in slots.entries) {
+          final AppTxRowSlotSpec slot = entry.value;
+          final String name = slot.stackRow;
+          final String at = '$pass ${entry.key}';
+          expect(slot.cssClasses, appCls(name), reason: '$at class list');
+          final double size = appPx(pass, name, 'fontSize');
+          expect(slot.fontSizePx, size, reason: '$at font size');
+          expect(
+            slot.fontWeight,
+            appNumber(pass, name, 'fontWeight').toInt(),
+            reason: '$at weight as the measured number',
+          );
+          expect(
+            slot.weight,
+            FontWeight.values[slot.fontWeight ~/ 100 - 1],
+            reason: '$at the name Flutter gives that weight',
+          );
+          final double line = appPx(pass, name, 'lineHeight');
+          expect(
+            slot.heightRatio,
+            line / size,
+            reason: '$at line box over size',
+          );
+          expect(
+            slot.heightRatio,
+            _probeRatio(
+              _probesOf(_theme(measurement, '$prefix-phone')),
+              'body',
+            ),
+            reason:
+                '$at no slot authors a line-height, so its box is the body '
+                'multiplier the §6 probe reads',
+          );
+          final String track = appVal(pass, name, 'letterSpacing');
+          final double px = track == 'normal'
+              ? 0.0
+              : _pxOf(track, '$at tracking');
+          expect(slot.letterSpacingPx, px, reason: '$at measured tracking');
+          expect(
+            slot.letterSpacingEm,
+            closeTo(px / size, 1e-9),
+            reason: '$at the em that produced it',
+          );
+          expect(
+            slot.textColor,
+            appColour(pass, name, 'color'),
+            reason: '$at ink',
+          );
+          final String? token = slot.authoredColorToken;
+          if (token != null) {
+            expect(
+              slot.textColor,
+              appTokenColour(pass, token),
+              reason: '$at paints the token the port names',
+            );
+          }
+          final List<String> words = appTokens(name);
+          final bool trio =
+              <String>['nowrap'].contains(appVal(pass, name, 'whiteSpace')) &&
+              appVal(pass, name, 'textOverflow') == 'ellipsis' &&
+              appVal(pass, name, 'overflowX') == 'hidden' &&
+              appVal(pass, name, 'overflowY') == 'hidden';
+          expect(
+            slot.truncates,
+            trio,
+            reason: '$at truncate is the trio it measures',
+          );
+          expect(
+            slot.truncates,
+            words.contains('truncate'),
+            reason: '$at the class list says what the measurement did',
+          );
+          if (!trio) {
+            expect(
+              appVal(pass, name, 'textOverflow'),
+              'clip',
+              reason: '$at a slot that does not truncate clips',
+            );
+          }
+          expect(
+            slot.flexGrow,
+            appNumber(pass, name, 'flexGrow'),
+            reason: '$at grow',
+          );
+          expect(
+            slot.flexShrink,
+            appNumber(pass, name, 'flexShrink'),
+            reason: '$at shrink',
+          );
+          expect(
+            slot.gapPx,
+            appVal(pass, name, 'columnGap') == 'normal'
+                ? null
+                : appPx(pass, name, 'columnGap'),
+            reason: '$at a gap only exists where the row measures one',
+          );
+          expect(
+            slot.textAlignCss,
+            appProps(pass, name)['textAlign'] as String?,
+            reason: '$at text-align is null unless the row asked for it',
+          );
+          final bool mono = words.contains('mono');
+          expect(
+            slot.fontFamily,
+            appProbeFamily('$prefix-phone', mono ? '.mono' : 'body'),
+            reason: '$at the family of the stack it paints in, from the probe',
+          );
+          final bool tabular = words.contains('money') || mono;
+          expect(
+            slot.tabularNums,
+            tabular,
+            reason:
+                '$at tabular figures come from the cited rule, not a choice',
+          );
+          if (words.contains('money')) {
+            expect(
+              money['font-variant-numeric'],
+              'tabular-nums',
+              reason: '$at cites .money, which is what authors tnum',
+            );
+          }
+          if (mono) {
+            expect(
+              monoRule['font-variant-numeric'],
+              'tabular-nums',
+              reason: '$at cites .mono, which is what authors tnum',
+            );
+          }
+          expect(
+            slot.fontFeatures,
+            tabular
+                ? const <FontFeature>[FontFeature.tabularFigures()]
+                : const <FontFeature>[],
+            reason: '$at a font feature is answered as a font feature',
+          );
+          expect(
+            slot.textStyle,
+            slot.styleAt(slot.fontSizePx),
+            reason: '$at the phone style',
+          );
+          final TextStyle grown = slot.styleAt(20);
+          expect(grown.fontSize, 20.0);
+          expect(
+            grown.letterSpacing,
+            slot.letterSpacingEm * 20,
+            reason: '$at a resized slot re-derives its tracking from the em',
+          );
+          expect(
+            grown.height,
+            slot.heightRatio,
+            reason: '$at the line box travels as a multiplier',
+          );
+          if (name == 'txrow-amount-in' || name == 'txrow-amount-out') {
+            expect(
+              slot.letterSpacingEm,
+              closeTo(
+                double.parse(
+                  RegExp(r'^(-?[\d.]+)em$')
+                      .firstMatch(money['letter-spacing']!)!
+                      .group(1)!,
+                ),
+                1e-12,
+              ),
+              reason: '$at .money authors the tracking the arm measures',
+            );
+          }
+        }
+        expect(
+          slots['pill']!.tabularNums,
+          isTrue,
+          reason:
+              'the pill cites .mono, and .mono is the rule that authors tnum',
+        );
+        expect(
+          pillRule.containsKey('color'),
+          isFalse,
+          reason:
+              'the pill paints the ink it inherits because `.pill` authors '
+              'no colour at rest',
+        );
+        expect(
+          slots['textWrap']!.minWidthZero,
+          isTrue,
+          reason: 'the wrap asked for min-width and measured 0px',
+        );
+        expect(
+          appVal(pass, 'txrow-text-wrap', 'minWidth'),
+          '0px',
+          reason: '$pass: `min-w-0` is the property, and it resolves to 0px',
+        );
+        for (final String role in <String>[
+          'title',
+          'meta',
+          'amountWrap',
+          'amountIn',
+          'amountOut',
+          'pill',
+        ]) {
+          expect(
+            slots[role]!.minWidthZero,
+            isNull,
+            reason:
+                '$role never asked for the property, so the port says nothing',
+          );
+          expect(
+            appHas(pass, slots[role]!.stackRow, 'minWidth'),
+            isFalse,
+            reason: '$role: no min-width was measured either',
+          );
+        }
+      }
+      for (final MapEntry<String, AppTxRowSlotSpec> light
+          in <String, AppTxRowSlotSpec>{
+            'title': AppRows.txRowLight.title,
+            'meta': AppRows.txRowLight.meta,
+            'textWrap': AppRows.txRowLight.textWrap,
+            'amountWrap': AppRows.txRowLight.amountWrap,
+            'amountIn': AppRows.txRowLight.amountIn,
+            'amountOut': AppRows.txRowLight.amountOut,
+            'pill': AppRows.txRowLight.pill,
+          }.entries) {
+        final Map<String, AppTxRowSlotSpec> dark = <String, AppTxRowSlotSpec>{
+          'title': AppRows.txRowDark.title,
+          'meta': AppRows.txRowDark.meta,
+          'textWrap': AppRows.txRowDark.textWrap,
+          'amountWrap': AppRows.txRowDark.amountWrap,
+          'amountIn': AppRows.txRowDark.amountIn,
+          'amountOut': AppRows.txRowDark.amountOut,
+          'pill': AppRows.txRowDark.pill,
+        };
+        expect(
+          appDifferences(appShapeOf(light.value), appShapeOf(dark[light.key]!)),
+          isEmpty,
+          reason: '${light.key}: the two brightnesses differ by ink alone',
+        );
+      }
+    });
+
+    test('the two money arms are one row with two inks; the pill is inert', () {
+      final Map<String, String> pillRule = _cssDecls(
+        cssLines,
+        '.pill {',
+        '.pill',
+      );
+      for (final AppTxRowSpec spec in <AppTxRowSpec>[
+        AppRows.txRowLight,
+        AppRows.txRowDark,
+      ]) {
+        final Map<String, Object?> income = appShapeOf(spec.amountIn);
+        final Map<String, Object?> expense = appShapeOf(spec.amountOut);
+        expect(
+          appDifferences(income, expense),
+          <String>['authoredColorToken', 'stackRow'],
+          reason:
+              'one element, two inks: the class list, the size, the weight, '
+              'the tracking and the gap are shared, and only the token moves',
+        );
+        expect(
+          spec.amountIn.authoredSrc,
+          spec.amountOut.authoredSrc,
+          reason: 'both arms cite the class and the style, at 38 and 39',
+        );
+        for (final MapEntry<String, AppTxRowSlotSpec> arm
+            in <String, AppTxRowSlotSpec>{
+              'in': spec.amountIn,
+              'out': spec.amountOut,
+            }.entries) {
+          final RegExpMatch? style = RegExp(r'^color: var\((--\w+)\)$')
+              .firstMatch(appStyleText(arm.value.stackRow));
+          expect(
+            style,
+            isNotNull,
+            reason:
+                '${arm.key}: the style part writes one colour and nothing else',
+          );
+          expect(
+            arm.value.authoredColorToken,
+            style!.group(1),
+            reason:
+                '${arm.key}: the token the port names is the token the style spells',
+          );
+        }
+      }
+      for (final String pass in appPasses) {
+        final String prefix = pass.split('-').first;
+        final AppTxRowSpec spec = AppRows.txRow(
+          prefix == 'light' ? Brightness.light : Brightness.dark,
+        );
+        for (final MapEntry<String, String> arm in <String, String>{
+          'txrow-amount-in': '--success',
+          'txrow-amount-out': '--danger',
+        }.entries) {
+          expect(
+            appColour(pass, arm.key, 'color'),
+            appTokenColour(pass, arm.value),
+            reason: '$pass ${arm.key}: the arm paints ${arm.value}',
+          );
+          expect(
+            appStyleText(arm.key),
+            'color: var(${arm.value})',
+            reason:
+                '$pass ${arm.key}: the cited style still spells it that way',
+          );
+        }
+        expect(
+          spec.amountIn.textColor,
+          appTokenColour(pass, '--success'),
+          reason: '$pass: the income arm at this brightness',
+        );
+        expect(
+          spec.amountOut.textColor,
+          appTokenColour(pass, '--danger'),
+          reason: '$pass: the expense arm at this brightness',
+        );
+        // The trailing pill: `hidden sm:inline-flex` says one thing, an
+        // unlayered `.pill` display says another, and the measurement is on the
+        // side of the sheet — so the same class list paints at both viewports.
+        final List<String> words = appTokens('txrow-trailing-pill');
+        expect(
+          words,
+          containsAll(<String>['hidden', 'sm:inline-flex']),
+          reason: 'the class list really does try to hide it',
+        );
+        expect(
+          spec.pill.displayCss,
+          appVal(pass, 'txrow-trailing-pill', 'display'),
+          reason:
+              '$pass: the port carries what was measured, not what was written',
+        );
+        expect(
+          spec.pill.displayCss,
+          pillRule['display'],
+          reason:
+              'and that is `.pill`’s own unlayered display, which outranks the '
+              'utility, so the pill is inert on both viewports',
+        );
+      }
+      expect(
+        AppRows.txRowLight.pill.fontSizePx,
+        isNot(_pxOf(pillRule['font-size']!, '.pill font-size')),
+        reason:
+            'the pill is measured smaller than `.pill` authors, because '
+            '`!text-[9px]` is an important utility over the class',
+      );
+      expect(
+        AppRows.txRowLight.pill.fontSizePx,
+        _pxOf(
+          appVal('light-phone', 'txrow-trailing-pill', 'fontSize'),
+          'pill measured size',
+        ),
+        reason:
+            'and what it carries is the measured 9px, not the authored 12px',
+      );
+      expect(
+        AppRows.txRowLight.pill.gapPx,
+        _pxOf(pillRule['gap']!, '.pill gap'),
+        reason: 'the gap comes from `.pill` and no utility touches it',
+      );
+      expect(
+        AppRows.txRowLight.pill.fontWeight,
+        int.parse(pillRule['font-weight']!),
+        reason: 'and so does the weight',
+      );
+    });
+
+    test('the day head: an authored recipe, a blur and a label from .eyebrow', () {
+      final Map<String, String> dayRule = _cssDecls(
+        cssLines,
+        '.day-head {',
+        '.day-head',
+      );
+      final Map<String, String> eyebrowRule = _cssDecls(
+        cssLines,
+        '.eyebrow {',
+        '.eyebrow',
+      );
+      final AppDayHeadSpec light = AppRows.dayHeadLight;
+      final AppDayHeadSpec dark = AppRows.dayHeadDark;
+      expect(light.cssClasses, appCls('day-head-label'));
+      expect(light.stackRow, 'day-head-label');
+      expect(light.redundantSizeOverride, isTrue);
+      expect(
+        appTokens('day-head-label'),
+        contains('!text-[10px]'),
+        reason: 'the class list really does restate the size',
+      );
+      expect(
+        _pxOf(eyebrowRule['font-size']!, '.eyebrow font-size'),
+        light.fontSizePx,
+        reason:
+            'and the restatement is inert because the class already says it',
+      );
+      final List<double> pad = appPad('light-phone', 'day-head-label');
+      expect(light.paddingVerticalPx, pad[0]);
+      expect(light.paddingHorizontalPx, pad[1]);
+      expect(
+        light.padding,
+        EdgeInsets.symmetric(vertical: pad[0], horizontal: pad[1]),
+      );
+      final List<String> authoredPad = dayRule['padding']!.split(' ');
+      expect(
+        authoredPad.length,
+        2,
+        reason: '`.day-head` authors one vertical/horizontal pair',
+      );
+      expect(_pxOf(authoredPad[0], '.day-head padding top'), pad[0]);
+      expect(
+        _pxOf(authoredPad[1], '.day-head padding left'),
+        pad[1],
+        reason: 'what the label measured is what the rule authored',
+      );
+      expect(
+        light.blurPx,
+        double.parse(
+          RegExp(r'^blur\(([\d.]+)px\)$')
+              .firstMatch(dayRule['backdrop-filter']!)!
+              .group(1)!,
+        ),
+        reason: 'the blur is the authored backdrop-filter, in CSS radius units',
+      );
+      expect(
+        light.blurSigmaPx,
+        light.blurPx / 2,
+        reason: 'ruling D-U8: a CSS blur radius reaches Flutter as px / 2',
+      );
+      final RegExpMatch? mix = RegExp(
+        r'^color-mix\(in srgb, var\((--[\w-]+)\) ([\d.]+)%, transparent\)$',
+      ).firstMatch(dayRule['background']!.replaceAll(RegExp(r'\s+'), ' '));
+      expect(
+        mix,
+        isNotNull,
+        reason:
+            'the header fill is a recipe — a named token at a named percentage '
+            'over transparent — not a token',
+      );
+      expect(light.fillToken, mix!.group(1));
+      expect(light.fillMixPercent, double.parse(mix.group(2)!));
+      for (final MapEntry<String, AppDayHeadSpec> head
+          in <String, AppDayHeadSpec>{'light': light, 'dark': dark}.entries) {
+        expect(
+          head.value.fillColor,
+          appColour('${head.key}-phone', 'day-head-label', 'backgroundColor'),
+          reason: '${head.key} header fill',
+        );
+        final List<int> base = appTokenChannels(
+          '${head.key}-phone',
+          head.value.fillToken,
+        );
+        expect(
+          head.value.fillColor,
+          Color.fromRGBO(
+            base[0],
+            base[1],
+            base[2],
+            head.value.fillMixPercent / 100,
+          ),
+          reason:
+              '${head.key}: the srgb mix moves the alpha and no channel, so '
+              'the painted box is the token itself at ${head.value.fillMixPercent}%',
+        );
+        expect(
+          head.value.zIndexCss,
+          dayRule['z-index'],
+          reason: '${head.key}: z-index is what the rule authors',
+        );
+        expect(
+          appVal('${head.key}-phone', 'day-head-label', 'position'),
+          'sticky',
+          reason: '${head.key}: the header is sticky in the measurement too',
+        );
+        expect(
+          head.value.textColor,
+          appColour('${head.key}-phone', 'day-head-label', 'color'),
+          reason: '${head.key} header ink',
+        );
+        expect(
+          head.value.textColor,
+          _probeColour(
+            _probe(
+              _probesOf(_theme(measurement, '${head.key}-phone')),
+              '.eyebrow',
+              '${head.key}-phone',
+            ),
+            'color',
+            '.eyebrow',
+          ),
+          reason: '${head.key}: and the same ink the .eyebrow probe painted',
+        );
+        expect(
+          head.value.fontWeight,
+          int.parse(eyebrowRule['font-weight']!),
+          reason: '${head.key} weight comes from .eyebrow',
+        );
+        expect(
+          head.value.weight,
+          FontWeight.bold,
+          reason: '${head.key}: 700 is the weight Flutter names',
+        );
+        expect(
+          head.value.letterSpacingEm,
+          double.parse(
+            RegExp(r'^([\d.]+)em$')
+                .firstMatch(eyebrowRule['letter-spacing']!)!
+                .group(1)!,
+          ),
+          reason: '${head.key}: the tracking is .eyebrow’s authored em',
+        );
+        expect(
+          head.value.letterSpacingPx,
+          closeTo(head.value.letterSpacingEm * head.value.fontSizePx, 1e-9),
+          reason: '${head.key}: which resolves to the measured px',
+        );
+        expect(
+          head.value.heightRatio,
+          _probeRatio(
+            _probesOf(_theme(measurement, '${head.key}-phone')),
+            'body',
+          ),
+          reason: '${head.key}: .eyebrow authors no line-height of its own',
+        );
+        expect(
+          head.value.uppercase,
+          eyebrowRule['text-transform'] == 'uppercase',
+          reason: '${head.key}: a deviation the port records, not hides',
+        );
+        expect(
+          appVal('${head.key}-phone', 'day-head-label', 'textTransform'),
+          'uppercase',
+          reason: '${head.key}: and the header really measured it',
+        );
+        expect(head.value.textStyle, head.value.styleAt(head.value.fontSizePx));
+        expect(head.value.styleAt(12).letterSpacing, closeTo(0.12 * 12, 1e-9));
+      }
+      expect(
+        appDifferences(appDayShape(light), appDayShape(dark)),
+        <String>['fillColor', 'textColor'],
+        reason:
+            'the two brightnesses move the fill and the ink — the recipe '
+            'percentage, the blur, the inset and the type do not',
+      );
+    });
+
+    List<String> appChanged(String pass, String name) {
+      final Map<String, dynamic> row =
+          (_theme(measurement, pass)['stacks']! as Map<String, dynamic>)[name]!
+              as Map<String, dynamic>;
+      return (row['changed']! as List<dynamic>).cast<String>();
+    }
+
+    /// A rail's padding as the one side it reserves: `0px 4px 0px 0px` is the
+    /// scrollbar gutter `pr-1` asks for, and nothing else.
+    double appPadRight(String pass, String name) {
+      final List<double> sides = appVal(pass, name, 'padding')
+          .split(' ')
+          .map((String piece) => _pxOf(piece, '$pass $name padding'))
+          .toList();
+      final double top = sides[0];
+      final double right = sides.length > 1 ? sides[1] : top;
+      final double bottom = sides.length > 2 ? sides[2] : top;
+      final double left = sides.length > 3 ? sides[3] : right;
+      if (top != 0 || bottom != 0 || left != 0) {
+        throw StateError(
+          '$pass $name: padding "${appVal(pass, name, 'padding')}" carries an '
+          'inset this port does not have a field for',
+        );
+      }
+      return right;
+    }
+
+    /// `max-height`, which is `none` on a rail the viewport leaves unbounded.
+    double? appMaxHeight(String pass, String name) =>
+        appVal(pass, name, 'maxHeight') == 'none'
+        ? null
+        : appPx(pass, name, 'maxHeight');
+
+    test('the divider is the pair divide-y paints, on two siblings', () {
+      expect(
+        appRow('ledger-row-middle')['wrap'],
+        appCls('ledger-divides'),
+        reason:
+            'the divided child was measured inside the parent the dashboard '
+            'writes, which is the only way a divide-y can be seen at all',
+      );
+      expect(appRow('ledger-row-last')['wrap'], appCls('ledger-divides'));
+      expect(appCls('ledger-row-middle'), '[&:last-child]:border-b-0');
+      expect(appCls('ledger-row-last'), '[&:last-child]:border-b-0');
+      for (final String pass in appPasses) {
+        final String prefix = pass.split('-').first;
+        final AppLedgerDividerSpec spec = AppRows.divider(
+          prefix == 'light' ? Brightness.light : Brightness.dark,
+        );
+        expect(
+          spec.widthPx,
+          appPx(pass, 'ledger-row-middle', 'borderBottomWidth'),
+          reason: '$pass: the divided child keeps the line the spec carries',
+        );
+        expect(
+          spec.widthPx,
+          1.0,
+          reason: '$pass: `divide-y` authors a hairline',
+        );
+        expect(
+          spec.color,
+          appColour(pass, 'ledger-row-middle', 'borderBottomColor'),
+          reason: '$pass: the line is the colour the divided child painted',
+        );
+        expect(
+          spec.color,
+          appTokenColour(pass, spec.token),
+          reason: '$pass: and it is the token the spec names',
+        );
+        expect(spec.token, '--line');
+        expect(
+          appChanged(pass, 'ledger-row-last'),
+          isEmpty,
+          reason:
+              '$pass: `[&:last-child]:border-b-0` takes the line back and '
+              'moves nothing else in that child — a second property would mean '
+              'the recipe row is describing a different element',
+        );
+        expect(
+          appPx(pass, 'ledger-row-last', 'borderBottomWidth'),
+          0.0,
+          reason: '$pass: the last child measures no bottom border',
+        );
+        expect(
+          appColour(pass, 'ledger-divides', 'borderBottomColor'),
+          appColour(pass, 'ledger-divides', 'color'),
+          reason:
+              '$pass: the parent border is `currentColor`, so the recipe row '
+              'resolves to the ink it painted and not to a token of its own',
+        );
+        expect(
+          appPx(pass, 'ledger-divides', 'borderBottomWidth'),
+          0.0,
+          reason: '$pass: the divided parent carries no line of its own',
+        );
+      }
+      expect(
+        AppRows.dividerLight.widthPx,
+        AppRows.dividerDark.widthPx,
+        reason: 'the hairline is not a brightness fact; only its colour is',
+      );
+      expect(
+        appDifferences(
+          <String, Object?>{
+            'width': AppRows.dividerLight.widthPx,
+            'token': AppRows.dividerLight.token,
+          },
+          <String, Object?>{
+            'width': AppRows.dividerDark.widthPx,
+            'token': AppRows.dividerDark.token,
+          },
+        ),
+        isEmpty,
+      );
+    });
+
+    test('the two empty states, and the frame Flutter cannot dash', () {
+      expect(
+        appTokens('ledger-empty-rc'),
+        contains('empty'),
+        reason:
+            'the Reports Centre box cites the class the sheet never declares',
+      );
+      expect(
+        cssLines.where((String line) => RegExp(r'\.empty\b').hasMatch(line)),
+        isEmpty,
+        reason: 'and `empty` is still declared nowhere in src/index.css',
+      );
+      for (final String pass in appPasses) {
+        final String prefix = pass.split('-').first;
+        final Brightness brightness = prefix == 'light'
+            ? Brightness.light
+            : Brightness.dark;
+        final AppLedgerEmptySpec empty = AppRows.empty(brightness);
+        expect(
+          empty.cssClasses,
+          appCls('ledger-empty'),
+          reason: '$pass empty class list',
+        );
+        expect(empty.stackRow, 'ledger-empty');
+        expect(empty.textAlignCss, appVal(pass, 'ledger-empty', 'textAlign'));
+        expect(
+          empty.radiusPx,
+          appPx(pass, 'ledger-empty', 'borderRadius'),
+          reason: '$pass: the measured corner',
+        );
+        expect(
+          empty.radiusPx,
+          appTokenPx(pass, '--r-sm'),
+          reason:
+              '$pass: and it is --r-sm at that pass, the same token the row uses',
+        );
+        expect(empty.radius, BorderRadius.circular(empty.radiusPx));
+        final List<double> pad = appPad(pass, 'ledger-empty');
+        expect(empty.paddingVerticalPx, pad[0], reason: '$pass: py-10');
+        expect(
+          pad[1],
+          0.0,
+          reason: '$pass: the empty box has no horizontal inset',
+        );
+        expect(empty.padding, EdgeInsets.symmetric(vertical: pad[0]));
+        expect(
+          empty.borderWidthPx,
+          appPx(pass, 'ledger-empty', 'borderTopWidth'),
+          reason: '$pass: `border` is 1px',
+        );
+        for (final String side in <String>[
+          'borderTopWidth',
+          'borderRightWidth',
+          'borderBottomWidth',
+          'borderLeftWidth',
+        ]) {
+          expect(
+            appPx(pass, 'ledger-empty', side),
+            empty.borderWidthPx,
+            reason: '$pass: $side — one width on all four sides',
+          );
+        }
+        expect(
+          empty.borderColor,
+          appColour(pass, 'ledger-empty', 'borderTopColor'),
+          reason: '$pass: the frame colour the box painted',
+        );
+        expect(
+          empty.borderColor,
+          appTokenColour(pass, '--line'),
+          reason: '$pass: and the token `border-[var(--line)]` names',
+        );
+        expect(
+          empty.fillColor,
+          appColour(pass, 'ledger-empty', 'backgroundColor'),
+          reason: '$pass: the fill the box painted',
+        );
+        expect(
+          empty.fillColor,
+          appTokenColour(pass, '--surface-2'),
+          reason: '$pass: and the token `bg-[var(--surface-2)]` names',
+        );
+        expect(
+          appTokens('ledger-empty'),
+          contains('border-dashed'),
+          reason: 'the authored frame is dashed',
+        );
+        expect(
+          appVal(pass, 'ledger-empty', 'borderTopStyle'),
+          'dashed',
+          reason: 'and the measurement agrees',
+        );
+        expect(
+          empty.border.top.style,
+          BorderStyle.solid,
+          reason:
+              'Flutter `Border` has no dash pattern, so the port paints a '
+              'solid hairline of the same width and colour: a deviation it '
+              'records rather than hides',
+        );
+        expect(
+          empty.border,
+          Border.all(color: empty.borderColor, width: empty.borderWidthPx),
+        );
+        // The Reports Centre box, which the undeclared class leaves bare.
+        final AppLedgerEmptyRcSpec rc = AppRows.emptyRc(brightness);
+        expect(rc.cssClasses, appCls('ledger-empty-rc'));
+        expect(
+          appColour(pass, 'ledger-empty-rc', 'backgroundColor').a,
+          0,
+          reason:
+              '$pass: `empty` paints nothing because nothing declares it — '
+              'the box measures a transparent fill',
+        );
+        expect(
+          appPx(pass, 'ledger-empty-rc', 'borderTopWidth'),
+          0.0,
+          reason: '$pass: and no frame either',
+        );
+        final List<double> rcPad = appPad(pass, 'ledger-empty-rc');
+        expect(rc.paddingVerticalPx, rcPad[0], reason: '$pass: rc py-10');
+        expect(rcPad[1], 0.0);
+        expect(
+          rc.gapPx,
+          appPx(pass, 'ledger-empty-rc', 'rowGap'),
+          reason: '$pass: gap-2',
+        );
+        expect(
+          appPx(pass, 'ledger-empty-rc', 'columnGap'),
+          rc.gapPx,
+          reason: '$pass: one gap on both axes',
+        );
+        expect(
+          appVal(pass, 'ledger-empty-rc', 'flexDirection'),
+          'column',
+          reason: '$pass: the box is the column `flex-col` authors',
+        );
+        expect(
+          appVal(pass, 'ledger-empty-rc', 'alignItems'),
+          'center',
+          reason:
+              '$pass: centred by the class list, not by the port choosing it',
+        );
+      }
+      for (final String prefix in <String>['light', 'dark']) {
+        final AppLedgerEmptyRcSpec rc = AppRows.emptyRc(
+          prefix == 'light' ? Brightness.light : Brightness.dark,
+        );
+        expect(
+          rc.line.textColor,
+          appTokenColour('$prefix-phone', rc.line.authoredColorToken!),
+          reason:
+              '$prefix: the line paints the token it names, at its brightness',
+        );
+        expect(
+          rc.line.fontFamily,
+          appProbeFamily('$prefix-phone', '.mono'),
+          reason: '$prefix: and it is `.mono`’s family, which the class cites',
+        );
+      }
+    });
+
+    test('the rails: the one pair the two viewports genuinely disagree on', () {
+      void rail(AppLedgerRailSpec spec, String rowName) {
+        expect(spec.stackRow, rowName);
+        expect(spec.cssClasses, appCls(rowName));
+        for (final String prefix in <String>['light', 'dark']) {
+          final String wide = '$prefix-desktop';
+          final String narrow = '$prefix-phone';
+          expect(
+            spec.wideMaxHeightPx,
+            appMaxHeight(wide, rowName),
+            reason: '$wide: the ceiling the rail is bounded by',
+          );
+          expect(
+            spec.narrowMaxHeightPx,
+            appMaxHeight(narrow, rowName),
+            reason: '$narrow: and the ceiling below the breakpoint',
+          );
+          expect(
+            spec.wideOverflowYCss,
+            appVal(wide, rowName, 'overflowY'),
+            reason: '$wide: the axis the class turns on',
+          );
+          expect(
+            spec.narrowOverflowYCss,
+            appVal(narrow, rowName, 'overflowY'),
+            reason: '$narrow: off again',
+          );
+          expect(
+            spec.wideOverflowXCss,
+            appVal(wide, rowName, 'overflowX'),
+            reason: '$wide: the other axis, which nobody authored',
+          );
+          expect(
+            spec.narrowOverflowXCss,
+            appVal(narrow, rowName, 'overflowX'),
+            reason: '$narrow: back to what the sheet says',
+          );
+          expect(
+            spec.widePaddingRightPx,
+            appPadRight(wide, rowName),
+            reason: '$wide: a one-sided gutter, nothing on the other three',
+          );
+          expect(
+            spec.narrowPaddingRightPx,
+            appPadRight(narrow, rowName),
+            reason: '$narrow: and the same question below the breakpoint',
+          );
+          final String other = prefix == 'light' ? 'dark' : 'light';
+          expect(
+            appMaxHeight(wide, rowName),
+            appMaxHeight('$other-desktop', rowName),
+            reason: 'a rail is geometry, so the theme cannot move it',
+          );
+          expect(
+            appMaxHeight(narrow, rowName),
+            appMaxHeight('$other-phone', rowName),
+          );
+          expect(
+            appVal(wide, rowName, 'overflowY'),
+            appVal('$other-desktop', rowName, 'overflowY'),
+          );
+          expect(
+            appPadRight(wide, rowName),
+            appPadRight('$other-desktop', rowName),
+          );
+        }
+        expect(
+          appTokens(rowName)
+              .any((String token) => RegExp(r'overflow-x').hasMatch(token)),
+          isFalse,
+          reason:
+              '${spec.cssClasses}: no overflow-x class is authored, yet the '
+              'desktop rail measures `auto` there — CSS turns a `visible` '
+              'sitting next to a scrolled axis into `auto`, and the port '
+              'carries what the browser settled on',
+        );
+      }
+
+      rail(AppRows.ledgerRail, 'ledger-scroll');
+      rail(AppRows.reportsRail, 'ledger-list-scroll');
+
+      for (final String pass in <String>['light-phone', 'dark-phone']) {
+        expect(
+          appChanged(pass, 'ledger-scroll'),
+          isEmpty,
+          reason:
+              '$pass: every one of the dashboard rail’s readings is the '
+              'default a plain div gets, because all four of its classes '
+              'hide behind `lg:`',
+        );
+        expect(
+          appChanged(pass, 'ledger-list-scroll'),
+          isNotEmpty,
+          reason:
+              '$pass: the Reports rail is ungated, so it still scrolls on a '
+              'phone',
+        );
+      }
+
+      final List<String> ledgerCls = appTokens('ledger-scroll');
+      final List<String> reportsCls = appTokens('ledger-list-scroll');
+      final RegExpMatch? ledgerRem =
+          RegExp(r'^lg:max-h-\[(\d+(?:\.\d+)?)rem\]$').firstMatch(
+            ledgerCls.singleWhere(
+              (String token) => token.startsWith('lg:max-h-'),
+            ),
+          );
+      if (ledgerRem == null) {
+        throw StateError(
+          'ledger-scroll: no lg:max-h-[_]rem class left to derive the '
+          'ceiling from',
+        );
+      }
+      expect(
+        double.parse(ledgerRem.group(1)!) * _remPx,
+        AppRows.ledgerRail.wideMaxHeightPx,
+        reason: 'lg:max-h-[34rem] is 34 root font sizes, not a chosen number',
+      );
+      expect(
+        ledgerCls.contains('lg:overflow-y-auto'),
+        isTrue,
+        reason:
+            'and the scroll is gated by the same prefix, which is why the '
+            'narrow readings disagree with the wide ones',
+      );
+      expect(
+        AppRows.ledgerRail.narrowMaxHeightPx,
+        isNull,
+        reason: 'below lg the dashboard list is unbounded',
+      );
+      final RegExpMatch? reportsPx = RegExp(r'^max-h-\[(\d+(?:\.\d+)?)px\]$')
+          .firstMatch(
+            reportsCls.singleWhere(
+              (String token) => token.startsWith('max-h-'),
+            ),
+          );
+      if (reportsPx == null) {
+        throw StateError(
+          'ledger-list-scroll: no max-h-[_]px class left to read the '
+          'ceiling from',
+        );
+      }
+      expect(
+        double.parse(reportsPx.group(1)!),
+        AppRows.reportsRail.wideMaxHeightPx,
+        reason:
+            'the Reports ceiling is the px the class says, at every '
+            'viewport because no variant gates it',
+      );
+      expect(
+        AppRows.reportsRail.narrowMaxHeightPx,
+        AppRows.reportsRail.wideMaxHeightPx,
+      );
+
+      final RegExpMatch? ledgerGutter = RegExp(r'^lg:pr-(\d+(?:\.\d+)?)$')
+          .firstMatch(
+            ledgerCls.singleWhere((String token) => token.startsWith('lg:pr-')),
+          );
+      final RegExpMatch? reportsGutter = RegExp(r'^pr-(\d+(?:\.\d+)?)$')
+          .firstMatch(
+            reportsCls.singleWhere((String token) => token.startsWith('pr-')),
+          );
+      if (ledgerGutter == null || reportsGutter == null) {
+        throw StateError('a rail no longer names its gutter class');
+      }
+      for (final String pass in appPasses) {
+        final double spacing = appTokenPx(pass, '--spacing');
+        expect(
+          double.parse(ledgerGutter.group(1)!) * spacing,
+          AppRows.ledgerRail.widePaddingRightPx,
+          reason: 'lg:pr-1 is one × --spacing, which is 4px at $pass',
+        );
+        expect(
+          double.parse(reportsGutter.group(1)!) * spacing,
+          AppRows.reportsRail.widePaddingRightPx,
+          reason: 'pr-1 is one × --spacing at $pass',
+        );
+        expect(
+          AppRows.reportsRail.narrowPaddingRightPx,
+          AppRows.reportsRail.widePaddingRightPx,
+          reason: 'and ungated, so the same on a phone',
+        );
+      }
+      expect(
+        AppRows.ledgerRail.narrowPaddingRightPx,
+        0,
+        reason: 'the dashboard gutter hides behind lg: too',
+      );
+    });
+
+    /// An authored non-CSS record — a fact the probe tier cannot see because no
+    /// stylesheet declares it.
+    Map<String, dynamic> appRecord(String name) {
+      for (final dynamic e in appStacks['authoredNonCss']! as List<dynamic>) {
+        final Map<String, dynamic> rec = e as Map<String, dynamic>;
+        if (rec['name'] == name) return rec;
+      }
+      throw StateError('ui-tokens.json carries no authored record "$name"');
+    }
+
+    /// The one frozen line of a record matching `wants`, with the line number it
+    /// was read from. Matching on the text and re-reading the file is the point:
+    /// a line number typed into this test could drift, a line number the record
+    /// carries cannot.
+    ({int line, String text}) appRecordLine(String record, RegExp wants) {
+      final List<Map<String, dynamic>> found =
+          (appRecord(record)['parts']! as List<dynamic>)
+              .cast<Map<String, dynamic>>()
+              .where(
+                (Map<String, dynamic> p) =>
+                    wants.hasMatch(p['text']! as String),
+              )
+              .toList();
+      if (found.length != 1) {
+        throw StateError(
+          '$record: /$wants/ matched ${found.length} parts, not the one this '
+          'test reads',
+        );
+      }
+      final Map<String, dynamic> part = found.single;
+      return (
+        line: (part['line']! as num).toInt(),
+        text: part['text']! as String,
+      );
+    }
+
+    Map<String, dynamic> appRowPart(String name) =>
+        (appRow(name)['parts']! as List<dynamic>)
+            .whereType<Map<String, dynamic>>()
+            .firstWhere((Map<String, dynamic> p) => p['style'] != null);
+
+    test('the chip sizes: one ternary pair, three witnesses', () {
+      const String tables = 'cat-chip-icon-and-size-tables';
+      expect(appRecord(tables)['src'], appChipSrc);
+      final ({int line, String text}) dimsAt = appRecordLine(
+        tables,
+        RegExp(r'^const dims = '),
+      );
+      final ({int line, String text}) glyphAt = appRecordLine(
+        tables,
+        RegExp(r'^const glyph = '),
+      );
+      expect(
+        appLineAt(appChipSrc, dimsAt.line).trim(),
+        dimsAt.text,
+        reason:
+            'the frozen text is still the text at the line the record names — '
+            'if CategoryChip moved, this is where the port learns it',
+      );
+      expect(appLineAt(appChipSrc, glyphAt.line).trim(), glyphAt.text);
+
+      final Map<String, double> dims = appTernary(
+        appChipSrc,
+        dimsAt.line,
+        'dims',
+      );
+      final Map<String, double> glyph = appTernary(
+        appChipSrc,
+        glyphAt.line,
+        'glyph',
+      );
+      expect(dims.keys.toSet(), <String>{'xs', 'sm', 'lg', 'md'});
+      expect(glyph.keys.toSet(), <String>{'xs', 'sm', 'lg', 'md'});
+
+      for (final AppChipSize size in AppChipSize.values) {
+        expect(
+          size.sidePx,
+          dims[size.name],
+          reason:
+              '${size.name}: the square is the arm of the dims ternary that '
+              'names it, not a number this file retypes',
+        );
+        expect(
+          size.glyphPx,
+          glyph[size.name],
+          reason: '${size.name}: and the glyph',
+        );
+        final String rowName = size == AppChipSize.md
+            ? 'cat-chip-md-lavender'
+            : 'cat-chip-${size.name}';
+        final Map<String, dynamic> part = appRowPart(rowName);
+        expect(
+          (part['dims']! as num).toDouble(),
+          size.sidePx,
+          reason: '$rowName: the row recorded the same arm',
+        );
+        expect((part['glyph']! as num).toDouble(), size.glyphPx);
+        expect(
+          (part['dimsLine']! as num).toInt(),
+          dimsAt.line,
+          reason: '$rowName: and read it from the same line',
+        );
+        expect((part['glyphLine']! as num).toInt(), glyphAt.line);
+        if (size == AppChipSize.md) {
+          expect(
+            part.containsKey('size'),
+            isFalse,
+            reason:
+                '$rowName: md is the component’s default, so nothing selects '
+                'it and the row carries no size key',
+          );
+        } else {
+          expect(
+            part['size'],
+            size.name,
+            reason: '$rowName: sampled by asking for this arm',
+          );
+        }
+        for (final String pass in appPasses) {
+          expect(
+            appPx(pass, rowName, 'width'),
+            size.sidePx,
+            reason: '$pass $rowName: the box Chrome painted is the arm',
+          );
+          expect(
+            appPx(pass, rowName, 'height'),
+            size.sidePx,
+            reason: '$pass $rowName: and it is square',
+          );
+        }
+      }
+
+      for (final AppChipSize size in AppChipSize.values) {
+        expect(
+          AppChipSize.sizeFor(size.name),
+          size,
+          reason: '${size.name}: the class name reaches the arm it names',
+        );
+      }
+      expect(
+        AppChipSize.sizeFor('xl'),
+        AppChipSize.md,
+        reason:
+            'and a size the ternary does not name falls through to its default '
+            'arm, which is md — the port’s switch mirrors the source’s, '
+            'including the fall-through',
+      );
+      expect(
+        appRowPart('cat-chip-md-lavender')['style'],
+        contains('width: 40px; height: 40px'),
+        reason:
+            'the style string the record froze is the one the inline style '
+            'built from the default arm',
+      );
+    });
+
+    /// The one line of a web source matching `wants`. Scanning for it rather than
+    /// trusting a line number typed here is the point: a component that moved
+    /// becomes a failure with a name, not a wrong value read in peace.
+    ({int line, String text}) appSourceLine(String src, RegExp wants) {
+      final List<String> lines = appLinesOf(src);
+      final List<int> hits = <int>[];
+      for (int i = 0; i < lines.length; i++) {
+        if (wants.hasMatch(lines[i])) hits.add(i + 1);
+      }
+      if (hits.length != 1) {
+        throw StateError(
+          '$src: /$wants/ matched ${hits.length} lines, not the one this test '
+          'reads',
+        );
+      }
+      return (line: hits.single, text: lines[hits.single - 1]);
+    }
+
+    test('the tone tables: the union, the cycle and the hash, off the component', () {
+      final ({int line, String text}) unionAt = appSourceLine(
+        appChipSrc,
+        RegExp(r'^export type ChipTone = '),
+      );
+      final List<String> declared = RegExp(r"'([a-z]+)'")
+          .allMatches(unionAt.text)
+          .map((RegExpMatch m) => m.group(1)!)
+          .toList();
+      expect(
+        AppChipTone.values.map((AppChipTone t) => t.name).toList(),
+        declared,
+        reason: 'the enum is the union, in the order the union declares it',
+      );
+      expect(declared.toSet().length, declared.length);
+
+      final ({int line, String text}) toneBgAt = appSourceLine(
+        appChipSrc,
+        RegExp(r'^const TONE_BG: Record<ChipTone, string> = \{$'),
+      );
+      final List<String> chipLines = appLinesOf(appChipSrc);
+      final Map<String, ({int line, String token})> toneBg =
+          <String, ({int line, String token})>{};
+      for (int i = toneBgAt.line; i < chipLines.length; i++) {
+        final String entry = chipLines[i];
+        if (entry == '};') break;
+        final RegExpMatch? m = RegExp(r"^  ([a-z]+): 'var\((--[a-z0-9-]+)\)',$")
+            .firstMatch(entry);
+        if (m == null) {
+          throw StateError(
+            'TONE_BG has an arm this test cannot parse: "$entry"',
+          );
+        }
+        toneBg[m.group(1)!] = (line: i + 1, token: m.group(2)!);
+      }
+      expect(
+        toneBg.keys.toList(),
+        declared,
+        reason: 'and TONE_BG covers exactly the union, in the same order',
+      );
+      for (final AppChipTone tone in AppChipTone.values) {
+        expect(
+          tone.toneToken,
+          toneBg[tone.name]!.token,
+          reason: '${tone.name}: the token the enum carries is the table’s',
+        );
+        final String rowName = 'cat-chip-md-${tone.name}';
+        final Map<String, dynamic> part = appRowPart(rowName);
+        final RegExpMatch? varAt = RegExp(r'^var\((--[a-z0-9-]+)\)$')
+            .firstMatch(part['toneVar']! as String);
+        if (varAt == null) {
+          throw StateError('$rowName: toneVar is no longer one var()');
+        }
+        expect(
+          varAt.group(1)!,
+          tone.toneToken,
+          reason:
+              '$rowName: the token the row measured is the token the table '
+              'names for it',
+        );
+        expect(
+          (part['toneVarLine']! as num).toInt(),
+          toneBg[tone.name]!.line,
+          reason: '$rowName: read from the line TONE_BG holds it on',
+        );
+        expect(
+          part['style'],
+          contains(
+            'color-mix(in oklab, var(${tone.toneToken}) 55%, var(--surface))',
+          ),
+          reason: '$rowName: and the inline style is that token, mixed',
+        );
+      }
+
+      const String choice = 'cat-chip-tone-choice';
+      final ({int line, String text}) cycleAt = appRecordLine(
+        choice,
+        RegExp(r'^const TONE_CYCLE: ChipTone\[\] = '),
+      );
+      final List<String> cycleNames = RegExp(r"'([a-z]+)'")
+          .allMatches(cycleAt.text)
+          .map((RegExpMatch m) => m.group(1)!)
+          .toList();
+      expect(
+        AppCategoryChips.toneCycle.map((AppChipTone t) => t.name).toList(),
+        cycleNames,
+        reason: 'TONE_CYCLE is the list a category hashes into, in its order',
+      );
+      expect(
+        cycleNames.toSet().length,
+        cycleNames.length,
+        reason: 'no tone repeats, so the modulo is a fair cycle',
+      );
+      expect(
+        cycleNames.toSet(),
+        declared.toSet().difference(<String>{'ink'}),
+        reason:
+            'exactly the pastels cycle; the neutral ink is reachable only '
+            'when a caller names it, which is why it is in the union and not '
+            'in the list',
+      );
+
+      final ({int line, String text}) stepAt = appRecordLine(
+        choice,
+        RegExp(r'h = \(h \* \d+ \+ s\.charCodeAt\(i\)\) >>> \d+;'),
+      );
+      final RegExpMatch step = RegExp(
+        r'h = \(h \* (\d+) \+ s\.charCodeAt\(i\)\) >>> (\d+);',
+      ).firstMatch(stepAt.text)!;
+      expect(
+        int.parse(step.group(1)!),
+        AppCategoryChips.toneHashMultiplier,
+        reason: 'the multiplier is the one the loop writes',
+      );
+      expect(step.group(2), '0', reason: 'and the unsigned step is `>>> 0`');
+      expect(
+        AppCategoryChips.toneHashMask,
+        (1 << 32) - 1,
+        reason:
+            'which is a mod-2^32, and a 64-bit Dart answers it with a mask, '
+            'not with a second best',
+      );
+      final ({int line, String text}) seedAt = appRecordLine(
+        choice,
+        RegExp(r'^let h = \d+;$'),
+      );
+      expect(
+        RegExp(r'^let h = (\d+);$').firstMatch(seedAt.text)!.group(1),
+        '0',
+        reason: 'the hash starts at zero, as the port’s loop does',
+      );
+      final ({int line, String text}) pickAt = appRecordLine(
+        choice,
+        RegExp(r'^return TONE_CYCLE\[hashString'),
+      );
+      expect(
+        pickAt.text,
+        contains('category.toLowerCase().trim()'),
+        reason:
+            'and the string hashed is the category lowercased then trimmed — '
+            'the two steps [toneFor] takes before it counts',
+      );
+      expect(
+        pickAt.text,
+        contains('% TONE_CYCLE.length'),
+        reason: 'the index is the hash modulo the cycle, nothing else',
+      );
+
+      final ({int line, String text}) iconAt = appRecordLine(
+        'cat-chip-icon-and-size-tables',
+        RegExp(r'^<Icon size=\{'),
+      );
+      expect(
+        RegExp(r'size=\{(\w+)\}').firstMatch(iconAt.text)!.group(1),
+        'glyph',
+        reason:
+            'the glyph is drawn at the `glyph` ternary, which the size test '
+            'above reads back arm by arm',
+      );
+      expect(
+        double.parse(
+          RegExp(r'strokeWidth=\{([\d.]+)\}')
+              .firstMatch(iconAt.text)!
+              .group(1)!,
+        ),
+        AppCategoryChips.glyphStrokeWidth,
+        reason: 'and at the stroke the component authors',
+      );
+
+      expect(
+        appTokens('cat-chip-md-lavender').contains('rounded-full'),
+        isTrue,
+        reason: 'the round is a class, so it is the engine’s clamp that lands',
+      );
+      final RegExpMatch radiusRaw = RegExp(r'^([\d.eE+-]+)px$')
+          .firstMatch(appFullRadius)!;
+      expect(
+        double.parse(radiusRaw.group(1)!),
+        AppCategoryChips.fullRoundRadiusPx,
+        reason:
+            'the port carries the serialisation Chrome gave (`$appFullRadius`) '
+            'because it is what was measured, not a radius anyone chose',
+      );
+      for (final String pass in appPasses) {
+        for (final AppChipTone tone in AppChipTone.values) {
+          final String rowName = 'cat-chip-md-${tone.name}';
+          expect(
+            appPx(pass, rowName, 'borderRadius'),
+            AppCategoryChips.fullRoundRadiusPx,
+            reason: '$pass $rowName: every tone measures the same round',
+          );
+        }
+      }
+      for (final AppChipSize size in AppChipSize.values) {
+        expect(
+          AppCategoryChips.fullRoundRadiusPx * 2,
+          greaterThanOrEqualTo(size.sidePx),
+          reason:
+              '${size.name}: at least half the side, which is what makes it a '
+              'circle at that size too',
+        );
+      }
+      for (final AppChipTone tone in AppChipTone.values) {
+        expect(
+          AppCategoryChips.light[tone]!.radius,
+          BorderRadius.circular(AppCategoryChips.fullRoundRadiusPx),
+          reason: '${tone.name}: and the box the widget paints is that round',
+        );
+      }
+    });
+    test('toneFor: the port, the web’s loop rebuilt here, and the fixture table', () {
+      const String choice = 'cat-chip-tone-choice';
+      final ({int line, String text}) stepAt = appRecordLine(
+        choice,
+        RegExp(r'h = \(h \* \d+ \+ s\.charCodeAt'),
+      );
+      final RegExpMatch step = RegExp(
+        r'h = \(h \* (\d+) \+ s\.charCodeAt\(i\)\) >>> (\d+);',
+      ).firstMatch(stepAt.text)!;
+      final int multiplier = int.parse(step.group(1)!);
+      if (step.group(2) != '0') {
+        throw StateError('the hash no longer normalises with `>>> 0`');
+      }
+      final int mask = (1 << 32) - 1;
+      final ({int line, String text}) cycleAt = appRecordLine(
+        choice,
+        RegExp(r'^const TONE_CYCLE: ChipTone\[\] = '),
+      );
+      final List<String> cycleNames = RegExp(r"'([a-z]+)'")
+          .allMatches(cycleAt.text)
+          .map((RegExpMatch m) => m.group(1)!)
+          .toList();
+      final Map<String, AppChipTone> toneByName = <String, AppChipTone>{
+        for (final AppChipTone t in AppChipTone.values) t.name: t,
+      };
+
+      /// The component’s hash, rebuilt from the shape of its own loop rather than
+      /// from [AppCategoryChips.toneFor]: the same UTF-16 indexing, the same
+      /// multiplier read off the source, the same mask and the same cycle. It
+      /// takes the string the web’s normalisation produced, so a disagreement
+      /// here cannot be blamed on how the two languages lowercase.
+      AppChipTone hashOf(String normalised) {
+        int h = 0;
+        for (int i = 0; i < normalised.length; i++) {
+          h = (h * multiplier + normalised.codeUnitAt(i)) & mask;
+        }
+        return toneByName[cycleNames[h % cycleNames.length]]!;
+      }
+
+      expect(AppCategoryChips.toneFixtures, isNotEmpty);
+      expect(
+        AppCategoryChips.toneWebNormalisations.keys.toSet(),
+        AppCategoryChips.toneFixtures.keys.toSet(),
+        reason: 'every fixture key carries the web’s own normalisation of it',
+      );
+
+      /// The keys where Dart’s `toLowerCase().trim()` and the browser’s do not
+      /// answer with the same string — derived, never typed, so a new divergence
+      /// fails the pin below instead of passing quietly.
+      final Set<String> divergent = <String>{
+        for (final MapEntry<String, String> entry
+            in AppCategoryChips.toneWebNormalisations.entries)
+          if (entry.key.toLowerCase().trim() != entry.value) entry.key,
+      };
+      expect(
+        divergent,
+        <String>{'İSTANBUL'},
+        reason:
+            'a dotted capital İ is the one fixture where Unicode’s full '
+            'lowercase mapping (i + U+0307, which a browser takes) is longer '
+            'than its simple one (i, which Dart takes). Recorded as a '
+            'deviation, not hidden: the port hashes the shorter name, so a '
+            'Turkish category lands on another pastel than the web’s. If this '
+            'set ever changes, the deviation note and this pin both need '
+            're-reading.',
+      );
+
+      for (final MapEntry<String, AppChipTone> fixture
+          in AppCategoryChips.toneFixtures.entries) {
+        expect(
+          hashOf(AppCategoryChips.toneWebNormalisations[fixture.key]!),
+          fixture.value,
+          reason:
+              'the fixture is no longer what the component’s own loop answers '
+              'for "${fixture.key}", so the table needs regenerating',
+        );
+        if (divergent.contains(fixture.key)) {
+          expect(
+            AppCategoryChips.toneFor(fixture.key),
+            isNot(fixture.value),
+            reason:
+                '"${fixture.key}" is the pinned divergence, so the port '
+                'cannot land on the web’s tone for it',
+          );
+          expect(
+            AppCategoryChips.toneFor(fixture.key),
+            hashOf(fixture.key.toLowerCase().trim()),
+            reason:
+                'and the normalisation is all that differs: the port’s loop '
+                'answers exactly what hashing its own string answers',
+          );
+        } else {
+          expect(
+            AppCategoryChips.toneFor(fixture.key),
+            fixture.value,
+            reason:
+                'Dart’s toneFor disagrees with the web for "${fixture.key}"',
+          );
+        }
+      }
+
+      expect(
+        AppCategoryChips.toneFixtures.containsKey('  GROCERIES '),
+        isTrue,
+        reason: 'the table exercises the normalisation, not just the hash',
+      );
+      expect(
+        AppCategoryChips.toneFor('  GROCERIES '),
+        AppCategoryChips.toneFor('groceries'),
+        reason: 'trim and lower case land the same category on the same tone',
+      );
+      expect(
+        AppCategoryChips.toneFor('Salary'),
+        AppCategoryChips.toneFixtures['salary'],
+      );
+      expect(
+        'a𝕏b'.length,
+        4,
+        reason:
+            'the astral glyph is two UTF-16 units, which is the whole reason '
+            'this key is in the table',
+      );
+      expect(
+        'a𝕏b'.codeUnits.length,
+        'a𝕏b'.runes.length + 1,
+        reason: 'and Dart indexes the pair the way charCodeAt does',
+      );
+      expect(
+        AppCategoryChips.toneWebNormalisations['a𝕏b'],
+        'a𝕏b',
+        reason: 'lowercasing leaves the pair alone, so both languages hash it',
+      );
+      expect(
+        AppCategoryChips.toneFor('a𝕏b'),
+        AppCategoryChips.toneFixtures['a𝕏b'],
+        reason: 'surrogates counted as units, in both',
+      );
+      expect(
+        'İSTANBUL'.toLowerCase().length,
+        8,
+        reason: 'Dart folds the dotted capital to one code unit',
+      );
+      expect(
+        AppCategoryChips.toneWebNormalisations['İSTANBUL']!.length,
+        9,
+        reason:
+            'the browser folds it to two — i plus a combining dot — and that '
+            'one extra unit is the entire difference between mint and pink',
+      );
+      expect(
+        AppCategoryChips.toneFor('İSTANBUL'),
+        AppChipTone.pink,
+        reason:
+            'the answer the port really paints, pinned so that fixing the '
+            'divergence is a decision with a failing test behind it',
+      );
+      expect(
+        AppCategoryChips.toneFor('彩票'),
+        AppCategoryChips.toneFixtures['彩票'],
+        reason: 'non-Latin names are just code units to this hash',
+      );
+
+      expect(
+        AppCategoryChips.toneFixtures.values.toSet(),
+        AppCategoryChips.toneCycle.toSet(),
+        reason:
+            'the table reaches every cycling tone and never the neutral ink, '
+            'which no hash can select',
+      );
+      expect(
+        AppCategoryChips.toneFor(''),
+        AppCategoryChips.toneCycle.first,
+        reason: 'the empty name hashes to zero, which is index zero',
+      );
+      for (final AppChipTone tone in AppCategoryChips.toneCycle) {
+        expect(
+          AppCategoryChips.toneFixtures.containsValue(tone),
+          isTrue,
+          reason: '${tone.name} is exercised by at least one fixture',
+        );
+      }
+    });
+
+    /// `parity/icon-map.tsv` as the item 3 contact sheet authored it: the web’s
+    /// Lucide name, its current slug, and the Dart symbol that draws it. Nothing
+    /// in the port reaches a glyph except through this table, so a symbol the map
+    /// does not record is a symbol nobody verified.
+    Map<String, ({String slug, String dart})> appIconMap() {
+      final List<String> lines = webSource('parity/icon-map.tsv')
+          .split(RegExp(r'\r?\n'));
+      final Map<String, ({String slug, String dart})> out =
+          <String, ({String slug, String dart})>{};
+      for (final String line in lines.skip(1)) {
+        if (line.trim().isEmpty) continue;
+        final List<String> cols = line.split('\t');
+        out[cols[0]] = (slug: cols[1], dart: cols[2]);
+      }
+      return out;
+    }
+
+    test('the glyph table: the component’s map, walked through the icon map', () {
+      final Map<String, ({String slug, String dart})> iconMap = appIconMap();
+      expect(iconMap, isNotEmpty);
+      expect(
+        iconMap['AlertCircle']!.slug,
+        'circle-alert',
+        reason:
+            'the sheet records renames, which is why the port names a '
+            'symbol through the map rather than by guessing the Dart casing',
+      );
+
+      final ({int line, String text}) iconsAt = appSourceLine(
+        appChipSrc,
+        RegExp(r'^const CATEGORY_ICONS: Record<string, LucideIcon> = \{$'),
+      );
+      final List<String> chipLines = appLinesOf(appChipSrc);
+      final Map<String, String> declared = <String, String>{};
+      for (int i = iconsAt.line; i < chipLines.length; i++) {
+        if (chipLines[i] == '};') break;
+        final RegExpMatch? entry = RegExp(r'^  ([a-z]+): ([A-Z][A-Za-z]*),$')
+            .firstMatch(chipLines[i]);
+        if (entry == null) {
+          throw StateError(
+            'CATEGORY_ICONS has a line this test cannot parse: "${chipLines[i]}"',
+          );
+        }
+        expect(
+          declared.containsKey(entry.group(1)),
+          isFalse,
+          reason:
+              '${entry.group(1)} is keyed twice, so the port’s map would '
+              'have to pick one',
+        );
+        declared[entry.group(1)!] = entry.group(2)!;
+      }
+      expect(declared, isNotEmpty);
+
+      expect(
+        AppCategoryChips.glyphSymbols.keys.toSet(),
+        declared.keys.toSet(),
+        reason: 'one Dart symbol per category the component maps, no more',
+      );
+      for (final MapEntry<String, String> entry in declared.entries) {
+        final ({String slug, String dart})? hit = iconMap[entry.value];
+        expect(
+          hit,
+          isNotNull,
+          reason:
+              'icon-map.tsv records no Lucide symbol for ${entry.value}, which '
+              'CategoryChip paints for ${entry.key}',
+        );
+        expect(
+          AppCategoryChips.glyphSymbols[entry.key],
+          hit!.dart,
+          reason:
+              '${entry.key}: the web paints ${entry.value}, and the map’s dart '
+              'column is the only route to a Flutter symbol',
+        );
+        expect(
+          entry.key,
+          entry.key.toLowerCase(),
+          reason:
+              '${entry.key}: the table is keyed by the normalised name the '
+              'component looks a glyph up with',
+        );
+      }
+
+      final ({int line, String text}) fallbackAt = appSourceLine(
+        appChipSrc,
+        RegExp(r'iconOverride \?\? CATEGORY_ICONS\[key\] \?\?'),
+      );
+      final RegExpMatch fallback = RegExp(r'\?\? ([A-Z][A-Za-z]*);')
+          .firstMatch(fallbackAt.text)!;
+      expect(
+        AppCategoryChips.fallbackGlyphSymbol,
+        iconMap[fallback.group(1)!]!.dart,
+        reason:
+            'the unlisted fallback is the same ${fallback.group(1)} the '
+            'component falls back to, named the same way',
+      );
+      expect(
+        AppCategoryChips.glyphSymbols.containsValue(
+          AppCategoryChips.fallbackGlyphSymbol,
+        ),
+        isTrue,
+        reason:
+            'and it is a glyph the table already paints, so nothing '
+            'unverified reaches a row',
+      );
+    });
+
+    test(
+      'the arrow: one line, two names, and a size the icon prop carries',
+      () {
+        final Map<String, ({String slug, String dart})> iconMap = appIconMap();
+        final ({int line, String text}) arrowAt = appRecordLine(
+          'txrow-arrow-sizes',
+          RegExp(r'^\{isIncome \?'),
+        );
+        expect(
+          appLineAt(appRowSrc, arrowAt.line).trim(),
+          arrowAt.text,
+          reason: 'the frozen arrow line is still the line the record cites',
+        );
+        final RegExpMatch arms = RegExp(
+          r'^\{isIncome \? <(\w+) size=\{([\d.]+)\} /> : <(\w+) size=\{([\d.]+)\} />\}$',
+        ).firstMatch(arrowAt.text)!;
+        expect(
+          arms.group(1),
+          AppRows.arrowInName,
+          reason: 'income leads with the arrow in',
+        );
+        expect(arms.group(3), AppRows.arrowOutName);
+        expect(
+          double.parse(arms.group(2)!),
+          AppRows.arrowSizePx,
+          reason: 'the size is the lucide `size` prop, not a CSS length',
+        );
+        expect(
+          double.parse(arms.group(4)!),
+          AppRows.arrowSizePx,
+          reason: 'and both arms ask for the same box, so one field carries it',
+        );
+        expect(
+          AppRows.arrowInSymbol,
+          iconMap[AppRows.arrowInName]!.dart,
+          reason: 'named through the icon map, as every other glyph is',
+        );
+        expect(AppRows.arrowOutSymbol, iconMap[AppRows.arrowOutName]!.dart);
+        final List<int> armLines = <int>[];
+        for (final String row in <String>[
+          'txrow-amount-in',
+          'txrow-amount-out',
+        ]) {
+          for (final dynamic e in appRow(row)['parts']! as List<dynamic>) {
+            final Map<String, dynamic> part = e as Map<String, dynamic>;
+            final Object? at = part['line'];
+            if (at != null) armLines.add((at as num).toInt());
+            for (final dynamic s
+                in (part['styleSrc'] ?? const <dynamic>[]) as List<dynamic>) {
+              final Object? line = (s as Map<String, dynamic>)['line'];
+              if (line != null) armLines.add((line as num).toInt());
+            }
+          }
+        }
+        expect(
+          arrowAt.line,
+          greaterThan(armLines.reduce((int a, int b) => a > b ? a : b)),
+          reason:
+              'and the arrow is authored after both arms it renders inside, in '
+              'the same file, which is why it sits on the money baseline',
+        );
+      },
+    );
+
+    /// The inline style one chip row froze, split into the recipe it is: one
+    /// square, one tone token, and the two `color-mix`es that answer in oklab.
+    ({
+      double borderWidth,
+      double borderPercent,
+      String borderToken,
+      double fillPercent,
+      String fillToken,
+      String inkToken,
+      double side,
+      String toneToken,
+    })
+    appChipRecipe(String rowName) {
+      final RegExpMatch? m = RegExp(
+        r'^width: ([\d.]+)px; height: \1px; '
+        r'background: color-mix\(in oklab, var\((--[a-z0-9-]+)\) ([\d.]+)%, '
+        r'var\((--[a-z0-9-]+)\)\); '
+        r'border: ([\d.]+)px solid color-mix\(in oklab, '
+        r'var\((--[a-z0-9-]+)\) ([\d.]+)%, var\((--[a-z0-9-]+)\)\); '
+        r'color: var\((--[a-z0-9-]+)\)$',
+      ).firstMatch(appRowPart(rowName)['style']! as String);
+      if (m == null) {
+        throw StateError(
+          '$rowName: the inline style is no longer the one colour-mix recipe '
+          'this port reads: "${appRowPart(rowName)['style']}"',
+        );
+      }
+      return (
+        side: double.parse(m.group(1)!),
+        toneToken: m.group(2)!,
+        fillPercent: double.parse(m.group(3)!),
+        fillToken: m.group(4)!,
+        borderWidth: double.parse(m.group(5)!),
+        // group 6 is the tone token again, which the assert below re-checks
+        borderPercent: double.parse(m.group(7)!),
+        borderToken: m.group(8)!,
+        inkToken: m.group(9)!,
+      );
+    }
+
+    test('the tints: one oklab recipe, six tones, two themes', () {
+      for (final Brightness brightness in Brightness.values) {
+        final String prefix = brightness == Brightness.light ? 'light' : 'dark';
+        final Map<AppChipTone, AppCategoryChipTintSpec> table =
+            brightness == Brightness.light
+            ? AppCategoryChips.light
+            : AppCategoryChips.dark;
+        expect(
+          table.keys.toSet(),
+          AppChipTone.values.toSet(),
+          reason:
+              '$prefix: every tone of the union is painted at this '
+              'brightness, including the neutral ink',
+        );
+        final Set<Color> fills = <Color>{};
+        final Set<Color> borders = <Color>{};
+        for (final MapEntry<AppChipTone, AppCategoryChipTintSpec> entry
+            in table.entries) {
+          final AppChipTone tone = entry.key;
+          final AppCategoryChipTintSpec spec = entry.value;
+          final String rowName = 'cat-chip-md-${tone.name}';
+          expect(
+            spec.tone,
+            tone,
+            reason: 'the map is keyed by the tone it carries',
+          );
+          expect(
+            AppCategoryChips.tint(tone, brightness),
+            spec,
+            reason: '$rowName: and the accessor hands back the same row',
+          );
+          expect(
+            AppCategoryChips.tint(
+              tone,
+              brightness == Brightness.light
+                  ? Brightness.dark
+                  : Brightness.light,
+            ).tone,
+            tone,
+            reason: '$rowName: the other brightness answers the same tone',
+          );
+          expect(spec.rowName, rowName);
+          expect(spec.cssClasses, appCls(rowName));
+
+          final recipe = appChipRecipe(rowName);
+          expect(
+            recipe.toneToken,
+            tone.toneToken,
+            reason: '$rowName: the style mixes the token the enum names',
+          );
+          expect(spec.mixFillPercent, recipe.fillPercent);
+          expect(spec.mixFillWithToken, recipe.fillToken);
+          expect(spec.mixBorderPercent, recipe.borderPercent);
+          expect(spec.mixBorderWithToken, recipe.borderToken);
+          expect(
+            recipe.fillToken,
+            '--surface',
+            reason:
+                '$rowName: the pastel is mixed toward the surface it '
+                'sits on, which the theme sets',
+          );
+          expect(
+            recipe.borderToken,
+            '--line',
+            reason: '$rowName: and the frame toward the hairline',
+          );
+          expect(spec.borderWidthPx, recipe.borderWidth);
+          expect(spec.sidePx, recipe.side);
+
+          for (final String pass in <String>[
+            '$prefix-desktop',
+            '$prefix-phone',
+          ]) {
+            expect(
+              appPx(pass, rowName, 'width'),
+              spec.sidePx,
+              reason: '$pass $rowName: the square the row measured',
+            );
+            expect(
+              appPx(pass, rowName, 'height'),
+              spec.sidePx,
+              reason: '$pass $rowName: and it is square at both viewports',
+            );
+            expect(
+              appColour(pass, rowName, 'backgroundColor'),
+              spec.fillColor,
+              reason:
+                  '$pass $rowName: the port carries the sRGB answer to '
+                  'the mix Chrome resolved',
+            );
+            expect(
+              appVal(pass, rowName, 'backgroundColor'),
+              startsWith('oklab('),
+              reason:
+                  '$pass $rowName: the computed fill really is an oklab '
+                  'colour — the port flattened it, it did not choose it',
+            );
+            expect(
+              appColour(pass, rowName, 'borderTopColor'),
+              spec.borderColor,
+              reason: '$pass $rowName: same for the frame',
+            );
+            expect(
+              appPx(pass, rowName, 'borderTopWidth'),
+              spec.borderWidthPx,
+              reason: '$pass $rowName: one hairline, authored and measured',
+            );
+            expect(
+              appColour(pass, rowName, 'color'),
+              spec.iconColor,
+              reason: '$pass $rowName: the glyph paints the row ink',
+            );
+            expect(
+              spec.iconColor,
+              appTokenColour(pass, recipe.inkToken),
+              reason:
+                  '$pass $rowName: and the row ink is the ${recipe.inkToken} '
+                  'token, which the style declares rather than a pastel',
+            );
+            expect(
+              spec.fillColor,
+              isNot(appTokenColour(pass, tone.toneToken)),
+              reason:
+                  '$pass $rowName: the mix moved off the bare token, so a '
+                  'port that painted the token would paint something else',
+            );
+            expect(
+              spec.borderColor,
+              isNot(spec.fillColor),
+              reason: '$pass $rowName: the frame is not the fill',
+            );
+          }
+          expect(
+            spec.fillColor,
+            isNot(
+              AppCategoryChips.tint(
+                tone,
+                brightness == Brightness.light
+                    ? Brightness.dark
+                    : Brightness.light,
+              ).fillColor,
+            ),
+            reason: '$rowName: and the theme moves the fill',
+          );
+          fills.add(spec.fillColor);
+          borders.add(spec.borderColor);
+        }
+        expect(
+          fills.length,
+          table.length,
+          reason:
+              '$prefix: no two tones land on the same fill, so a cycle of '
+              'five pastels and one neutral is six distinguishable chips',
+        );
+        expect(borders.length, table.length);
+      }
+
+      final Set<double> fillPercents = AppChipTone.values
+          .map(
+            (AppChipTone t) =>
+                appChipRecipe('cat-chip-md-${t.name}').fillPercent,
+          )
+          .toSet();
+      final Set<double> borderPercents = AppChipTone.values
+          .map(
+            (AppChipTone t) =>
+                appChipRecipe('cat-chip-md-${t.name}').borderPercent,
+          )
+          .toSet();
+      expect(fillPercents, <double>{
+        AppCategoryChips.light[AppChipTone.pink]!.mixFillPercent,
+      }, reason: 'one fill percentage for the whole family, not one per tone');
+      expect(borderPercents, <double>{
+        AppCategoryChips.light[AppChipTone.pink]!.mixBorderPercent,
+      });
+
+      for (final Brightness brightness in Brightness.values) {
+        expect(
+          AppRows.txRow(brightness),
+          brightness == Brightness.light
+              ? AppRows.txRowLight
+              : AppRows.txRowDark,
+        );
+        expect(
+          AppRows.dayHead(brightness),
+          brightness == Brightness.light
+              ? AppRows.dayHeadLight
+              : AppRows.dayHeadDark,
+        );
+        expect(
+          AppRows.divider(brightness),
+          brightness == Brightness.light
+              ? AppRows.dividerLight
+              : AppRows.dividerDark,
+        );
+        expect(
+          AppRows.empty(brightness),
+          brightness == Brightness.light
+              ? AppRows.emptyLight
+              : AppRows.emptyDark,
+        );
+        expect(
+          AppRows.emptyRc(brightness),
+          brightness == Brightness.light
+              ? AppRows.emptyRcLight
+              : AppRows.emptyRcDark,
+        );
+      }
+    });
+
+    /// The completeness pass. B1–B15 each re-read the handful of lines a claim
+    /// rests on; this one walks *every* line every authored record cites and
+    /// compares it against the text the probe froze, so a rewritten or moved
+    /// source line fails here with its `file:line` named even if no assertion
+    /// downstream happens to read it. The ledger's share is pinned line by line;
+    /// the chrome families #55 and #56 are pinned by file and count, because the
+    /// ledger is what this port reads and the rest is what it must not.
+    test('the citations: every authored line, re-read from the file it names', () {
+      const Map<String, List<int>> ledgerCited = <String, List<int>>{
+        appDashSrc: <int>[294, 296, 409, 411, 422, 426, 428, 429, 437],
+        appRcSrc: <int>[494, 496, 501, 504, 505, 518, 522],
+        appChipSrc: <int>[23, 63, 65, 66, 67, 68, 72, 84, 85, 86, 100],
+        appRowSrc: <int>[33, 41],
+        appCssSrc: <int>[917],
+      };
+      const Map<String, int> chromeCited = <String, int>{
+        'src/context/NotificationContext.tsx': 12,
+        'src/components/ui/Modal.tsx': 14,
+        'src/components/ui/BottomSheet.tsx': 11,
+        'src/components/dashboard/QuickActionModal.tsx': 7,
+        'src/components/DebtDetailModal.tsx': 3,
+        'src/components/TransactionEditModal.tsx': 6,
+        'src/components/SettingsModal.tsx': 8,
+      };
+      final Map<String, List<int>> ledgerRead = <String, List<int>>{};
+      final Map<String, int> chromeRead = <String, int>{};
+      final Set<String> expressions = <String>{};
+      int records = 0;
+      int parts = 0;
+      for (final dynamic e in appStacks['authoredNonCss']! as List<dynamic>) {
+        final Map<String, dynamic> rec = e as Map<String, dynamic>;
+        final String name = rec['name']! as String;
+        final List<dynamic> recParts = rec['parts']! as List<dynamic>;
+        expect(
+          recParts,
+          isNotEmpty,
+          reason: '$name cites nothing, so there is nothing here to re-read',
+        );
+        records++;
+        for (final dynamic p in recParts) {
+          final Map<String, dynamic> part = p as Map<String, dynamic>;
+          final String src =
+              (part['src'] ?? rec['src'] ?? appStacks['source'])! as String;
+          final int line = (part['line']! as num).toInt();
+          final String frozen = part['text']!.trim() as String;
+          expect(
+            frozen,
+            isNotEmpty,
+            reason: '$name carries a blank part at $src:$line',
+          );
+          final String onDisk = appLineAt(src, line).trim();
+          expect(
+            onDisk,
+            contains(frozen),
+            reason:
+                '$name says $src:$line reads "$frozen". The web source on disk '
+                'no longer says that, so whatever the port built from this '
+                'record was built from a line that has moved.',
+          );
+          if (onDisk != frozen) expressions.add('$src:$line');
+          parts++;
+          if (ledgerCited.containsKey(src)) {
+            ledgerRead.putIfAbsent(src, () => <int>[]).add(line);
+          } else {
+            chromeRead.update(src, (int n) => n + 1, ifAbsent: () => 1);
+          }
+        }
+      }
+      expect(
+        records,
+        26,
+        reason: 'the whole authored array, not the ledger slice',
+      );
+      expect(parts, 91);
+      expect(
+        expressions,
+        <String>{
+          'src/context/NotificationContext.tsx:94',
+          'src/context/NotificationContext.tsx:95',
+          'src/context/NotificationContext.tsx:96',
+          'src/context/NotificationContext.tsx:97',
+          'src/context/NotificationContext.tsx:103',
+          'src/components/ui/Modal.tsx:86',
+          'src/components/ui/BottomSheet.tsx:58',
+          '$appDashSrc:409',
+        },
+        reason:
+            'the eight parts frozen as an expression rather than a whole line — '
+            'a JSX prop or an interpolated text node inside a longer element. '
+            'Everything else quotes its line end to end, so this is the only '
+            'slack in the table and it is named here.',
+      );
+      expect(
+        ledgerRead.keys.toSet(),
+        ledgerCited.keys.toSet(),
+        reason:
+            'the ledger was read from the row, the chip, the dashboard, the '
+            'reports centre and one stylesheet rule — nothing else',
+      );
+      for (final MapEntry<String, List<int>> entry in ledgerCited.entries) {
+        expect(
+          ledgerRead[entry.key]!..sort(),
+          entry.value,
+          reason: '${entry.key} is cited at exactly these lines',
+        );
+      }
+      expect(
+        chromeRead.keys.toSet(),
+        chromeCited.keys.toSet(),
+        reason: 'and every remaining citation belongs to a chrome family',
+      );
+      for (final MapEntry<String, int> entry in chromeCited.entries) {
+        expect(
+          chromeRead[entry.key],
+          entry.value,
+          reason: '${entry.key} is cited by that many lines',
+        );
       }
     });
   });

@@ -6899,6 +6899,2110 @@ L.push(
 );
 finish('app_numerals.dart');
 
+// ================================================================ app_rows.dart
+// Item 8 — the transaction row, the day header, the ledger chrome around them and
+// the category chip the row leads with. Every box below is a `utilityStacks`
+// row: the verbatim className list — plus, where the component writes one, the
+// inline `style` it writes — mounted on the element the component really uses and
+// measured against an unclassed control. A §6 probe cannot see a Tailwind
+// utility, so for these families the stack row *is* the measurement, and
+// `src/index.css` supplies only the authored facts a detached element never
+// shows: a state rule, a `gap`, the `em` a measured tracking value came from.
+//
+// Two rules bind the section. Nothing here restates a number another generated
+// family already owns: the day header’s type is `.eyebrow`’s label row and the
+// money tracking is `.money`’s authored `em`, each re-read here and cross-checked
+// against these measurements rather than copied. And a value no pass measured
+// fails generation — there is no default in this file, and nothing is averaged
+// across a viewport or a brightness. The two viewports are read as one column
+// (UI_SPEC §3: the phone) with the desktop pass required to agree on every ported
+// property; the one place they genuinely disagree — the `lg:` scroll gating of the
+// dashboard list — is ported as an explicit wide/narrow pair.
+
+const ROWS_TSX = readTsx('components', 'ui', 'TransactionRow.tsx');
+const ROWS_CAT_TSX = readTsx('components', 'ui', 'CategoryChip.tsx');
+const ROWS_DASH_TSX = readTsx('components', 'Dashboard.tsx');
+const ROWS_RC_TSX = readTsx('components', 'ReportsCentre.tsx');
+const ROWS_FILES = {
+  'src/components/ui/TransactionRow.tsx': ROWS_TSX,
+  'src/components/ui/CategoryChip.tsx': ROWS_CAT_TSX,
+  'src/components/Dashboard.tsx': ROWS_DASH_TSX,
+  'src/components/ReportsCentre.tsx': ROWS_RC_TSX,
+};
+
+/** The recorded row, with every citation it carries re-checked against the pinned
+ *  source before a single number is read from it. `className` slices, inline-style
+ *  lines, the authored `dims`/`glyph` tables and the token a tint names all have
+ *  to still be where the record says, or the row's measurement is evidence about a
+ *  source line that no longer exists. */
+const rowsFile = (rel) => {
+  const lines = ROWS_FILES[rel];
+  if (!lines) fail(`the stack tier cites ${rel}, which app_rows.dart has no pinned source to check`);
+  return lines;
+};
+const rowsTernaryArm = (lines, file, line, value, label) => {
+  // A table row is cited by the arm it selects: `? 22 ` for a named size,
+  // `: 40;` for the default arm the md size falls through to.
+  const src = lines[line - 1];
+  if (src === undefined) fail(`${label}: ${file}:${line} does not exist`);
+  if (!src.includes(`? ${value} `) && !src.includes(`: ${value};`)) {
+    fail(`${label} ${value}: recorded at ${file}:${line}, but that line reads "${src}"`);
+  }
+};
+const rowChecked = (name) => {
+  const r = usRow(name);
+  const file = r.src || US.source;
+  const lines = rowsFile(file);
+  for (const p of r.parts) {
+    if (p.cls !== undefined) tsxLine(lines, file, p.line, `className="${p.cls}"`);
+    if (p.text !== undefined) tsxLine(lines, p.src || file, p.line, p.text);
+    if (p.styleSrc) for (const s of p.styleSrc) tsxLine(lines, file, s.line, s.text);
+    if (p.style && p.styleSrcLine) {
+      for (const tok of p.style.match(/var\(--[a-z0-9-]+\)/g) || []) {
+        tsxLine(lines, file, p.styleSrcLine, tok);
+      }
+    }
+    if (p.toneVar) tsxLine(lines, file, p.toneVarLine, p.toneVar);
+    if (p.dims !== undefined) rowsTernaryArm(lines, file, p.dimsLine, p.dims, `${name} dims`);
+    if (p.glyph !== undefined) rowsTernaryArm(lines, file, p.glyphLine, p.glyph, `${name} glyph`);
+  }
+  return r;
+};
+
+const stk = (tag, name) => stackProps(passTheme(tag), name);
+/** Whether a row's own measurement asked for one property. Only the rows that
+ *  need an out-of-set property ask for it, so reading one back has to be
+ *  conditional — and it has to be conditional on both passes agreeing that they
+ *  were asked for the same thing, never on one of them. */
+const stkHas = (brightness, name, field) => {
+  const has = (tag) => Object.prototype.hasOwnProperty.call(stk(tag, name), field);
+  const phone = has(`${brightness}-phone`);
+  if (phone !== has(`${brightness}-desktop`)) {
+    fail(`${name}: ${field} is an extra on ${brightness}-phone but not on ${brightness}-desktop`);
+  }
+  return phone;
+};
+/** A property the two viewports of one brightness must agree on — anything else is
+ *  `stkPair`’s business, never an average. */
+const stkVal = (brightness, name, field) => {
+  const phone = stk(`${brightness}-phone`, name);
+  const desk = stk(`${brightness}-desktop`, name);
+  if (!Object.prototype.hasOwnProperty.call(phone, field)) {
+    fail(`${name}: the ${brightness}-phone pass measured no ${field}`);
+  }
+  if (JSON.stringify(phone[field]) !== JSON.stringify(desk[field])) {
+    fail(
+      `${name}.${field} moves with the viewport (${brightness}-desktop ${JSON.stringify(desk[field])} vs ` +
+        `${brightness}-phone ${JSON.stringify(phone[field])}); app_rows.dart ports it as a wide/narrow pair`,
+    );
+  }
+  return phone[field];
+};
+const stkRaw = (brightness, name, field) => {
+  const v = stkVal(brightness, name, field);
+  if (typeof v === 'string') return v;
+  if (v && typeof v.raw === 'string') return v.raw;
+  fail(`${name}.${field} is not a plain measured value: ${JSON.stringify(v)}`);
+};
+const stkLen = (brightness, name, field) => lenAnyPx(stkRaw(brightness, name, field), `${name} ${field}`);
+const stkNum = (brightness, name, field) => {
+  const v = parseFloat(stkRaw(brightness, name, field));
+  if (!Number.isFinite(v)) fail(`${name}.${field} "${v}" is not a number`);
+  return v;
+};
+const stkCol = (brightness, name, field) => {
+  const v = stkVal(brightness, name, field);
+  if (!v || !v.srgb) fail(`${name}.${field} is not a measured colour: ${JSON.stringify(v)}`);
+  return v.srgb;
+};
+/** `12px 10px` as the symmetric pair a box ports, and `0px 4px 0px 0px` as the
+ *  one-sided padding of a scroll rail (the scrollbar gutter `pr-1` reserves). */
+const stkPadSym = (brightness, name) => {
+  const raw = stkRaw(brightness, name, 'padding');
+  const parts = raw.split(/\s+/).map((s) => lenAnyPx(s, `${name} padding`));
+  const [top, right = top, bottom = top, left = right] = parts;
+  if (parts.length > 4 || top !== bottom || left !== right) {
+    fail(`${name}: padding "${raw}" is not the symmetric v/h pair the port can carry`);
+  }
+  return { vertical: top, horizontal: left };
+};
+const stkPadOneSide = (brightness, name, side) => {
+  const raw = stkRaw(brightness, name, 'padding');
+  const parts = raw.split(/\s+/).map((s) => lenAnyPx(s, `${name} padding`));
+  const [top, right = top, bottom = top, left = right] = parts;
+  const box = { top, right, bottom, left };
+  for (const k of Object.keys(box)) {
+    if (k !== side && box[k] !== 0) fail(`${name}: padding "${raw}" has a ${k} inset the row does not port`);
+  }
+  return box[side];
+};
+/** The measured `:root` colour a class or an inline style names, with the proof
+ *  the row painted exactly those pixels. A bare `var(--token)` that measures
+ *  differently is a cascade the port cannot see, so it stops generation. */
+const stkTokenColour = (brightness, name, field, token, label) => {
+  const got = stkCol(brightness, name, field);
+  const t = passTheme(`${brightness}-phone`).root[token];
+  if (!t || !t.srgb) fail(`${name}: ${label} names ${token}, which ${brightness}-phone measured no colour for`);
+  if (got.hex !== t.srgb.hex || got.alpha !== t.srgb.alpha) {
+    fail(`${name} ${brightness}: ${field} measured ${got.rgba} but ${token} is ${t.srgb.rgba}`);
+  }
+  return got;
+};
+/** A tracking value as the `em` the browser resolved it from, so a row painted at
+ *  another size re-derives it (the same law `AppNumeralSpec.styleAt` applies). */
+const stkEm = (brightness, name, field, sizePx) => {
+  const px = stkLen(brightness, name, field);
+  if (px === 0) return 0;
+  const em = px / sizePx;
+  if (Math.abs(em * sizePx - px) > 1e-9) {
+    fail(`${name}.${field} ${px}px is not a clean multiple of the measured ${sizePx}px font size`);
+  }
+  return em;
+};
+/** A slot’s tracking as the pair the port carries. `normal` is not a length, so a
+ *  row that measures it ports as zero tracking — never as a guessed number. */
+const stkTrack = (brightness, name, sizePx) => {
+  if (stkRaw(brightness, name, 'letterSpacing') === 'normal') return { px: 0, em: 0 };
+  return { px: stkLen(brightness, name, 'letterSpacing'), em: stkEm(brightness, name, 'letterSpacing', sizePx) };
+};
+/** A stack row’s `backdrop-filter`, as the one blur the port can carry. A
+ *  filter that also saturates, or that measures `none`, stops generation: the
+ *  day header’s recipe is a plain blur and nothing else. */
+const stkBlurPx = (brightness, name) => {
+  const raw = stkRaw(brightness, name, 'backdropFilter');
+  const m = /^blur\(([\d.]+)px\)$/.exec(raw);
+  if (!m) fail(`${name}: backdrop-filter "${raw}" is not the plain blur(Npx) the port draws`);
+  return parseFloat(m[1]);
+};
+/** `scale(0.97)` from a state rule. */
+const cssScale = (rule, cls) => {
+  const m = /^scale\(([\d.]+)\)$/.exec(collapse(cssDecl(rule, 'transform', cls)));
+  if (!m) fail(`${cls}: \`${cssDecl(rule, 'transform', cls)}\` is not a plain scale(N)`);
+  return parseFloat(m[1]);
+};
+
+// ---------------------------------------------------------------- the row itself
+const ROW_CLASSES = {
+  box: 'txrow-box',
+  title: 'txrow-title',
+  meta: 'txrow-meta',
+  textWrap: 'txrow-text-wrap',
+  amountWrap: 'txrow-amount-wrap',
+  amountIn: 'txrow-amount-in',
+  amountOut: 'txrow-amount-out',
+  pill: 'txrow-trailing-pill',
+};
+for (const [role, name] of Object.entries(ROW_CLASSES)) rowChecked(name);
+
+// The authored side of the box: one resting rule, one hover the port drops, one
+// press the row shares with every other `pressable` on the page.
+const TX_REST = cssRule(/^\.tx-row \{$/, '.tx-row');
+checkChipProps(
+  ruleProps(TX_REST, '.tx-row'),
+  ['display', 'align-items', 'gap', 'padding', 'border-radius', 'cursor', 'transition'],
+  'the resting rule',
+  '.tx-row',
+  TX_REST.line,
+);
+const TX_HOVER = cssRule(/^\.tx-row:hover \{$/, '.tx-row:hover');
+checkChipProps(ruleProps(TX_HOVER, '.tx-row:hover'), ['background'], 'the hover rule', '.tx-row:hover', TX_HOVER.line);
+const TX_ACTIVE = cssRule(/^\.tx-row:active \{$/, '.tx-row:active');
+checkChipProps(
+  ruleProps(TX_ACTIVE, '.tx-row:active'),
+  ['transform'],
+  'the active rule',
+  '.tx-row:active',
+  TX_ACTIVE.line,
+);
+const PRESS_REST = cssRule(/^\.pressable \{$/, '.pressable');
+checkChipProps(ruleProps(PRESS_REST, '.pressable'), ['transition'], 'the resting rule', '.pressable', PRESS_REST.line);
+const PRESS_ACTIVE = cssRule(/^\.pressable:active \{$/, '.pressable:active');
+checkChipProps(
+  ruleProps(PRESS_ACTIVE, '.pressable:active'),
+  ['transform'],
+  'the active rule',
+  '.pressable:active',
+  PRESS_ACTIVE.line,
+);
+// Both classes are on the element and both are unlayered, so the later rule wins
+// outright: the row scales to `.pressable`’s 0.97 and animates only the property
+// `.pressable`’s `transition` names. Reading that from the line numbers, rather
+// than assuming it, is what keeps the port honest if the sheet is ever reordered.
+if (PRESS_ACTIVE.line <= TX_ACTIVE.line) {
+  fail(
+    `.pressable:active (src/index.css:${PRESS_ACTIVE.line}) no longer follows .tx-row:active ` +
+      `(src/index.css:${TX_ACTIVE.line}); which press scale the row paints is now decided by something this ` +
+      'generator does not know',
+  );
+}
+// The same order decides the resting rules, which is what says which property
+// list the row animates: `.pressable`’s, because it is the later one.
+if (PRESS_REST.line <= TX_REST.line) {
+  fail(
+    `.pressable (src/index.css:${PRESS_REST.line}) no longer follows .tx-row (src/index.css:${TX_REST.line}); ` +
+      'which transition the row runs is now decided by something this generator does not know',
+  );
+}
+const txScale = cssScale(PRESS_ACTIVE, '.pressable:active');
+const txOverriddenScale = cssScale(TX_ACTIVE, '.tx-row:active');
+const txOwnMotion = controlTransition(TX_REST, '.tx-row', ['background-color', 'transform']);
+const txPressMotion = controlTransition(PRESS_REST, '.pressable', ['transform']);
+if (txPressMotion.ms !== txOwnMotion.ms || txPressMotion.ease.name !== txOwnMotion.ease.name) {
+  fail(
+    `.pressable’s clock (${txPressMotion.dur.name}/${txPressMotion.ease.name}) differs from .tx-row’s ` +
+      `(${txOwnMotion.dur.name}/${txOwnMotion.ease.name}); the row would run two clocks and app_rows.dart ` +
+      'ports one',
+  );
+}
+if (!txOwnMotion.props.includes('transform')) {
+  fail('.tx-row no longer names transform in its own transition, so the two rules are not the same shape');
+}
+const txHoverToken = tokenRef(
+  collapse(cssDecl(TX_HOVER, 'background', '.tx-row:hover')),
+  '.tx-row:hover background',
+  '.tx-row',
+);
+if (txHoverToken !== '--surface-2') fail(`.tx-row:hover paints ${txHoverToken}, not the recorded --surface-2`);
+
+/** Every source line a record cites, grouped by file: the class list, the inline
+ *  style it writes, the `dims`/`glyph` arm, the token a tint names. A slot whose
+ *  colour comes from an inline style is cited by both the element and the style,
+ *  so a drift test can re-check the pair rather than one half of it. */
+const rowsCite = (rec) => {
+  const byFile = new Map();
+  for (const p of rec.parts || []) {
+    const file = p.src || rec.src || US.source;
+    const set = byFile.get(file) || [];
+    for (const l of [p.line, p.styleSrcLine, p.toneVarLine, ...(p.styleSrc || []).map((s) => s.line)]) {
+      if (l !== undefined && !set.includes(l)) set.push(l);
+    }
+    byFile.set(file, set);
+  }
+  return [...byFile].map(([file, lines]) => `${file}:${lines.sort((a, b) => a - b).join(',')}`).join(' + ');
+};
+
+/** One text-bearing slot of the row, read from its stack row. `family` is the
+ *  stack the slot paints in: `body` for everything that inherits, `.mono` for the
+ *  label that carries the class. `colourToken` names the `:root` token the cited
+ *  class or inline style selects, which the measurement has to reproduce exactly. */
+const rowsSlot = (role, brightness, opts) => {
+  const name = ROW_CLASSES[role];
+  const rec = usRow(name);
+  const cls = rec.parts
+    .map((p) => p.cls)
+    .filter(Boolean)
+    .join(' ');
+  const fontSizePx = stkLen(brightness, name, 'fontSize');
+  const lineHeightPx = stkLen(brightness, name, 'lineHeight');
+  const track = stkTrack(brightness, name, fontSizePx);
+  // No slot here authors a line-height: each measured body's inherited
+  // multiplier, which the §6 `body` probe measures from preflight. Reading it
+  // back rather than typing `1.5` is what lets the port carry the multiplier —
+  // the number Flutter's `TextStyle.height` wants — instead of the phone pixels.
+  const bodyProbe = passTheme(`${brightness}-phone`).probes.body;
+  const bodyRatio = probePx(bodyProbe, 'lineHeight', 'body') / probePx(bodyProbe, 'fontSize', 'body');
+  const heightRatio = lineHeightPx / fontSizePx;
+  if (Math.abs(heightRatio - bodyRatio) > 1e-9) {
+    fail(
+      `${name}: its line box is ${heightRatio}x its size, while the body probe measures ${bodyRatio}x — the port carries one multiplier`,
+    );
+  }
+  const out = {
+    role,
+    name,
+    cls,
+    src: rowsCite(rec),
+    displayCss: stkRaw(brightness, name, 'display'),
+    alignItemsCss: stkRaw(brightness, name, 'alignItems'),
+    gapPx: stkRaw(brightness, name, 'columnGap') === 'normal' ? null : stkLen(brightness, name, 'columnGap'),
+    fontFamily: (() => {
+      // The stack a slot paints in is not visible in the 45 measured properties,
+      // so it comes from the §6 probe that authors it — `.mono` for a slot that
+      // cites the class, the document body for one that inherits. There is no
+      // third answer and no default: a slot that names neither stops generation.
+      const probe =
+        opts.family === 'mono'
+          ? passTheme(`${brightness}-phone`).probes['.mono']
+          : opts.family === 'body'
+            ? passTheme(`${brightness}-phone`).probes.body
+            : fail(`${name}: the slot asks for family ${JSON.stringify(opts.family)}, which this port does not read`);
+      return firstFamily(probeRaw(probe, 'fontFamily', opts.family === 'mono' ? '.mono' : 'body'), name);
+    })(),
+    fontSizePx,
+    fontWeight: parseInt(stkRaw(brightness, name, 'fontWeight'), 10),
+    lineHeightPx,
+    heightRatio,
+    letterSpacingPx: track.px,
+    letterSpacingEm: track.em,
+    textColor: opts.colourToken
+      ? stkTokenColour(brightness, name, 'color', opts.colourToken, opts.colourToken)
+      : stkCol(brightness, name, 'color'),
+    colourToken: opts.colourToken || null,
+    truncates: opts.truncate || false,
+    flexGrow: stkNum(brightness, name, 'flexGrow'),
+    flexShrink: stkNum(brightness, name, 'flexShrink'),
+    minWidthZero: opts.minWidthZero === true ? stkRaw(brightness, name, 'minWidth') === '0px' : null,
+    textAlignCss: stkHas(brightness, name, 'textAlign') ? stkRaw(brightness, name, 'textAlign') : null,
+    tabularNums: !!opts.tabular,
+  };
+  if (opts.gap !== undefined && out.gapPx !== opts.gap) {
+    fail(`${name}: measured gap ${out.gapPx} != the recorded ${opts.gap}px`);
+  }
+  if (opts.alignItems !== undefined && out.alignItemsCss !== opts.alignItems) {
+    fail(`${name}: measured align-items "${out.alignItemsCss}" != the recorded "${opts.alignItems}"`);
+  }
+  if (opts.display !== undefined && out.displayCss !== opts.display) {
+    fail(`${name}: measured display "${out.displayCss}" != the recorded "${opts.display}"`);
+  }
+  if (opts.textAlign !== undefined && out.textAlignCss !== opts.textAlign) {
+    fail(`${name}: measured text-align "${out.textAlignCss}" != the recorded "${opts.textAlign}"`);
+  }
+  if (opts.weight !== undefined && out.fontWeight !== opts.weight) {
+    fail(`${name}: measured font-weight ${out.fontWeight} != the recorded ${opts.weight}`);
+  }
+  if (opts.size !== undefined && out.fontSizePx !== opts.size) {
+    fail(`${name}: measured font size ${out.fontSizePx}px != the recorded ${opts.size}px`);
+  }
+  if (out.truncates) {
+    for (const [field, want] of [
+      ['whiteSpace', 'nowrap'],
+      ['textOverflow', 'ellipsis'],
+      ['overflowX', 'hidden'],
+      ['overflowY', 'hidden'],
+    ]) {
+      if (stkRaw(brightness, name, field) !== want) {
+        fail(`${name}: claims \`truncate\` but ${field} measured ${stkRaw(brightness, name, field)}`);
+      }
+    }
+    if (!/\btruncate\b/.test(cls)) fail(`${name}: the trio measured, yet the cited class list has no \`truncate\``);
+  } else {
+    if (stkRaw(brightness, name, 'textOverflow') !== 'clip') fail(`${name}: a non-truncating slot measures ellipsis`);
+    if (/\btruncate\b/.test(cls)) fail(`${name}: the cited class list says truncate, the measurement disagrees`);
+  }
+  if (opts.minWidthZero) {
+    if (!stkHas(brightness, name, 'minWidth')) {
+      fail(`${name}: \`min-w-0\` is read from the measurement, so the row has to ask for the property`);
+    }
+    if (stkRaw(brightness, name, 'minWidth') !== '0px') {
+      fail(`${name}: \`min-w-0\` measured ${stkRaw(brightness, name, 'minWidth')}`);
+    }
+  }
+  return out;
+};
+
+const rowsBox = (brightness) => {
+  const name = ROW_CLASSES.box;
+  const pad = stkPadSym(brightness, name);
+  const authored = cssRule(/^\.tx-row \{$/, '.tx-row');
+  const authoredPad = probePadding(passTheme(`${brightness}-phone`).probes['.tx-row'], '.tx-row');
+  if (authoredPad.vertical !== pad.vertical || authoredPad.horizontal !== pad.horizontal) {
+    fail(
+      `${name}: the composed padding ${pad.vertical}/${pad.horizontal} != .tx-row’s authored ${authoredPad.vertical}/${authoredPad.horizontal}`,
+    );
+  }
+  const radius = stkLen(brightness, name, 'borderRadius');
+  const radiusToken = tokenRef(cssDecl(authored, 'border-radius', '.tx-row'), '.tx-row border-radius', '.tx-row');
+  const want = lengthPx(
+    passTheme(`${brightness}-phone`).root[radiusToken].raw,
+    `${radiusToken} at ${brightness}-phone`,
+  );
+  if (want !== radius) fail(`${name}: measured radius ${radius}px != ${radiusToken} ${want}px`);
+  const gap = stkLen(brightness, name, 'rowGap');
+  if (gap !== stkLen(brightness, name, 'columnGap')) fail(`${name}: the row measures a different gap on each axis`);
+  if (collapse(cssDecl(authored, 'gap', '.tx-row')) !== `${gap}px`) {
+    fail(`${name}: .tx-row authors \`gap: ${cssDecl(authored, 'gap', '.tx-row')}\`, the row measured ${gap}px`);
+  }
+  const probe = passTheme(`${brightness}-phone`).probes['.tx-row'];
+  for (const [field, value] of [
+    ['display', stkRaw(brightness, name, 'display')],
+    ['padding', stkRaw(brightness, name, 'padding')],
+    ['borderRadius', stkRaw(brightness, name, 'borderRadius')],
+  ]) {
+    if (probeRaw(probe, field, '.tx-row') !== value) {
+      fail(
+        `${name}: the composed ${field} "${value}" != the .tx-row probe "${probeRaw(probe, field, '.tx-row')}" — a utility moved the box`,
+      );
+    }
+  }
+  const fill = stkCol(brightness, name, 'backgroundColor');
+  if (fill.alpha !== 0)
+    fail(`${name}: the row box measures an opaque fill (${fill.rgba}); only :hover is meant to paint`);
+  for (const side of ['borderTopWidth', 'borderBottomWidth', 'borderLeftWidth', 'borderRightWidth']) {
+    if (stkLen(brightness, name, side) !== 0)
+      fail(`${name}: ${side} measures ${stkRaw(brightness, name, side)}; the row has no frame`);
+  }
+  if (stkRaw(brightness, name, 'boxShadow') !== 'none') fail(`${name}: the row box carries a shadow`);
+  if (stkRaw(brightness, name, 'backdropFilter') !== 'none') fail(`${name}: the row box blurs what is behind it`);
+  return {
+    name,
+    cls: usRow(name).parts[0].cls,
+    src: rowsCite(usRow(name)),
+    displayCss: stkRaw(brightness, name, 'display'),
+    alignItemsCss: stkRaw(brightness, name, 'alignItems'),
+    justifyContentCss: stkRaw(brightness, name, 'justifyContent'),
+    gapPx: gap,
+    paddingVerticalPx: pad.vertical,
+    paddingHorizontalPx: pad.horizontal,
+    radiusPx: radius,
+    radiusToken,
+    fillColor: fill,
+    inkColor: stkTokenColour(brightness, name, 'color', '--ink', '--ink'),
+    cursorCss: stkRaw(brightness, name, 'cursor'),
+    flexShrinkPx: stkNum(brightness, name, 'flexShrink'),
+  };
+};
+
+const rowsLight = { box: rowsBox('light') };
+const rowsDark = { box: rowsBox('dark') };
+for (const [brightness, bag] of [
+  ['light', rowsLight],
+  ['dark', rowsDark],
+]) {
+  const box = bag.box;
+  bag.title = rowsSlot('title', brightness, {
+    family: 'body',
+    colourToken: '--ink',
+    truncate: true,
+    display: 'block',
+    weight: 600,
+    size: 13,
+  });
+  bag.meta = rowsSlot('meta', brightness, {
+    family: 'body',
+    colourToken: '--ink-3',
+    truncate: true,
+    display: 'block',
+    weight: 400,
+    size: 11,
+  });
+  bag.textWrap = rowsSlot('textWrap', brightness, { family: 'body', display: 'block', minWidthZero: true });
+  bag.amountWrap = rowsSlot('amountWrap', brightness, { family: 'body', display: 'block', textAlign: 'right' });
+  bag.amountIn = rowsSlot('amountIn', brightness, {
+    family: 'body',
+    colourToken: '--success',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    weight: 700,
+    size: 13,
+    tabular: true,
+  });
+  bag.amountOut = rowsSlot('amountOut', brightness, {
+    family: 'body',
+    colourToken: '--danger',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    weight: 700,
+    size: 13,
+    tabular: true,
+  });
+  bag.pill = rowsSlot('pill', brightness, {
+    family: 'mono',
+    colourToken: '--ink',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    weight: 600,
+    size: 9,
+    tabular: true,
+  });
+  // `.money` authors the tracking both amount arms measure, and nothing else
+  // about them: the size, weight and colour come from the row.
+  const moneyRest = cssRule(/^\.money \{$/, '.money');
+  const moneyEm = parseFloat(collapse(cssDecl(moneyRest, 'letter-spacing', '.money')));
+  for (const arm of [bag.amountIn, bag.amountOut]) {
+    if (Math.abs(arm.letterSpacingEm - moneyEm) > 1e-12) {
+      fail(`${arm.name}: measured tracking ${arm.letterSpacingEm}em != .money’s authored ${moneyEm}em`);
+    }
+    if (!/\bmoney\b/.test(arm.cls)) fail(`${arm.name}: the cited class list no longer carries .money`);
+    if (!/tabular-nums/.test(collapse(cssDecl(moneyRest, 'font-variant-numeric', '.money')))) {
+      fail('.money no longer authors tabular-nums, so the amount row has no reason to request tnum');
+    }
+  }
+  // `.mono` is the pill’s family and its tnum; `.pill` is its box. The `!`
+  // utilities are what separate this pill from the §6 chip family’s resting row.
+  const monoRest = cssRule(/^\.mono \{$/, '.mono');
+  const monoFam = firstFamily(
+    passTheme(`${brightness}-phone`).root[
+      tokenRef(collapse(cssDecl(monoRest, 'font-family', '.mono')), '.mono font-family', '.mono')
+    ].raw,
+    '.mono',
+  );
+  if (bag.pill.fontFamily !== monoFam)
+    fail(`${bag.pill.name}: the pill label measures ${bag.pill.fontFamily}, .mono resolves to ${monoFam}`);
+  const pillProbe = passTheme(`${brightness}-phone`).probes['.pill'];
+  if (!pillProbe) fail(`${brightness}-phone has no .pill probe to read the trailing pill’s box against`);
+  const pillRadius = stkLen(brightness, ROW_CLASSES.pill, 'borderRadius');
+  const pillPad = stkPadSym(brightness, ROW_CLASSES.pill);
+  const pillBorder = stkLen(brightness, ROW_CLASSES.pill, 'borderTopWidth');
+  for (const [field, want, got] of [
+    ['border-radius', probePx(pillProbe, 'borderRadius', '.pill'), pillRadius],
+    [
+      'background-color',
+      probeSrgb(pillProbe, 'backgroundColor', '.pill'),
+      stkCol(brightness, ROW_CLASSES.pill, 'backgroundColor'),
+    ],
+    [
+      'border-top-color',
+      probeSrgb(pillProbe, 'borderTopColor', '.pill'),
+      stkCol(brightness, ROW_CLASSES.pill, 'borderTopColor'),
+    ],
+    ['font-weight', parseInt(probeRaw(pillProbe, 'fontWeight', '.pill'), 10), bag.pill.fontWeight],
+  ]) {
+    const same =
+      typeof want === 'object' ? want.hex === got.hex && want.alpha === got.alpha : String(want) === String(got);
+    if (!same) fail(`${bag.pill.name}: ${field} ${JSON.stringify(got)} != the §6 .pill row’s ${JSON.stringify(want)}`);
+  }
+  if (pillBorder !== 1) fail(`${bag.pill.name}: the trailing pill measures a ${pillBorder}px frame, .pill authors 1px`);
+  const authoredPillPad = probePadding(pillProbe, '.pill');
+  if (authoredPillPad.vertical === pillPad.vertical || authoredPillPad.horizontal === pillPad.horizontal) {
+    fail(
+      `${bag.pill.name}: the !py-0.5/!px-2 override did not move .pill’s own ${authoredPillPad.vertical}/${authoredPillPad.horizontal} padding`,
+    );
+  }
+  if (!/!py-0\.5/.test(bag.pill.cls) || !/!px-2/.test(bag.pill.cls)) {
+    fail(`${bag.pill.name}: the padding override is no longer cited in "${bag.pill.cls}"`);
+  }
+  if (bag.pill.truncates) fail(`${bag.pill.name}: the type pill truncates; the §6 pill does not`);
+  // The `hidden`/`sm:inline-flex` pair on the pill is inert, because `.pill`
+  // authors an unlayered `display` that beats the layered utility at any
+  // width. Both passes measure it painted, which is the port’s fact.
+  const inert = usAuthored('pill-hidden-utility-is-inert');
+  const inertDisplay = (tag) => stk(tag, ROW_CLASSES.pill).display;
+  for (const tag of ['light-desktop', 'dark-desktop', 'light-phone', 'dark-phone']) {
+    if (inertDisplay(tag) !== 'inline-flex') {
+      fail(
+        `${ROW_CLASSES.pill}: ${tag} measures display "${inertDisplay(tag)}"; the recorded inert-\`hidden\` finding is now wrong`,
+      );
+    }
+  }
+  tsxLine(CSS_LINES, 'src/index.css', inert.parts.find((p) => p.src === 'src/index.css').line, 'display: inline-flex;');
+  if (!/hidden sm:inline-flex/.test(bag.pill.cls)) {
+    fail(`${bag.pill.name}: the class list no longer carries the hidden/sm pair the finding is about`);
+  }
+}
+
+// The arrow the amount span leads with, and the two ways its callers feed the row.
+const arrowRec = usAuthored('txrow-arrow-sizes');
+const arrowLine = arrowRec.parts[0];
+tsxLine(ROWS_TSX, 'src/components/ui/TransactionRow.tsx', arrowLine.line, arrowLine.text);
+const arrowOf = (component) => {
+  const m = new RegExp(`<${component} size=\\{(\\d+)\\} />`).exec(arrowLine.text);
+  if (!m) fail(`txrow-arrow-sizes no longer reads as a ${component} with a numeric size: "${arrowLine.text}"`);
+  return parseInt(m[1], 10);
+};
+const rowsArrows = {
+  inName: 'ArrowDownLeft',
+  outName: 'ArrowUpRight',
+  inPx: arrowOf('ArrowDownLeft'),
+  outPx: arrowOf('ArrowUpRight'),
+};
+if (rowsArrows.inPx !== rowsArrows.outPx) fail('the two direction arrows are now different sizes');
+
+// The meta line, the signed amount and the two `isIncome` predicates: recorded
+// because a row cannot decide them, cited because the widget has to accept the
+// string and the flag from its caller rather than compute either.
+for (const name of [
+  'txrow-meta-composition',
+  'txrow-amount-signed-vs-absolute',
+  'txrow-isincome-predicates-disagree',
+]) {
+  for (const p of usAuthored(name).parts)
+    tsxLine(
+      rowsFile(p.src || 'src/components/ui/TransactionRow.tsx'),
+      p.src || 'src/components/ui/TransactionRow.tsx',
+      p.line,
+      p.text,
+    );
+}
+const rowsMeta = usAuthored('txrow-meta-composition').parts[0];
+tsxLine(ROWS_TSX, 'src/components/ui/TransactionRow.tsx', rowsMeta.line, rowsMeta.text);
+
+// ---------------------------------------------------------------- the day header
+rowChecked('day-head-label');
+const DAY_REST = cssRule(/^\.day-head \{$/, '.day-head');
+checkChipProps(
+  ruleProps(DAY_REST, '.day-head'),
+  ['position', 'top', 'z-index', 'background', 'backdrop-filter', '-webkit-backdrop-filter', 'padding'],
+  'the resting rule',
+  '.day-head',
+  DAY_REST.line,
+);
+const eyebrowRest = cssRule(/^\.eyebrow \{$/, '.eyebrow');
+checkChipProps(
+  ruleProps(eyebrowRest, '.eyebrow'),
+  ['font-size', 'font-weight', 'letter-spacing', 'text-transform', 'color'],
+  'the resting rule',
+  '.eyebrow',
+  eyebrowRest.line,
+);
+const rowsDayHead = (brightness) => {
+  const name = 'day-head-label';
+  const tag = `${brightness}-phone`;
+  const pad = stkPadSym(brightness, name);
+  const authoredPad = probePadding(passTheme(tag).probes['.day-head'], '.day-head');
+  if (authoredPad.vertical !== pad.vertical || authoredPad.horizontal !== pad.horizontal) {
+    fail(
+      `${name}: measured padding ${pad.vertical}/${pad.horizontal} != .day-head’s authored ${authoredPad.vertical}/${authoredPad.horizontal}`,
+    );
+  }
+  const blur = stkBlurPx(brightness, name);
+  const authoredBlur = new RegExp('^blur\\(([\\d.]+)px\\)$').exec(
+    collapse(cssDecl(DAY_REST, 'backdrop-filter', '.day-head')),
+  );
+  if (!authoredBlur || parseFloat(authoredBlur[1]) !== blur) {
+    fail(
+      `${name}: .day-head authors \`backdrop-filter: ${cssDecl(DAY_REST, 'backdrop-filter', '.day-head')}\`, the row measured blur(${blur}px)`,
+    );
+  }
+  // `color-mix(in srgb, var(--bg) 78%, transparent)` — the measurement has to be
+  // the named token at exactly the authored percentage, in both brightnesses.
+  const mix = /^color-mix\(in srgb, var\(--([a-z0-9-]+)\) (\d+)%, transparent\)$/.exec(
+    collapse(cssDecl(DAY_REST, 'background', '.day-head')),
+  );
+  if (!mix)
+    fail(
+      `${name}: .day-head background is not the recorded color-mix recipe: "${cssDecl(DAY_REST, 'background', '.day-head')}"`,
+    );
+  const token = `--${mix[1]}`;
+  const percent = parseFloat(mix[2]);
+  const bgToken = passTheme(tag).root[token];
+  if (!bgToken || !bgToken.srgb) fail(`${name}: ${token} is not a measured colour in ${tag}`);
+  const got = stkCol(brightness, name, 'backgroundColor');
+  if (got.hex !== bgToken.srgb.hex) {
+    fail(
+      `${name}: the header painted ${got.rgba}, ${token} is ${bgToken.srgb.rgba} — the mix moved more than the alpha`,
+    );
+  }
+  if (Math.abs(got.alpha - percent / 100) > 1e-9) {
+    fail(`${name}: the header painted alpha ${got.alpha}, ${token} at ${percent}% is ${percent / 100}`);
+  }
+  // The header’s type is `.eyebrow`’s, and the `!text-[10px]` beside it is
+  // redundant: it re-states the class’s own font size.
+  const label = passTheme(tag).probes['.eyebrow'];
+  const eyebrow = {
+    fontSizePx: probePx(label, 'fontSize', '.eyebrow'),
+    fontWeight: parseInt(probeRaw(label, 'fontWeight', '.eyebrow'), 10),
+    lineHeightPx: probePx(label, 'lineHeight', '.eyebrow'),
+    letterSpacingPx: probePx(label, 'letterSpacing', '.eyebrow'),
+    colour: probeSrgb(label, 'color', '.eyebrow'),
+  };
+  const measured = {
+    fontSizePx: stkLen(brightness, name, 'fontSize'),
+    fontWeight: parseInt(stkRaw(brightness, name, 'fontWeight'), 10),
+    lineHeightPx: stkLen(brightness, name, 'lineHeight'),
+    letterSpacingPx: stkLen(brightness, name, 'letterSpacing'),
+    colour: stkCol(brightness, name, 'color'),
+  };
+  for (const k of Object.keys(measured)) {
+    const a = measured[k],
+      b = eyebrow[k];
+    const same = typeof a === 'object' ? a.hex === b.hex && a.alpha === b.alpha : a === b;
+    if (!same) fail(`${name}: ${k} measured ${JSON.stringify(a)} but the .eyebrow probe reads ${JSON.stringify(b)}`);
+  }
+  const authoredSize = lengthPx(cssDecl(eyebrowRest, 'font-size', '.eyebrow'), '.eyebrow font-size');
+  if (authoredSize !== measured.fontSizePx) {
+    fail(`${name}: !text-[10px] no longer matches .eyebrow’s authored ${authoredSize}px`);
+  }
+  // `.eyebrow` authors no line-height, so the header sits on `body`'s inherited
+  // multiplier — read back from the same probe, never typed.
+  const dayBody = passTheme(tag).probes.body;
+  const dayBodyRatio = probePx(dayBody, 'lineHeight', 'body') / probePx(dayBody, 'fontSize', 'body');
+  if (Math.abs(measured.lineHeightPx / measured.fontSizePx - dayBodyRatio) > 1e-9) {
+    fail(
+      `${name}: the header's line box is ${measured.lineHeightPx / measured.fontSizePx}× its size, \`body\` measures ${dayBodyRatio}×`,
+    );
+  }
+  const authoredTracking = parseFloat(collapse(cssDecl(eyebrowRest, 'letter-spacing', '.eyebrow')));
+  if (Math.abs((measured.letterSpacingPx / measured.fontSizePx - authoredTracking) / authoredTracking) > 1e-9) {
+    fail(
+      `${name}: tracking ${measured.letterSpacingPx}px is not .eyebrow’s ${authoredTracking}em of ${measured.fontSizePx}px`,
+    );
+  }
+  const uppercase = collapse(cssDecl(eyebrowRest, 'text-transform', '.eyebrow'));
+  if (uppercase !== 'uppercase')
+    fail(`${name}: .eyebrow authors text-transform ${uppercase}; the port has no rule for it`);
+  if (stkRaw(brightness, name, 'textTransform') !== 'uppercase') {
+    fail(`${name}: the composed header did not measure uppercase`);
+  }
+  if (stkRaw(brightness, name, 'position') !== 'sticky') fail(`${name}: the header is no longer sticky`);
+  if (stkLen(brightness, name, 'top') !== 0) fail(`${name}: the header sticks to ${stkRaw(brightness, name, 'top')}`);
+  if (stkRaw(brightness, name, 'zIndex') !== cssDecl(DAY_REST, 'z-index', '.day-head')) {
+    fail(
+      `${name}: z-index measured ${stkRaw(brightness, name, 'zIndex')}, .day-head authors ${cssDecl(DAY_REST, 'z-index', '.day-head')}`,
+    );
+  }
+  return {
+    name,
+    cls: usRow(name).parts[0].cls,
+    src: rowsCite(usRow(name)),
+    displayCss: stkRaw(brightness, name, 'display'),
+    zIndexCss: stkRaw(brightness, name, 'zIndex'),
+    paddingVerticalPx: pad.vertical,
+    paddingHorizontalPx: pad.horizontal,
+    blurPx: blur,
+    fillColor: got,
+    fillToken: token,
+    fillMixPercent: percent,
+    labelCssClass: '.eyebrow',
+    labelAuthoredSrc: `src/index.css:${eyebrowRest.line}`,
+    uppercase: true,
+    textColor: measured.colour,
+    fontSizePx: measured.fontSizePx,
+    fontWeight: measured.fontWeight,
+    lineHeightPx: measured.lineHeightPx,
+    heightRatio: measured.lineHeightPx / measured.fontSizePx,
+    letterSpacingPx: measured.letterSpacingPx,
+    letterSpacingEm: authoredTracking,
+    redundantSizeOverride: true,
+  };
+};
+
+// ---------------------------------------------------------------- the ledger
+for (const n of [
+  'ledger-scroll',
+  'ledger-divides',
+  'ledger-row-last',
+  'ledger-row-middle',
+  'ledger-empty',
+  'ledger-list-scroll',
+  'ledger-empty-rc',
+  'ledger-empty-rc-line',
+]) {
+  rowChecked(n);
+}
+// `divide-y` paints its children and the child selector takes the line back on
+// the last one, so the divider is a pair of recipes measured on two siblings.
+const dividesRec = usRow('ledger-divides');
+for (const n of ['ledger-row-last', 'ledger-row-middle']) {
+  if (usRow(n).wrap !== dividesRec.parts[0].cls) {
+    fail(`${n}: the recorded parent stack "${usRow(n).wrap}" is no longer the cited "${dividesRec.parts[0].cls}"`);
+  }
+  tsxLine(
+    ROWS_DASH_TSX,
+    'src/components/Dashboard.tsx',
+    dividesRec.parts[0].line,
+    `className="${dividesRec.parts[0].cls}"`,
+  );
+  tsxLine(ROWS_DASH_TSX, 'src/components/Dashboard.tsx', usRow(n).parts[0].line, `[&:last-child]:border-b-0`);
+}
+if (JSON.stringify(passTheme('light-desktop').stacks['ledger-row-last'].changed) !== '[]') {
+  fail(
+    `ledger-row-last moves ${JSON.stringify(passTheme('light-desktop').stacks['ledger-row-last'].changed)}; ` +
+      'the last child is meant to lose its divider',
+  );
+}
+const rowsDivider = (brightness) => {
+  if (stkLen(brightness, 'ledger-row-last', 'borderBottomWidth') !== 0) {
+    fail('the last divided child measures a bottom border; `border-b-0` no longer wins');
+  }
+  if (stkHas(brightness, 'ledger-row-middle', 'borderBottomStyle')) {
+    if (stkRaw(brightness, 'ledger-row-middle', 'borderBottomStyle') !== 'solid') {
+      fail(
+        `the divider measures ${stkRaw(brightness, 'ledger-row-middle', 'borderBottomStyle')}, ` +
+          'not the solid hairline the port draws',
+      );
+    }
+  }
+  const width = stkLen(brightness, 'ledger-row-middle', 'borderBottomWidth');
+  if (width !== 1) fail(`ledger-row-middle: the divider measures ${width}px, not the 1px ` + '`divide-y` authors');
+  const colour = stkTokenColour(brightness, 'ledger-row-middle', 'borderBottomColor', '--line', '--line');
+  if (
+    stkCol(brightness, 'ledger-divides', 'borderBottomColor').hex !== stkCol(brightness, 'ledger-divides', 'color').hex
+  ) {
+    fail(
+      'ledger-divides: the parent’s own border is no longer currentColor, so the recipe row is telling a different story',
+    );
+  }
+  return { widthPx: width, colour, token: '--line' };
+};
+/** A scroll rail the two viewports read differently: `lg:` gating, or none. */
+const rowsScroll = (name) => {
+  const read = (tag) => ({
+    maxHeight: stk(tag, name).maxHeight,
+    overflowX: stk(tag, name).overflowX,
+    overflowY: stk(tag, name).overflowY,
+    padding: stk(tag, name).padding,
+  });
+  const wide = read('light-desktop'),
+    narrow = read('light-phone');
+  for (const [tag, want] of [
+    ['dark-desktop', wide],
+    ['dark-phone', narrow],
+  ]) {
+    if (JSON.stringify(read(tag)) !== JSON.stringify(want)) {
+      fail(
+        `${name}: ${tag} reads ${JSON.stringify(read(tag))}, which is not the ${JSON.stringify(want)} the same viewport read in light`,
+      );
+    }
+  }
+  const side = (v) => (v === '0px' ? 0 : stkPadOneSideOf(v, name));
+  return {
+    name,
+    src: rowsCite(usRow(name)),
+    cls: usRow(name).parts[0].cls,
+    wideMaxHeightPx: wide.maxHeight === 'none' ? null : lenAnyPx(wide.maxHeight, `${name} wide max-height`),
+    narrowMaxHeightPx: narrow.maxHeight === 'none' ? null : lenAnyPx(narrow.maxHeight, `${name} narrow max-height`),
+    wideOverflowYCss: wide.overflowY,
+    narrowOverflowYCss: narrow.overflowY,
+    wideOverflowXCss: wide.overflowX,
+    narrowOverflowXCss: narrow.overflowX,
+    widePaddingRightPx: side(wide.padding),
+    narrowPaddingRightPx: side(narrow.padding),
+  };
+};
+const stkPadOneSideOf = (raw, name) => {
+  const parts = raw.split(/\s+/).map((s) => lenAnyPx(s, `${name} padding`));
+  const [top, right = top, bottom = top, left = right] = parts;
+  for (const [k, v] of Object.entries({ top, bottom, left })) {
+    if (v !== 0) fail(`${name}: padding "${raw}" has a ${k} inset the rail does not port`);
+  }
+  return right;
+};
+const rowsLedgerScroll = rowsScroll('ledger-scroll');
+if (rowsLedgerScroll.wideMaxHeightPx === null || rowsLedgerScroll.narrowMaxHeightPx !== null) {
+  fail(
+    `ledger-scroll is recorded as the ` +
+      '`lg:`-gated rail (544px wide, ungated narrow); it now reads ' +
+      `${rowsLedgerScroll.wideMaxHeightPx}/${rowsLedgerScroll.narrowMaxHeightPx}`,
+  );
+}
+const authoredMax = /^lg:max-h-\[([\d.]+)rem\]$/.exec(
+  rowsLedgerScroll.cls.split(/\s+/).find((c) => /^lg:max-h-\[/.test(c)) || '',
+);
+if (!authoredMax) fail(`ledger-scroll no longer cites an lg:max-h-[Nrem]: "${rowsLedgerScroll.cls}"`);
+if (parseFloat(authoredMax[1]) * 16 !== rowsLedgerScroll.wideMaxHeightPx) {
+  fail(
+    `ledger-scroll: lg:max-h-[${authoredMax[1]}rem] is ${parseFloat(authoredMax[1]) * 16}px, ` +
+      `the pass measured ${rowsLedgerScroll.wideMaxHeightPx}px`,
+  );
+}
+const rowsRcScroll = rowsScroll('ledger-list-scroll');
+if (rowsRcScroll.wideMaxHeightPx !== rowsRcScroll.narrowMaxHeightPx || rowsRcScroll.wideMaxHeightPx === null) {
+  fail(`ledger-list-scroll is recorded as ungated (${rowsRcScroll.wideMaxHeightPx}px) at both viewports`);
+}
+
+// The two empty states: the dashboard’s dashed box, and the Reports Centre’s
+// flex column whose `empty` class is applied but declared nowhere.
+const rowsEmpty = (brightness) => {
+  const pad = stkPadSym(brightness, 'ledger-empty');
+  if (pad.horizontal !== 0)
+    fail(
+      `ledger-empty: padding "${stkRaw(brightness, 'ledger-empty', 'padding')}" is not the vertical pair the port draws`,
+    );
+  const radius = stkLen(brightness, 'ledger-empty', 'borderRadius');
+  const radiusToken = 'var(--r-sm)';
+  const want = lengthPx(passTheme(`${brightness}-phone`).root['--r-sm'].raw, `--r-sm at ${brightness}-phone`);
+  if (want !== radius) fail(`ledger-empty: measured radius ${radius}px != --r-sm ${want}px`);
+  if (!/rounded-\[var\(--r-sm\)\]/.test(usRow('ledger-empty').parts[0].cls)) {
+    fail(`ledger-empty: the cited class no longer rounds with ${radiusToken}`);
+  }
+  for (const side of ['borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth']) {
+    if (stkLen(brightness, 'ledger-empty', side) !== 1)
+      fail(`ledger-empty: ${side} measures ${stkRaw(brightness, 'ledger-empty', side)}, not 1px`);
+  }
+  if (stkRaw(brightness, 'ledger-empty', 'borderTopStyle') !== 'dashed')
+    fail('ledger-empty: the frame is no longer dashed');
+  return {
+    radiusPx: radius,
+    borderWidthPx: 1,
+    borderColor: stkTokenColour(brightness, 'ledger-empty', 'borderTopColor', '--line', '--line'),
+    fillColor: stkTokenColour(brightness, 'ledger-empty', 'backgroundColor', '--surface-2', '--surface-2'),
+    paddingVerticalPx: pad.vertical,
+    textAlignCss: stkRaw(brightness, 'ledger-empty', 'textAlign'),
+  };
+};
+const rowsEmptyRc = (brightness) => {
+  if (stkCol(brightness, 'ledger-empty-rc', 'backgroundColor').alpha !== 0) {
+    fail('ledger-empty-rc paints a fill; the `empty` class is no longer declared nowhere, so the record is stale');
+  }
+  if (stkRaw(brightness, 'ledger-empty-rc', 'borderTopWidth') !== '0px') fail('ledger-empty-rc grew a frame');
+  const pad = stkPadSym(brightness, 'ledger-empty-rc');
+  if (pad.horizontal !== 0)
+    fail(`ledger-empty-rc: padding "${stkRaw(brightness, 'ledger-empty-rc', 'padding')}" is not vertical`);
+  const gap = stkLen(brightness, 'ledger-empty-rc', 'rowGap');
+  if (gap !== stkLen(brightness, 'ledger-empty-rc', 'columnGap'))
+    fail('ledger-empty-rc measures a different gap on each axis');
+  if (!/\bempty\b/.test(usRow('ledger-empty-rc').parts[0].cls))
+    fail('ledger-empty-rc no longer cites the undeclared `empty` class');
+  const line = rowsSlotLike('ledger-empty-rc-line', brightness);
+  return { gapPx: gap, paddingVerticalPx: pad.vertical, line };
+};
+/** The Reports Centre empty line — the same slot reading, off a row that is not
+ *  part of the transaction row. */
+const rowsSlotLike = (name, brightness) => {
+  const cls = usRow(name)
+    .parts.map((p) => p.cls)
+    .filter(Boolean)
+    .join(' ');
+  const fontSizePx = stkLen(brightness, name, 'fontSize');
+  const lineHeightPx = stkLen(brightness, name, 'lineHeight');
+  const bodyProbe = passTheme(`${brightness}-phone`).probes.body;
+  const bodyRatio = probePx(bodyProbe, 'lineHeight', 'body') / probePx(bodyProbe, 'fontSize', 'body');
+  if (Math.abs(lineHeightPx / fontSizePx - bodyRatio) > 1e-9) {
+    fail(
+      `${name}: its line box is ${lineHeightPx / fontSizePx}x its size, while the body probe measures ${bodyRatio}x`,
+    );
+  }
+  // The slot claims `.mono`, so its tabular figures come from that rule and not
+  // from a widget choosing them.
+  const monoRule = cssRule(/^\.mono \{$/, '.mono');
+  if (!/tabular-nums/.test(collapse(cssDecl(monoRule, 'font-variant-numeric', '.mono')))) {
+    fail(
+      `${name}: the slot cites `.mono` for tabular figures, and src/index.css:${monoRule.line} no longer authors them`,
+    );
+  }
+  return {
+    name,
+    cls,
+    src: rowsCite(usRow(name)),
+    displayCss: stkRaw(brightness, name, 'display'),
+    alignItemsCss: stkRaw(brightness, name, 'alignItems'),
+    gapPx: stkRaw(brightness, name, 'columnGap') === 'normal' ? null : stkLen(brightness, name, 'columnGap'),
+    fontFamily: firstFamily(
+      probeRaw(passTheme(`${brightness}-phone`).probes['.mono'], 'fontFamily', '.mono'),
+      `${name} .mono`,
+    ),
+    fontSizePx,
+    fontWeight: parseInt(stkRaw(brightness, name, 'fontWeight'), 10),
+    lineHeightPx,
+    heightRatio: lineHeightPx / fontSizePx,
+    letterSpacingPx:
+      stkRaw(brightness, name, 'letterSpacing') === 'normal' ? 0 : stkLen(brightness, name, 'letterSpacing'),
+    letterSpacingEm: 0,
+    textColor: stkTokenColour(brightness, name, 'color', '--ink', '--ink'),
+    colourToken: '--ink',
+    truncates: false,
+    flexGrow: stkNum(brightness, name, 'flexGrow'),
+    flexShrink: stkNum(brightness, name, 'flexShrink'),
+    minWidthZero: false,
+    textAlignCss: stkHas(brightness, name, 'textAlign') ? stkRaw(brightness, name, 'textAlign') : null,
+    tabularNums: true,
+  };
+};
+if (!/\bmono\b/.test(usRow('ledger-empty-rc-line').parts[0].cls)) {
+  fail('ledger-empty-rc-line no longer cites `.mono`, so its family and tnum have no source');
+}
+
+// ---------------------------------------------------------------- the category chip
+const CAT_SIZES = ['xs', 'sm', 'md', 'lg'];
+const catRows = {};
+for (const s of CAT_SIZES) catRows[s === 'md' ? 'md' : s] = rowChecked(`cat-chip-${s === 'md' ? 'md-lavender' : s}`);
+const catTones = {};
+for (const t of ['pink', 'mint', 'yellow', 'lavender', 'blue', 'ink']) catTones[t] = rowChecked(`cat-chip-md-${t}`);
+
+/** `const dims = size === 'xs' ? 22 : …` — the two tables the chip’s inline style
+ *  and its glyph are built from, parsed out of the pinned source rather than
+ *  retyped, so a component edit that moves a number moves the port too. */
+const catTernary = (file, line, varName, label) => {
+  const text = file[line - 1];
+  if (!text || !text.includes(`const ${varName} =`)) fail(`${label}: line ${line} is not the ${varName} table`);
+  const arms = {};
+  for (const m of text.matchAll(/size === '([a-z]+)' \? ([\d.]+)/g)) arms[m[1]] = parseFloat(m[2]);
+  const tail = /: ([\d.]+);/.exec(text);
+  if (!tail) fail(`${label}: the ${varName} ternary has no default arm`);
+  return { arms, fallback: parseFloat(tail[1]) };
+};
+const catDimsRec = usAuthored('cat-chip-icon-and-size-tables');
+const dimsLine = catDimsRec.parts.find((p) => p.text.startsWith('const dims ='));
+const glyphLine = catDimsRec.parts.find((p) => p.text.startsWith('const glyph ='));
+tsxLine(ROWS_CAT_TSX, 'src/components/ui/CategoryChip.tsx', dimsLine.line, dimsLine.text);
+tsxLine(ROWS_CAT_TSX, 'src/components/ui/CategoryChip.tsx', glyphLine.line, glyphLine.text);
+const catDims = catTernary(ROWS_CAT_TSX, dimsLine.line, 'dims', 'the chip size table');
+const catGlyphs = catTernary(ROWS_CAT_TSX, glyphLine.line, 'glyph', 'the chip glyph table');
+if (catDims.fallback !== 40 || catGlyphs.fallback !== 17) {
+  fail(`the chip's default arm is no longer the md row (dims ${catDims.fallback}, glyph ${catGlyphs.fallback})`);
+}
+const catSizeFor = (s) => (s === 'md' ? catDims.fallback : catDims.arms[s]);
+const catGlyphFor = (s) => (s === 'md' ? catGlyphs.fallback : catGlyphs.arms[s]);
+for (const s of CAT_SIZES) {
+  if (catDims.arms[s] === undefined && s !== 'md') fail(`the dims table no longer names ${s}`);
+}
+
+// The tone names, the tint each one selects, and the hash that picks a tint.
+const catUnionLine = ROWS_CAT_TSX.findIndex((l) => /^export type ChipTone = /.test(l));
+if (catUnionLine < 0) fail('CategoryChip.tsx no longer declares `export type ChipTone`');
+tsxLine(ROWS_CAT_TSX, 'src/components/ui/CategoryChip.tsx', catUnionLine + 1, ROWS_CAT_TSX[catUnionLine]);
+const catToneNames = (ROWS_CAT_TSX[catUnionLine].match(/'([a-z]+)'/g) || []).map((s) => s.replace(/'/g, ''));
+const toneBgStart = ROWS_CAT_TSX.findIndex((l) => /^const TONE_BG: Record<ChipTone, string> = \{$/.test(l));
+if (toneBgStart < 0) fail('CategoryChip.tsx no longer declares `const TONE_BG: Record<ChipTone, string>`');
+const catToneBg = {};
+for (let i = toneBgStart + 1; i < ROWS_CAT_TSX.length && !/^\};/.test(ROWS_CAT_TSX[i]); i++) {
+  const m = /^  ([a-z]+): '(var\(--[a-z0-9-]+\))',$/.exec(ROWS_CAT_TSX[i]);
+  if (m) catToneBg[m[1]] = { token: m[2], line: i + 1 };
+}
+if (Object.keys(catToneBg).sort().join() !== [...catToneNames].sort().join()) {
+  fail(
+    `TONE_BG names ${Object.keys(catToneBg).sort().join()} but the ChipTone union says ${[...catToneNames].sort().join()}`,
+  );
+}
+const cycleLine = ROWS_CAT_TSX.findIndex((l) => /^const TONE_CYCLE: ChipTone\[\] = \[/.test(l));
+if (cycleLine < 0) fail('CategoryChip.tsx no longer declares `const TONE_CYCLE: ChipTone[]`');
+const catToneCycle = (ROWS_CAT_TSX[cycleLine].match(/'([a-z]+)'/g) || []).map((s) => s.replace(/'/g, ''));
+if (catToneCycle.some((t) => !catToneNames.includes(t))) fail('TONE_CYCLE names a tone the union does not have');
+const hashLines = catDimsRec ? usAuthored('cat-chip-tone-choice') : null;
+for (const p of hashLines.parts) tsxLine(ROWS_CAT_TSX, 'src/components/ui/CategoryChip.tsx', p.line, p.text);
+const hashBody = ROWS_CAT_TSX.slice(hashLines.parts[1].line, hashLines.parts[4].line).join('\n');
+const hashMul = /h \* (\d+) \+ s\.charCodeAt\(i\)/.exec(hashBody);
+const hashShift = / >>> (\d+);/.exec(hashBody);
+if (!hashMul || !hashShift) fail('hashString is no longer `h = (h * M + s.charCodeAt(i)) >>> S`');
+if (hashShift[1] !== '0') fail(`hashString now shifts by ${hashShift[1]}, which app_rows.dart has no mask for`);
+const jsToneFor = (category) => {
+  const s = category.toLowerCase().trim();
+  let h = 0;
+  for (let i = 0; i < s.length; i++)
+    h = (h * parseInt(hashMul[1], 10) + s.charCodeAt(i)) >>> parseInt(hashShift[1], 10);
+  return catToneCycle[h % catToneCycle.length];
+};
+
+// Category → glyph. The names travel through the icon map item 3 built, so the
+// port can be given the same Lucide symbol the web paints once the icon
+// dependency lands; until then the widget draws the box and the caller hands it
+// the glyph, exactly as `AppIconButton` does.
+const ICON_MAP = fs
+  .readFileSync(path.join(ROOT, 'parity', 'icon-map.tsv'), 'utf8')
+  .split(/\r?\n/)
+  .filter((l) => l.trim())
+  .reduce((acc, line) => {
+    const [web, slug, dart] = line.split('\t');
+    if (web !== 'web') acc[web] = { slug, dart };
+    return acc;
+  }, {});
+const iconDeclStart = ROWS_CAT_TSX.findIndex((l) => /^const CATEGORY_ICONS: Record<string, LucideIcon> = \{$/.test(l));
+if (iconDeclStart < 0) fail('CategoryChip.tsx no longer declares `const CATEGORY_ICONS`');
+const catIconMap = {};
+for (let i = iconDeclStart + 1; i < ROWS_CAT_TSX.length && !/^};/.test(ROWS_CAT_TSX[i]); i++) {
+  const m = /^  ([a-z]+): ([A-Z][A-Za-z]*),$/.exec(ROWS_CAT_TSX[i]);
+  if (m) catIconMap[m[1]] = m[2];
+}
+const fallbackIconLine = ROWS_CAT_TSX.findIndex((l) => /iconOverride \?\? CATEGORY_ICONS\[key\] \?\? Receipt;/.test(l));
+if (fallbackIconLine < 0) fail('CategoryChip.tsx no longer falls back to the Receipt glyph');
+tsxLine(ROWS_CAT_TSX, 'src/components/ui/CategoryChip.tsx', fallbackIconLine + 1, ROWS_CAT_TSX[fallbackIconLine]);
+const catIconDart = (web) => {
+  const hit = ICON_MAP[web];
+  if (!hit) fail(`icon-map.tsv records no Lucide symbol for ${web}, which CategoryChip paints`);
+  return hit.dart;
+};
+const catFallbackGlyph = catIconDart(/CATEGORY_ICONS\[key\] \?\? ([A-Za-z]+);/.exec(ROWS_CAT_TSX[fallbackIconLine])[1]);
+for (const [key, web] of Object.entries(catIconMap)) catIconDart(web);
+// The glyph is drawn at the `glyph` table's size with the component's own stroke
+// width — the two numbers the caller needs once it can hand over an icon.
+const iconCallLine = catDimsRec.parts.find((p) => /^<Icon /.test(p.text));
+if (!iconCallLine) fail('cat-chip-icon-and-size-tables records no <Icon … /> call');
+tsxLine(ROWS_CAT_TSX, 'src/components/ui/CategoryChip.tsx', iconCallLine.line, iconCallLine.text);
+const glyphSizeRef = /size=\{(\w+)\}/.exec(iconCallLine.text);
+if (!glyphSizeRef || glyphSizeRef[1] !== 'glyph') {
+  fail(`the chip glyph is drawn at size={${glyphSizeRef && glyphSizeRef[1]}}, not the \`glyph\` table`);
+}
+const strokeRaw = /strokeWidth=\{([\d.]+)\}/.exec(iconCallLine.text);
+if (!strokeRaw) fail(`the chip glyph no longer authors a strokeWidth the port can carry: "${iconCallLine.text}"`);
+const catStrokeWidth = parseFloat(strokeRaw[1]);
+
+// The tint tables, per pass. A tone’s oklab mix is the engine’s arithmetic, so the
+// port carries what it painted; what generation proves is that the mix really
+// happened (the token alone and the box are different colours), that no two tones
+// collide, and that the frame is not the fill.
+const catTints = (brightness) => {
+  const out = {};
+  for (const [tone, row] of Object.entries(catTones)) {
+    const name = row.name;
+    const pastel = row.parts[1].toneVar.replace(/^var\((.*)\)$/, '$1');
+    const mixFillPct = row.parts[1].style.match(
+      /background: color-mix\(in oklab, var\(--[a-z0-9-]+\) (\d+)%, var\(--[a-z0-9-]+\)\)/,
+    )[1];
+    if (catToneBg[tone].token !== `var(${pastel})`) {
+      fail(`${name}: the measured row tints with ${pastel}, TONE_BG.${tone} says ${catToneBg[tone].token}`);
+    }
+    const fill = stkCol(brightness, name, 'backgroundColor');
+    const border = stkCol(brightness, name, 'borderTopColor');
+    const raw = passTheme(`${brightness}-phone`).root[pastel];
+    if (!raw || !raw.srgb) fail(`${name}: ${pastel} is not a measured colour in ${brightness}-phone`);
+    if (fill.hex === raw.srgb.hex) {
+      fail(
+        `${name}: the oklab mix painted ${raw.srgb.rgba} unchanged — ${mixFillPct}% of the box colour moved nothing`,
+      );
+    }
+    if (fill.hex === border.hex && fill.alpha === border.alpha) fail(`${name}: fill and frame are one colour`);
+    const side = stkLen(brightness, name, 'width');
+    out[tone] = {
+      tone,
+      pastelToken: pastel,
+      mixFillPct,
+      fillColor: fill,
+      borderColor: border,
+      borderWidthPx: stkLen(brightness, name, 'borderTopWidth'),
+      radiusPx: stkLen(brightness, name, 'borderRadius'),
+      iconColor: stkTokenColour(brightness, name, 'color', '--ink', '--ink'),
+      sidePx: side,
+      rowName: name,
+      cls: row.parts[0].cls,
+      src: rowsCite(row),
+      mixFill: mixFillPct,
+      mixFillWith: row.parts[1].style.match(
+        /background: color-mix\(in oklab, var\(--[a-z0-9-]+\) \d+%, (var\(--[a-z0-9-]+\))\)/,
+      )[1],
+      mixBorder: row.parts[1].style.match(
+        /border: 1px solid color-mix\(in oklab, var\(--[a-z0-9-]+\) (\d+)%, var\(--[a-z0-9-]+\)\)/,
+      )[1],
+      mixBorderWith: row.parts[1].style.match(
+        /border: 1px solid color-mix\(in oklab, var\(--[a-z0-9-]+\) \d+%, (var\(--[a-z0-9-]+\))\)/,
+      )[1],
+    };
+  }
+  const fills = Object.values(out).map((t) => `${t.fillColor.hex}/${t.fillColor.alpha}`);
+  if (new Set(fills).size !== fills.length) fail(`${brightness}: two category tones measured the same fill`);
+  return out;
+};
+const catChipSizes = () => {
+  const out = {};
+  for (const s of CAT_SIZES) {
+    const name = s === 'md' ? 'cat-chip-md-lavender' : `cat-chip-${s}`;
+    const sides = [];
+    for (const tag of ['light-desktop', 'dark-desktop', 'light-phone', 'dark-phone']) {
+      sides.push(lenAnyPx(stk(tag, name).width, `${name} ${tag} side`));
+      const h = lenAnyPx(stk(tag, name).height, `${name} ${tag} height`);
+      if (h !== sides[sides.length - 1])
+        fail(`${name}: ${tag} measured ${h}px tall and ${sides[sides.length - 1]}px wide`);
+    }
+    if (new Set(sides).size !== 1) fail(`${name}: the square moves with the pass (${sides.join('/')})`);
+    if (sides[0] !== catSizeFor(s)) fail(`${name}: measured ${sides[0]}px, the dims table says ${catSizeFor(s)}px`);
+    out[s] = { size: s, sidePx: sides[0], glyphPx: catGlyphFor(s), name };
+  }
+  return out;
+};
+const rowsChipSizes = catChipSizes();
+const rowsChipLight = catTints('light');
+const rowsChipDark = catTints('dark');
+if (rowsChipSizes['md'].sidePx !== 40) fail('the default chip is no longer the 40px box the row is designed around');
+const FULL_ROUND_CLAMP = 3.35544e7;
+for (const t of Object.values(rowsChipLight)) {
+  if (Math.abs(t.radiusPx - FULL_ROUND_CLAMP) / FULL_ROUND_CLAMP > 1e-4) {
+    fail(`${t.rowName}: radius ${t.radiusPx}px is not the engine clamp of \`rounded-full\` (${FULL_ROUND_CLAMP}px)`);
+  }
+  if (t.radiusPx < t.sidePx / 2)
+    fail(`${t.rowName}: the measured radius is smaller than half the side, so the chip is not a circle`);
+}
+const catFixtures = [
+  ...Object.keys(catIconMap),
+  'Salary',
+  '  GROCERIES ',
+  'transfer in',
+  'Transfer In',
+  'unknown',
+  '',
+  'a𝕏b',
+  '彩票',
+  'İSTANBUL',
+  'uber',
+].sort();
+const catFixtureTable = catFixtures.map((c) => [c, jsToneFor(c)]);
+
+// ---------------------------------------------------------------- ledger copy
+for (const name of ['ledger-day-grouping-and-header', 'ledger-empty-copy']) {
+  for (const p of usAuthored(name).parts) {
+    const file = p.src || usAuthored(name).src;
+    tsxLine(rowsFile(file), file, p.line, p.text);
+  }
+}
+// `empty` is applied to the Reports Centre column and declared nowhere in the
+// sheet. The record promises that stays true, so the absence is asserted here —
+// a future `.empty` rule would silently recolour a box the port measured empty.
+const emptyNowhere = usAuthored('ledger-empty-class-declared-nowhere');
+for (const p of emptyNowhere.parts) {
+  tsxLine(rowsFile(p.src || emptyNowhere.src), p.src || emptyNowhere.src, p.line, p.text);
+}
+const emptyRule = CSS_LINES.findIndex((l) => /^\.empty(\b|:|\s|\{)/.test(l));
+if (emptyRule >= 0) {
+  fail(`src/index.css:${emptyRule + 1} now declares .empty; the recorded "declared nowhere" finding is stale`);
+}
+
+const rowsDayLight = rowsDayHead('light');
+const rowsDayDark = rowsDayHead('dark');
+const rowsDividerLight = rowsDivider('light');
+const rowsDividerDark = rowsDivider('dark');
+const rowsEmptyLight = rowsEmpty('light');
+const rowsEmptyDark = rowsEmpty('dark');
+const rowsEmptyRcLight = rowsEmptyRc('light');
+const rowsEmptyRcDark = rowsEmptyRc('dark');
+
+// ---------------------------------------------------------------- Dart emission
+// A spec class is emitted from one table — its Dart fields and its Dart literals
+// are the same list read twice, so a number cannot be declared in the class and
+// carried under another name by the data.
+const rowsTok = (v) => String(v).replace(/^var\((.*)\)$/, '$1');
+/** A Dart `int` literal: `rowsLit`’s number path always prints a double, and a
+ *  measured font weight or duration is not one. */
+const rowsInt = (n) => ({ __dartExpr: String(n) });
+const rowsLit = (v) => {
+  if (v === null || v === undefined) return 'null';
+  if (typeof v === 'object' && v.__dartExpr !== undefined) return v.__dartExpr;
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  if (typeof v === 'number') return fmt(v);
+  if (typeof v === 'string') return dartStr(v);
+  if (typeof v.r === 'number' && typeof v.alpha === 'number') return dartSurfaceColour(v);
+  fail(`app_rows.dart has no Dart literal for ${JSON.stringify(v)}`);
+};
+const rowsSpecClass = (ctor, doc, fields, members) => {
+  L.push(...doc, `class ${ctor} {`, `  const ${ctor}({`);
+  for (const [name, type] of fields) {
+    L.push(type.endsWith('?') ? `    this.${name},` : `    required this.${name},`);
+  }
+  L.push('  });', '');
+  for (const [name, type, , fieldDoc] of fields) {
+    L.push(...(fieldDoc || []).map((d) => `  /// ${d}`), `  final ${type} ${name};`, '');
+  }
+  L.push(...members, '}', '');
+};
+const rowsSpecValue = (ctor, fields, rec, ind) =>
+  `${ctor}(\n${fields.map(([name, , get]) => `${ind}  ${name}: ${rowsLit(get(rec))},`).join('\n')}\n${ind})`;
+const slotValue = (slot, ind) => rowsSpecValue('AppTxRowSlotSpec', ROW_SLOT_FIELDS, slot, ind);
+const citeOf = (name) => ({
+  stackRow: name,
+  cssClasses: usRow(name)
+    .parts.map((p) => p.cls)
+    .filter(Boolean)
+    .join(' '),
+  authoredSrc: rowsCite(usRow(name)),
+});
+
+// ---- one text slot of the row (and the two rows that read like it)
+const ROW_SLOT_FIELDS = [
+  ['stackRow', 'String', (s) => s.name, ['The `utilityStacks` row this slot was measured from.']],
+  ['cssClasses', 'String', (s) => s.cls, ['The verbatim class list the component writes on this element.']],
+  [
+    'authoredSrc',
+    'String',
+    (s) => s.src,
+    ['`file:lines` of that class list, re-checked against the pinned source before emission.'],
+  ],
+  ['displayCss', 'String', (s) => s.displayCss, ['The measured `display`, which is what the widget lays out as.']],
+  [
+    'alignItemsCss',
+    'String',
+    (s) => s.alignItemsCss,
+    ['The measured `align-items`; `normal` where no flex axis asks for one.'],
+  ],
+  [
+    'gapPx',
+    'double?',
+    (s) => s.gapPx,
+    ['The measured `gap` in phone px, `null` where the row measures `normal` — which is no gap.'],
+  ],
+  [
+    'fontFamily',
+    'String',
+    (s) => s.fontFamily,
+    [
+      'The first family of the stack this slot paints in — the §6 probe that authors it',
+      '(`.mono` for a slot that cites the class, `body` for one that inherits), never the',
+      '45 measured properties, which do not carry a font stack.',
+    ],
+  ],
+  ['fontSizePx', 'double', (s) => s.fontSizePx, ['The phone font size.']],
+  [
+    'fontWeight',
+    'int',
+    (s) => rowsInt(s.fontWeight),
+    ['The measured numeric weight, carried as a number so [weight] can name it.'],
+  ],
+  [
+    'heightRatio',
+    'double',
+    (s) => s.heightRatio,
+    [
+      'The line box as a multiplier of the size. No slot here authors a line-height,',
+      'so every one of them sits on `body`’s inherited multiplier — which generation',
+      're-reads from the §6 `body` probe and requires to be byte-identical to the',
+      'ratio the row measured, in both brightnesses.',
+    ],
+  ],
+  ['letterSpacingPx', 'double', (s) => s.letterSpacingPx, ['The phone resolution of the tracking.']],
+  [
+    'letterSpacingEm',
+    'double',
+    (s) => s.letterSpacingEm,
+    ['The `em` that produced it, so [styleAt] can re-derive it at another size.'],
+  ],
+  ['textColor', 'Color', (s) => s.textColor, ['The colour the slot painted.']],
+  [
+    'authoredColorToken',
+    'String?',
+    (s) => s.colourToken,
+    [
+      'The `:root` token the cited class or inline style selects, which the measurement',
+      'had to reproduce exactly; `null` where the slot inherits and paints `body`’s ink.',
+    ],
+  ],
+  [
+    'truncates',
+    'bool',
+    (s) => s.truncates,
+    [
+      '`truncate`, proven as the trio it actually measures (`white-space: nowrap`,',
+      '`text-overflow: ellipsis`, `overflow: hidden`) and as a word of the class list.',
+    ],
+  ],
+  ['flexGrow', 'double', (s) => s.flexGrow, ['The measured `flex-grow`.']],
+  ['flexShrink', 'double', (s) => s.flexShrink, ['The measured `flex-shrink`.']],
+  [
+    'minWidthZero',
+    'bool?',
+    (s) => s.minWidthZero,
+    [
+      '`min-w-0`, only where the row asked for the property: a flex-item hint that lets a',
+      'long figure shrink below its content width. Flutter already gives a `Text` its',
+      "parent's max width, so there is nothing to port — `null` says the property was",
+      'never measured and is therefore not a fact about this slot.',
+    ],
+  ],
+  [
+    'textAlignCss',
+    'String?',
+    (s) => s.textAlignCss,
+    ['The measured `text-align` where the row asked for it, else `null`.'],
+  ],
+  [
+    'tabularNums',
+    'bool',
+    (s) => s.tabularNums,
+    [
+      '`font-variant-numeric: tabular-nums`, which the cited family authors and the',
+      'widget answers with [FontFeature.tabularFigures] — a font feature, so it does',
+      'nothing in a fallback face.',
+    ],
+  ],
+];
+const ROW_SLOT_MEMBERS = [
+  '  /// The weight Flutter names for the measured numeric weight.',
+  '  FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];',
+  '',
+  '  /// Tabular figures where the cited class authors them.',
+  '  List<FontFeature> get fontFeatures =>',
+  '      tabularNums ? const <FontFeature>[FontFeature.tabularFigures()] : const <FontFeature>[];',
+  '',
+  '  /// The slot as the phone pass measured it.',
+  '  TextStyle get textStyle => styleAt(fontSizePx);',
+  '',
+  '  /// The slot at another font size. CSS resolves tracking against the used font',
+  '  /// size, so a resized slot re-derives it from [letterSpacingEm] rather than',
+  '  /// keeping the phone pixels; the line box travels as its multiplier.',
+  '  TextStyle styleAt(double sizePx) => TextStyle(',
+  '        fontFamily: fontFamily,',
+  '        color: textColor,',
+  '        fontSize: sizePx,',
+  '        fontWeight: weight,',
+  '        height: heightRatio,',
+  '        letterSpacing: letterSpacingEm * sizePx,',
+  '        fontFeatures: fontFeatures,',
+  '      );',
+];
+
+// ---- the row: its box and the seven slots it lays out
+const ROW_BOX_FIELDS = [
+  ['stackRow', 'String', (b) => b.box.name, ['The `utilityStacks` row the box was measured from.']],
+  ['cssClasses', 'String', (b) => b.box.cls, ['The verbatim class list of the row element.']],
+  ['authoredSrc', 'String', (b) => b.box.src, ['`file:line` of that class list.']],
+  [
+    'displayCss',
+    'String',
+    (b) => b.box.displayCss,
+    ['`display`, byte-equal to the §6 `.tx-row` probe: no utility moved the box.'],
+  ],
+  ['alignItemsCss', 'String', (b) => b.box.alignItemsCss, ['The measured `align-items`.']],
+  ['justifyContentCss', 'String', (b) => b.box.justifyContentCss, ['The measured `justify-content`.']],
+  ['gapPx', 'double', (b) => b.box.gapPx, ['`gap`, identical on both axes and equal to what `.tx-row` authors.']],
+  [
+    'paddingVerticalPx',
+    'double',
+    (b) => b.box.paddingVerticalPx,
+    ['The symmetric pair `.tx-row` authors, which the composed row reproduces exactly.'],
+  ],
+  ['paddingHorizontalPx', 'double', (b) => b.box.paddingHorizontalPx, []],
+  ['radiusPx', 'double', (b) => b.box.radiusPx, ['`border-radius`, as `--r-sm` resolves at the phone pass.']],
+  ['radiusToken', 'String', (b) => rowsTok(b.box.radiusToken), ['The token that radius names.']],
+  [
+    'fillColor',
+    'Color',
+    (b) => b.box.fillColor,
+    [
+      'Always transparent: the row paints nothing until `:hover`, which the port drops',
+      '(UI_SPEC D-U1). Generation fails if a fill ever appears in the resting measurement.',
+    ],
+  ],
+  [
+    'inkColor',
+    'Color',
+    (b) => b.box.inkColor,
+    ['`--ink`, the colour the slots inherit unless one names its own token.'],
+  ],
+  ['cursorCss', 'String', (b) => b.box.cursorCss, ['The measured `cursor`, a web-only fact the port has no knob for.']],
+  ['flexShrink', 'double', (b) => b.box.flexShrinkPx, ['The measured `flex-shrink` of the row in its list.']],
+  [
+    'pressScale',
+    'double',
+    (b) => txScale,
+    [
+      `\`.pressable:active\`’s scale (\`src/index.css:${PRESS_ACTIVE.line}\`) — the one the`,
+      'row really paints, because both unlayered active rules claim it and the later',
+      'one wins outright.',
+    ],
+  ],
+  [
+    'overriddenPressScale',
+    'double',
+    (b) => txOverriddenScale,
+    [
+      `\`.tx-row:active\`’s scale (\`src/index.css:${TX_ACTIVE.line}\`), recorded as the`,
+      'loser so a reordering of the sheet cannot silently change what the press paints.',
+    ],
+  ],
+  [
+    'pressDurationMs',
+    'int',
+    (b) => rowsInt(txPressMotion.ms),
+    [
+      `The clock both pressable rules name (${txPressMotion.dur.name},`,
+      `\`src/index.css:${PRESS_REST.line}\`), which generation requires to be the same`,
+      'duration and curve `.tx-row` would have run.',
+    ],
+  ],
+  ['easeX1', 'double', (b) => txPressMotion.curve[0], [`${txPressMotion.ease.name} as the four cubic points.`]],
+  ['easeY1', 'double', (b) => txPressMotion.curve[1], []],
+  ['easeX2', 'double', (b) => txPressMotion.curve[2], []],
+  ['easeY2', 'double', (b) => txPressMotion.curve[3], []],
+  ['title', 'AppTxRowSlotSpec', (b) => ({ __dartExpr: slotValue(b.title, '        ') }), ['The category name.']],
+  [
+    'meta',
+    'AppTxRowSlotSpec',
+    (b) => ({ __dartExpr: slotValue(b.meta, '        ') }),
+    ['The second line — a string its caller composes, never something the row works out.'],
+  ],
+  [
+    'textWrap',
+    'AppTxRowSlotSpec',
+    (b) => ({ __dartExpr: slotValue(b.textWrap, '        ') }),
+    ['The column the two text lines share.'],
+  ],
+  [
+    'amountWrap',
+    'AppTxRowSlotSpec',
+    (b) => ({ __dartExpr: slotValue(b.amountWrap, '        ') }),
+    ['The right-hand column, aligned by measurement rather than by assumption.'],
+  ],
+  [
+    'amountIn',
+    'AppTxRowSlotSpec',
+    (b) => ({ __dartExpr: slotValue(b.amountIn, '        ') }),
+    ['The amount as painted for income (`--success`).'],
+  ],
+  [
+    'amountOut',
+    'AppTxRowSlotSpec',
+    (b) => ({ __dartExpr: slotValue(b.amountOut, '        ') }),
+    ['The amount as painted for expense (`--danger`) — the same row, one property different.'],
+  ],
+  [
+    'pill',
+    'AppTxRowSlotSpec',
+    (b) => ({ __dartExpr: slotValue(b.pill, '        ') }),
+    [
+      'The trailing type pill: `.pill`’s box with `!py-0.5 !px-2` over it, `.mono`’s',
+      'family, and a `hidden sm:inline-flex` pair that is inert because `.pill` authors',
+      'an unlayered `display` — so both viewports measure it painted.',
+    ],
+  ],
+];
+const ROW_BOX_MEMBERS = [
+  '  /// The inset `.tx-row` authors, which the composed row reproduces byte for byte.',
+  '  EdgeInsets get padding =>',
+  '      EdgeInsets.symmetric(vertical: paddingVerticalPx, horizontal: paddingHorizontalPx);',
+  '',
+  '  /// `--r-sm` as painted.',
+  '  BorderRadius get radius => BorderRadius.circular(radiusPx);',
+  '',
+  `  /// ${txPressMotion.dur.name} — the clock both pressable rules name.`,
+  '  Duration get pressDuration => Duration(milliseconds: pressDurationMs);',
+  '',
+  `  /// ${txPressMotion.ease.name} — the easing both pressable rules name.`,
+  '  Cubic get pressCurve => Cubic(easeX1, easeY1, easeX2, easeY2);',
+];
+
+// ---- the day header
+const ROW_DAY_FIELDS = [
+  ['stackRow', 'String', (d) => d.name, ['The `utilityStacks` row the header label was measured from.']],
+  ['cssClasses', 'String', (d) => d.cls, ['The verbatim class list of the sticky label.']],
+  ['authoredSrc', 'String', (d) => d.src, ['`file:lines` of that class list.']],
+  ['displayCss', 'String', (d) => d.displayCss, []],
+  ['zIndexCss', 'String', (d) => d.zIndexCss, ['`z-index`, measured and required equal to what `.day-head` authors.']],
+  [
+    'paddingVerticalPx',
+    'double',
+    (d) => d.paddingVerticalPx,
+    ['`.day-head`’s authored padding, which the composed header reproduces.'],
+  ],
+  ['paddingHorizontalPx', 'double', (d) => d.paddingHorizontalPx, []],
+  [
+    'blurPx',
+    'double',
+    (d) => d.blurPx,
+    ['`backdrop-filter: blur(…)` as authored by `.day-head`, in CSS radius units.'],
+  ],
+  ['fillColor', 'Color', (d) => d.fillColor, ['The pixels the header painted.']],
+  [
+    'fillToken',
+    'String',
+    (d) => d.fillToken,
+    [
+      '`fillMixPercent` of this `:root` token over transparent, which is the recipe',
+      '`.day-head` authors and which the measurement had to match in hex and in alpha',
+      'in both brightnesses.',
+    ],
+  ],
+  ['fillMixPercent', 'double', (d) => d.fillMixPercent, []],
+  [
+    'labelCssClass',
+    'String',
+    (d) => d.labelCssClass,
+    ['The class the header’s type comes from — `.eyebrow`, read from its §6 probe.'],
+  ],
+  ['labelAuthoredSrc', 'String', (d) => d.labelAuthoredSrc, ['Where that rule lives.']],
+  [
+    'uppercase',
+    'bool',
+    (d) => d.uppercase,
+    [
+      '`text-transform: uppercase`, which `.eyebrow` authors and the header measures.',
+      'Flutter has no text-transform, so the widget answers it with `toUpperCase()` at',
+      'the label — a deviation the port records rather than hides.',
+    ],
+  ],
+  [
+    'redundantSizeOverride',
+    'bool',
+    (d) => d.redundantSizeOverride,
+    [
+      'The class list also writes `!text-[10px]` beside `.eyebrow`, which re-states the',
+      'size the class already authors. Recorded because it is inert, not because the',
+      'port needs a second size.',
+    ],
+  ],
+  ['textColor', 'Color', (d) => d.textColor, ['`.eyebrow`’s colour (`--ink-3`), which the header painted.']],
+  ['fontSizePx', 'double', (d) => d.fontSizePx, []],
+  ['fontWeight', 'int', (d) => rowsInt(d.fontWeight), []],
+  [
+    'heightRatio',
+    'double',
+    (d) => d.heightRatio,
+    ['`body`’s inherited multiplier — `.eyebrow` authors no line-height of its own.'],
+  ],
+  ['letterSpacingPx', 'double', (d) => d.letterSpacingPx, []],
+  [
+    'letterSpacingEm',
+    'double',
+    (d) => d.letterSpacingEm,
+    ['`.eyebrow`’s authored `em`, which generation proves against the measured px.'],
+  ],
+];
+const ROW_DAY_MEMBERS = [
+  '  /// CSS blur radius → Flutter sigma, ruling D-U8’s fixed mapping.',
+  '  double get blurSigmaPx => blurPx / 2;',
+  '',
+  '  EdgeInsets get padding =>',
+  '      EdgeInsets.symmetric(vertical: paddingVerticalPx, horizontal: paddingHorizontalPx);',
+  '',
+  '  FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];',
+  '',
+  '  /// The label as the phone measured it.',
+  '  TextStyle get textStyle => styleAt(fontSizePx);',
+  '',
+  '  /// The label at another size, with its tracking re-derived from the authored `em`.',
+  '  TextStyle styleAt(double sizePx) => TextStyle(',
+  '        color: textColor,',
+  '        fontSize: sizePx,',
+  '        fontWeight: weight,',
+  '        height: heightRatio,',
+  '        letterSpacing: letterSpacingEm * sizePx,',
+  '      );',
+];
+
+// ---- the ledger chrome
+const ROW_DIVIDER_FIELDS = [
+  ['widthPx', 'double', (d) => d.widthPx, ['`divide-y`’s hairline, measured on a divided child that keeps it.']],
+  ['color', 'Color', (d) => d.colour, ['The line the parent’s own `currentColor` resolves to.']],
+  ['token', 'String', (d) => d.token, ['`--line`, which the measurement had to reproduce exactly.']],
+];
+const ROW_EMPTY_FIELDS = [
+  ['stackRow', 'String', (e) => e.stackRow, []],
+  ['cssClasses', 'String', (e) => e.cssClasses, []],
+  ['authoredSrc', 'String', (e) => e.authoredSrc, []],
+  ['radiusPx', 'double', (e) => e.radiusPx, ['`--r-sm`, as it resolves at the phone pass.']],
+  ['borderWidthPx', 'double', (e) => e.borderWidthPx, ['1px on all four sides.']],
+  ['borderColor', 'Color', (e) => e.borderColor, ['`--line`.']],
+  ['fillColor', 'Color', (e) => e.fillColor, ['`--surface-2`.']],
+  [
+    'paddingVerticalPx',
+    'double',
+    (e) => e.paddingVerticalPx,
+    ['Vertical only — the measurement has no horizontal inset.'],
+  ],
+  ['textAlignCss', 'String', (e) => e.textAlignCss, []],
+];
+const ROW_EMPTY_MEMBERS = [
+  '  /// The CSS frame is `dashed`; Flutter `Border` has no dash pattern, so the port',
+  '  /// paints a solid hairline of the same width and colour. Recorded deviation, not',
+  '  /// a token disagreement.',
+  '  Border get border => Border.all(color: borderColor, width: borderWidthPx);',
+  '',
+  '  BorderRadius get radius => BorderRadius.circular(radiusPx);',
+  '',
+  '  EdgeInsets get padding => EdgeInsets.symmetric(vertical: paddingVerticalPx);',
+];
+const ROW_EMPTY_RC_FIELDS = [
+  ['stackRow', 'String', (e) => e.stackRow, []],
+  [
+    'cssClasses',
+    'String',
+    (e) => e.cssClasses,
+    [
+      'The class list, which cites `empty` — a class applied in `ReportsCentre.tsx` and',
+      'declared nowhere in `src/index.css`. The box therefore measures no fill, no frame',
+      'and no padding beyond its own utilities, and generation asserts the rule is still',
+      'absent rather than trusting the record forever.',
+    ],
+  ],
+  ['authoredSrc', 'String', (e) => e.authoredSrc, []],
+  ['gapPx', 'double', (e) => e.gapPx, ['Identical on both axes.']],
+  ['paddingVerticalPx', 'double', (e) => e.paddingVerticalPx, []],
+  [
+    'line',
+    'AppTxRowSlotSpec',
+    (e) => ({ __dartExpr: slotValue(e.line, '        ') }),
+    ['The figure under the headline, read the same way as a row slot.'],
+  ],
+];
+const ROW_RAIL_FIELDS = [
+  ['stackRow', 'String', (r) => r.name, []],
+  ['cssClasses', 'String', (r) => r.cls, []],
+  ['authoredSrc', 'String', (r) => r.src, []],
+  [
+    'wideMaxHeightPx',
+    'double?',
+    (r) => r.wideMaxHeightPx,
+    ['`max-height` at the desktop pass — `null` where the rail is unbounded there.'],
+  ],
+  ['narrowMaxHeightPx', 'double?', (r) => r.narrowMaxHeightPx, ['`max-height` at the phone pass.']],
+  ['wideOverflowYCss', 'String', (r) => r.wideOverflowYCss, []],
+  ['narrowOverflowYCss', 'String', (r) => r.narrowOverflowYCss, []],
+  ['wideOverflowXCss', 'String', (r) => r.wideOverflowXCss, []],
+  ['narrowOverflowXCss', 'String', (r) => r.narrowOverflowXCss, []],
+  [
+    'widePaddingRightPx',
+    'double',
+    (r) => r.widePaddingRightPx,
+    ['The scrollbar gutter the rail reserves on one side only, nothing on the other three.'],
+  ],
+  ['narrowPaddingRightPx', 'double', (r) => r.narrowPaddingRightPx, []],
+];
+
+banner();
+L.push("import 'package:flutter/material.dart';", '');
+rowsSpecClass(
+  'AppTxRowSlotSpec',
+  [
+    '/// One text-bearing slot of the transaction row, measured as the class list the',
+    '/// component really writes on the element it really uses (`utilityStacks`), not as',
+    '/// a detached probe: a §6 probe cannot see a Tailwind utility, so for this family',
+    '/// the stack row *is* the measurement and `src/index.css` supplies only the authored',
+    '/// facts a detached element never shows — a state rule, a `gap`, the `em` a',
+    '/// measured tracking came from.',
+    '///',
+    '/// Nothing here is a default. A value no pass measured fails generation, and every',
+    '/// number the phone read has to agree with the desktop pass, or the pair is ported',
+    '/// explicitly as [AppLedgerRailSpec]’s wide/narrow instead of one averaged value.',
+  ],
+  ROW_SLOT_FIELDS,
+  ROW_SLOT_MEMBERS,
+);
+rowsSpecClass(
+  'AppTxRowSpec',
+  [
+    '/// The transaction row: one `.tx-row pressable` box and the seven text slots it',
+    '/// lays out, as each brightness measured them.',
+    '///',
+    '/// The box owns nothing but its inset, its radius, its `gap` and its press. It',
+    '/// paints no fill, no frame, no shadow and no backdrop at rest — all four are',
+    '/// asserted empty rather than assumed — and its padding and `--r-sm` radius are',
+    '/// byte-equal to the §6 `.tx-row` probe, which is what says no utility moved it.',
+    '///',
+    '/// Unported authored state, dropped for the reason AppControls drops it (UI_SPEC',
+    `/// D-U1): \`.tx-row:hover\` at src/index.css:${TX_HOVER.line} paints \`${txHoverToken}\`,`,
+    '/// a paint-only decoration. The press is not decoration and is ported: two',
+    '/// unlayered rules claim this box: `.tx-row:active`',
+    `/// (src/index.css:${TX_ACTIVE.line}) scales to [overriddenPressScale] and`,
+    '/// `.pressable:active`',
+    `/// (src/index.css:${PRESS_ACTIVE.line}) scales to [pressScale], and`,
+    '/// because the later unlayered rule wins outright the row paints the second.',
+    '/// Generation reads that order off the sheet rather than assuming it, and fails if',
+    '/// the rules are ever reordered.',
+    '///',
+    '/// The row formats nothing. Money strings come from the already-ported formatters',
+    '/// and the meta line is a string its caller composes, exactly as the web composes',
+    '/// it; the signed/absolute amount and the `isIncome` flag are the caller’s too,',
+    '/// because the web’s two predicates disagree and a port must not pick a side.',
+  ],
+  ROW_BOX_FIELDS,
+  ROW_BOX_MEMBERS,
+);
+rowsSpecClass(
+  'AppDayHeadSpec',
+  [
+    '/// The sticky day header above a run of rows: a `.day-head` box whose only job is',
+    '/// to hold text back while the list scrolls under it, and the `.eyebrow` label',
+    '/// inside it.',
+    '///',
+    '/// Its fill is a recipe, not a token — [fillMixPercent] of [fillToken] over',
+    '/// transparent — and its blur is the authored `backdrop-filter` of `.day-head`.',
+    '/// Its type is `.eyebrow`’s own label row, re-read here and cross-checked against',
+    '/// that class’s §6 probe rather than copied from it, which is also why',
+    '/// [redundantSizeOverride] is only a record: the `!text-[10px]` beside the class',
+    '/// restates a size the class already authors.',
+  ],
+  ROW_DAY_FIELDS,
+  ROW_DAY_MEMBERS,
+);
+rowsSpecClass(
+  'AppLedgerDividerSpec',
+  [
+    '/// The hairline `divide-y` paints between rows.',
+    '///',
+    '/// It is a pair of recipes, measured on two siblings: a divided child that keeps',
+    '/// the line and `[&:last-child]:border-b-0` on the last one, which generation',
+    "/// requires to move nothing else in that child's measurement.",
+  ],
+  ROW_DIVIDER_FIELDS,
+  [],
+);
+rowsSpecClass(
+  'AppLedgerEmptySpec',
+  [
+    '/// The dashboard’s empty state: a dashed `--line` frame over `--surface-2`,',
+    '/// rounded with `--r-sm`, inset vertically and centred.',
+  ],
+  ROW_EMPTY_FIELDS,
+  ROW_EMPTY_MEMBERS,
+);
+rowsSpecClass(
+  'AppLedgerEmptyRcSpec',
+  [
+    "/// The Reports Centre’s empty state: a bare flex column, with the web's own",
+    '/// oddity carried as data (see [cssClasses]).',
+  ],
+  ROW_EMPTY_RC_FIELDS,
+  [],
+);
+rowsSpecClass(
+  'AppLedgerRailSpec',
+  [
+    '/// A scroll rail, ported as the one pair the two viewports genuinely disagree on.',
+    '///',
+    '/// These are the only values in this file that are read at both viewports instead',
+    '/// of required to agree, because the rail’s `lg:` gating is the design: the',
+    '/// dashboard list is bounded and scrollable only past the breakpoint, the Reports',
+    '/// Centre’s list is bounded at both. Brightness changes nothing about a rail, so',
+    '/// generation proves all four passes read as two pairs.',
+    '///',
+    '/// The breakpoint itself stays with the caller — the same ruling that keeps',
+    '/// `AppModal.wideBreakpointPx` a caller-supplied number: the enumeration of',
+    '/// `sm`/`md`/`lg`/`xl` is a fact about the sheet (UI_SPEC/STATUS.md), not a',
+    '/// measured property of these rows, so a widget takes the px rather than this',
+    '/// file guessing it.',
+  ],
+  ROW_RAIL_FIELDS,
+  [],
+);
+
+L.push(
+  '/// The row, its header and the chrome the ledger builds around them.',
+  '///',
+  '/// Values are per brightness; a rail is not, and lives outside the pair. An unknown',
+  '/// key is a programming error, never a fallback — the same law every other generated',
+  '/// family follows.',
+  'abstract final class AppRows {',
+  `  static const AppTxRowSpec txRowLight = ${rowsSpecValue('AppTxRowSpec', ROW_BOX_FIELDS, rowsLight, '  ')};`,
+  '',
+  `  static const AppTxRowSpec txRowDark = ${rowsSpecValue('AppTxRowSpec', ROW_BOX_FIELDS, rowsDark, '  ')};`,
+  '',
+  '  static AppTxRowSpec txRow(Brightness brightness) =>',
+  '      brightness == Brightness.dark ? txRowDark : txRowLight;',
+  '',
+  `  static const AppDayHeadSpec dayHeadLight = ${rowsSpecValue('AppDayHeadSpec', ROW_DAY_FIELDS, rowsDayLight, '  ')};`,
+  '',
+  `  static const AppDayHeadSpec dayHeadDark = ${rowsSpecValue('AppDayHeadSpec', ROW_DAY_FIELDS, rowsDayDark, '  ')};`,
+  '',
+  '  static AppDayHeadSpec dayHead(Brightness brightness) =>',
+  '      brightness == Brightness.dark ? dayHeadDark : dayHeadLight;',
+  '',
+  `  static const AppLedgerDividerSpec dividerLight = ${rowsSpecValue('AppLedgerDividerSpec', ROW_DIVIDER_FIELDS, rowsDividerLight, '  ')};`,
+  '',
+  `  static const AppLedgerDividerSpec dividerDark = ${rowsSpecValue('AppLedgerDividerSpec', ROW_DIVIDER_FIELDS, rowsDividerDark, '  ')};`,
+  '',
+  '  static AppLedgerDividerSpec divider(Brightness brightness) =>',
+  '      brightness == Brightness.dark ? dividerDark : dividerLight;',
+  '',
+  `  static const AppLedgerEmptySpec emptyLight = ${rowsSpecValue('AppLedgerEmptySpec', ROW_EMPTY_FIELDS, { ...citeOf('ledger-empty'), ...rowsEmptyLight }, '  ')};`,
+  '',
+  `  static const AppLedgerEmptySpec emptyDark = ${rowsSpecValue('AppLedgerEmptySpec', ROW_EMPTY_FIELDS, { ...citeOf('ledger-empty'), ...rowsEmptyDark }, '  ')};`,
+  '',
+  '  static AppLedgerEmptySpec empty(Brightness brightness) =>',
+  '      brightness == Brightness.dark ? emptyDark : emptyLight;',
+  '',
+  `  static const AppLedgerEmptyRcSpec emptyRcLight = ${rowsSpecValue('AppLedgerEmptyRcSpec', ROW_EMPTY_RC_FIELDS, { ...citeOf('ledger-empty-rc'), ...rowsEmptyRcLight }, '  ')};`,
+  '',
+  `  static const AppLedgerEmptyRcSpec emptyRcDark = ${rowsSpecValue('AppLedgerEmptyRcSpec', ROW_EMPTY_RC_FIELDS, { ...citeOf('ledger-empty-rc'), ...rowsEmptyRcDark }, '  ')};`,
+  '',
+  '  static AppLedgerEmptyRcSpec emptyRc(Brightness brightness) =>',
+  '      brightness == Brightness.dark ? emptyRcDark : emptyRcLight;',
+  '',
+  '  /// The dashboard list: bounded at `544px` past the breakpoint (`lg:max-h-[34rem]`,',
+  '  /// which generation re-derives as `34 × 16`), unbounded below it.',
+  `  static const AppLedgerRailSpec ledgerRail = ${rowsSpecValue('AppLedgerRailSpec', ROW_RAIL_FIELDS, rowsLedgerScroll, '  ')};`,
+  '',
+  `  /// The Reports Centre list: the same \`max-height\` at both viewports (${rowsRcScroll.wideMaxHeightPx}px),`,
+  '  /// because nothing gates it.',
+  `  static const AppLedgerRailSpec reportsRail = ${rowsSpecValue('AppLedgerRailSpec', ROW_RAIL_FIELDS, rowsRcScroll, '  ')};`,
+  '',
+  '  /// The direction glyph the amount span leads with, named at',
+  `  /// src/components/ui/TransactionRow.tsx:${arrowLine.line}. Both arrows are the same`,
+  '  /// size, and the icon dependency has not landed, so the widget draws the box and',
+  '  /// the caller hands over the glyph — exactly as `AppIconButton` does. The names',
+  '  /// are the Lucide symbols `parity/icon-map.tsv` maps for the web’s two.',
+  `  static const double arrowSizePx = ${fmt(rowsArrows.inPx)};`,
+  '',
+  `  static const String arrowInName = ${dartStr(rowsArrows.inName)};`,
+  '',
+  `  static const String arrowOutName = ${dartStr(rowsArrows.outName)};`,
+  '',
+  `  static const String arrowInSymbol = ${dartStr(catIconDart(rowsArrows.inName))};`,
+  '',
+  `  static const String arrowOutSymbol = ${dartStr(catIconDart(rowsArrows.outName))};`,
+  '}',
+  '',
+);
+
+// ---- the category chip the row leads with
+L.push(
+  '/// A pastel tone of `CategoryChip.tsx`’s `ChipTone` union, in the order the union',
+  '/// declares them. Generation requires the union, the `TONE_BG` table and the',
+  '/// measured tone rows to name the same set, so an enum here cannot drift from the',
+  '/// component without the run failing.',
+  'enum AppChipTone {',
+  ...catToneNames.map(
+    (t, i) => `  ${t}(${dartStr(rowsTok(catToneBg[t].token))})${i === catToneNames.length - 1 ? ';' : ','}`,
+  ),
+  '  const AppChipTone(this.toneToken);',
+  '',
+  '  /// The `:root` token `TONE_BG` selects for this tone — one of the five pastels',
+  '  /// for those tones, `--surface-3` for the neutral one. The chip mixes',
+  '  /// `AppCategoryChipTintSpec.mixFillPercent` of it with the surface it sits on.',
+  '  final String toneToken;',
+  '}',
+  '',
+  '/// A chip size. `sidePx` is the authored `dims` ternary and `glyphPx` the `glyph`',
+  '/// ternary, both parsed out of `CategoryChip.tsx` rather than retyped; generation',
+  '/// proves each measured square equals the table at all four passes, `md` included',
+  "/// (it is the ternary's default arm, cited at the line that falls through to it).",
+  'enum AppChipSize {',
+  ...CAT_SIZES.map(
+    (s, i) =>
+      `  ${s}(${fmt(rowsChipSizes[s].sidePx)}, ${fmt(rowsChipSizes[s].glyphPx)})${i === CAT_SIZES.length - 1 ? ';' : ','}`,
+  ),
+  '  const AppChipSize(this.sidePx, this.glyphPx);',
+  '',
+  '  /// The box edge — the chip is a square, measured identical in width and height.',
+  '  final double sidePx;',
+  '',
+  '  /// The size the glyph is drawn at.',
+  '  final double glyphPx;',
+  '',
+  '  static AppChipSize sizeFor(String cssSize) => switch (cssSize) {',
+  "    'xs' => AppChipSize.xs,",
+  "    'sm' => AppChipSize.sm,",
+  "    'lg' => AppChipSize.lg,",
+  '    _ => AppChipSize.md,',
+  '  };',
+  '}',
+  '',
+);
+const ROW_TINT_FIELDS = [
+  ['tone', 'AppChipTone', (t) => ({ __dartExpr: `AppChipTone.${t.tone}` }), ['The tone this tint is.']],
+  ['rowName', 'String', (t) => t.rowName, ['The `utilityStacks` row the tint was measured from.']],
+  ['cssClasses', 'String', (t) => t.cls, []],
+  ['authoredSrc', 'String', (t) => t.src, []],
+  [
+    'toneToken',
+    'String',
+    (t) => t.pastelToken,
+    [
+      'The token the inline style names, as `TONE_BG` declares it: one of the five',
+      'pastels, or `--surface-3` for the neutral tone.',
+    ],
+  ],
+  [
+    'mixFillPercent',
+    'double',
+    (t) => parseFloat(t.mixFill),
+    ['`background: color-mix(in oklab, <pastel> N%, <surface>)`.'],
+  ],
+  ['mixFillWithToken', 'String', (t) => rowsTok(t.mixFillWith), []],
+  ['mixBorderPercent', 'double', (t) => parseFloat(t.mixBorder), ['`border: 1px solid color-mix(in oklab, …)`.']],
+  ['mixBorderWithToken', 'String', (t) => rowsTok(t.mixBorderWith), []],
+  [
+    'fillColor',
+    'Color',
+    (t) => t.fillColor,
+    [
+      'What the engine painted, not a re-derivation: oklab mixing is the browser’s',
+      'arithmetic and this port does not reproduce it. Generation proves the mix really',
+      'moved (the painted hex differs from the token’s own), that the frame is not the',
+      'fill, and that no two tones of one pass collide.',
+    ],
+  ],
+  ['borderColor', 'Color', (t) => t.borderColor, []],
+  ['borderWidthPx', 'double', (t) => t.borderWidthPx, []],
+  [
+    'iconColor',
+    'Color',
+    (t) => t.iconColor,
+    ['`--ink`, the glyph colour the inline style writes for every tone alike.'],
+  ],
+  ['sidePx', 'double', (t) => t.sidePx, ['The measured square this tone was sampled at.']],
+];
+rowsSpecClass(
+  'AppCategoryChipTintSpec',
+  [
+    '/// One tone of the chip, as one brightness painted it.',
+    '///',
+    '/// `md` is the size each tone was sampled at, so [sidePx] is the `md` square and',
+    '/// the other sizes share the tint — the measurement is of a colour, and a',
+    '/// `color-mix` does not move with the box it paints.',
+  ],
+  ROW_TINT_FIELDS,
+  [
+    '  /// `rounded-full`, which is the engine’s own clamp rather than a radius anyone',
+    '  /// chose: see [AppCategoryChips.fullRoundRadiusPx].',
+    '  BorderRadius get radius => BorderRadius.circular(AppCategoryChips.fullRoundRadiusPx);',
+  ],
+);
+L.push(
+  '/// The chip that leads every row: its tone tables, the hash that picks a tone, and',
+  '/// the glyph the web paints in it.',
+  'abstract final class AppCategoryChips {',
+  '  /// Chrome’s clamp of `rounded-full` (`3.35544e+07px`). Any radius at least half',
+  '  /// the side paints the same circle, so the widget can clamp it however it likes;',
+  '  /// the number is kept because it is what was measured, and generation fails if a',
+  '  /// chip ever measures smaller than half its side.',
+  `  static const double fullRoundRadiusPx = ${fmt(FULL_ROUND_CLAMP)};`,
+  '',
+  '  /// The `strokeWidth` the component draws its glyph with.',
+  `  static const double glyphStrokeWidth = ${fmt(catStrokeWidth)};`,
+  '',
+  '  /// `TONE_CYCLE`, in the order the component declares it: the list a category',
+  '  /// hashes into.',
+  `  static const List<AppChipTone> toneCycle = <AppChipTone>[${catToneCycle.map((t) => `AppChipTone.${t}`).join(', ')}];`,
+  '',
+  '  /// `hashString` as the web writes it: `h = (h * M + s.charCodeAt(i)) >>> 0` over',
+  '  /// `category.toLowerCase().trim()`. `>>> 0` is a mod-2^32 for the non-negative',
+  '  /// values this reaches, which Dart’s 64-bit `int` answers with a mask.',
+  `  static const int toneHashMultiplier = ${hashMul[1]};`,
+  '',
+  '  static const int toneHashMask = 0xFFFFFFFF;',
+  '',
+  '  /// The tone a category string selects. Identical in both brightnesses, because the',
+  '  /// hash reads the name and nothing else.',
+  '  ///',
+  '  /// One recorded deviation. A browser lowercases a dotted capital `İ` with',
+  '  /// Unicode’s *full* mapping (`i` + U+0307, two UTF-16 units) and Dart with',
+  '  /// the *simple* one (`i`, one), so a category whose name carries it hashes to',
+  '  /// a different index here than on the web. The tone is decorative and the',
+  '  /// name is user-typed, so the port keeps Dart’s normalisation rather than',
+  '  /// carrying a case table for its own sake; [toneWebNormalisations] holds the',
+  '  /// evidence and the drift test pins the divergence so closing it stays a',
+  '  /// decision.',
+  '  static AppChipTone toneFor(String category) {',
+  '    final String s = category.toLowerCase().trim();',
+  '    int h = 0;',
+  '    for (int i = 0; i < s.length; i++) {',
+  '      h = (h * toneHashMultiplier + s.codeUnitAt(i)) & toneHashMask;',
+  '    }',
+  '    return toneCycle[h % toneCycle.length];',
+  '  }',
+  '',
+  '  /// The web’s own answer for these strings, generated by running its hash over',
+  '  /// them at the same time as this table was. `toLowerCase()` and UTF-16 indexing',
+  '  /// are where a Dart port can diverge (a Turkish dotted capital, an astral plane',
+  '  /// character), so [toneFor] is asserted against this table in',
+  '  /// `test/theme/ui_tokens_test.dart` rather than trusted.',
+  '  static const Map<String, AppChipTone> toneFixtures = <String, AppChipTone>{',
+  ...catFixtureTable.map(([c, tone]) => `    ${dartStr(c)}: AppChipTone.${tone},`),
+  '  };',
+  '',
+  '  /// The web’s `category.toLowerCase().trim()` for each fixture key, as the',
+  '  /// engine that paints the app answered it. A browser follows Unicode’s',
+  '  /// *full* lowercase mappings and Dart follows the *simple* ones, so the two',
+  '  /// normalisations can differ in length — a dotted capital `İ` is the case',
+  '  /// that does. This is the evidence that says which side of the hash a',
+  '  /// divergence lives on: hash these strings with the component’s own',
+  '  /// multiplier, mask and cycle and every [toneFixtures] entry reproduces,',
+  '  /// so any remaining disagreement is a normalisation difference rather than',
+  '  /// a wrong hash. Asserted key by key in `test/theme/ui_tokens_test.dart`.',
+  '  static const Map<String, String> toneWebNormalisations =',
+  '      <String, String>{',
+  ...catFixtures.map((c) => `    ${dartStr(c)}: ${dartStr(c.toLowerCase().trim())},`),
+  '  };',
+  '',
+  '  /// light pass tints.',
+  '  static const Map<AppChipTone, AppCategoryChipTintSpec> light =',
+  '      <AppChipTone, AppCategoryChipTintSpec>{',
+  ...catToneNames.map(
+    (t) =>
+      `    AppChipTone.${t}: ${rowsSpecValue('AppCategoryChipTintSpec', ROW_TINT_FIELDS, rowsChipLight[t], '      ')},`,
+  ),
+  '  };',
+  '',
+  '  /// dark pass tints.',
+  '  static const Map<AppChipTone, AppCategoryChipTintSpec> dark =',
+  '      <AppChipTone, AppCategoryChipTintSpec>{',
+  ...catToneNames.map(
+    (t) =>
+      `    AppChipTone.${t}: ${rowsSpecValue('AppCategoryChipTintSpec', ROW_TINT_FIELDS, rowsChipDark[t], '      ')},`,
+  ),
+  '  };',
+  '',
+  '  /// The tone as one brightness painted it.',
+  '  static AppCategoryChipTintSpec tint(AppChipTone tone, Brightness brightness) {',
+  '    final AppCategoryChipTintSpec? spec = (brightness == Brightness.dark ? dark : light)[tone];',
+  '    if (spec == null) {',
+  "      throw ArgumentError('no ${tone.name} tint was measured at ${brightness.name}');",
+  '    }',
+  '    return spec;',
+  '  }',
+  '',
+  '  /// category → the Lucide symbol `CategoryChip.tsx` paints for it, as',
+  "  /// `parity/icon-map.tsv` names it. The keys are the component's own lower-case",
+  '  /// lookup keys; an unlisted category falls back to [fallbackGlyphSymbol], as the',
+  '  /// component does. The icon dependency has not landed, so these are strings the',
+  '  /// caller resolves, not symbols this file draws.',
+  '  static const Map<String, String> glyphSymbols = <String, String>{',
+  ...Object.entries(catIconMap).map(([k, web]) => `    ${dartStr(k)}: ${dartStr(catIconDart(web))},`),
+  '  };',
+  '',
+  `  static const String fallbackGlyphSymbol = ${dartStr(catFallbackGlyph)};`,
+  '}',
+  '',
+);
+finish('app_rows.dart');
+
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
   fs.writeFileSync(path.join(OUT_DIR, name), text, 'utf8');
@@ -6951,6 +9055,7 @@ console.log(
     `  §6 segment rows emitted:     ${segment.rows.length} classes x 2 passes  -> AppSegments`,
     `  §6 bar classes emitted:      ${bars.length} classes x 2 passes  -> AppBars`,
     `  numeral/money rows emitted:  ${numerals.length} classes x 2 passes  -> AppNumerals`,
+    `  ledger chrome emitted:     ${Object.keys(ROW_CLASSES).length} row slots + day head, divider, 2 empty states, 2 rails, ${catToneNames.length} chip tones + ${CAT_SIZES.length} sizes x 2 passes  -> AppRows`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );

@@ -38,6 +38,7 @@ follow-up `7fac3fa` restores the seven samples already damaged by it. Branch `ch
 | —       | **Items 2–6 batch — `AppIconChip` · `AppPill` + `AppChipSelect` + `AppDeltaChip` + `AppCardFaceChip` · `AppSegmented` · `AppProgressBar`** | **DONE — `0888c0d`.** Glass panel (item 5) is `AppCard`’s `.glass-panel` surface, not a second widget — decision below. New generated rows: `app_chips.dart`, `app_segments.dart`, `app_bars.dart`. Gates: format 0-changed, `--fatal-infos` clean (one generator-template fix), `flutter test` **1193** (baseline 1062: +57 drift re-derivations — `ui_tokens_test.dart` is 198 — and +74 behaviour tests in seven new files), generator idempotent by sha256, the 13 older generated files byte-identical, prettier clean. B-29 entered. See the batch section below |
 | #74     | **Item 7 — `AppNumeral` / `AppNumeralKind`, the numeral+money type rows**                                                                  | **DONE — `0717b7a`.** The widget renders strings only; formatting stays in the ported money functions. 27 tests in `app_numeral_test.dart` incl. two locales (`en-LK`, `en-US`), negatives, the credit-card Owed display and the 7-figure amount at 360px. `flutter test` **1248**. See the item 7 section below                                                                                                                                                                                                                                                       |
 | #58     | **Item 10 — the design-system font bundle**                                                                                                | **DONE — this commit.** 13 faces (Plus Jakarta Sans 300–800 · Inter 300–600 · JetBrains Mono 400/500/700), official upstream, 2,018,620 bytes + 13,178 bytes of OFL 1.1 texts, per-file sha256 + source URL in `UI_SPEC.md` §3.1 rendered from `parity/fixtures/fonts.json`. `mobile/test/flutter_test_config.dart` loads them into the harness. Closes the five `ITEM-10 RECHECK` markers. See the item 10 section below                                                                                                                                              |
+| #76–#79 | **Item 8 evidence — the ledger measured, emitted, rendered and drift-tested**                                                              | **DONE — this commit.** The utility-stack tier now carries 77 rows from 11 files and 26 authored non-CSS records; `app_rows.dart` is the 18th generated file; `UI_SPEC.md` §6.6 renders the family; `ui_tokens_test.dart` grows the two ledger groups (19 measured re-reads + 16 independent re-derivations = 258 tests in the file). `flutter test` **1299**. Item 8 is **not** closed: the four widgets and their behaviour tests are the remaining work. See the ledger section below                                                                               |
 
 ## Branches & PRs
 
@@ -48,7 +49,7 @@ follow-up `7fac3fa` restores the seven samples already damaged by it. Branch `ch
 | `bugfix/b23-credit-card-purchases` @ `1f6a1ce` | **MERGED** into `main` as `96a200f`. The fixture cost of that merge is the `D35 re-stamp` Tasks row, and `INVENTORY.md` §13m carries the measurement                                                                                                                                                                                                                                           |
 | `fix/audit-lockfile` @ `307b5df`               | **MERGED** as PR #6 — its two commits are the lockfile-only 9-line refresh `67dfdc9` and `AuditPanel.test.tsx` `307b5df`, both ancestors of `origin/main`. This is the merge that turned Enterprise green above                                                                                                                                                                                |
 | `feature/ocr-three-way-contract` @ `7fac3fa`   | Parked #65 recorder scaffold, **local only** (no push, no PR). `83aa220` committed its 7 sample PNGs under the pre-D41 rule and damaged them; `7fac3fa` carries the `binary` lines and restores them — no history rewrite                                                                                                                                                                      |
-| `phase5-design-system`                         | **OPEN as draft PR #8** — the Flutter design system: generator, fourteen ported widgets, the modal/sheet port `5d0df70` and the items 2–6 small-chrome batch (CI green at `43c02f9`). Pushed; only the user merges                                                                                                                                                                             |
+| `phase5-design-system`                         | **OPEN as draft PR #8** — the Flutter design system: generator, fourteen ported widgets, the modal/sheet port `5d0df70`, the items 2–6 small-chrome batch (`0888c0d`), item 7 `0717b7a`, item 10 `2b2bc36` and item 8's evidence tier (this commit). Pushed; only the user merges                                                                                                              |
 
 ## Open decisions waiting for the user
 
@@ -412,6 +413,121 @@ re-rendered idempotent (two runs, one md5) · generator re-run idempotent, its 1
 doc-only changes · prettier clean on `UI_SPEC.md`, `STATUS.md`, `get_fonts.cjs`, `render_ui_spec.cjs` ·
 `git check-attr` still reports `mobile/assets/fonts/*.ttf` binary (D41) · secret sweep + D41 triple-hash.
 
+## The ledger family — measured, emitted, rendered, drift-tested (#76–#79)
+
+Item 8's evidence tier first, in the order the gate demands: **measure → emit → render → drift-test**.
+The widgets come next on top of exactly this evidence; nothing here builds a widget.
+
+**#76 — the measurement.** `parity/ui-tokens.cjs` extended the utility-stack probe to the ledger, so
+`parity/ui-tokens.json` now carries **77 stack rows from 11 source files**, each read at four passes
+(light/dark × desktop/phone), plus **26 authored non-CSS records**, ten of them the ledger's. The
+ledger's share is TransactionRow's seven slots (box, title, meta, text wrap, amount wrap, the two
+amount directions, trailing pill), the day head, the divider, the two rails, the two empty states and
+the chip family at 6 tones × its default size plus the other three sizes. Two tiers, deliberately:
+`props` is what Chrome computed for the mounted element, `authoredNonCss` is what no stylesheet
+declares and only the source says.
+
+**#77 — the emitter.** `parity/generate_theme.cjs` writes the 18th generated file,
+`mobile/lib/core/theme/app_rows.dart`: `AppTxRowSpec` with its seven slot records, `AppDayHeadSpec`,
+the divider, `AppEmptySpec` ×2 (the dashboard box and the Reports Centre box), `AppLedgerRailSpec` ×2,
+`AppChipSize` (22/32/40/44 with glyph 12/14/17/19), `AppChipTone` (pink, mint, yellow, lavender, blue,
+ink), `AppCategoryChipTintSpec` per tone per theme, `AppCategoryChips.toneFor` + `toneFixtures` +
+`glyphSymbols` + `toneWebNormalisations`, and `AppRows.arrowSizePx` with both arrow names and symbols.
+Fail-rather-than-guess as everywhere else: no value is typed into the generator, every one is read out
+of the JSON or the stylesheet.
+
+**#78 — the render.** `parity/UI_SPEC.md` §6.6 "The ledger family — stacks the components write
+themselves", one row per stack with its classes, its `file:line`, its four measurements and its
+computed colours, and the non-CSS records below it.
+
+**#79 — the drift tests.** Two groups in `mobile/test/theme/ui_tokens_test.dart`, 35 tests, and the
+file is now 258 tests:
+
+- **19 measured re-reads** — the row and the list read whole: what each slot is mounted as, the box at
+  rest, the press, the slots across all four passes, the money arms, the day head, the divider, the
+  empty states, the rails, and the ten ledger records' shapes and cross-file citations.
+- **16 independent re-derivations** — `AppRows` and `AppCategoryChips` rebuilt here from JSON strings,
+  authored TSX lines and stylesheet declarations, never copied out of the generated file, so the two
+  agree only if both are right. Line numbers are always _found_ (the record's frozen text is matched
+  and the file re-read at the line it names), never typed.
+
+### What the ledger turned out to be, recorded rather than resolved
+
+1. **The two lists disagree with each other, and the disagreement is viewport-shaped.** The dashboard's
+   rail is `min-h-0 lg:max-h-[34rem] lg:overflow-y-auto lg:pr-1` — every one of those classes is
+   `lg:`-gated, so at the phone pass nothing changed and the rail is unbounded with no gutter; on
+   desktop it is 544px (generation re-derives `34 × 16`), scrolls and gains 4px. The Reports Centre rail
+   is the same idea ungated at 460px with the gutter at both widths. `overflow-y: auto` also forces its
+   sibling `overflow-x: visible` to compute `auto` — the browser's coercion, not a rule anyone wrote.
+2. **`isIncome` is five arms across two files and they do not agree.** Both screens admit
+   `income`, `deposit` and `financing`, and both treat a `transfer` as income when the amount is
+   positive — but ReportsCentre's transfer arm (`:504`) also fires on `category === 'Transfer In'`
+   whatever the sign says, which Dashboard (`:429`) does not. So a transfer booked with that category
+   and a negative amount is an expense on the dashboard and income in the centre. Logged as
+   `txrow-isincome-predicates-disagree`; the port paints what each screen tells it and picks no winner.
+3. **The row is handed a string and the two callers hand it different strings.** `amountText: string`
+   (`TransactionRow.tsx:11`), and the file contains no `formatMoney`, `Intl`, `NumberFormat` or
+   `toFixed` — it cannot format a number because it never receives one. Dashboard passes
+   `formatMoney(state.currency, t.amount)` (signed); ReportsCentre takes `Math.abs` first at `:505` and
+   passes the absolute value at `:518`. A transfer in is therefore signed on the dashboard and absolute
+   in the centre. Logged as `txrow-amount-signed-vs-absolute`.
+4. **`empty` is a class declared nowhere.** `ReportsCentre.tsx:494` writes
+   `className="empty py-10 …"`; `src/index.css` has no `.empty` rule, so the box is styled entirely by
+   the utilities beside it. The measurement proves it and the drift test pins its absence.
+5. **`.pill` + `hidden` is inert.** `.pill` declares `display: inline-flex` unlayered
+   (`src/index.css:917`) while `hidden` is a Tailwind utility inside a cascade layer, so the unlayered
+   declaration wins at any specificity — the Reports Centre type pill paints on a 390px phone even
+   though the source says hide it below `sm`, and `sm:inline-flex` beside it is redundant. Recorded as
+   the app paints it; whether the web should fix the class is the web's decision.
+6. **Two rules claim the pressed row and the spec carries the winner** — the ledger's `scale-[0.97]`
+   beats the `0.995` another rule asks for, so 0.97 is what the port pins.
+7. **The day head restates its own size** and the restatement is inert. `.eyebrow` authors 10px and the
+   class list writes `!text-[10px]` beside it; the measurement agrees with the class either way, so the
+   flag is carried (`redundantSizeOverride`) because it is what the source says, not because the port
+   needs a second size.
+8. **`İSTANBUL` normalises differently.** The chip's tone comes from
+   `hashString(category.toLowerCase().trim()) % 5`. V8 follows Unicode's **full** lowercase mappings, so
+   `İ` becomes `i` + U+0307 (9 UTF-16 units) and lands on `mint`; Dart follows the **simple** mappings
+   (`i`, 8 units) and lands on `pink`. The hash loop is identical; only the normalisation differs. The
+   generator now emits `AppCategoryChips.toneWebNormalisations` — each fixture's key as the engine that
+   paints the app answered it — and the drift test reproduces all 36 fixtures through the source-parsed
+   loop, derives the divergence set from the table, pins it to exactly `{İSTANBUL}`, and pins the port's
+   answer. `toneFor` is **unchanged**: this is a recorded deviation, and closing it (carrying a case
+   table for one character) is a decision with a failing test behind it.
+9. **`rounded-full` measures as `3.35544e+07px`** and the engine clamps it to its own float, so
+   `AppCategoryChips.fullRoundRadiusPx` carries 33,554,400 because that is what was measured.
+
+### Port deviations this family forces
+
+- **dashed frame → solid** — the dashboard's empty box is `border-dashed`; Flutter `Border` has no dash
+  pattern, so the port paints the measured 1px `--line` solid. Recorded on the spec in the generated
+  row's own doc comment, not silently.
+- **`text-transform` → `toUpperCase()`** — Flutter has no text transform, so the day head answers it in
+  the widget. Re-checked at item 14, since it interacts with the real faces' metrics.
+- **`İSTANBUL` simple-lowercase** — see finding 8.
+- **the inert `hidden` pill paints** — see finding 5; the phone keeps the pill, matching the web's actual
+  behaviour rather than its intention.
+- Hover remains dropped (D-U1) and blur is px → σ = px/2 (D-U8), unchanged by this family.
+
+### Gates at this gate
+
+`dart format --output=none --set-exit-if-changed lib test` → 127 files, 0 changed ·
+`dart analyze --fatal-infos mobile` → clean · `flutter test` → **1299** (1265 recorded at the item-10
+gate; `ui_tokens_test.dart` is 258) · generator idempotent — two runs, the tracked files' `git diff`
+hash identical and `app_rows.dart` sha256-stable across a third run · `render_ui_spec.cjs` idempotent —
+two runs, one sha256 on `UI_SPEC.md` (1217 lines) · prettier clean on `generate_theme.cjs`,
+`render_ui_spec.cjs`, `ui-tokens.cjs` (the last needed reformatting for three of item 8's own lines) ·
+secret sweep: 0 hits over the 205,704-line diff and the new generated file · D41: no `.gitattributes`
+change, no screenshot touched, staged OID == `hash-object` == `hash-object --no-filters` verified at
+commit.
+
+**Three older tier assertions moved with the evidence, none weakened.** The #55 verbatim test now
+recognises both fragment shapes — a `cls` must sit verbatim on the line it names, and an inline `style`
+must have every cited declaration verbatim on its line, every `var(--token)` it computed named by a line
+the record points at, and every part must be one or the other. The #56 family count names the four
+ledger files beside the seven chrome ones (19 + 32 + 26). The #56 extended-props sweep runs over 58 rows
+instead of 32 because the ledger rows were asking for the same ten readouts and all of them have them.
+
 ## Phase 6 checklist (recorded at this gate, nothing built here)
 
 - Feature-modal compositions on `AppModal`: QuickAction, DebtDetail (its literal 6px veil blur is
@@ -428,18 +544,23 @@ doc-only changes · prettier clean on `UI_SPEC.md`, `STATUS.md`, `get_fonts.cjs`
 ## Exact next step
 
 Phase 5 under the scope ruling of 2026-10-11: item 1 done (`43c02f9`); items 2–6 done as one batch
-(`0888c0d`); item 7 done (`0717b7a`); **item 10 done (this commit)**, which closes #58 and every
+(`0888c0d`); item 7 done (`0717b7a`); item 10 done (`2b2bc36`), which closes #58 and every
 `ITEM-10 RECHECK` marker. The ruling's order now continues **8, 9 → 14**.
 
-Next is **item 8 — the transaction row and the ledger**, one gate, built over the real glyphs: the
-`.numeral`/`.money-display` rows it carries are no longer fallback metrics, so its widths, its
-line-heights and any 360px fit claim are measured against Plus Jakarta Sans and Inter from the start,
-and the money strings keep coming from the already-ported formatters. Then **item 9 — the card faces
-and action keys**, its own gate. **Item 14 — the golden CI job** (Linux path only) comes last, over the
-final widget set, and it is where the two font-dependent readings this gate could not settle are
-actually read: the `heightRatio` ink question (open item 4 above) and the metric re-checks §3.1 marks.
-Items 11–12 (Dashboard/Wallets screens) move to Phase 6 and item 13 to Phase 9. #18's e2e teardown
-still waits on a ruling.
+**Item 8 is half-closed by this commit.** Its evidence is complete — measured (#76), emitted (#77),
+rendered (#78) and drift-tested (#79) — and the drift tier is what a widget port is now allowed to read.
+What is left on that gate is the port itself, in this order: `app_tx_row.dart`, `app_day_head.dart`,
+`app_category_chip.dart` and `app_ledger.dart`, each taking its strings and its tone from the specs above
+and formatting nothing (the row receives `amountText` as a string exactly because `TransactionRow.tsx`
+does), then behaviour tests for the 360px fit, the divider set, the sticky day head and tone
+determinism. `dayLabel` and `activityMeta` stay screen concerns — the web composes them in
+`Dashboard.tsx` and `ReportsCentre.tsx`, not in the row.
+
+Then **item 9 — the card faces and action keys**, its own gate. **Item 14 — the golden CI job** (Linux
+path only) comes last, over the final widget set, and it is where the readings no layout assertion can
+settle are actually read: the `heightRatio` ink question (open item 4 above), the metric re-checks §3.1
+marks, and the `toUpperCase()` day head now that the faces are real. Items 11–12 (Dashboard/Wallets
+screens) move to Phase 6 and item 13 to Phase 9. #18's e2e teardown still waits on a ruling.
 The ruling of 2026-10-11 (re-confirmed same-day) is the governing text for all of it, including
 the `AppCard` = glass-panel and `AppProgressBar` = paint-row-with-no-value decisions recorded
 above. Nothing is committed, pushed, merged or deleted without the user's word.
