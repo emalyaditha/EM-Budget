@@ -25,6 +25,9 @@ class AppTxRowSlotSpec {
     required this.displayCss,
     required this.alignItemsCss,
     this.gapPx,
+    required this.marginTopPx,
+    required this.paddingVerticalPx,
+    required this.paddingHorizontalPx,
     required this.fontFamily,
     required this.fontSizePx,
     required this.fontWeight,
@@ -58,6 +61,24 @@ class AppTxRowSlotSpec {
 
   /// The measured `gap` in phone px, `null` where the row measures `normal` — which is no gap.
   final double? gapPx;
+
+  /// The measured top offset, which the port draws as the space above this slot.
+  ///
+  /// Zero for every slot but the meta line, whose `mt-0.5` is 2px at the measured
+  /// `--spacing`. Generation reads the utility off the class list, multiplies it by
+  /// the unit all four `:root` passes agree on, and requires the product to equal
+  /// what the pass painted — so a margin with no class behind it, or a class whose
+  /// pixels the record does not show, stops generation rather than reaching here.
+  final double marginTopPx;
+
+  /// The block padding the slot itself asks for. Only the trailing pill has any
+  /// (`!py-0.5 !px-2` over `.pill`’s own, which the `!` exists to win against); the
+  /// other slots measure `0px` because their box padding belongs to the row, not to
+  /// a text child. Same cross-check as [marginTopPx]: the utility, the unit and the
+  /// painted pixel have to agree.
+  final double paddingVerticalPx;
+
+  final double paddingHorizontalPx;
 
   /// The first family of the stack this slot paints in — the §6 probe that authors it
   /// (`.mono` for a slot that cites the class, `body` for one that inherits), never the
@@ -115,6 +136,19 @@ class AppTxRowSlotSpec {
 
   /// The weight Flutter names for the measured numeric weight.
   FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];
+
+  /// The space this slot asks for above itself — [marginTopPx] and nothing else.
+  /// Zero for every slot but the meta line, whose `mt-0.5` is 2px at the measured
+  /// `--spacing`. The row’s own inset is [AppTxRowBoxSpec]’s padding, never a text
+  /// child’s margin, so the two never double-count.
+  EdgeInsets get margin => EdgeInsets.only(top: marginTopPx);
+
+  /// The slot’s own inner inset. Only the trailing pill has any, from the
+  /// `!py-0.5 !px-2` that beat `.pill`’s rule; every other slot measures `0px`.
+  EdgeInsets get padding => EdgeInsets.symmetric(
+    horizontal: paddingHorizontalPx,
+    vertical: paddingVerticalPx,
+  );
 
   /// Tabular figures where the cited class authors them.
   List<FontFeature> get fontFeatures => tabularNums
@@ -549,6 +583,7 @@ class AppLedgerRailSpec {
     required this.narrowOverflowXCss,
     required this.widePaddingRightPx,
     required this.narrowPaddingRightPx,
+    this.rowMarginTopPx,
   });
 
   final String stackRow;
@@ -575,6 +610,18 @@ class AppLedgerRailSpec {
   final double widePaddingRightPx;
 
   final double narrowPaddingRightPx;
+
+  /// The top margin `space-y-N` authors on every child after the first — the list’s
+  /// own row spacing. `null` where the rail cites no `space-y-*`.
+  ///
+  /// The one number in this file that no pass measured, because it is not a property
+  /// of the element the class list sits on: `space-y-*` moves the children, and the
+  /// rail row reads `marginTop: 0px` and no `gap`. Generation derives it as N ×
+  /// `--spacing`, the unit every pass measures in `:root`, and refuses to emit it
+  /// unless a second utility on this same element (`pr-*`) resolves to the pixels the
+  /// pass really did read — so the scale unit is confirmed by measurement, never
+  /// assumed. The first child keeps no margin, exactly as `:not(:first-child)` does.
+  final double? rowMarginTopPx;
 }
 
 /// The row, its header and the chrome the ledger builds around them.
@@ -613,6 +660,9 @@ abstract final class AppRows {
       displayCss: 'block',
       alignItemsCss: 'normal',
       gapPx: null,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 13.0,
       fontWeight: 600,
@@ -635,6 +685,9 @@ abstract final class AppRows {
       displayCss: 'block',
       alignItemsCss: 'normal',
       gapPx: null,
+      marginTopPx: 2.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 11.0,
       fontWeight: 400,
@@ -657,6 +710,9 @@ abstract final class AppRows {
       displayCss: 'block',
       alignItemsCss: 'normal',
       gapPx: null,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 16.0,
       fontWeight: 400,
@@ -679,6 +735,9 @@ abstract final class AppRows {
       displayCss: 'block',
       alignItemsCss: 'normal',
       gapPx: null,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 16.0,
       fontWeight: 400,
@@ -701,6 +760,9 @@ abstract final class AppRows {
       displayCss: 'inline-flex',
       alignItemsCss: 'center',
       gapPx: 4.0,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 13.0,
       fontWeight: 700,
@@ -723,6 +785,9 @@ abstract final class AppRows {
       displayCss: 'inline-flex',
       alignItemsCss: 'center',
       gapPx: 4.0,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 13.0,
       fontWeight: 700,
@@ -745,6 +810,9 @@ abstract final class AppRows {
       displayCss: 'inline-flex',
       alignItemsCss: 'center',
       gapPx: 6.0,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 2.0,
+      paddingHorizontalPx: 8.0,
       fontFamily: 'JetBrains Mono',
       fontSizePx: 9.0,
       fontWeight: 600,
@@ -792,6 +860,9 @@ abstract final class AppRows {
       displayCss: 'block',
       alignItemsCss: 'normal',
       gapPx: null,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 13.0,
       fontWeight: 600,
@@ -814,6 +885,9 @@ abstract final class AppRows {
       displayCss: 'block',
       alignItemsCss: 'normal',
       gapPx: null,
+      marginTopPx: 2.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 11.0,
       fontWeight: 400,
@@ -836,6 +910,9 @@ abstract final class AppRows {
       displayCss: 'block',
       alignItemsCss: 'normal',
       gapPx: null,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 16.0,
       fontWeight: 400,
@@ -858,6 +935,9 @@ abstract final class AppRows {
       displayCss: 'block',
       alignItemsCss: 'normal',
       gapPx: null,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 16.0,
       fontWeight: 400,
@@ -880,6 +960,9 @@ abstract final class AppRows {
       displayCss: 'inline-flex',
       alignItemsCss: 'center',
       gapPx: 4.0,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 13.0,
       fontWeight: 700,
@@ -902,6 +985,9 @@ abstract final class AppRows {
       displayCss: 'inline-flex',
       alignItemsCss: 'center',
       gapPx: 4.0,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'Inter',
       fontSizePx: 13.0,
       fontWeight: 700,
@@ -924,6 +1010,9 @@ abstract final class AppRows {
       displayCss: 'inline-flex',
       alignItemsCss: 'center',
       gapPx: 6.0,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 2.0,
+      paddingHorizontalPx: 8.0,
       fontFamily: 'JetBrains Mono',
       fontSizePx: 9.0,
       fontWeight: 600,
@@ -1050,6 +1139,9 @@ abstract final class AppRows {
       displayCss: 'block',
       alignItemsCss: 'normal',
       gapPx: null,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'JetBrains Mono',
       fontSizePx: 12.0,
       fontWeight: 400,
@@ -1080,6 +1172,9 @@ abstract final class AppRows {
       displayCss: 'block',
       alignItemsCss: 'normal',
       gapPx: null,
+      marginTopPx: 0.0,
+      paddingVerticalPx: 0.0,
+      paddingHorizontalPx: 0.0,
       fontFamily: 'JetBrains Mono',
       fontSizePx: 12.0,
       fontWeight: 400,
@@ -1114,6 +1209,7 @@ abstract final class AppRows {
     narrowOverflowXCss: 'visible',
     widePaddingRightPx: 4.0,
     narrowPaddingRightPx: 0.0,
+    rowMarginTopPx: null,
   );
 
   /// The Reports Centre list: the same `max-height` at both viewports (460px),
@@ -1130,6 +1226,7 @@ abstract final class AppRows {
     narrowOverflowXCss: 'auto',
     widePaddingRightPx: 4.0,
     narrowPaddingRightPx: 4.0,
+    rowMarginTopPx: 4.0,
   );
 
   /// The direction glyph the amount span leads with, named at

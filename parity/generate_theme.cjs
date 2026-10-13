@@ -7215,6 +7215,9 @@ const rowsSlot = (role, brightness, opts) => {
     displayCss: stkRaw(brightness, name, 'display'),
     alignItemsCss: stkRaw(brightness, name, 'alignItems'),
     gapPx: stkRaw(brightness, name, 'columnGap') === 'normal' ? null : stkLen(brightness, name, 'columnGap'),
+    marginTopPx: stkLen(brightness, name, 'marginTop'),
+    paddingVerticalPx: stkPadSym(brightness, name).vertical,
+    paddingHorizontalPx: stkPadSym(brightness, name).horizontal,
     fontFamily: (() => {
       // The stack a slot paints in is not visible in the 45 measured properties,
       // so it comes from the §6 probe that authors it — `.mono` for a slot that
@@ -7287,7 +7290,81 @@ const rowsSlot = (role, brightness, opts) => {
       fail(`${name}: \`min-w-0\` measured ${stkRaw(brightness, name, 'minWidth')}`);
     }
   }
+  rowsSlotOffsets(brightness, name, cls, out);
   return out;
+};
+
+/**
+ * The one spacing unit every pass measures: `--spacing` in each of the four
+ * `:root` passes. Any utility written as `calc(n * --spacing)` — `space-y-*`,
+ * `mt-*`, `py-*`, `px-*`, `pr-*` — is this number times its multiplier, so a
+ * margin no pass measured on the element that authors it can still be derived,
+ * as long as the derivation is checked against a pixel the pass really did read.
+ * Four equal values or generation stops.
+ */
+const rowsSpacingPx = (label) => {
+  const units = ['light-desktop', 'dark-desktop', 'light-phone', 'dark-phone'].map((tag) => {
+    const v = passTheme(tag).root['--spacing'];
+    if (v === undefined) {
+      fail(`${label}: ${tag} no longer measures --spacing in :root, so there is no unit to multiply`);
+    }
+    return lengthPx(v.raw, `--spacing at ${tag}`);
+  });
+  if (new Set(units).size !== 1) {
+    fail(`${label}: --spacing reads ${units.join(' / ')} across the four passes, so it is not one number`);
+  }
+  return units[0];
+};
+
+/**
+ * A slot’s top margin and padding, cross-checked against the utilities that
+ * author them. Both properties are measured on the slot itself, so unlike the
+ * rail’s `space-y-*` there is a recorded pixel for each — but a pixel with no
+ * class behind it is a cascade the port cannot see, and a class with no pixel
+ * behind it is an override that lost. Either way generation stops.
+ *
+ * The multipliers come from the cited class list, the unit from `rowsSpacingPx`
+ * (all four `:root` passes, one value or it refuses), and each derived pixel
+ * must equal what the pass measured. The `!` prefix on `!py-0.5 !px-2` is what
+ * makes the pill’s padding beat `.pill`’s own rule; `!important` moves the
+ * *value* Chrome records, not the key, so it is read off the class and confirmed
+ * by the measurement. A variant-gated offset is refused outright: it would have
+ * to be read at the width it applies in, and this row was not.
+ */
+const rowsSlotOffsets = (brightness, name, cls, out) => {
+  const tokens = cls.split(/\s+/).filter((c) => c !== '');
+  const cited = tokens.filter((t) => /^(?:!?|(?:sm|md|lg|xl|2xl):)?(?:mt|py|px|p)-/.test(t));
+  const OFFSET = /^(!?)(mt|py|px)-(\d+(?:\.\d+)?)$/;
+  const wanted = { mt: null, py: null, px: null };
+  for (const tok of cited) {
+    const m = OFFSET.exec(tok);
+    if (m === null) {
+      fail(
+        `${name}: "${tok}" is a variant-gated offset or a padding shorthand the per-axis port cannot ` +
+          'attribute — an offset has to be a bare utility (or `!` on py/px), and a padding has to be ' +
+          'written per axis for this row to carry it',
+      );
+    }
+    if (m[1] === '!' && m[2] === 'mt') {
+      fail(`${name}: "${tok}" marks a top margin important; the row family only authors !py/!px overrides`);
+    }
+    const px = parseFloat(m[3]) * rowsSpacingPx(`${name} offsets`);
+    if (wanted[m[2]] !== null && wanted[m[2]] !== px) {
+      fail(`${name}: two utilities author ${m[2]} with different pixels (${wanted[m[2]]} and ${px})`);
+    }
+    wanted[m[2]] = px;
+  }
+  const got = { mt: out.marginTopPx, py: out.paddingVerticalPx, px: out.paddingHorizontalPx };
+  for (const axis of ['mt', 'py', 'px']) {
+    const want = wanted[axis] === null ? 0 : wanted[axis];
+    if (got[axis] !== want) {
+      fail(
+        `${name}: ${axis} measured ${got[axis]}px, the cited class list authors ${want}px ` +
+          `(${cited.join(' ') || 'no offset utility'}) at --spacing ${rowsSpacingPx(`${name} ${axis}`)}px ` +
+          '— the record and the source disagree',
+      );
+    }
+  }
 };
 
 const rowsBox = (brightness) => {
@@ -7783,6 +7860,58 @@ if (rowsRcScroll.wideMaxHeightPx !== rowsRcScroll.narrowMaxHeightPx || rowsRcScr
   fail(`ledger-list-scroll is recorded as ungated (${rowsRcScroll.wideMaxHeightPx}px) at both viewports`);
 }
 
+/**
+ * `space-y-N` written on a rail. Tailwind authors it as a top margin on every child
+ * after the first, so it is a property of the rail’s *children* — and the pass measures
+ * the element the class list sits on, which reads `marginTop: 0px` and no `gap`. No
+ * recorded pixel carries it. It is therefore derived the way `lg:max-h-[34rem]` above
+ * is derived: the multiplier comes from the class the component writes, the unit comes
+ * from `--spacing`, which all four passes measure in `:root`, and the arithmetic is
+ * checked against a second utility on that same element that the pass really did
+ * measure in pixels — the `pr-*` scrollbar gutter. Two members of one scale, one of
+ * them confirmed by the engine: if the unit stopped meaning what this multiplies, the
+ * gutter check fails and generation stops rather than emitting a spacing nobody read.
+ */
+const rowsRailRowMarginPx = (rail) => {
+  const tokens = rail.cls.split(/\s+/);
+  const spaced = tokens.find((c) => /space-y-/.test(c));
+  if (spaced === undefined) return null;
+  if (/^(!)?(sm|md|lg|xl|2xl):/.test(spaced)) {
+    fail(
+      `${rail.name}: "${spaced}" is variant-gated, and a gated child margin needs a pass that measured the child, ` +
+        'which this rail row does not',
+    );
+  }
+  const sm = /^space-y-(\d+(?:\.\d+)?)$/.exec(spaced);
+  if (sm === null) {
+    fail(`${rail.name}: "${spaced}" is not the bare-number form this port knows how to multiply`);
+  }
+  const spacing = rowsSpacingPx(rail.name);
+
+  const gutterTok = tokens.find((c) => /(?:^|:)pr-\d+(?:\.\d+)?$/.test(c));
+  if (gutterTok === undefined) {
+    fail(
+      `${rail.name}: "${spaced}" has no pr-* utility beside it on the same element, so nothing in the record ` +
+        'measures the spacing unit and the derivation below would be arithmetic on an unchecked assumption',
+    );
+  }
+  const gm = /^(?:(sm|md|lg|xl|2xl):)?pr-([\d.]+)$/.exec(gutterTok);
+  const gutterPx = parseFloat(gm[2]) * spacing;
+  const wantWide = gutterPx;
+  // A `lg:`-gated gutter is the wide pass’s only; an ungated one is both.
+  const wantNarrow = gm[1] === undefined ? gutterPx : 0;
+  if (rail.widePaddingRightPx !== wantWide || rail.narrowPaddingRightPx !== wantNarrow) {
+    fail(
+      `${rail.name}: "${gutterTok}" is ${gm[2]} × --spacing ${spacing}px = ${gutterPx}px, but the rail’s own ` +
+        `padding measured ${rail.widePaddingRightPx}/${rail.narrowPaddingRightPx}px wide/narrow — the scale unit ` +
+        `no longer means what "${spaced}" would multiply`,
+    );
+  }
+  return parseFloat(sm[1]) * spacing;
+};
+rowsLedgerScroll.rowMarginTopPx = rowsRailRowMarginPx(rowsLedgerScroll);
+rowsRcScroll.rowMarginTopPx = rowsRailRowMarginPx(rowsRcScroll);
+
 // The two empty states: the dashboard’s dashed box, and the Reports Centre’s
 // flex column whose `empty` class is applied but declared nowhere.
 const rowsEmpty = (brightness) => {
@@ -7853,13 +7982,16 @@ const rowsSlotLike = (name, brightness) => {
       `${name}: the slot cites `.mono` for tabular figures, and src/index.css:${monoRule.line} no longer authors them`,
     );
   }
-  return {
+  const slot = {
     name,
     cls,
     src: rowsCite(usRow(name)),
     displayCss: stkRaw(brightness, name, 'display'),
     alignItemsCss: stkRaw(brightness, name, 'alignItems'),
     gapPx: stkRaw(brightness, name, 'columnGap') === 'normal' ? null : stkLen(brightness, name, 'columnGap'),
+    marginTopPx: stkLen(brightness, name, 'marginTop'),
+    paddingVerticalPx: stkPadSym(brightness, name).vertical,
+    paddingHorizontalPx: stkPadSym(brightness, name).horizontal,
     fontFamily: firstFamily(
       probeRaw(passTheme(`${brightness}-phone`).probes['.mono'], 'fontFamily', '.mono'),
       `${name} .mono`,
@@ -7880,6 +8012,8 @@ const rowsSlotLike = (name, brightness) => {
     textAlignCss: stkHas(brightness, name, 'textAlign') ? stkRaw(brightness, name, 'textAlign') : null,
     tabularNums: true,
   };
+  rowsSlotOffsets(brightness, name, cls, slot);
+  return slot;
 };
 if (!/\bmono\b/.test(usRow('ledger-empty-rc-line').parts[0].cls)) {
   fail('ledger-empty-rc-line no longer cites `.mono`, so its family and tnum have no source');
@@ -8190,6 +8324,33 @@ const ROW_SLOT_FIELDS = [
     ['The measured `gap` in phone px, `null` where the row measures `normal` — which is no gap.'],
   ],
   [
+    'marginTopPx',
+    'double',
+    (s) => s.marginTopPx,
+    [
+      'The measured top offset, which the port draws as the space above this slot.',
+      '',
+      'Zero for every slot but the meta line, whose `mt-0.5` is 2px at the measured',
+      '`--spacing`. Generation reads the utility off the class list, multiplies it by',
+      'the unit all four `:root` passes agree on, and requires the product to equal',
+      'what the pass painted — so a margin with no class behind it, or a class whose',
+      'pixels the record does not show, stops generation rather than reaching here.',
+    ],
+  ],
+  [
+    'paddingVerticalPx',
+    'double',
+    (s) => s.paddingVerticalPx,
+    [
+      'The block padding the slot itself asks for. Only the trailing pill has any',
+      '(`!py-0.5 !px-2` over `.pill`’s own, which the `!` exists to win against); the',
+      'other slots measure `0px` because their box padding belongs to the row, not to',
+      'a text child. Same cross-check as [marginTopPx]: the utility, the unit and the',
+      'painted pixel have to agree.',
+    ],
+  ],
+  ['paddingHorizontalPx', 'double', (s) => s.paddingHorizontalPx, []],
+  [
     'fontFamily',
     'String',
     (s) => s.fontFamily,
@@ -8276,6 +8437,19 @@ const ROW_SLOT_FIELDS = [
 const ROW_SLOT_MEMBERS = [
   '  /// The weight Flutter names for the measured numeric weight.',
   '  FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];',
+  '',
+  '  /// The space this slot asks for above itself — [marginTopPx] and nothing else.',
+  '  /// Zero for every slot but the meta line, whose `mt-0.5` is 2px at the measured',
+  '  /// `--spacing`. The row’s own inset is [AppTxRowBoxSpec]’s padding, never a text',
+  '  /// child’s margin, so the two never double-count.',
+  '  EdgeInsets get margin => EdgeInsets.only(top: marginTopPx);',
+  '',
+  '  /// The slot’s own inner inset. Only the trailing pill has any, from the',
+  '  /// `!py-0.5 !px-2` that beat `.pill`’s rule; every other slot measures `0px`.',
+  '  EdgeInsets get padding => EdgeInsets.symmetric(',
+  '    horizontal: paddingHorizontalPx,',
+  '    vertical: paddingVerticalPx,',
+  '  );',
   '',
   '  /// Tabular figures where the cited class authors them.',
   '  List<FontFeature> get fontFeatures =>',
@@ -8603,6 +8777,23 @@ const ROW_RAIL_FIELDS = [
     ['The scrollbar gutter the rail reserves on one side only, nothing on the other three.'],
   ],
   ['narrowPaddingRightPx', 'double', (r) => r.narrowPaddingRightPx, []],
+  [
+    'rowMarginTopPx',
+    'double?',
+    (r) => r.rowMarginTopPx,
+    [
+      'The top margin `space-y-N` authors on every child after the first — the list’s',
+      'own row spacing. `null` where the rail cites no `space-y-*`.',
+      '',
+      'The one number in this file that no pass measured, because it is not a property',
+      'of the element the class list sits on: `space-y-*` moves the children, and the',
+      'rail row reads `marginTop: 0px` and no `gap`. Generation derives it as N ×',
+      '`--spacing`, the unit every pass measures in `:root`, and refuses to emit it',
+      'unless a second utility on this same element (`pr-*`) resolves to the pixels the',
+      'pass really did read — so the scale unit is confirmed by measurement, never',
+      'assumed. The first child keeps no margin, exactly as `:not(:first-child)` does.',
+    ],
+  ],
 ];
 
 banner();

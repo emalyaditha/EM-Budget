@@ -11179,6 +11179,9 @@ void main() {
       'minWidthZero': slot.minWidthZero,
       'textAlignCss': slot.textAlignCss,
       'tabularNums': slot.tabularNums,
+      'marginTopPx': slot.marginTopPx,
+      'paddingVerticalPx': slot.paddingVerticalPx,
+      'paddingHorizontalPx': slot.paddingHorizontalPx,
     };
 
     List<String> appDifferences(
@@ -11404,6 +11407,131 @@ void main() {
                 ? const <FontFeature>[FontFeature.tabularFigures()]
                 : const <FontFeature>[],
             reason: '$at a font feature is answered as a font feature',
+          );
+          // A slot’s own margin and padding. Both are measured on the element,
+          // so unlike the rail’s `space-y-*` there is a recorded pixel for each
+          // — but a pixel with no utility behind it is a cascade this port
+          // cannot see, so the class list is read too and the two have to agree
+          // through the one spacing unit all four passes measure.
+          final double spacing = appTokenPx(pass, '--spacing');
+          expect(
+            <double>{
+              for (final String p in appPasses) appTokenPx(p, '--spacing'),
+            }.length,
+            1,
+            reason: '$at --spacing is one number across the passes',
+          );
+          final List<String> offsetWords = words
+              .where(
+                (String w) =>
+                    RegExp(r'^(?:!?|(?:sm|md|lg|xl|2xl):)?(?:mt|py|px|p)-')
+                        .hasMatch(w),
+              )
+              .toList();
+          double authored(String axis) {
+            final List<String> hits = offsetWords
+                .where((String w) => RegExp('^!?$axis-[\\d.]+\$').hasMatch(w))
+                .toList();
+            if (hits.length > 1) {
+              throw StateError('$at: ${hits.join(' ')} both author $axis');
+            }
+            if (hits.isEmpty) return 0.0;
+            return double.parse(
+                  RegExp(r'-(\d+(?:\.\d+)?)$')
+                      .firstMatch(hits.single)!
+                      .group(1)!,
+                ) *
+                spacing;
+          }
+
+          expect(
+            offsetWords.length,
+            offsetWords.toSet().length,
+            reason: '$at one utility per axis',
+          );
+          for (final String w in offsetWords) {
+            if (!RegExp(r'^(?:!)?(?:mt|py|px)-[\d.]+$').hasMatch(w)) {
+              throw StateError(
+                '$at: "$w" is a variant-gated offset or a padding shorthand, '
+                'and neither is something this port could attribute to a pixel',
+              );
+            }
+          }
+          expect(
+            slot.marginTopPx,
+            appPx(pass, name, 'marginTop'),
+            reason: '$at the measured top offset',
+          );
+          expect(
+            slot.marginTopPx,
+            authored('mt'),
+            reason: '$at mt-* and the painted pixel are the same number',
+          );
+          final List<double> pad = appVal(
+            pass,
+            name,
+            'padding',
+          ).split(' ').map((String s) => _pxOf(s, '$at padding')).toList();
+          expect(
+            pad.length,
+            anyOf(1, 2, 3, 4),
+            reason:
+                '$at CSS allows four padding forms; anything else is not padding',
+          );
+          final double padTop = pad[0];
+          final double padRight = pad.length > 1 ? pad[1] : padTop;
+          final double padBottom = pad.length > 2 ? pad[2] : padTop;
+          final double padLeft = pad.length > 3 ? pad[3] : padRight;
+          expect(
+            padTop,
+            padBottom,
+            reason: '$at the block padding is symmetric',
+          );
+          expect(
+            padLeft,
+            padRight,
+            reason: '$at the inline padding is symmetric',
+          );
+          expect(
+            slot.paddingVerticalPx,
+            padTop,
+            reason: '$at the measured block padding',
+          );
+          expect(
+            slot.paddingHorizontalPx,
+            padRight,
+            reason: '$at the measured inline padding',
+          );
+          expect(
+            slot.paddingVerticalPx,
+            authored('py'),
+            reason:
+                '$at !py-0.5 beats .pill’s own rule, and py with no utility '
+                'measures nothing — either way the class and the pixel agree',
+          );
+          expect(
+            slot.paddingHorizontalPx,
+            authored('px'),
+            reason: '$at the same for the inline axis',
+          );
+          expect(
+            slot.margin,
+            EdgeInsets.only(top: slot.marginTopPx),
+            reason: '$at the margin the widget will draw',
+          );
+          expect(
+            slot.padding,
+            EdgeInsets.symmetric(
+              horizontal: slot.paddingHorizontalPx,
+              vertical: slot.paddingVerticalPx,
+            ),
+            reason: '$at the padding the widget will draw',
+          );
+          expect(
+            slot.padding == EdgeInsets.zero,
+            padTop == 0 && padRight == 0,
+            reason:
+                '$at a slot’s padding is zero exactly when the record says it is',
           );
           expect(
             slot.textStyle,
@@ -13385,6 +13513,123 @@ void main() {
           chromeRead[entry.key],
           entry.value,
           reason: '${entry.key} is cited by that many lines',
+        );
+      }
+    });
+
+    test('the rail’s row spacing — the one number no pass measured, derived and checked', () {
+      // `space-y-N` is authored on the rail and moves its *children*, so the rail’s
+      // own measurement keeps no trace of it: `marginTop` reads 0px and both gap
+      // axes read `normal`. Generation emits N × `--spacing` anyway, because the
+      // unit is a measured `:root` fact and the utility beside it on the same
+      // element — the `pr-*` gutter — was measured in pixels. That cross-check is
+      // the only thing separating a derived spacing from a guessed one, so this
+      // test re-runs the whole arithmetic from the record: same class list, same
+      // unit, same gutter, same rails.
+      final Map<String, AppLedgerRailSpec> railsByName =
+          <String, AppLedgerRailSpec>{
+            'ledger-scroll': AppRows.ledgerRail,
+            'ledger-list-scroll': AppRows.reportsRail,
+          };
+      final Set<double> spacing = appPasses
+          .map((String pass) => appTokenPx(pass, '--spacing'))
+          .toSet();
+      expect(
+        spacing,
+        <double>{4.0},
+        reason:
+            '--spacing is the unit every space-y-* and pr-* multiplies, and the '
+            'four passes must read one value for any multiplication of it to be one number',
+      );
+      for (final MapEntry<String, AppLedgerRailSpec> entry
+          in railsByName.entries) {
+        final String name = entry.key;
+        final AppLedgerRailSpec rail = entry.value;
+        final List<String> tokens = appTokens(name);
+        expect(
+          rail.cssClasses,
+          tokens.join(' '),
+          reason:
+              '$name: the spec and the record must quote the same class list',
+        );
+        final List<String> spaced = tokens
+            .where((String t) => t.startsWith('space-y-'))
+            .toList();
+        expect(
+          spaced.length,
+          lessThan(2),
+          reason: '$name cites at most one space-y utility',
+        );
+        if (spaced.isEmpty) {
+          expect(
+            rail.rowMarginTopPx,
+            isNull,
+            reason:
+                '$name authors no row spacing, so the port carries none rather '
+                'than a default a caller would have to remember to clear',
+          );
+          continue;
+        }
+        final String token = spaced.single;
+        expect(
+          token,
+          matches(RegExp(r'^space-y-\d+(\.\d+)?$')),
+          reason:
+              '$name: a variant-gated or arbitrary-value space-y would need a pass '
+              'that measured the child, which this rail row does not — so the derivation '
+              'below only holds while the utility stays a bare multiplier',
+        );
+        final double units = double.parse(
+          RegExp(r'^space-y-(\d+(?:\.\d+)?)$').firstMatch(token)!.group(1)!,
+        );
+        final List<String> gutters = tokens
+            .where(
+              (String t) => RegExp(r'^(?:lg:)?pr-\d+(\.\d+)?$').hasMatch(t),
+            )
+            .toList();
+        expect(
+          gutters,
+          hasLength(1),
+          reason:
+              '$name: "$token" is only safe to derive because a pr-* gutter on the '
+              'same element was measured in px; without it the unit is unchecked',
+        );
+        final String gutter = gutters.single;
+        final bool gutterGated = gutter.startsWith('lg:');
+        final double gutterUnits = double.parse(
+          RegExp(r'pr-(\d+(?:\.\d+)?)$').firstMatch(gutter)!.group(1)!,
+        );
+        for (final String pass in appPasses) {
+          final bool wide = pass.endsWith('desktop');
+          expect(
+            appPadRight(pass, name),
+            gutterUnits *
+                (gutterGated && !wide ? 0.0 : appTokenPx(pass, '--spacing')),
+            reason:
+                '$pass $name: "$gutter" is $gutterUnits × --spacing '
+                '${appTokenPx(pass, '--spacing')}px, gated ${gutterGated ? 'past lg' : 'never'}, '
+                'and the rail’s own padding is what says that arithmetic is the sheet’s',
+          );
+          expect(
+            appVal(pass, name, 'marginTop'),
+            '0px',
+            reason:
+                '$pass $name: the rail’s margin-top must stay 0px — that is exactly '
+                'what proves the row spacing is not already in this measurement',
+          );
+          for (final String axis in <String>['rowGap', 'columnGap']) {
+            expect(
+              appVal(pass, name, axis),
+              'normal',
+              reason: '$pass $name: no $axis either, for the same proof',
+            );
+          }
+        }
+        expect(
+          rail.rowMarginTopPx,
+          units * spacing.single,
+          reason:
+              '$name: "$token" is $units × the --spacing the passes measured',
         );
       }
     });
