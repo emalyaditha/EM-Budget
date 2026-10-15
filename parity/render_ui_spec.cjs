@@ -1766,6 +1766,12 @@ put(
 
   const bandRows = US.rows.filter((r) => /^face-/.test(r.name) && !/^face-box-/.test(r.name)).map((r) => r.name);
   if (bandRows.length < 2) throw new Error('ui-tokens.json cites no face band stack');
+  const chipRow = bandRows.find((n) => /chip$/.test(n));
+  const badgeRow = bandRows.find((n) => /badge/.test(n));
+  if (!chipRow) throw new Error('ui-tokens.json cites no face chip band');
+  if (!badgeRow) throw new Error('ui-tokens.json cites no face badge band');
+  const faceBandRows = bandRows.filter((n) => n !== badgeRow && n !== chipRow);
+  if (faceBandRows.length < 1) throw new Error('the face cites no band of its own');
   put('#### 6.7.2 The face’s own box, and the bands inside it', '');
   table(
     [
@@ -1795,7 +1801,6 @@ put(
   const base = cssRuleOf('.card-face');
   const tokenDecls = [...base.decls].filter(([, v]) => /^var\(/.test(String(v)));
   const sheenRule = cssRuleOf('.card-face::before');
-  const chipRow = bandRows.find((n) => /chip$/.test(n));
   const chipClass = (rec(chipRow).parts[0].cls || '').split(/\s+/)[0];
   const chipRule = cssRuleOf('.' + chipClass);
   const balanceRow = bandRows.find((n) => /balance$/.test(n));
@@ -1816,7 +1821,7 @@ put(
   if (!ratioText) throw new Error(fluid.name + ': its inline style authors no aspect-ratio');
   const measuredWidth = pxOf(valOf(st('light-phone', fluid.name).props, 'width'), fluid.name + ' width');
   const measuredHeight = pxOf(valOf(st('light-phone', fluid.name).props, 'height'), fluid.name + ' height');
-  const bandSplits = bandRows.filter((n) => splitOf(n) !== '—');
+  const bandSplits = faceBandRows.filter((n) => splitOf(n) !== '—');
   put(
     'The *geometry* and *what it paints* columns read the same way as §6.6.1, and for the same reason: a detached',
     'element shows what the utilities it carries actually did.',
@@ -1827,9 +1832,13 @@ put(
           ' between 390px and 1440px (' +
           bandSplits.length +
           ' of ' +
-          bandRows.length +
+          faceBandRows.length +
           ').'
-      : 'No band in this family moves between 390px and 1440px (0 of ' + bandRows.length + ').',
+      : 'No band in this family moves between 390px and 1440px (' +
+          bandSplits.length +
+          ' of ' +
+          faceBandRows.length +
+          ').',
     cell(chipRow) + ' is measured here but ported elsewhere: its box is ' + cell(chipRule.selector) + ', which the',
     'chip family emitted in `mobile/lib/core/theme/app_chips.dart` already paints. So `app_faces.dart` cites this',
     'family’s placement row (`' +

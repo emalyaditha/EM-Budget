@@ -1116,7 +1116,7 @@ recipe is recorded to show which token each came from, the same reading §6.6.2 
 
 The _geometry_ and _what it paints_ columns read the same way as §6.6.1, and for the same reason: a detached
 element shows what the utilities it carries actually did.
-No band in this family moves between 390px and 1440px (0 of 13).
+No band in this family moves between 390px and 1440px (0 of 11).
 `face-chip` is measured here but ported elsewhere: its box is `.card-face-chip`, which the
 chip family emitted in `mobile/lib/core/theme/app_chips.dart` already paints. So `app_faces.dart` cites this
 family’s placement row (`face-chip-row`) and the tone table it reads rather than porting one chip twice,
