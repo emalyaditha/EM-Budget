@@ -53,8 +53,32 @@ const cssSha256 = crypto
   .digest('hex');
 
 // ---------------------------------------------------------------- small helpers
-const esc = (s) => String(s).replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
+/**
+ * A table cell is escaped twice over in this file — `cell()` and the code spans built from source fragments
+ * escape before `mdRow` escapes the row — so the pipe pass has to skip what is already escaped. `\\|` is a
+ * literal backslash next to a column delimiter, and it is what splits a row whose citation carries a TypeScript
+ * union or a `||`.
+ */
+const esc = (s) =>
+  String(s)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/(?<!\\)\|/g, '\\|');
 const cell = (s) => '`' + esc(s) + '`';
+/**
+ * A code span over text the source itself wrote. The delimiter run is one backtick longer than the longest run
+ * the fragment carries, and the content is padded when it opens or closes with a backtick, because a citation
+ * of a template literal would otherwise end its own span at the first backtick inside it.
+ */
+const span = (s) => {
+  const text = String(s).replace(/\s+/g, ' ').trim();
+  const runs = new Set((text.match(/`+/g) || []).map((r) => r.length));
+  let n = 1;
+  while (runs.has(n)) n += 1;
+  const d = '`'.repeat(n);
+  const pad = text.startsWith('`') || text.endsWith('`') ? ' ' : '';
+  return d + pad + text + pad + d;
+};
 const mdRow = (cols) => '| ' + cols.map(esc).join(' | ') + ' |';
 
 /** The font record stores a codepoint the way the font tables print it: lowercase, at
@@ -1134,6 +1158,122 @@ put('### 6.5 The `dark:` variant answers the operating system, not the app theme
   );
 }
 
+/**
+ * The `utilityStacks` tier, read once for every section that renders it: §6.6 for the ledger,
+ * §6.7 for the card faces, the deck and the action keys. This is the same measurement
+ * `parity/generate_theme.cjs` consumes, so a stack cannot be described here with one reading
+ * and emitted from another. Each helper throws rather than printing a guess.
+ */
+const US = TOKENS.utilityStacks;
+if (!US || !Array.isArray(US.rows)) throw new Error('ui-tokens.json has no utilityStacks.rows tier');
+if (!Array.isArray(US.authoredNonCss)) throw new Error('ui-tokens.json has no utilityStacks.authoredNonCss tier');
+const rec = (name) => {
+  const r = US.rows.find((x) => x.name === name);
+  if (!r) throw new Error('no utility stack ' + name + ' in ui-tokens.json');
+  return r;
+};
+const st = (pass, name) => {
+  const s = TOKENS.themes[pass].stacks && TOKENS.themes[pass].stacks[name];
+  if (!s) throw new Error('stack ' + name + ' is cited but was not measured at ' + pass);
+  return s;
+};
+const paintKeys = [
+  'color',
+  'backgroundColor',
+  'borderTopColor',
+  'borderLeftColor',
+  'boxShadow',
+  'backdropFilter',
+  'backgroundImage',
+];
+const valOf = (props, key) => {
+  const v = props[key];
+  if (v === undefined || v === null) return '—';
+  if (typeof v === 'string') return v;
+  if (v.srgb) return v.srgb.a255 === 0 ? 'transparent' : dart(v.srgb);
+  return v.substituted || v.raw || '—';
+};
+/** The element the probe mounted: the component’s own tag and attributes, so a `<button>`
+ *  is measured against the UA padding its class has to beat, not against a neutral `<div>`. */
+const mountedAs = (r) => {
+  const attrs = Object.entries(r.attrs || {}).map(([k, v]) => ' ' + k + '="' + v + '"');
+  return '<' + (r.tag || 'div') + attrs.join('') + '>';
+};
+const authoredClasses = (r) =>
+  [mountedAs(r)]
+    .concat(r.parts.map((p) => (p.cls ? '`' + p.cls + '`' : p.style ? 'style `' + p.style + '`' : '')))
+    .filter(Boolean)
+    .join('<br>');
+/** Every file+line the stack is written at, the same grouping the emitter cites with. */
+const citedAt = (r) => {
+  const byFile = new Map();
+  const cite = (file, l) => {
+    if (l === undefined) return;
+    const set = byFile.get(file) || [];
+    if (!set.includes(l)) set.push(l);
+    byFile.set(file, set);
+  };
+  for (const p of r.parts || []) {
+    const file = p.src || r.src || US.source;
+    const lines = [
+      p.line,
+      p.styleSrcLine,
+      p.toneVarLine,
+      p.dimsLine,
+      p.toneDefaultLine,
+      ...(p.styleSrc || []).map((s) => s.line),
+      ...(p.toneTable || []),
+    ];
+    for (const l of lines) cite(file, l);
+    // A composed class list names the template line it was composed from, and the
+    // table reader has to be able to follow that citation.
+    if (p.classOf) cite(p.classOf.src || file, p.classOf.line);
+  }
+  return [...byFile].map(([f, ls]) => '`' + f + ':' + ls.sort((a, b) => a - b).join(',') + '`').join('<br>');
+};
+const geometryOf = (name) => {
+  const s = st('light-phone', name);
+  const moved = s.changed.filter((k) => !paintKeys.includes(k));
+  return moved.map((k) => k + ' `' + valOf(s.props, k) + '`').join(' · ') || '—';
+};
+const typeOf = (name) => {
+  const p = st('light-phone', name).props;
+  return ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing'].map((k) => '`' + valOf(p, k) + '`').join(' · ');
+};
+const textOf = (name) => {
+  const l = valOf(st('light-phone', name).props, 'color');
+  const d = valOf(st('dark-phone', name).props, 'color');
+  return d === l ? cell(l) + ' ⇒ equal' : cell(l) + ' ⇒ dark: ' + cell(d);
+};
+const paintOf = (name) => {
+  const p = st('light-phone', name).props;
+  const bits = [];
+  const bg = valOf(p, 'backgroundColor');
+  if (bg !== 'transparent' && bg !== '—') bits.push('fill ' + cell(bg));
+  const img = p.backgroundImage && p.backgroundImage.raw !== 'none' ? p.backgroundImage.raw : '';
+  if (img) bits.push('image ' + cell(img));
+  if (p.borderTopWidth !== '0px') bits.push('border ' + cell(p.borderTopWidth + ' ' + valOf(p, 'borderTopColor')));
+  const sh = p.boxShadow && p.boxShadow.raw !== 'none' ? p.boxShadow.substituted || p.boxShadow.raw : '';
+  if (sh) bits.push('shadow ' + cell(sh));
+  if (p.backdropFilter && p.backdropFilter.raw !== 'none') bits.push('backdrop ' + cell(p.backdropFilter.raw));
+  if (p.opacity !== '1') bits.push('opacity ' + cell(p.opacity));
+  if (p.cursor && p.cursor !== 'auto') bits.push('cursor ' + cell(p.cursor));
+  return bits.join(' · ') || '(paints nothing itself)';
+};
+/** The one honest wide/narrow split: a stack that computes differently at 1440px than at 390px. */
+const splitOf = (name) => {
+  const a = st('light-phone', name);
+  const b = st('light-desktop', name);
+  const keys = [...new Set([...a.changed, ...b.changed])];
+  const out = [];
+  for (const k of keys) {
+    const av = valOf(a.props, k);
+    const bv = valOf(b.props, k);
+    if (av !== bv) out.push(k + ' 390px ' + cell(av) + ' · 1440px ' + cell(bv));
+  }
+  return out.join('<br>') || '—';
+};
+
 // ---------------------------------------------------------------- 6.6 the ledger family
 put('### 6.6 The ledger family — stacks the components write themselves', '');
 put(
@@ -1149,102 +1289,6 @@ put(
   '',
 );
 {
-  const US = TOKENS.utilityStacks;
-  if (!US || !Array.isArray(US.rows)) throw new Error('ui-tokens.json has no utilityStacks.rows tier');
-  if (!Array.isArray(US.authoredNonCss)) throw new Error('ui-tokens.json has no utilityStacks.authoredNonCss tier');
-  const rec = (name) => {
-    const r = US.rows.find((x) => x.name === name);
-    if (!r) throw new Error('no utility stack ' + name + ' in ui-tokens.json');
-    return r;
-  };
-  const st = (pass, name) => {
-    const s = TOKENS.themes[pass].stacks && TOKENS.themes[pass].stacks[name];
-    if (!s) throw new Error('stack ' + name + ' is cited but was not measured at ' + pass);
-    return s;
-  };
-  const paintKeys = [
-    'color',
-    'backgroundColor',
-    'borderTopColor',
-    'borderLeftColor',
-    'boxShadow',
-    'backdropFilter',
-    'backgroundImage',
-  ];
-  const valOf = (props, key) => {
-    const v = props[key];
-    if (v === undefined || v === null) return '—';
-    if (typeof v === 'string') return v;
-    if (v.srgb) return v.srgb.a255 === 0 ? 'transparent' : dart(v.srgb);
-    return v.substituted || v.raw || '—';
-  };
-  /** The element the probe mounted: the component’s own tag and attributes, so a `<button>`
-   *  is measured against the UA padding its class has to beat, not against a neutral `<div>`. */
-  const mountedAs = (r) => {
-    const attrs = Object.entries(r.attrs || {}).map(([k, v]) => ' ' + k + '="' + v + '"');
-    return '<' + (r.tag || 'div') + attrs.join('') + '>';
-  };
-  const authoredClasses = (r) =>
-    [mountedAs(r)]
-      .concat(r.parts.map((p) => (p.cls ? '`' + p.cls + '`' : p.style ? 'style `' + p.style + '`' : '')))
-      .filter(Boolean)
-      .join('<br>');
-  /** Every file+line the stack is written at, the same grouping the emitter cites with. */
-  const citedAt = (r) => {
-    const byFile = new Map();
-    for (const p of r.parts || []) {
-      const file = p.src || r.src || US.source;
-      const set = byFile.get(file) || [];
-      for (const l of [p.line, p.styleSrcLine, p.toneVarLine, p.dimsLine, ...(p.styleSrc || []).map((s) => s.line)]) {
-        if (l !== undefined && !set.includes(l)) set.push(l);
-      }
-      byFile.set(file, set);
-    }
-    return [...byFile].map(([f, ls]) => '`' + f + ':' + ls.sort((a, b) => a - b).join(',') + '`').join('<br>');
-  };
-  const geometryOf = (name) => {
-    const s = st('light-phone', name);
-    const moved = s.changed.filter((k) => !paintKeys.includes(k));
-    return moved.map((k) => k + ' `' + valOf(s.props, k) + '`').join(' · ') || '—';
-  };
-  const typeOf = (name) => {
-    const p = st('light-phone', name).props;
-    return ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing'].map((k) => '`' + valOf(p, k) + '`').join(' · ');
-  };
-  const textOf = (name) => {
-    const l = valOf(st('light-phone', name).props, 'color');
-    const d = valOf(st('dark-phone', name).props, 'color');
-    return d === l ? cell(l) + ' ⇒ equal' : cell(l) + ' ⇒ dark: ' + cell(d);
-  };
-  const paintOf = (name) => {
-    const p = st('light-phone', name).props;
-    const bits = [];
-    const bg = valOf(p, 'backgroundColor');
-    if (bg !== 'transparent' && bg !== '—') bits.push('fill ' + cell(bg));
-    const img = p.backgroundImage && p.backgroundImage.raw !== 'none' ? p.backgroundImage.raw : '';
-    if (img) bits.push('image ' + cell(img));
-    if (p.borderTopWidth !== '0px') bits.push('border ' + cell(p.borderTopWidth + ' ' + valOf(p, 'borderTopColor')));
-    const sh = p.boxShadow && p.boxShadow.raw !== 'none' ? p.boxShadow.substituted || p.boxShadow.raw : '';
-    if (sh) bits.push('shadow ' + cell(sh));
-    if (p.backdropFilter && p.backdropFilter.raw !== 'none') bits.push('backdrop ' + cell(p.backdropFilter.raw));
-    if (p.opacity !== '1') bits.push('opacity ' + cell(p.opacity));
-    if (p.cursor && p.cursor !== 'auto') bits.push('cursor ' + cell(p.cursor));
-    return bits.join(' · ') || '(paints nothing itself)';
-  };
-  /** The one honest wide/narrow split: a stack that computes differently at 1440px than at 390px. */
-  const splitOf = (name) => {
-    const a = st('light-phone', name);
-    const b = st('light-desktop', name);
-    const keys = [...new Set([...a.changed, ...b.changed])];
-    const out = [];
-    for (const k of keys) {
-      const av = valOf(a.props, k);
-      const bv = valOf(b.props, k);
-      if (av !== bv) out.push(k + ' 390px ' + cell(av) + ' · 1440px ' + cell(bv));
-    }
-    return out.join('<br>') || '—';
-  };
-
   const ledgerStacks = US.rows.filter((r) => /^(txrow-|day-head-label$|ledger-)/.test(r.name)).map((r) => r.name);
   if (!ledgerStacks.length) throw new Error('ui-tokens.json cites no txrow/ledger stack');
   put('#### 6.6.1 The row and the list around it', '');
@@ -1484,6 +1528,683 @@ put(
     'The Dart side of this family is `mobile/lib/core/theme/app_rows.dart`, emitted from the same records by',
     '`node parity/generate_theme.cjs` and re-derived property by property by `mobile/test/theme/` drift tests.',
     'Port deviations this family forces are listed with their ids in `parity/STATUS.md`, not silently applied.',
+    '',
+  );
+}
+
+// ---------------------------------------------------------------- 6.7 the card face, the deck and the action keys
+put('### 6.7 The card face, the deck and the action keys — the boxes a rule paints', '');
+put(
+  '§6.6 mounts its boxes because no rule declares a utility. This family is the other case: every box in it **is** a',
+  'class in `src/index.css` — `.card-face`, one `.face-*` per tone, `.deck`, `.deck-face`, `.action-key` — and yet',
+  'the component writes the class as a template with holes, gives a deck peer its depth as an attribute, and lets',
+  'its caller choose the width in an inline style. So the same tier reads these too: which `.face-*` the engine',
+  'applied, whether the cursor hole was filled and what `data-depth` did to the box are measurements here rather',
+  'than readings of the stylesheet. `parity/generate_theme.cjs` emits this family’s Dart side to',
+  '`mobile/lib/core/theme/app_faces.dart` from these same rows.',
+  '',
+);
+{
+  /** Whitespace as one space with a call’s parentheses tight: prettier breaks the long `background`, `mask` and
+   *  `transition` declarations over several lines, and the readings below take each one whole. */
+  const cssNorm = (s) => String(s).replace(/\s+/g, ' ').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').trim();
+
+  /** One rule of the pinned sheet, by its exact selector: the line it opens on and every declaration it sets. */
+  const cssRuleOf = (selector) => {
+    for (const m of CSS_BLANK.matchAll(/([^{}]+)\{/g)) {
+      const heads = m[1]
+        .split(',')
+        .map((h) => h.trim())
+        .filter(Boolean);
+      if (!heads.includes(selector)) continue;
+      const open = m.index + m[1].length;
+      let depth = 0;
+      let close = -1;
+      for (let i = open; i < CSS_BLANK.length; i += 1) {
+        if (CSS_BLANK[i] === '{') depth += 1;
+        else if (CSS_BLANK[i] === '}') {
+          depth -= 1;
+          if (depth === 0) {
+            close = i;
+            break;
+          }
+        }
+      }
+      if (close < 0) throw new Error(selector + ': its rule never closes in ' + CSS_REL);
+      const decls = new Map();
+      for (const d of CSS_TEXT.slice(open + 1, close).split(';')) {
+        const i = d.indexOf(':');
+        if (i < 0) continue;
+        const name = d.slice(0, i).trim();
+        if (name) decls.set(name, cssNorm(d.slice(i + 1)));
+      }
+      return { selector, heads, line: lineAt(CSS_BLANK.indexOf(selector, m.index)), decls };
+    }
+    throw new Error(selector + ' is authored by no rule in ' + CSS_REL);
+  };
+  /** The rule a stack’s own class list names, attribute and all. */
+  const ruleFor = (r) => {
+    const first = (r.parts[0].cls || '').split(/\s+/)[0];
+    const depth = (r.attrs || {})['data-depth'];
+    return cssRuleOf(depth ? '.' + first + "[data-depth='" + depth + "']" : '.' + first);
+  };
+  const authoredDecls = (rule) => [...rule.decls].map(([k, v]) => span(k + ': ' + v)).join('<br>') || '(sets nothing)';
+
+  const GRAD = /^linear-gradient\((\d+(?:\.\d+)?)deg, (.+) 0%, (.+) 100%\)$/;
+  const MIX = /^color-mix\(in oklab, var\((--[\w-]+)\) (\d+(?:\.\d+)?)%, var\((--[\w-]+)\)\)$/;
+  const BARE = /^var\((--[\w-]+)\)$/;
+  const pxOf = (text, of) => {
+    const m = /^(-?\d+(?:\.\d+)?)px$/.exec(String(text));
+    if (!m) throw new Error(of + ': "' + text + '" is not a pixel length');
+    return parseFloat(m[1]);
+  };
+
+  /** A tone as the sheet authors it: one angled gradient of two stops, each a mix over an anchor or the anchor. */
+  const recipeOf = (tone) => {
+    const rule = cssRuleOf('.' + tone);
+    const raw = rule.decls.get('background');
+    if (!raw) throw new Error('.' + tone + ' authors no `background`');
+    const head = GRAD.exec(raw);
+    if (!head) throw new Error('.' + tone + ': background "' + raw + '" is not a two-stop angled gradient');
+    const stops = [head[2], head[3]].map((text) => {
+      const mix = MIX.exec(text);
+      if (mix) return { text, hue: mix[1], percent: mix[2], anchor: mix[3] };
+      const bare = BARE.exec(text);
+      if (bare) return { text, hue: null, percent: '0', anchor: bare[1] };
+      throw new Error('.' + tone + ': stop "' + text + '" is neither a mix over an anchor nor the bare anchor');
+    });
+    return { rule, angle: head[1], stops };
+  };
+  /** The same gradient as one brightness painted it. */
+  const paintedOf = (pass, name) => {
+    const img = st(pass, name).props.backgroundImage;
+    if (!img || !Array.isArray(img.stops) || img.stops.length !== 2) {
+      throw new Error(name + ': ' + pass + ' measured no two-stop gradient');
+    }
+    const m = /^linear-gradient\((\d+(?:\.\d+)?)deg/.exec(String(img.raw));
+    if (!m) throw new Error(name + ': ' + pass + ' gradient carries no angle — ' + img.raw);
+    return { angle: m[1], stops: img.stops };
+  };
+
+  const toneRows = US.rows.filter((r) => /^face-box-/.test(r.name));
+  if (toneRows.length < 2) throw new Error('ui-tokens.json cites no face-box tone row');
+  const toneClass = (r) => {
+    const t = (r.parts[0] || {}).tone;
+    if (!t) throw new Error(r.name + ': the row names no tone class');
+    // The part cites the authored template, whose tone hole is still a hole; the
+    // list the mount carries — and the one this row's class column shows — is the
+    // template with both holes filled.
+    const cls = (r.parts[0].clsResolved || '').split(/\s+/);
+    if (!cls.includes(t)) {
+      throw new Error(r.name + ': its own class list does not carry the tone ' + t);
+    }
+    return t;
+  };
+  const anchors = new Set(toneRows.flatMap((r) => recipeOf(toneClass(r)).stops.map((s) => s.anchor)));
+  if (anchors.size !== 1) throw new Error('the tone rows mix over more than one anchor: ' + [...anchors].join(', '));
+  const anchor = [...anchors][0];
+  const angles = new Set(
+    toneRows.flatMap((r) => {
+      const rec = recipeOf(toneClass(r));
+      return [rec.angle, paintedOf('light-phone', r.name).angle, paintedOf('dark-phone', r.name).angle];
+    }),
+  );
+  if (angles.size !== 1) throw new Error('the tones are not painted at one angle: ' + [...angles].join(', '));
+  const anchorLight = TOKENS.themes['light-phone'].root[anchor];
+  const anchorDark = TOKENS.themes['dark-phone'].root[anchor];
+  if (!anchorLight || !anchorLight.srgb || !anchorDark || !anchorDark.srgb) {
+    throw new Error(anchor + ' is not a measured colour in both phone passes');
+  }
+  put('#### 6.7.1 The tones — one recipe each, resolved twice', '');
+  table(
+    [
+      'row',
+      'the class the hole fills',
+      'authored at',
+      'stop 0 as the rule writes it',
+      'painted light',
+      'painted dark',
+      'stop 1 as the rule writes it',
+      'painted light',
+      'painted dark',
+    ],
+    toneRows.map((r) => {
+      const tone = toneClass(r);
+      const rec = recipeOf(tone);
+      const l = paintedOf('light-phone', r.name);
+      const d = paintedOf('dark-phone', r.name);
+      if (l.angle !== rec.angle || d.angle !== rec.angle) {
+        throw new Error(
+          r.name + ': the passes painted ' + l.angle + '/' + d.angle + 'deg, the rule authors ' + rec.angle,
+        );
+      }
+      return [
+        cell(r.name),
+        cell('.' + tone),
+        cell(CSS_REL + ':' + rec.rule.line) + '<br>' + citedAt(r),
+        cell(rec.stops[0].text),
+        cell(l.stops[0].to),
+        cell(d.stops[0].to),
+        cell(rec.stops[1].text),
+        cell(l.stops[1].to),
+        cell(d.stops[1].to),
+      ];
+    }),
+  );
+  const interactive = toneRows.filter((r) => r.tag);
+  const plainArms = toneRows.filter((r) => !r.tag);
+  const bareTones = toneRows.filter((r) => recipeOf(toneClass(r)).stops.some((s) => s.hue === null));
+  const sameAsAnchor = bareTones.filter((r) => {
+    const stop = recipeOf(toneClass(r)).stops.find((s) => s.hue === null);
+    return (
+      paintedOf('light-phone', r.name).stops.find((x) => x.to === anchorLight.srgb.rgba) !== undefined &&
+      paintedOf('dark-phone', r.name).stops.find((x) => x.to === anchorDark.srgb.rgba) !== undefined &&
+      stop.anchor === anchor
+    );
+  });
+  if (
+    !interactive.length ||
+    !interactive.every((r) => r.tag === 'button' && /cursor-pointer$/.test(r.parts[0].clsResolved))
+  )
+    throw new Error('the interactive arms are not each a `<button>` whose class list ends with cursor-pointer');
+  if (!plainArms.every((r) => / $/.test(r.parts[0].clsResolved)))
+    throw new Error('the non-interactive class list does not end with the space the template leaves behind');
+  put(
+    'Every row is the same box with a different class filled into the same hole, all painted at the one angle the',
+    'rules author and both passes measure: ' + cell([...angles][0] + 'deg') + '. ' + cell(anchor) + ' is the colour',
+    'they all mix over: ' + cell(anchorLight.srgb.rgba) + ' in the light pass, ' + cell(anchorDark.srgb.rgba) + ' in',
+    'the dark.',
+    ...(bareTones.length
+      ? [
+          bareTones.length +
+            ' tone' +
+            (bareTones.length === 1 ? ' ends' : 's end') +
+            ' on the anchor itself with no mix (' +
+            bareTones.map((r) => cell('.' + toneClass(r))).join(', ') +
+            '), so its',
+          'painted pixels are exactly the token’s — the one stop a reader can check by eye. ' +
+            (sameAsAnchor.length === bareTones.length
+              ? bareTones.length === 1
+                ? 'It holds in both passes.'
+                : 'It holds in both passes for every one of them.'
+              : 'It holds for only ' + sameAsAnchor.length + ' of ' + bareTones.length + '.'),
+        ]
+      : ['No tone ends on the bare anchor; every stop of every recipe is a mix.']),
+    ...(plainArms.length
+      ? [
+          'One of the ' +
+            toneRows.length +
+            ' rows is not a tone but the non-interactive arm: ' +
+            plainArms.map((r) => '`' + r.name + '`').join(', ') +
+            ', which takes',
+          plainArms
+            .map(
+              (r) =>
+                cell('.' + toneClass(r)) +
+                ' from the prop default at `' +
+                esc(r.src || US.source) +
+                ':' +
+                r.parts[0].toneDefaultLine +
+                '`',
+            )
+            .join('; ') +
+            ' and mounts as ' +
+            span(mountedAs(plainArms[0])) +
+            ' rather than as the',
+          cell('<' + interactive[0].tag + '>') +
+            ' the ' +
+            interactive.length +
+            ' interactive rows are. Its class list ends with the space that ' +
+            cell(interactive[0].parts[0].clsResolved.split(/\s+/).pop()) +
+            ' fills for those.',
+        ]
+      : ['Every row is an interactive arm, so every class list has its cursor hole filled.']),
+    'Flutter `Color` has no OKLCH and no `color-mix` (D-U6), so the *painted* columns **are** the port’s values; the',
+    'recipe is recorded to show which token each came from, the same reading §6.6.2 gives the chip tints.',
+    '',
+  );
+
+  const bandRows = US.rows.filter((r) => /^face-/.test(r.name) && !/^face-box-/.test(r.name)).map((r) => r.name);
+  if (bandRows.length < 2) throw new Error('ui-tokens.json cites no face band stack');
+  put('#### 6.7.2 The face’s own box, and the bands inside it', '');
+  table(
+    [
+      'stack',
+      'mounted as, and the stack it carries',
+      'authored at',
+      'type @390',
+      'text @390 (light ⇒ dark)',
+      'what it paints',
+      'geometry the utilities moved',
+      '390px ≠ 1440px',
+    ],
+    bandRows.map((name) => {
+      const r = rec(name);
+      return [
+        cell(name),
+        authoredClasses(r),
+        citedAt(r),
+        typeOf(name),
+        textOf(name),
+        paintOf(name),
+        geometryOf(name),
+        splitOf(name),
+      ];
+    }),
+  );
+  const base = cssRuleOf('.card-face');
+  const tokenDecls = [...base.decls].filter(([, v]) => /^var\(/.test(String(v)));
+  const sheenRule = cssRuleOf('.card-face::before');
+  const chipRow = bandRows.find((n) => /chip$/.test(n));
+  const chipClass = (rec(chipRow).parts[0].cls || '').split(/\s+/)[0];
+  const chipRule = cssRuleOf('.' + chipClass);
+  const balanceRow = bandRows.find((n) => /balance$/.test(n));
+  const balanceClass = (rec(balanceRow).parts[0].cls || '').split(/\s+/)[0];
+  const radiusToken = (base.decls.get('border-radius') || '').replace(/^var\(|\)$/g, '');
+  const shadowToken = (base.decls.get('box-shadow') || '').replace(/^var\(|\)$/g, '');
+  const radiusMeasured = valOf(st('light-phone', 'face-box-violet').props, 'borderRadius');
+  const radiusTokenPx = pxOf(TOKENS.themes['light-phone'].root[radiusToken].raw, radiusToken);
+  if (pxOf(radiusMeasured, 'face-box-violet border-radius') !== radiusTokenPx) {
+    throw new Error(
+      radiusToken + ' resolves to ' + radiusTokenPx + 'px while the mounted face measures ' + radiusMeasured,
+    );
+  }
+  const fluid = toneRows.find((r) => /width:\s*100%/.test((r.parts[0] || {}).style || ''));
+  if (!fluid) throw new Error('no face-box row is mounted on the width-owning arm');
+  const fluidDecl = (fluid.parts[0].style.match(/width:\s*100%/) || [])[0];
+  const ratioText = (fluid.parts[0].style.match(/aspect-ratio:\s*([\d.]+)/) || []).pop();
+  if (!ratioText) throw new Error(fluid.name + ': its inline style authors no aspect-ratio');
+  const measuredWidth = pxOf(valOf(st('light-phone', fluid.name).props, 'width'), fluid.name + ' width');
+  const measuredHeight = pxOf(valOf(st('light-phone', fluid.name).props, 'height'), fluid.name + ' height');
+  const bandSplits = bandRows.filter((n) => splitOf(n) !== '—');
+  put(
+    'The *geometry* and *what it paints* columns read the same way as §6.6.1, and for the same reason: a detached',
+    'element shows what the utilities it carries actually did.',
+    bandSplits.length
+      ? bandSplits.map((n) => '`' + n + '`').join(', ') +
+          ' move' +
+          (bandSplits.length === 1 ? 's' : '') +
+          ' between 390px and 1440px (' +
+          bandSplits.length +
+          ' of ' +
+          bandRows.length +
+          ').'
+      : 'No band in this family moves between 390px and 1440px (0 of ' + bandRows.length + ').',
+    cell(chipRow) + ' is measured here but ported elsewhere: its box is ' + cell(chipRule.selector) + ', which the',
+    'chip family emitted in `mobile/lib/core/theme/app_chips.dart` already paints. So `app_faces.dart` cites this',
+    'family’s placement row (`' +
+      bandRows.find((n) => /chip-row/.test(n)) +
+      '`) and the tone table it reads rather than porting one chip twice,',
+    'and generation stops if the two readings disagree.',
+    'The same law keeps the balance figure with `AppNumerals`: the class list on `' + balanceRow + '` opens with',
+    cell('.' + balanceClass) + ', which is that face and not a second one.',
+    cell(base.selector) + ' itself sets exactly',
+    [...base.decls.keys()].map((k) => cell(k)).join(', ') + '.',
+    tokenDecls.length + ' of those are tokens another emitted family already ports:',
+    tokenDecls.map(([k, v]) => cell(k + ': ' + v)).join(', ') + ' — so the',
+    'port names both and resolves them through `AppRadii` and `AppShadows`, and generation refuses the row if they',
+    'disagree: the mounted corner measures ' + cell(radiusMeasured) + ' and ' + cell(radiusToken) + ' resolves to',
+    radiusTokenPx + 'px in the same pass.',
+    cell('overflow: ' + (base.decls.get('overflow') || '(none)')) +
+      ' and ' +
+      cell('position: ' + (base.decls.get('position') || '(none)')) +
+      ' are what the sheen',
+    'needs, and ' + cell(sheenRule.selector) + ' (src/index.css:' + sheenRule.line + ') is a pseudo-element no probe',
+    'can see, so its two layers are read from the rule as authored, in the order the rule writes them:',
+    authoredDecls(sheenRule),
+    '',
+  );
+  put(
+    'One reading needs care. The arm this family was mounted on authors `width: 100%` in an inline style, so the',
+    'box is width-driven: at ' + measuredWidth + 'px the pass reports a height of ' + measuredHeight + 'px, which is',
+    'the mount’s own width over the authored ratio ' + cell(ratioText) + ' — arithmetic, not a fact about the design.',
+    'The port therefore carries the ratio, the padding and the gaps, and never this height, which is why no number',
+    'in `app_faces.dart` names a face width.',
+    '',
+  );
+
+  const deckRows = US.rows.filter((r) => /^deck-/.test(r.name)).map((r) => r.name);
+  if (deckRows.length < 3) throw new Error('ui-tokens.json cites no deck stacks');
+  const deckBox = rec('deck-box');
+  const deckRule = ruleFor(deckBox);
+  const faceBase = cssRuleOf('.deck-face');
+  const lip = pxOf(deckRule.decls.get('--deck-lip'), '.deck --deck-lip');
+  const heightAuthored = deckRule.decls.get('height');
+  const peers = deckRows.filter((n) => /depth/.test(n));
+  if (!peers.length) throw new Error('the deck cites no depth rows, so the peers are not measured');
+  const measuredDeckHeight = pxOf(valOf(st('light-phone', deckBox.name).props, 'height'), deckBox.name + ' height');
+  if (measuredDeckHeight !== lip * 2) {
+    throw new Error('.deck measures ' + measuredDeckHeight + 'px, which is not twice the ' + lip + 'px lip it authors');
+  }
+  const deckMargin = (deckRule.decls.get('margin') || '').split(/\s+/);
+  const pullUp = pxOf(deckMargin[deckMargin.length - 1] || '', '.deck margin');
+  put('#### 6.7.3 The deck — one custom property and the faces it sizes', '');
+  table(
+    ['stack', 'mounted as', 'authored at', 'what the sheet authors', 'what the pass measured', '390px ≠ 1440px'],
+    deckRows.map((name) => {
+      const r = rec(name);
+      const rule = ruleFor(r);
+      const s = st('light-phone', name);
+      const shown = [
+        'zIndex',
+        'position',
+        'top',
+        'opacity',
+        'transform',
+        'transformOrigin',
+        'clipPath',
+        'marginBottom',
+        'height',
+      ];
+      const got =
+        shown
+          .filter((k) => s.changed.includes(k))
+          .map((k) => k + ' `' + valOf(s.props, k) + '`')
+          .join(' · ') || '—';
+      return [
+        cell(name),
+        authoredClasses(r),
+        cell(CSS_REL + ':' + rule.line) + '<br>' + citedAt(r),
+        authoredDecls(rule),
+        got,
+        splitOf(name),
+      ];
+    }),
+  );
+  const depthOf = (name) => (rec(name).attrs || {})['data-depth'];
+  const peerLines = peers.map((n) => {
+    const rule = ruleFor(rec(n));
+    const s = st('light-phone', n);
+    const top = pxOf(valOf(s.props, 'top'), n + ' top');
+    const wantTop = String(rule.decls.get('top')).includes('--deck-lip') ? lip : 0;
+    if (top !== wantTop)
+      throw new Error(n + ': the pass measures top ' + top + 'px, the rule authors ' + rule.decls.get('top'));
+    if (String(valOf(s.props, 'opacity')) !== String(rule.decls.get('opacity'))) {
+      throw new Error(
+        n +
+          ': the pass measures opacity ' +
+          valOf(s.props, 'opacity') +
+          ', the rule authors ' +
+          rule.decls.get('opacity'),
+      );
+    }
+    const read = (d) => cell(valOf(s.props, d));
+    const wrote = (d) => span(d + ': ' + rule.decls.get(d));
+    const axes = ['top', 'transform', 'opacity'];
+    return [
+      '`' + n + '` (depth ' + depthOf(n) + ') writes ' + axes.map(wrote).join(', ') + ',',
+      'and its mount reads ' + axes.map(read).join(', ') + (peers[peers.length - 1] === n ? '.' : ';'),
+    ];
+  });
+  const peerClips = [...new Set(peers.map((n) => String(valOf(st('light-phone', n).props, 'clipPath'))))];
+  put(
+    'The deck’s whole geometry is one number: ' + cell(deckRule.selector) + ' declares `--deck-lip: ' + lip + 'px`',
+    'and every other value in the family is written against it — ' + cell(heightAuthored) + ' for the container, and',
+    'one clip-path, authored once for both peers on',
+    cell(faceBase.selector) +
+      ' (src/index.css:' +
+      faceBase.line +
+      '): ' +
+      cell(String(faceBase.decls.get('clip-path'))) +
+      '.',
+    'It insets the bottom by all but ' + lip + 'px of the face’s own height, so what shows of a peer is its',
+    'top ' + lip + 'px.',
+    'The pass reads that one rule as ' +
+      peerClips.map((c) => cell(c)).join(' and ') +
+      ' on ' +
+      peers.length +
+      ' peers.',
+    'The measurement agrees on the container: ' + measuredDeckHeight + 'px tall, which is twice the lip, and a bottom',
+    'margin of ' +
+      cell(String(deckRule.decls.get('margin'))) +
+      ' that pulls it ' +
+      Math.abs(pullUp) +
+      'px up into the panel under it.',
+    '',
+  );
+  const peerDeclSizes = [...new Set(peers.map((n) => ruleFor(rec(n)).decls.size))];
+  put(
+    'Each peer adds one rule of ' + peerDeclSizes.join(' or ') + ' declarations over that base, and every one of them',
+    'is read against the mount in the same pass:',
+    ...peerLines.flat(),
+    '',
+  );
+
+  const keyRows = US.rows.filter((r) => /^action-key/.test(r.name)).map((r) => r.name);
+  if (keyRows.length < 3) throw new Error('ui-tokens.json cites no action-key stacks');
+  const grid = rec('action-key-grid');
+  const key = rec('action-key');
+  const keyDisabled = rec('action-key-disabled');
+  const activeRule = cssRuleOf('.action-key:active');
+  const disabledRule = cssRuleOf('.action-key:disabled');
+  const hoverRule = cssRuleOf('.action-key:hover');
+  const keyRule = cssRuleOf('.action-key');
+  const notchW = pxOf(keyRule.decls.get('--key-notch-w'), '.action-key --key-notch-w');
+  const notchH = pxOf(keyRule.decls.get('--key-notch-h'), '.action-key --key-notch-h');
+  const restOpacity = valOf(st('light-phone', key.name).props, 'opacity');
+  const offOpacity = valOf(st('light-phone', keyDisabled.name).props, 'opacity');
+  if (String(offOpacity) !== String(disabledRule.decls.get('opacity'))) {
+    throw new Error(
+      'the disabled mount measures opacity ' +
+        offOpacity +
+        ' while the rule authors ' +
+        disabledRule.decls.get('opacity'),
+    );
+  }
+  put('#### 6.7.4 The three keys under the balance', '');
+  table(
+    [
+      'stack',
+      'mounted as',
+      'authored at',
+      'type @390',
+      'text @390 (light ⇒ dark)',
+      'what it paints',
+      'geometry moved',
+      '390px ≠ 1440px',
+    ],
+    keyRows.map((name) => {
+      const r = rec(name);
+      return [
+        cell(name),
+        authoredClasses(r),
+        citedAt(r),
+        typeOf(name),
+        textOf(name),
+        paintOf(name),
+        geometryOf(name),
+        splitOf(name),
+      ];
+    }),
+  );
+  const lightFill = valOf(st('light-phone', key.name).props, 'backgroundColor');
+  const lightInk = valOf(st('light-phone', key.name).props, 'color');
+  const darkFill = valOf(st('dark-phone', key.name).props, 'backgroundColor');
+  const darkInk = valOf(st('dark-phone', key.name).props, 'color');
+  put(
+    'A key is the only box in this family that is a rule and a real `<button>` at once: the mount carries',
+    '`type="button"` and the class list the component writes, so the UA padding, border and centred text a button',
+    'inherits are inside the measurement rather than beside it. ' +
+      cell(keyRule.selector) +
+      ' (src/index.css:' +
+      keyRule.line +
+      ') sets',
+    [...keyRule.decls.keys()].length +
+      ' declarations, of which the fill and the ink are ' +
+      '`' +
+      esc(String(keyRule.decls.get('background'))) +
+      '` and `' +
+      esc(String(keyRule.decls.get('color'))) +
+      '`:',
+    cell(lightFill) + ' under ' + cell(lightInk) + ' in the light pass,',
+    cell(darkFill) + ' under ' + cell(darkInk) + ' in the dark.',
+    'The pair changes ends between the passes — the fill takes the light end and the ink the dark one —',
+    'but it is not one pair inverted: the light ink is ' + cell(lightInk) + ' while the dark fill is',
+    cell(darkFill) + ', and the light fill is ' + cell(lightFill) + ' while the dark ink is',
+    cell(darkInk) + '.',
+    '',
+  );
+  const restDecls = ['opacity', 'transform'].filter((d) => keyRule.decls.has(d));
+  const transitionProps = String(keyRule.decls.get('transition'))
+    .split(',')
+    .map((p) => p.trim().split(/\s+/)[0]);
+  const authorsProp = (prop) =>
+    [
+      [':active', activeRule],
+      [':hover', hoverRule],
+      [':disabled', disabledRule],
+    ]
+      .filter(([, r]) => r.decls.has(prop))
+      .map(([n]) => cell(n))
+      .join(' and ');
+  const stateProps = [...new Set([activeRule, hoverRule, disabledRule].flatMap((r) => [...r.decls.keys()]))];
+  const unrunProps = stateProps.filter((d) => !transitionProps.includes(d));
+  const unrunGroups = [];
+  for (const d of unrunProps) {
+    const who = authorsProp(d) || 'no state rule';
+    const hit = unrunGroups.find((g) => g.who === who);
+    if (hit) hit.props.push(cell(d));
+    else unrunGroups.push({ who, props: [cell(d)] });
+  }
+  table(
+    ['state', 'authored at', 'what the rule says', 'what a detached mount can show'],
+    [
+      [
+        cell(':active'),
+        cell(CSS_REL + ':' + activeRule.line),
+        authoredDecls(activeRule),
+        'Nothing: no press reaches a mounted element. The scale is authored only, and the port animates it with the rule’s own duration and easing.',
+      ],
+      [
+        cell(':disabled'),
+        cell(CSS_REL + ':' + disabledRule.line) + ' (also `' + esc(disabledRule.heads[1]) + '`)',
+        authoredDecls(disabledRule),
+        'Measured on `' +
+          keyDisabled.name +
+          '`: opacity ' +
+          cell(String(offOpacity)) +
+          ' and cursor ' +
+          cell(valOf(st('light-phone', keyDisabled.name).props, 'cursor')) +
+          '.',
+      ],
+      [
+        cell(':hover'),
+        cell(CSS_REL + ':' + hoverRule.line),
+        authoredDecls(hoverRule),
+        'Dropped, and recorded: D-U1. It survives only inside the transition list below.',
+      ],
+      [
+        'at rest',
+        cell(CSS_REL + ':' + keyRule.line),
+        restDecls.length
+          ? restDecls.map((d) => span(d + ': ' + keyRule.decls.get(d))).join('<br>')
+          : 'the base rule writes neither ' + cell('opacity') + ' nor ' + cell('transform'),
+        'The mount measures opacity ' +
+          cell(String(restOpacity)) +
+          ' and transform ' +
+          cell(String(valOf(st('light-phone', key.name).props, 'transform'))) +
+          '.',
+      ],
+    ],
+  );
+  put(
+    'The transition the base rule authors is',
+    span(String(keyRule.decls.get('transition'))) + '.',
+    'It runs ' +
+      transitionProps.map((p) => cell(p) + ' written by ' + (authorsProp(p) || 'no state rule')).join(', and ') +
+      '.',
+    'The ' +
+      transitionProps
+        .filter((p) => hoverRule.decls.has(p))
+        .map((p) => cell(p))
+        .join(' and ') +
+      ' layer therefore runs for the one state this port drops (D-U1). The ' +
+      unrunProps.map((d) => cell(d)).join(' and ') +
+      ' are authored',
+    'by a state rule and named by no transition: ' +
+      unrunGroups.map((g) => g.who + ' writes ' + g.props.join(' and ')).join(', while ') +
+      '.',
+    '',
+  );
+  const maskAuthored = String(keyRule.decls.get('-webkit-mask'));
+  const maskCut = /^radial-gradient\(ellipse (.+?) at (.+?), (.+)\)$/.exec(maskAuthored);
+  put(
+    'The key is not a rounded rectangle. ' + cell(keyRule.selector) + ' masks an ellipse out of its top edge:',
+    ...(maskCut
+      ? [
+          'size ' + cell(maskCut[1]) + ', centre ' + cell(maskCut[2]) + ', stops ' + cell(maskCut[3]) + '.',
+          'Those two names are ' +
+            cell('--key-notch-w: ' + notchW + 'px') +
+            ' and ' +
+            cell('--key-notch-h: ' + notchH + 'px') +
+            '.',
+        ]
+      : ['which the rule writes as ' + cell(maskAuthored) + '.']),
+    'The pass records no ' + cell('mask') + ' on ' + cell(key.name) + ', so this cut travels from',
+    CSS_REL + ':' + keyRule.line + ' as authored, not measured.',
+    '',
+  );
+  put(
+    'The glyph box ' + cell(ruleFor(rec('action-key-icon')).selector) + ' exists to kill the inline-box leading a bare',
+    'icon would add: the pass measured its ' +
+      cell('lineHeight') +
+      ' at `' +
+      valOf(st('light-phone', 'action-key-icon').props, 'lineHeight') +
+      '`, and that zero is what makes the key’s own',
+    cell('gap') + ' the only space between symbol and word.',
+    '',
+  );
+  const gridTrackPx = String(st('light-phone', grid.name).props.gridTemplateColumns)
+    .trim()
+    .split(/\s+/)
+    .map((s) => pxOf(s, 'a grid track'));
+  const gridWidth = pxOf(valOf(st('light-phone', grid.name).props, 'width'), 'the grid width');
+  const gridGap = pxOf(valOf(st('light-phone', grid.name).props, 'columnGap'), 'the grid gap');
+  const gridIdeal = (gridWidth - gridGap * (gridTrackPx.length - 1)) / gridTrackPx.length;
+  const gridDev = Math.max(...gridTrackPx.map((p) => Math.abs(p - gridIdeal)));
+  put(
+    'The grid the three sit in is the one box here that is pure utility —',
+    '`' + esc(String(grid.parts[0].cls)) + '`, declared by no rule in ' + CSS_REL + '. The pass measured',
+    cell(valOf(st('light-phone', grid.name).props, 'display')) + ' over a ' + gridWidth + 'px box and',
+    gridTrackPx.length + ' tracks of `' + esc(String(st('light-phone', grid.name).props.gridTemplateColumns)) + '`.',
+    'They are not one number: the equal share of the row, once the ' + gridGap + 'px gutters are taken off it,',
+    'is ' + gridIdeal.toFixed(3) + 'px, and no track sits further from that than ' + gridDev.toFixed(3) + 'px.',
+    'The port carries the count and the two gaps and no track width, because a width is a fact about the',
+    'caller’s box. The gap moves with the breakpoint —',
+    cell(valOf(st('light-phone', grid.name).props, 'columnGap')) + ' on the phone against',
+    cell(valOf(st('light-desktop', grid.name).props, 'columnGap')) + ' at 1440px, which is `sm:gap-2.5` doing what the',
+    'phone never applies — so the port carries both gaps and leaves the breakpoint to the caller, as §6.6.1 leaves',
+    'the rails.',
+    '',
+  );
+
+  const faceFacts = US.authoredNonCss.filter((r) => /^(face-|card-face-|action-key-|deck-)/.test(r.name));
+  if (!faceFacts.length) throw new Error('ui-tokens.json cites no card-face authored record');
+  put('#### 6.7.5 What this family does that no probe can see', '');
+  table(
+    ['record', 'tier', 'as written', 'authored at', 'what it decides'],
+    faceFacts.map((r) => [
+      cell(r.name),
+      cell(r.tier || 'authored-js'),
+      r.parts.map((p) => span(p.text)).join('<br>'),
+      citedAt(r),
+      r.note || '',
+    ]),
+  );
+  put(
+    faceFacts.length + ' records. None of them is a computed style, and several decide what the port paints:',
+    'which tone a wallet gets is a hash the component computes, the badge pill is drawn twice from two files that',
+    'agree by copying, a single wallet has no deck at all, and the label above an owed figure changes without the',
+    'number doing anything. They are listed per line so a drift test can re-read each one from `src/` rather than',
+    'trusting this table.',
+    '',
+  );
+  put(
+    'The Dart side of this family is `mobile/lib/core/theme/app_faces.dart`, emitted from these records by',
+    '`node parity/generate_theme.cjs` and re-derived property by property by `mobile/test/theme/` drift tests.',
+    'Where a value belongs to another family — the corner, the float, the gold chip, the money face — it is cited',
+    'there and cross-checked here, never restated. Port deviations this family forces are listed with their ids in',
+    '`parity/STATUS.md`, not silently applied.',
     '',
   );
 }
