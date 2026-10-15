@@ -20,6 +20,7 @@ import 'package:em_budget/core/theme/app_bars.dart';
 import 'package:em_budget/core/theme/app_chips.dart';
 import 'package:em_budget/core/theme/app_colors.dart';
 import 'package:em_budget/core/theme/app_controls.dart';
+import 'package:em_budget/core/theme/app_faces.dart';
 import 'package:em_budget/core/theme/app_fields.dart';
 import 'package:em_budget/core/theme/app_icon_buttons.dart';
 import 'package:em_budget/core/theme/app_modals.dart';
@@ -42,6 +43,85 @@ import '../data/web_source.dart';
 /// Chrome resolves CSS lengths in px and every rem-bearing token in index.css was
 /// authored against the 16px root, which is what the measurement recorded.
 const double _remPx = 16.0;
+
+/// Every file the `utilityStacks` tier is measured from, and the family of this
+/// port that owns it. A row and an authored record are attributed to a family by
+/// the `src` their own record names — the tier's `source` is the fallback only for
+/// the rows written before a row could name its file — and `src/index.css` belongs
+/// to the faces because their state rules are the only records read out of it,
+/// even though the ledger cites one line of it from inside a record its own file
+/// names.
+///
+/// This table is what keeps a family's tests about that family. The counts each
+/// group asserts are read out of the rows its family claims, so measuring a new
+/// family reddens the partition test alone — it does not move a number inside
+/// another family's expectations.
+const Map<String, String> _tierFamilyBySource = <String, String>{
+  'src/context/NotificationContext.tsx': 'chrome',
+  'src/components/ui/Modal.tsx': 'modal',
+  'src/components/ui/BottomSheet.tsx': 'modal',
+  'src/components/dashboard/QuickActionModal.tsx': 'modal',
+  'src/components/DebtDetailModal.tsx': 'modal',
+  'src/components/TransactionEditModal.tsx': 'modal',
+  'src/components/SettingsModal.tsx': 'modal',
+  'src/components/ui/CategoryChip.tsx': 'ledger',
+  'src/components/ui/TransactionRow.tsx': 'ledger',
+  'src/components/Dashboard.tsx': 'ledger',
+  'src/components/ReportsCentre.tsx': 'ledger',
+  'src/components/ui/CardFace.tsx': 'faces',
+  'src/components/dashboard/WalletDeck.tsx': 'faces',
+  'src/components/dashboard/DashboardHero.tsx': 'faces',
+  'src/index.css': 'faces',
+};
+
+/// The four families, so a partition test can require all of them to be present
+/// rather than requiring a count.
+const Set<String> _tierFamilies = <String>{
+  'chrome',
+  'modal',
+  'ledger',
+  'faces',
+};
+
+/// The sources no row is measured from, because a stylesheet is not a component:
+/// `src/index.css` enters the tier only through authored records — the state rules,
+/// the pseudo-element layers and the mask an element cannot be measured with.
+const Set<String> _tierStylesheetSources = <String>{'src/index.css'};
+
+/// The family a tier record belongs to, or `null` when it was measured from a
+/// file no family claims.
+String? _tierFamilyOfSource(String src) => _tierFamilyBySource[src];
+
+/// The files a family is measured from, in the table above — as declared, so a
+/// test can compare the derived set against it.
+Set<String> _tierFamilyFiles(String family) => _tierFamilyBySource.entries
+    .where((MapEntry<String, String> e) => e.value == family)
+    .map((MapEntry<String, String> e) => e.key)
+    .toSet();
+
+/// The names of every tier record — row or authored fragment — that `family`
+/// claims, walking `records` (the tier array) and attributing each by the file it
+/// names. A record from an unclaimed file is returned in `unattributed` rather
+/// than filed somewhere by guesswork.
+List<String> _tierFamilyNames(
+  List<dynamic> records,
+  String fallback,
+  String family, {
+  List<String>? unattributed,
+}) {
+  final List<String> found = <String>[];
+  for (final dynamic e in records) {
+    final Map<String, dynamic> rec = e as Map<String, dynamic>;
+    final String src = (rec['src'] ?? fallback)! as String;
+    final String? owner = _tierFamilyOfSource(src);
+    if (owner == null) {
+      unattributed?.add('${rec['name']} ($src)');
+      continue;
+    }
+    if (owner == family) found.add(rec['name']! as String);
+  }
+  return found;
+}
 
 Map<String, dynamic> _theme(Map<String, dynamic> measurement, String name) =>
     (measurement['themes']! as Map<String, dynamic>)[name]!
@@ -5068,37 +5148,52 @@ void main() {
     // recorded verbatim because that is what any reader of the tier sees.
     const String fullRadius = '3.35544e+07px';
 
-    test('the family is 19 toast rows, 32 from six modal files and 26 from the ledger’s four', () {
-      final Map<String, int> bySource = <String, int>{};
+    test('the tier partitions into the families, each measured from its own files', () {
+      // Not a count of the tier: the tier is whatever the families add up to, and
+      // a new family joining it is that family's business. What this pins is the
+      // partition — every row claims a file, every file belongs to one family, and
+      // each family is measured from exactly the components this port was built
+      // from. A component joining or leaving one of those sets shows up here.
+      final List<String> unattributed = <String>[];
+      final Map<String, Set<String>> filesByFamily = <String, Set<String>>{};
+      final Map<String, int> rowsByFamily = <String, int>{};
       for (final dynamic r in rows) {
         final Map<String, dynamic> row = r as Map<String, dynamic>;
         final String src = (row['src'] ?? fallbackSource)! as String;
-        bySource[src] = (bySource[src] ?? 0) + 1;
+        final String? family = _tierFamilyOfSource(src);
+        if (family == null) {
+          unattributed.add(
+            '${row['name']! as String} measured from $src, which no family claims',
+          );
+          continue;
+        }
+        filesByFamily.putIfAbsent(family, () => <String>{}).add(src);
+        rowsByFamily[family] = (rowsByFamily[family] ?? 0) + 1;
       }
       expect(
-        bySource,
-        <String, int>{
-          'src/context/NotificationContext.tsx': 19,
-          'src/components/ui/Modal.tsx': 7,
-          'src/components/ui/BottomSheet.tsx': 8,
-          'src/components/dashboard/QuickActionModal.tsx': 6,
-          'src/components/DebtDetailModal.tsx': 4,
-          'src/components/TransactionEditModal.tsx': 4,
-          'src/components/SettingsModal.tsx': 3,
-          'src/components/ui/CategoryChip.tsx': 9,
-          'src/components/ui/TransactionRow.tsx': 7,
-          'src/components/Dashboard.tsx': 6,
-          'src/components/ReportsCentre.tsx': 4,
-        },
+        unattributed,
+        isEmpty,
         reason:
-            'a component joining or leaving the family means the tier was '
-            're-measured against a different source set. #76 added the four '
-            'ledger files to the seven the chrome families already named.',
+            'the tier was re-measured against a source set this file does not '
+            'describe, so no family’s expectations can be trusted until it does',
       );
       expect(
-        bySource.values.fold(0, (int a, int b) => a + b),
+        filesByFamily,
+        <String, Set<String>>{
+          for (final String family in _tierFamilies)
+            family: _tierFamilyFiles(family).difference(_tierStylesheetSources),
+        },
+        reason:
+            'chrome from the one context file it leans on the fallback for, the '
+            'six files the #56 family is written in, the four the ledger is '
+            'written in, and the three the card face, the deck and the action '
+            'keys are — no family measured from a fifth file. A stylesheet is '
+            'cited by records, never measured as a row.',
+      );
+      expect(
+        rowsByFamily.values.fold(0, (int a, int b) => a + b),
         rows.length,
-        reason: 'and every row belongs to one of them',
+        reason: 'and every row of the tier belongs to one of them',
       );
     });
 
@@ -5862,41 +5957,26 @@ void main() {
         'whiteSpace',
         'textOverflow',
       ];
-      final List<String> modalNames = rows
-          .map((dynamic r) => (r as Map<String, dynamic>)['name']! as String)
-          .where(
-            (String name) => !<String>[
-              'toast-container',
-              'toast-success',
-              'toast-error',
-              'toast-warning',
-              'toast-info',
-              'toast-message',
-              'toast-close',
-              'toast-icon-success',
-              'toast-icon-error',
-              'toast-icon-warning',
-              'toast-icon-info',
-              'confirm-overlay',
-              'confirm-panel',
-              'confirm-title',
-              'confirm-rule',
-              'confirm-message',
-              'confirm-actions',
-              'confirm-cancel',
-              'confirm-confirm',
-            ].contains(name),
-          )
-          .toList();
+      final Set<String> familiesRead = <String>{};
+      final List<String> tierNames = <String>[];
+      for (final dynamic r in rows) {
+        final Map<String, dynamic> row = r as Map<String, dynamic>;
+        final String name = row['name']! as String;
+        tierNames.add(name);
+        familiesRead.add(
+          _tierFamilyOfSource((row['src'] ?? fallbackSource)! as String)!,
+        );
+      }
       expect(
-        modalNames.length,
-        58,
+        familiesRead,
+        _tierFamilies,
         reason:
-            'the 32 rows the #56 family brought plus the 26 #76 brought for '
-            'the ledger — both asked for the same readout, so both get it',
+            'the readout is required of the whole tier, so a family whose rows '
+            'stopped carrying it cannot hide behind another family’s exclusion '
+            'list — these four are what the tier is measured from',
       );
       for (final String pass in passes) {
-        for (final String name in modalNames) {
+        for (final String name in tierNames) {
           for (final String key in extended) {
             expect(
               props(pass, name).containsKey(key),
@@ -8982,30 +9062,26 @@ void main() {
     }
 
     test('the family is 26 rows across the four files the ledger is written in', () {
+      // The map is the ledger’s own: built from the rows this family’s prefix
+      // claims, so a family measured later cannot move it. The count of the whole
+      // tier is the partition test’s business, not this one’s.
       final Map<String, int> bySource = <String, int>{};
-      for (final dynamic r in ledRows) {
-        final Map<String, dynamic> row = r as Map<String, dynamic>;
-        final String src = (row['src'] ?? ledStacks['source'])! as String;
+      for (final String name in ledFamily) {
+        final String src = ledCite(name)['src']! as String;
         bySource[src] = (bySource[src] ?? 0) + 1;
       }
       expect(
-        bySource,
-        <String, int>{
-          'src/context/NotificationContext.tsx': 19,
-          'src/components/ui/Modal.tsx': 7,
-          'src/components/ui/BottomSheet.tsx': 8,
-          'src/components/dashboard/QuickActionModal.tsx': 6,
-          'src/components/DebtDetailModal.tsx': 4,
-          'src/components/TransactionEditModal.tsx': 4,
-          'src/components/SettingsModal.tsx': 3,
-          chipSrc: 9,
-          rowSrc: 7,
-          dashSrc: 6,
-          rcSrc: 4,
-        },
+        bySource.keys.toSet(),
+        <String>{chipSrc, rowSrc, dashSrc, rcSrc},
         reason:
-            'the tier is 77 rows: the #55/#56 families plus the 26 the ledger '
-            'adds. A component joining or leaving moves the count, not this test',
+            'the ledger is written in the row, the chip, the dashboard and the '
+            'reports centre — a fifth file in this set means the family was '
+            're-measured against components this port does not read',
+      );
+      expect(
+        bySource.values.fold(0, (int a, int b) => a + b),
+        ledFamily.length,
+        reason: 'and every row of the family is filed under one of them',
       );
       expect(ledFamily.length, 26, reason: 'the ledger family is 26 rows');
       expect(
@@ -9044,9 +9120,18 @@ void main() {
       expect(
         ledRows
             .where((dynamic r) => (r as Map<String, dynamic>)['src'] == null)
-            .length,
-        19,
-        reason: 'the fallback is the NotificationContext set and nothing else',
+            .map((dynamic r) => (r as Map<String, dynamic>)['name']! as String)
+            .toSet(),
+        _tierFamilyNames(
+          ledRows,
+          ledStacks['source']! as String,
+          'chrome',
+        ).toSet(),
+        reason:
+            'the tier fallback ("${ledStacks['source']}") is the chrome '
+            'family’s and nothing else leans on it — the number of rows that '
+            'hide there is whatever the data says, but the set is the family '
+            'that owns that file',
       );
     });
 
@@ -10489,23 +10574,48 @@ void main() {
       );
     });
 
-    test('the ten authored records are the ledger half of a 26-record tier', () {
+    test('the ten authored records are the ledger’s share of the tier’s authored array', () {
       final List<String> names = <String>[
         for (final dynamic e in ledNonCss)
           (e as Map<String, dynamic>)['name']! as String,
       ]..sort();
       expect(names.where(ledIsRecord).toList(), ledRecordNames);
+      // The rest of the array is whoever else wrote it, attributed by the file
+      // each record names rather than counted: the chrome families #55 and #56
+      // left behind are untouched by this family, and so is any family measured
+      // after it — but a record from a file no family claims is this port reading
+      // evidence nobody said it could.
+      final List<String> unattributed = <String>[];
+      final Map<String, int> recordsByFamily = <String, int>{};
+      for (final dynamic e in ledNonCss) {
+        final Map<String, dynamic> rec = e as Map<String, dynamic>;
+        final String src = (rec['src'] ?? ledStacks['source'])! as String;
+        final String? family = _tierFamilyOfSource(src);
+        if (family == null) {
+          unattributed.add('${rec['name']! as String} ($src)');
+          continue;
+        }
+        recordsByFamily[family] = (recordsByFamily[family] ?? 0) + 1;
+      }
       expect(
-        names.where((String n) => !ledIsRecord(n)).length,
-        16,
-        reason:
-            'the chrome records #55 and #56 left behind are untouched by '
-            'this family — a re-measure that renames one shows up here',
+        unattributed,
+        isEmpty,
+        reason: 'every authored record names a file a family owns',
       );
       expect(
-        ledNonCss.length,
-        26,
-        reason: '16 chrome records plus the ledger 10',
+        recordsByFamily.keys.toSet(),
+        _tierFamilies,
+        reason:
+            'and the array carries a share for each of the four families the '
+            'rows are measured from, because a family that measured rows but '
+            'froze no authored line is a family the port is guessing about',
+      );
+      expect(
+        recordsByFamily['ledger'],
+        ledRecordNames.length,
+        reason:
+            'the ledger’s share is exactly the ten this port reads — one more '
+            'or one fewer, renamed, is a re-measure this family has not agreed',
       );
       final Map<String, int> perFile = <String, int>{};
       for (final dynamic e in ledNonCss) {
@@ -13403,7 +13513,10 @@ void main() {
     /// source line fails here with its `file:line` named even if no assertion
     /// downstream happens to read it. The ledger's share is pinned line by line;
     /// the chrome families #55 and #56 are pinned by file and count, because the
-    /// ledger is what this port reads and the rest is what it must not.
+    /// ledger is what this port reads and the rest is what it must not. The rest
+    /// of the array is attributed to the family its own file names rather than
+    /// counted, so a family measured after the ledger is walked here too — and
+    /// pinned line by line in its own group.
     test('the citations: every authored line, re-read from the file it names', () {
       const Map<String, List<int>> ledgerCited = <String, List<int>>{
         appDashSrc: <int>[294, 296, 409, 411, 422, 426, 428, 429, 437],
@@ -13423,25 +13536,35 @@ void main() {
       };
       final Map<String, List<int>> ledgerRead = <String, List<int>>{};
       final Map<String, int> chromeRead = <String, int>{};
+      final Map<String, int> otherRead = <String, int>{};
+      final List<String> unattributed = <String>[];
+      final Set<String> citedFiles = <String>{};
       final Set<String> expressions = <String>{};
-      int records = 0;
-      int parts = 0;
-      for (final dynamic e in appStacks['authoredNonCss']! as List<dynamic>) {
+      final List<dynamic> authored =
+          appStacks['authoredNonCss']! as List<dynamic>;
+      for (final dynamic e in authored) {
         final Map<String, dynamic> rec = e as Map<String, dynamic>;
         final String name = rec['name']! as String;
+        final String? recFamily = _tierFamilyOfSource(
+          (rec['src'] ?? appStacks['source'])! as String,
+        );
+        if (recFamily == null) {
+          unattributed.add('$name, authored from a file no family claims');
+          continue;
+        }
         final List<dynamic> recParts = rec['parts']! as List<dynamic>;
         expect(
           recParts,
           isNotEmpty,
           reason: '$name cites nothing, so there is nothing here to re-read',
         );
-        records++;
         for (final dynamic p in recParts) {
           final Map<String, dynamic> part = p as Map<String, dynamic>;
           final String src =
               (part['src'] ?? rec['src'] ?? appStacks['source'])! as String;
           final int line = (part['line']! as num).toInt();
           final String frozen = part['text']!.trim() as String;
+          citedFiles.add(src);
           expect(
             frozen,
             isNotEmpty,
@@ -13457,20 +13580,65 @@ void main() {
                 'record was built from a line that has moved.',
           );
           if (onDisk != frozen) expressions.add('$src:$line');
-          parts++;
-          if (ledgerCited.containsKey(src)) {
+          // Bucketed by the record’s family, not by the file the part names: a
+          // part may reach into a file its family does not own — the ledger’s
+          // `src/index.css:917` is one, and five faces records are authored out
+          // of that same stylesheet.
+          if (recFamily == 'ledger') {
             ledgerRead.putIfAbsent(src, () => <int>[]).add(line);
+          } else if (recFamily == 'faces') {
+            otherRead.update(src, (int n) => n + 1, ifAbsent: () => 1);
           } else {
             chromeRead.update(src, (int n) => n + 1, ifAbsent: () => 1);
           }
         }
       }
       expect(
-        records,
-        26,
-        reason: 'the whole authored array, not the ledger slice',
+        unattributed,
+        isEmpty,
+        reason:
+            'the array is walked whole, and every record was authored from a '
+            'file one of the four families claims',
       );
-      expect(parts, 91);
+      expect(
+        <String>{
+          for (final dynamic e in authored)
+            (e as Map<String, dynamic>)['name']! as String,
+        },
+        <String>{
+          ..._tierFamilyNames(
+            authored,
+            appStacks['source']! as String,
+            'chrome',
+          ),
+          ..._tierFamilyNames(
+            authored,
+            appStacks['source']! as String,
+            'modal',
+          ),
+          ..._tierFamilyNames(
+            authored,
+            appStacks['source']! as String,
+            'ledger',
+          ),
+          ..._tierFamilyNames(
+            authored,
+            appStacks['source']! as String,
+            'faces',
+          ),
+        },
+        reason:
+            'and every record of it belongs to one of the four families — the '
+            'tier’s total is whatever they add up to, never a number typed here',
+      );
+      expect(
+        citedFiles,
+        _tierFamilyBySource.keys.toSet(),
+        reason:
+            'every file any part reaches into is one of the fifteen the four '
+            'families are measured from, and no authored line was re-read from '
+            'somewhere this table does not name',
+      );
       expect(
         expressions,
         <String>{
@@ -13506,7 +13674,8 @@ void main() {
       expect(
         chromeRead.keys.toSet(),
         chromeCited.keys.toSet(),
-        reason: 'and every remaining citation belongs to a chrome family',
+        reason:
+            'and every remaining chrome citation belongs to a chrome family',
       );
       for (final MapEntry<String, int> entry in chromeCited.entries) {
         expect(
@@ -13515,6 +13684,14 @@ void main() {
           reason: '${entry.key} is cited by that many lines',
         );
       }
+      expect(
+        otherRead.keys.toSet(),
+        _tierFamilyFiles('faces'),
+        reason:
+            'what is neither the ledger’s nor chrome’s is the faces family’s, '
+            'read from the three components it is written in and the stylesheet '
+            'its state rules live in — the faces group pins those line by line',
+      );
     });
 
     test('the rail’s row spacing — the one number no pass measured, derived and checked', () {
@@ -13633,6 +13810,502 @@ void main() {
         );
       }
     });
+  });
+
+  group('AppFaces — the ported face, deck and keys re-derived from the #81 stacks', () {
+    // #82 emits `mobile/lib/core/theme/app_faces.dart` from the twenty-nine rows
+    // the card face, the wallet deck and the action keys measured as, the fifteen
+    // authored records those three components added, and the pinned `.card-face`,
+    // `.face-*`, `.pressable`, `.deck*` and `.action-key*` rules. This group reads
+    // the same evidence back independently: every field of every generated spec is
+    // re-derived from a JSON string, an authored source line or a stylesheet
+    // declaration — never copied out of the generated file, so the two can only
+    // agree by both being right. Nothing here builds a widget; the widgets' own
+    // behaviour tests are beside this file.
+    final Map<String, dynamic> faceStacks =
+        measurement['utilityStacks']! as Map<String, dynamic>;
+    final List<dynamic> faceRowList = faceStacks['rows']! as List<dynamic>;
+    final List<dynamic> faceAuthored =
+        faceStacks['authoredNonCss']! as List<dynamic>;
+    final String faceFallback = faceStacks['source']! as String;
+    const String faceTsSrc = 'src/components/ui/CardFace.tsx';
+    const String faceDeckTsSrc = 'src/components/dashboard/WalletDeck.tsx';
+
+    Map<String, dynamic> faceRow(String name) {
+      for (final dynamic r in faceRowList) {
+        final Map<String, dynamic> row = r as Map<String, dynamic>;
+        if (row['name'] == name) return row;
+      }
+      throw StateError('ui-tokens.json cites no stack row "$name"');
+    }
+
+    /// The names of the rows the faces family was measured from, in tier order.
+    List<String> faceRowNames() {
+      final List<String> found = <String>[];
+      for (final dynamic r in faceRowList) {
+        final Map<String, dynamic> row = r as Map<String, dynamic>;
+        final String src = (row['src'] ?? faceFallback)! as String;
+        if (_tierFamilyOfSource(src) == 'faces') {
+          found.add(row['name']! as String);
+        }
+      }
+      return found;
+    }
+
+    /// The authored records the faces family added, by the file each names.
+    Map<String, dynamic> faceRecord(String name) {
+      for (final dynamic e in faceAuthored) {
+        final Map<String, dynamic> rec = e as Map<String, dynamic>;
+        if (rec['name'] == name) return rec;
+      }
+      throw StateError('ui-tokens.json freezes no authored record "$name"');
+    }
+
+    List<String> faceRecordNames(String family) =>
+        _tierFamilyNames(faceAuthored, faceFallback, family);
+
+    final Map<String, List<String>> faceFiles = <String, List<String>>{};
+    List<String> faceLinesOf(String src) => faceFiles.putIfAbsent(
+      src,
+      () => webSource(src).split(RegExp(r'\r?\n')),
+    );
+
+    String faceLineAt(String src, int line) {
+      final List<String> lines = faceLinesOf(src);
+      if (line < 1 || line > lines.length) {
+        throw StateError('$src:$line is outside a ${lines.length}-line file');
+      }
+      return lines[line - 1];
+    }
+
+    int faceLineIndexOf(String src, String text) {
+      final int at = faceLinesOf(src)
+          .indexWhere((String l) => l.trim() == text);
+      if (at < 0) throw StateError('$src has no line reading exactly "$text"');
+      return at + 1;
+    }
+
+    /// The `file:lines` string the emitter writes for one row, rebuilt from the
+    /// record: the line each part is read from, the inline style it writes, the
+    /// token a tint names, and the template a composed class list comes from.
+    String faceCite(String name) {
+      final Map<String, dynamic> rec = faceRow(name);
+      final Map<String, List<int>> byFile = <String, List<int>>{};
+      void cite(String file, Object? line) {
+        if (line == null) return;
+        final int l = (line as num).toInt();
+        final List<int> set = byFile.putIfAbsent(file, () => <int>[]);
+        if (!set.contains(l)) set.add(l);
+      }
+
+      for (final dynamic e in rec['parts']! as List<dynamic>) {
+        final Map<String, dynamic> part = e as Map<String, dynamic>;
+        final String file =
+            (part['src'] ?? rec['src'] ?? faceFallback)! as String;
+        cite(file, part['line']);
+        cite(file, part['styleSrcLine']);
+        cite(file, part['toneVarLine']);
+        cite(file, part['toneDefaultLine']);
+        for (final dynamic s
+            in (part['styleSrc'] ?? const <dynamic>[]) as List<dynamic>) {
+          cite(file, (s as Map<String, dynamic>)['line']);
+        }
+        final Object? classOf = part['classOf'];
+        if (classOf != null) {
+          final Map<String, dynamic> c = classOf as Map<String, dynamic>;
+          cite((c['src'] ?? file)! as String, c['line']);
+        }
+      }
+      return byFile.entries
+          .map(
+            (MapEntry<String, List<int>> e) =>
+                '${e.key}:${(e.value.toList()..sort()).join(',')}',
+          )
+          .join(' + ');
+    }
+
+    Map<String, dynamic> facePart(String name) {
+      final List<dynamic> parts = faceRow(name)['parts']! as List<dynamic>;
+      if (parts.length != 1) {
+        throw StateError(
+          '$name cites ${parts.length} parts, not the one this port reads',
+        );
+      }
+      return parts.single as Map<String, dynamic>;
+    }
+
+    test('the family is the rows the three components write, and no more', () {
+      // Derived from the tier, by the file each row names: this port reads the
+      // face from CardFace, the deck from WalletDeck and the keys from the hero,
+      // so the set of rows and the set of files are both pinned, and neither is
+      // a number another family’s growth can move.
+      final List<String> names = faceRowNames();
+      expect(
+        names.toSet(),
+        <String>{
+          for (final AppFaceTone tone in AppFaceTone.values) tone.stackRow,
+          'face-box-plain',
+          for (final AppFaceSlot slot in AppFaceSlot.values) slot.stackRow,
+          'face-chip',
+          'face-badge-deck',
+          AppFaces.deck.stackRow,
+          for (final AppDeckDepth depth in AppDeckDepth.values)
+            AppFaces.deckFace(depth).stackRow,
+          'deck-front',
+          AppFaces.grid.stackRow,
+          AppFaces.keyLight.stackRow,
+          AppFaces.keyLight.disabledStackRow,
+          AppFaces.icon.stackRow,
+        },
+        reason:
+            'the seven tone boxes, the bands and words, the chip AppChips owns, '
+            'the badge the deck passes, the deck and its peers and front, then '
+            'the grid, the key, its disabled witness and its glyph box',
+      );
+      expect(
+        names.toSet().length,
+        names.length,
+        reason: 'no row is measured twice under two names',
+      );
+      final Map<String, Set<String>> files = <String, Set<String>>{};
+      for (final String name in names) {
+        files
+            .putIfAbsent(
+              (faceRow(name)['src'] ?? faceFallback)! as String,
+              () => <String>{},
+            )
+            .add(name);
+      }
+      expect(
+        files.keys.toSet(),
+        _tierFamilyFiles('faces').difference(_tierStylesheetSources),
+        reason:
+            'and the family is measured from the three component files alone — '
+            'the stylesheet enters through authored records, never as a row',
+      );
+      expect(
+        files.values.expand((Set<String> s) => s).toSet(),
+        names.toSet(),
+        reason:
+            'every row of the family is filed under the file that writes it',
+      );
+      expect(
+        faceRecordNames('faces').toSet(),
+        <String>{
+          'face-tone-table-and-hash',
+          'face-class-list-and-style-arms',
+          'face-default-arms',
+          'face-money-call',
+          'face-owed-changes-the-label-only',
+          'face-badge-recipe-is-copied',
+          'face-card-number-masking',
+          'face-badge-labels',
+          'deck-peer-budget',
+          'card-face-sheen-is-a-pseudo-layer',
+          'card-face-chip-ring-is-a-pseudo-layer',
+          'action-key-notch-mask',
+          'action-key-states',
+          'deck-lip-is-a-custom-property',
+          'action-key-glyph',
+        },
+        reason:
+            'the fifteen records the faces froze: what a detached element cannot '
+            'be put into — a pseudo-layer, a mask, a state, a custom property — '
+            'stays a citation of a source line rather than a measurement',
+      );
+    });
+
+    test('the tone table is the component’s own array, in the order it declares it', () {
+      final List<String> lines = faceLinesOf(faceTsSrc);
+      final int open = faceLineIndexOf(
+        faceTsSrc,
+        'const FACE_TONES: CardFaceTone[] = [',
+      );
+      int close = -1;
+      for (int i = open; i < lines.length; i++) {
+        if (lines[i].trim() == '];') {
+          close = i + 1;
+          break;
+        }
+      }
+      if (close < 0) {
+        throw StateError('$faceTsSrc: the FACE_TONES array never closes');
+      }
+      final List<String> authored = <String>[];
+      for (int i = open; i < close - 1; i++) {
+        final RegExpMatch? m = RegExp(r"^'(face-[a-z]+)',$")
+            .firstMatch(lines[i].trim());
+        if (m == null) {
+          throw StateError(
+            '$faceTsSrc:${i + 1} is not a tone entry: "${lines[i]}"',
+          );
+        }
+        authored.add(m.group(1)!);
+      }
+      expect(authored.length, close - open - 1);
+      expect(
+        AppFaceTone.values.map((AppFaceTone t) => t.cssClass).toList(),
+        authored,
+        reason:
+            'the enum is the component’s array, in its order — a tone added, '
+            'removed or reordered upstream changes which box the port paints',
+      );
+      // The union type the array is typed by names the same six, and the record
+      // cites both lines, so the pair cannot be edited one at a time.
+      final RegExpMatch? union = RegExp(r"^export type CardFaceTone = (.*);$")
+          .firstMatch(
+            lines.firstWhere(
+              (String l) => l.startsWith('export type CardFaceTone'),
+            ),
+          );
+      if (union == null) {
+        throw StateError(
+          '$faceTsSrc no longer declares the CardFaceTone union',
+        );
+      }
+      expect(
+        RegExp(r"'([a-z-]+)'")
+            .allMatches(union.group(1)!)
+            .map((RegExpMatch m) => m.group(1)!)
+            .toList(),
+        authored,
+        reason: 'the union and the array list the same tones in the same order',
+      );
+      final Map<String, dynamic> tableParts = faceRecord(
+        'face-tone-table-and-hash',
+      );
+      // The record’s parts carry no per-part `src`: the whole record is read
+      // from CardFace.tsx, so the two lines that bound the array are found by
+      // the text they carry — the open line read at `open`, the closer at
+      // `close` — rather than by a source field none of them has.
+      final String tableOpenText = lines[open - 1].trim();
+      final String tableCloseText = lines[close - 1].trim();
+      expect(
+        (tableParts['parts']! as List<dynamic>)
+            .cast<Map<String, dynamic>>()
+            .where(
+              (Map<String, dynamic> p) =>
+                  p['text'] == tableOpenText || p['text'] == tableCloseText,
+            )
+            .map((Map<String, dynamic> p) => (p['line']! as num).toInt())
+            .toList(),
+        <int>[open, close],
+        reason: 'the record cites the array by its two bounding lines',
+      );
+      for (final AppFaceTone tone in AppFaceTone.values) {
+        final Map<String, dynamic> part = facePart(tone.stackRow);
+        expect(
+          (part['toneTable']! as List<dynamic>).cast<num>().toList(),
+          <num>[
+            open,
+            lines.indexOf(lines.firstWhere((String l) => l.trim() == '];')) + 1,
+          ],
+          reason: '${tone.stackRow}: and the row cites them the same way',
+        );
+        expect(part['tone'], tone.cssClass);
+      }
+      // The tone the prop default selects, read off the line that declares it.
+      final int defaultLine = faceLinesOf(faceTsSrc).indexWhere(
+        (String l) => RegExp(r"^\s*tone = 'face-[a-z]+',$").hasMatch(l),
+      );
+      if (defaultLine < 0) {
+        throw StateError('$faceTsSrc has no `tone = \'face-*\',` prop default');
+      }
+      final RegExpMatch m = RegExp(r"^\s*tone = '(face-[a-z]+)',")
+          .firstMatch(faceLineAt(faceTsSrc, defaultLine + 1))!;
+      expect(
+        AppFaceTone.defaultTone.cssClass,
+        m.group(1),
+        reason: 'the fallback tone is the component’s prop default',
+      );
+      expect(
+        facePart('face-box-plain')['toneDefaultLine'],
+        defaultLine + 1,
+        reason: 'and the plain arm cites the line it comes from',
+      );
+    });
+
+    test('the class list is composed from the template, never copied from a run', () {
+      // #81 took the resolved class list out of the record: no file writes
+      // `card-face face-violet … cursor-pointer`, the component writes a template
+      // with two holes and the row carries what those holes were filled with. So
+      // the drift test re-composes it here from the cited template line.
+      final Map<String, dynamic> part = facePart('face-box-violet');
+      final Map<String, dynamic> classOf =
+          part['classOf']! as Map<String, dynamic>;
+      final int templateLine = (classOf['line']! as num).toInt();
+      expect(
+        classOf['src'] ?? faceTsSrc,
+        faceTsSrc,
+        reason: 'the template is in the component that writes it',
+      );
+      final String raw = faceLineAt(faceTsSrc, templateLine).trim();
+      const String head = 'const className = ';
+      final String quote = String.fromCharCode(96);
+      expect(
+        raw.startsWith('$head$quote') && raw.endsWith('$quote;'),
+        isTrue,
+        reason:
+            '$faceTsSrc:$templateLine is no longer the class-list template: "$raw"',
+      );
+      final String body = raw.substring(head.length + 1, raw.length - 2);
+      final List<String> holes = RegExp(r'\$\{[^}]*\}')
+          .allMatches(body)
+          .map((RegExpMatch m) => m.group(0)!)
+          .toList();
+      expect(
+        holes.length,
+        2,
+        reason: 'the template has two holes: the tone, the cursor',
+      );
+      expect(holes[0], '\${tone}');
+      expect(holes[1], "\${onClick ? 'cursor-pointer' : ''}");
+      final List<String> texts = body.split(RegExp(r'\$\{[^}]*\}'));
+      String compose(String tone, String cursor) => <String>[
+        for (int i = 0; i < texts.length; i++)
+          texts[i] +
+              (i == 0
+                  ? tone
+                  : i == 1
+                  ? cursor
+                  : ''),
+      ].join();
+
+      expect(
+        AppFaces.face.cssClasses,
+        compose(AppFaceTone.defaultTone.cssClass, 'cursor-pointer'),
+        reason: 'the interactive box is the template with both holes filled',
+      );
+      expect(
+        AppFaces.face.plainCssClasses,
+        compose(AppFaceTone.defaultTone.cssClass, ''),
+        reason:
+            'the non-interactive arm fills the cursor hole with nothing, which '
+            'is why its class list ends in the space the template leaves behind',
+      );
+      expect(
+        AppFaces.face.plainCssClasses.endsWith(' '),
+        isTrue,
+        reason: 'and the DOM really carries that trailing space',
+      );
+      for (final AppFaceTone tone in AppFaceTone.values) {
+        expect(
+          faceRow(tone.stackRow)['parts']![0]! as Map<String, dynamic>,
+          isNotNull,
+          reason: '${tone.stackRow} is measured',
+        );
+        final Map<String, dynamic> tonePart = facePart(tone.stackRow);
+        expect(
+          tonePart['clsResolved'],
+          compose(tone.cssClass, 'cursor-pointer'),
+          reason: '${tone.stackRow}: the record’s own reading of the template',
+        );
+        expect(
+          AppFaces.tint(tone).cssClass,
+          '.${tone.cssClass}',
+          reason: '${tone.cssClass}: the rule the hole is filled with',
+        );
+        expect(
+          AppFaces.tint(tone).authoredSrc,
+          faceCite(tone.stackRow),
+          reason: '${tone.stackRow}: the tint cites the template, not a copy',
+        );
+      }
+      expect(
+        facePart('face-box-plain')['clsResolved'],
+        AppFaces.face.plainCssClasses,
+      );
+      expect(
+        AppFaces.face.authoredSrc,
+        faceCite('face-box-violet'),
+        reason:
+            'the box cites the line it is composed from and the arms it writes',
+      );
+      // `plainStyleSrc` is not the row’s whole citation (that is `authoredSrc`):
+      // it names the one line of the style ternary the fixed arm is authored on,
+      // which the generator reads off the row’s cited `styleSrc` entries as the
+      // branch that opens with `: {`. Derive that line here rather than compare
+      // the narrow field against the aggregated row cite.
+      final Map<String, dynamic> plainStyleArm =
+          (facePart('face-box-plain')['styleSrc']! as List<dynamic>)
+              .cast<Map<String, dynamic>>()
+              .firstWhere(
+                (Map<String, dynamic> s) =>
+                    RegExp(r'^:\s*\{').hasMatch(s['text']! as String),
+              );
+      expect(
+        AppFaces.face.plainStyleSrc,
+        '$faceTsSrc:${(plainStyleArm['line']! as num).toInt()}',
+        reason: 'and the plain arm cites its own branch of the style ternary',
+      );
+      // No row of this family may store a verbatim class list that no file writes.
+      for (final String name in faceRowNames()) {
+        for (final dynamic e in faceRow(name)['parts']! as List<dynamic>) {
+          final Map<String, dynamic> p = e as Map<String, dynamic>;
+          if (p['classOf'] == null) continue;
+          expect(
+            p['cls'],
+            isNull,
+            reason:
+                '$name composes its class list, so it must not also freeze one '
+                'as a source-verbatim fragment',
+          );
+        }
+      }
+    });
+
+    test(
+      'every other citation the file carries is the row it was measured from',
+      () {
+        void cite(String label, String row, String generated) {
+          expect(
+            generated,
+            faceCite(row),
+            reason: '$label cites the lines of the row it names',
+          );
+        }
+
+        cite('the deck', AppFaces.deck.stackRow, AppFaces.deck.authoredSrc);
+        cite('the front', 'deck-front', AppFaces.deck.frontAuthoredSrc);
+        for (final AppDeckDepth depth in AppDeckDepth.values) {
+          final AppDeckFaceSpec peer = AppFaces.deckFace(depth);
+          cite('peer ${depth.dataDepth}', peer.stackRow, peer.authoredSrc);
+        }
+        cite('the grid', AppFaces.grid.stackRow, AppFaces.grid.authoredSrc);
+        cite(
+          'the key',
+          AppFaces.keyLight.stackRow,
+          AppFaces.keyLight.authoredSrc,
+        );
+        cite(
+          'the disabled key',
+          AppFaces.keyLight.disabledStackRow,
+          AppFaces.keyLight.disabledAuthoredSrc,
+        );
+        cite(
+          'the glyph box',
+          AppFaces.icon.stackRow,
+          AppFaces.icon.authoredSrc,
+        );
+        for (final AppFaceSlot slot in AppFaceSlot.values) {
+          cite(
+            'the ${slot.name} band',
+            slot.stackRow,
+            AppFaces.slot(slot).authoredSrc,
+          );
+        }
+        expect(
+          AppFaces.deck.authoredSrc,
+          '$faceDeckTsSrc:${facePart('deck-box')['line']! as num}',
+          reason: 'the deck cites the element WalletDeck writes',
+        );
+        expect(
+          AppFaces.icon.glyphSrc,
+          isNotEmpty,
+          reason: 'the glyph box cites the component’s mapping, which is not a measured property',
+        );
+      },
+    );
   });
 
   group('the no-hard-coded-style rule (playbook 2.4)', () {

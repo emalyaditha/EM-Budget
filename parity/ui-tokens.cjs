@@ -829,7 +829,462 @@ const LEDGER_STACKS = [
     parts: [{ cls: 'mono text-[12px]', line: 496 }],
   },
 ];
-const ALL_STACKS = [...UTILITY_STACKS, ...MODAL_STACKS, ...LEDGER_STACKS];
+/* ------------------------------------------------- item 9: faces, deck, keys */
+/**
+ * Item 9 — the card faces, the deck that stacks them, and the three action keys.
+ * The same tier as #55/#56/#76: every row is a verbatim slice of the pinned
+ * component source, measured on one detached element against the unclassed control
+ * in all four passes, and no widget is built here.
+ *
+ * Two things this family needed that the ledger did not, both additive:
+ *
+ *   * class lists are READ out of the source, not written into this file. `CardFace`
+ *     carries a dozen utility stacks and `FaceBadge` duplicates one of them byte for
+ *     byte, so a copy typed here would be a second implementation of the markup;
+ *     `classOn` finds the one line that authors each list and takes its exact text.
+ *     The face box is the exception that proves the rule: its class list is a
+ *     template literal with `${tone}` and `${onClick ? 'cursor-pointer' : ''}` in
+ *     it, so its three literal segments are read verbatim and only the two holes are
+ *     filled — the tone names out of `FACE_TONES`, the cursor class out of the
+ *     ternary itself.
+ *   * a `wrapPart` citation. `.deck-face` cannot be measured bare: `clip-path: inset(
+ *     0 0 calc(100% - var(--deck-lip)) 0)` and `top: var(--deck-lip)` answer to a
+ *     custom property declared on `.deck`, which the DOM always gives it as an
+ *     ancestor. The probe therefore builds that ancestor and cites the line that
+ *     authors it, the same way the ledger's divider rows cite the dividing parent.
+ *
+ * What no detached element carries stays authored and is never measured: the
+ * `::before` sheen and the chip's `::after` ring (`src/index.css` has the rules,
+ * `src/` has no element to hang them on), the `mask:` notch and the `:hover`/
+ * `:active` states of `.action-key`, and the hash that decides which of the six
+ * tones a wallet gets.
+ */
+const FACE_SRC = 'src/components/ui/CardFace.tsx';
+const DECK_SRC = 'src/components/dashboard/WalletDeck.tsx';
+const HERO_SRC = 'src/components/dashboard/DashboardHero.tsx';
+const NINE_CSS = 'src/index.css';
+const FACE_LINES = srcLines(FACE_SRC);
+const DECK_LINES = srcLines(DECK_SRC);
+const HERO_LINES = srcLines(HERO_SRC);
+const NINE_CSS_LINES = srcLines(NINE_CSS);
+
+/** The one line carrying `needle`, or a failure. A locator that matches twice is a
+ *  locator that matches nothing: the probe cannot tell which line the row meant, so
+ *  it refuses rather than measuring a neighbour. A locator that matches none fails
+ *  when the markup moves, which is the whole point of citing lines. */
+const lineWith = (rel, lines, needle, label) => {
+  const hits = lines.filter((l) => l.text.includes(needle));
+  if (hits.length === 1) return hits[0];
+  throw new Error(
+    `${rel}: ${label} — expected exactly one line containing ${needle}, found ${hits.length}` +
+      (hits.length ? ` (the first is ${rel}:${hits[0].n})` : ''),
+  );
+};
+
+/** The `className` one line authors, taken verbatim: either a plain string
+ *  attribute, or the single arm a guard passes to it. */
+const classOn = (rel, lines, needle, label) => {
+  const hit = lineWith(rel, lines, needle, label);
+  const plain = /className="([^"]*)"/.exec(hit.text);
+  if (plain) return { cls: plain[1], line: hit.n };
+  const guarded = /className=\{[^{}]*\? '([a-z0-9-]+)' : undefined\}/.exec(hit.text);
+  if (guarded) return { cls: guarded[1], line: hit.n, guarded: true };
+  throw new Error(`${rel}:${hit.n}: ${label} authors no readable className: ${hit.text.trim()}`);
+};
+
+/** The face box's class-list template: three literal segments and two holes. */
+const FACE_CLASS_TEMPLATE = (() => {
+  const hit = lineWith(FACE_SRC, FACE_LINES, 'const className = `card-face ${', 'the face box’s class list');
+  const m = /^  const className = `([^`]*)`;$/.exec(hit.text);
+  if (!m) throw new Error(`${FACE_SRC}:${hit.n}: the class list is not one template literal: ${hit.text.trim()}`);
+  const slots = m[1].split(/(\$\{[^{}]*\})/g);
+  const holes = slots.filter((s) => s.startsWith('${'));
+  const texts = slots.filter((s) => !s.startsWith('${'));
+  if (holes.length !== 2 || texts.length !== 3)
+    throw new Error(
+      `${FACE_SRC}:${hit.n}: expected two holes and three literal segments, found ${holes.length} and ${texts.length}`,
+    );
+  if (holes[0] !== '${tone}') throw new Error(`${FACE_SRC}:${hit.n}: the first hole is not the tone: "${holes[0]}"`);
+  const cursor = /^\$\{onClick \? '([^']+)' : ''\}$/.exec(holes[1]);
+  if (!cursor)
+    throw new Error(`${FACE_SRC}:${hit.n}: the second hole is not the pointer-cursor ternary: "${holes[1]}"`);
+  return { line: hit.n, raw: hit.text.trim(), body: m[1], texts, cursorCls: cursor[1] };
+})();
+
+/** The class list as the component would write it for one (tone, interactive) pair. */
+const faceClass = (tone, interactive) =>
+  FACE_CLASS_TEMPLATE.texts
+    .map((t, i) => t + (i === 0 ? tone : i === 1 && interactive ? FACE_CLASS_TEMPLATE.cursorCls : ''))
+    .join('');
+
+/** `const FACE_TONES: CardFaceTone[] = […]` and the union that types it. The probe
+ *  reads both and requires them to agree in name and order, because the port has one
+ *  tone list and the app currently keeps it in two places. */
+const FACE_TONES = (() => {
+  const head = lineWith(FACE_SRC, FACE_LINES, 'const FACE_TONES: CardFaceTone[] = [', 'the FACE_TONES table');
+  const close = FACE_LINES.findIndex((l, i) => i >= head.n && /^\];$/.test(l.text));
+  if (close < 0) throw new Error(`${FACE_SRC}:${head.n}: FACE_TONES never closes`);
+  const names = [];
+  for (const l of FACE_LINES.slice(head.n, close)) {
+    const m = /^'(face-[a-z]+)',$/.exec(l.text.trim());
+    if (!m) throw new Error(`${FACE_SRC}:${l.n}: inside FACE_TONES, unexpected line "${l.text}"`);
+    names.push(m[1]);
+  }
+  if (!names.length) throw new Error(`${FACE_SRC}: FACE_TONES declares no tone`);
+  const union = lineWith(FACE_SRC, FACE_LINES, 'export type CardFaceTone = ', 'the CardFaceTone union');
+  const typed = [...union.text.matchAll(/'(face-[a-z]+)'/g)].map((m) => m[1]);
+  if (typed.join(' ') !== names.join(' '))
+    throw new Error(
+      `${FACE_SRC}: the union at :${union.n} lists ${JSON.stringify(typed)} but the table at :${head.n} lists ` +
+        `${JSON.stringify(names)}; the tone arms of the face box no longer have one definition`,
+    );
+  return { names, line: head.n, endLine: close + 1, unionLine: union.n, unionRaw: union.text.trim() };
+})();
+
+/** `faceToneForSeed` — the hash that decides a wallet's tone. Recorded, never
+ *  reimplemented from memory: the same `(h * 31 + c) >>> 0` law the chip's tone cycle
+ *  was captured with, in a second file. */
+const FACE_TONE_HASH = (() => {
+  const fn = lineWith(FACE_SRC, FACE_LINES, 'export function faceToneForSeed(', 'faceToneForSeed');
+  const want = [
+    'let h = 0;',
+    'for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;',
+    'return FACE_TONES[h % FACE_TONES.length];',
+  ];
+  const got = FACE_LINES.slice(fn.n, fn.n + want.length).map((l) => l.text.trim());
+  want.forEach((w, i) => {
+    if (got[i] !== w) throw new Error(`${FACE_SRC}:${fn.n + i + 1}: faceToneForSeed no longer reads "${w}"`);
+  });
+  return { line: fn.n, body: want, bodyLines: want.map((_, i) => fn.n + i + 1) };
+})();
+
+/** The two style arms of the face box, and the numbers they author. `aspectRatio` is
+ *  written by both arms and must be the same value in both, or the fluid and fixed
+ *  faces would be different shapes; `minWidth` is the floor a non-fluid face cannot
+ *  go below, which is the reason the 320px hero needs the fluid arm at all. */
+const FACE_STYLE_ARMS = (() => {
+  const head = lineWith(FACE_SRC, FACE_LINES, 'const style = fluid', 'the face box’s style ternary');
+  const fluid = FACE_LINES[head.n];
+  const fixed = FACE_LINES[head.n + 1];
+  const fm = /^    \? \{ width: '([^']+)', minWidth: (\d+), aspectRatio: '([\d.]+)' \}$/.exec(fluid.text);
+  if (!fm) throw new Error(`${FACE_SRC}:${fluid.n}: the fluid arm is not what this probe reads: ${fluid.text.trim()}`);
+  const dm = /^    : \{ width, aspectRatio: '([\d.]+)', minWidth: width \?\? (\d+) \};$/.exec(fixed.text);
+  if (!dm) throw new Error(`${FACE_SRC}:${fixed.n}: the fixed arm is not what this probe reads: ${fixed.text.trim()}`);
+  if (fm[3] !== dm[1])
+    throw new Error(`${FACE_SRC}: the two style arms disagree on aspect-ratio (${fm[3]} vs ${dm[1]})`);
+  return {
+    line: head.n,
+    fluidLine: fluid.n,
+    fixedLine: fixed.n,
+    raw: [head, fluid, fixed].map((l) => l.text.trim()),
+    width: fm[1],
+    fluidMin: fm[2],
+    floor: dm[2],
+    aspect: fm[3],
+  };
+})();
+
+// React writes a numeric style value as a length and an `aspect-ratio` as a bare
+// number, and omits an undefined one, which is how the two arms become the strings
+// the probe hands the element.
+const faceStyleFluid = `width: ${FACE_STYLE_ARMS.width}; min-width: ${FACE_STYLE_ARMS.fluidMin}px; aspect-ratio: ${FACE_STYLE_ARMS.aspect}`;
+const faceStyleFixed = `min-width: ${FACE_STYLE_ARMS.floor}px; aspect-ratio: ${FACE_STYLE_ARMS.aspect}`;
+/** Each arm cited the way the tier already cites an inline style: the lines the
+ *  component writes it from, each with its text, so a reader re-checks the
+ *  citation before it trusts a number off the row. */
+const faceStyleSrc = (armLine, armIndex) => [
+  { line: FACE_STYLE_ARMS.line, text: FACE_STYLE_ARMS.raw[0] },
+  { line: armLine, text: FACE_STYLE_ARMS.raw[armIndex] },
+];
+const FACE_STYLE_SRC_FLUID = faceStyleSrc(FACE_STYLE_ARMS.fluidLine, 1);
+const FACE_STYLE_SRC_FIXED = faceStyleSrc(FACE_STYLE_ARMS.fixedLine, 2);
+
+/** One rule of `src/index.css`, found by the text its head line starts with. The
+ *  anchor is not fussiness: `@media print` restates `.deck-face[data-depth='2'] {`
+ *  indented, and an unanchored locator would find two rules and pick neither.
+ *  Only used for the declarations no element can carry. */
+const cssRuleOn = (headStart, label) => {
+  const hits = NINE_CSS_LINES.filter((l) => l.text.startsWith(headStart));
+  if (hits.length !== 1)
+    throw new Error(
+      `${NINE_CSS}: ${label} rule head — expected exactly one line starting ${headStart}, found ${hits.length}` +
+        (hits.length ? ` (the first is ${NINE_CSS}:${hits[0].n})` : ''),
+    );
+  const head = hits[0];
+  const close = NINE_CSS_LINES.findIndex((l, i) => i >= head.n && /^\}/.test(l.text));
+  if (close < 0) throw new Error(`${NINE_CSS}:${head.n}: the ${label} rule never closes`);
+  return { headLine: head.n, headRaw: head.text.trim(), lines: NINE_CSS_LINES.slice(head.n, close) };
+};
+
+/** A declaration as one part per source line the file spans it over. A drift test
+ *  re-reads each cited line and requires the cited text on it, so a declaration
+ *  prettier wrapped onto continuation lines cannot be frozen as one joined string
+ *  against its first line: the file never writes that there. A single-line
+ *  declaration is still exactly one part. */
+const cssDeclOn = (rule, prop) => {
+  const re = new RegExp(`^\\s+${prop}:`);
+  const start = rule.lines.findIndex((l) => re.test(l.text));
+  if (start < 0) throw new Error(`${NINE_CSS}:${rule.headLine}: the rule declares no \`${prop}\``);
+  let end = start;
+  while (end + 1 < rule.lines.length && !/;\s*$/.test(rule.lines[end].text)) end++;
+  return rule.lines.slice(start, end + 1).map((l) => ({ text: l.text.trim(), src: NINE_CSS, line: l.n }));
+};
+
+const FACE_BOX_EXTRA = ['aspectRatio', 'minWidth', 'cursor', 'textAlign'];
+const FACE_BADGE_PART = classOn(
+  FACE_SRC,
+  FACE_LINES,
+  'className="text-[9px] font-extrabold uppercase',
+  'the face’s own badge',
+);
+const DECK_BADGE_PART = classOn(
+  DECK_SRC,
+  DECK_LINES,
+  'className="text-[9px] font-extrabold uppercase',
+  'the deck’s FaceBadge',
+);
+const DECK_BOX_PART = classOn(DECK_SRC, DECK_LINES, 'className="deck"', 'the deck container');
+const DECK_FACE_PART = classOn(DECK_SRC, DECK_LINES, 'className="deck-face"', 'a peeking face');
+const FACE_NUMBER_BLOCK_PART = classOn(
+  FACE_SRC,
+  FACE_LINES,
+  'className="relative z-10 space-y-2"',
+  'the chip-and-number block',
+);
+const FACE_STACKS = [
+  ...FACE_TONES.names.map((tone) => ({
+    name: `face-box-${tone.slice('face-'.length)}`,
+    src: FACE_SRC,
+    tag: 'button',
+    attrs: { type: 'button' },
+    extra: FACE_BOX_EXTRA,
+    note: `the face as the deck mounts it: a <button type="button"> carrying CardFace's own class list with \`${tone}\` filled into its first hole and \`cursor-pointer\` into its second, plus the inline style the \`fluid\` branch authors. The gradient is \`.${tone}\` (src/index.css), so the engine resolves its \`color-mix(in oklab, …)\` stops into this row's backgroundImage rather than this file restating them. One reading to take carefully: the fluid arm authors \`width: 100%\`, so this box is width-driven and the \`height\` here is the mount's own width over the authored ratio at this viewport — the facts the port carries are the ratio and the padding, never this number. The class list is composed rather than quoted: \`clsResolved\` is what this (tone, interactive) pair mounts and no file writes, and \`classOf\` names the one line it is composed from — the template at ${FACE_SRC}:${FACE_CLASS_TEMPLATE.line}, holes and all, which the authored record \`face-class-list-and-style-arms\` freezes verbatim. This row cites that template instead of restating it, and generation refuses a \`clsResolved\` the template cannot produce.`,
+    parts: [
+      {
+        clsResolved: faceClass(tone, true),
+        classOf: { src: FACE_SRC, line: FACE_CLASS_TEMPLATE.line },
+        style: faceStyleFluid,
+        styleSrc: FACE_STYLE_SRC_FLUID,
+        tone,
+        toneTable: [FACE_TONES.line, FACE_TONES.endLine],
+      },
+    ],
+  })),
+  {
+    name: 'face-box-plain',
+    src: FACE_SRC,
+    extra: FACE_BOX_EXTRA,
+    note:
+      'the non-interactive arm. The tone is the prop default, the cursor hole is empty — so the class list ends ' +
+      'in the space the template leaves behind, which is what the DOM carries — and the element is a <div>, not a ' +
+      'button, so it has no UA padding, border or centred text to beat. The style is the fixed arm read with its ' +
+      '`width` unset, because that number belongs to the caller; what is left to measure is the floor. Like the ' +
+      'tone rows this box is width-driven — a <div> fills its mount, so the height is that width over the ratio ' +
+      'and the port takes the ratio and the floor from here, not a size. Like the tone rows its class list is ' +
+      'composed from the template at CardFace.tsx:59 — cited through `classOf`, never restated here — with the ' +
+      'cursor hole left empty.',
+    parts: [
+      {
+        clsResolved: faceClass(FACE_TONES.names[0], false),
+        classOf: { src: FACE_SRC, line: FACE_CLASS_TEMPLATE.line },
+        tone: FACE_TONES.names[0],
+        toneDefaultLine: lineWith(FACE_SRC, FACE_LINES, "tone = 'face-violet',", 'the default tone arm').n,
+        style: faceStyleFixed,
+        styleSrc: FACE_STYLE_SRC_FIXED,
+      },
+    ],
+  },
+  {
+    name: 'face-top-row',
+    src: FACE_SRC,
+    note: 'the first band of the face: name block on the left, badge on the right, above the sheen',
+    parts: [
+      classOn(
+        FACE_SRC,
+        FACE_LINES,
+        'className="flex items-start justify-between gap-2 relative z-10"',
+        'the face’s top row',
+      ),
+    ],
+  },
+  {
+    name: 'face-name-block',
+    src: FACE_SRC,
+    extra: ['minWidth'],
+    note: 'the block whose zero minimum width is what lets a long bank name truncate instead of push the badge out',
+    parts: [classOn(FACE_SRC, FACE_LINES, 'className="min-w-0"', 'the name block')],
+  },
+  {
+    name: 'face-bank-name',
+    src: FACE_SRC,
+    extra: ['textTransform'],
+    note:
+      'the bank line: the size and weight this class authors, uppercased by the class itself, white at a fraction ' +
+      'of full and truncated to one line. The row asks for `textTransform` because that is the only way to see the ' +
+      'capitals are painted rather than in the string the caller passes.',
+    parts: [classOn(FACE_SRC, FACE_LINES, 'className="text-[11px] font-bold uppercase', 'the bank name')],
+  },
+  {
+    name: 'face-card-name',
+    src: FACE_SRC,
+    note: 'the card line under it, a step smaller and dimmer, with the half-step gap the class authors',
+    parts: [classOn(FACE_SRC, FACE_LINES, 'className="text-[10px] text-white/55 truncate mt-0.5"', 'the card name')],
+  },
+  {
+    name: 'face-badge',
+    src: FACE_SRC,
+    extra: ['textTransform'],
+    note: 'the badge the face draws for itself when the caller passes none — the word “Card” in a hairline pill',
+    parts: [FACE_BADGE_PART],
+  },
+  {
+    name: 'face-badge-deck',
+    src: DECK_SRC,
+    extra: ['textTransform'],
+    note:
+      '`FaceBadge`, the badge the deck passes instead. Its class list is a byte-for-byte copy of the one above ' +
+      '(the app keeps the recipe in two files), so both are measured and the drift test pins them together: if one ' +
+      'is restyled and the other is not, the face and the deck stop agreeing and the port would have to choose.',
+    parts: [DECK_BADGE_PART],
+  },
+  {
+    name: 'face-amount-block',
+    src: FACE_SRC,
+    note: 'the middle band, lifted above the sheen by the same z-index every band of the face carries',
+    parts: [classOn(FACE_SRC, FACE_LINES, 'className="relative z-10"', 'the balance block')],
+  },
+  {
+    name: 'face-balance-label',
+    src: FACE_SRC,
+    extra: ['textTransform'],
+    note: 'the caption over the figure: `.eyebrow` (which authors the uppercase and the tracking) with its colour forced to white/55',
+    parts: [classOn(FACE_SRC, FACE_LINES, 'className="eyebrow !text-white/55"', 'the Balance/Owed caption')],
+  },
+  {
+    name: 'face-balance',
+    src: FACE_SRC,
+    note:
+      'the figure itself: the `.money` face from item 7 with the two utilities this class overrides on it. This is ' +
+      'the one slot on the face that cites a ported typography widget, so the port renders a string here rather ' +
+      'than formatting anything, and the row is what fixes the override as an app fact rather than a guess.',
+    parts: [classOn(FACE_SRC, FACE_LINES, 'className="money text-[19px]', 'the balance figure')],
+  },
+  {
+    name: 'face-number-block',
+    src: FACE_SRC,
+    note: 'the bottom band, and the parent of the pair `space-y-2` spaces out',
+    parts: [FACE_NUMBER_BLOCK_PART],
+  },
+  {
+    name: 'face-chip-row',
+    src: FACE_SRC,
+    wrap: FACE_NUMBER_BLOCK_PART.cls,
+    wrapPart: FACE_NUMBER_BLOCK_PART,
+    after: true,
+    note: 'the chip row as the first of the two children of `space-y-2`, with a following sibling, so the spacing rule has to answer to it',
+    parts: [classOn(FACE_SRC, FACE_LINES, 'className="flex items-center justify-between"', 'the chip row')],
+  },
+  {
+    name: 'face-card-number',
+    src: FACE_SRC,
+    wrap: FACE_NUMBER_BLOCK_PART.cls,
+    wrapPart: FACE_NUMBER_BLOCK_PART,
+    before: true,
+    extra: ['minWidth'],
+    note:
+      'the masked number as the last child of the same parent, with a preceding sibling. Which of the two rows ' +
+      'carries the margin — this one’s margin-top or the chip row’s margin-bottom — is the difference between ' +
+      '`space-y-2` meaning “after each but the last” and “before each but the first”, and the measurement says ' +
+      'which, because the emitted spec has to reproduce the gap between the chip and the number rather than a guess.',
+    parts: [classOn(FACE_SRC, FACE_LINES, 'className="mono text-[10px]', 'the masked number')],
+  },
+  {
+    name: 'face-chip',
+    src: FACE_SRC,
+    note: 'the gold chip: `.card-face-chip` is a class in src/index.css, so the box’s size, its radius and the two gradient stops of `var(--chip-gold)` over `var(--chip-gold-deep)` are all measured here rather than read off the rule text',
+    parts: [classOn(FACE_SRC, FACE_LINES, 'className="card-face-chip"', 'the gold chip')],
+  },
+  {
+    name: 'deck-box',
+    src: DECK_SRC,
+    note: 'the deck container: `role="group"` with an aria-label, sized by a height of two lips and pulled up by its own negative margin',
+    parts: [DECK_BOX_PART],
+  },
+  ...[1, 2].map((depth) => ({
+    name: `deck-face-depth-${depth}`,
+    src: DECK_SRC,
+    attrs: { 'data-depth': String(depth) },
+    extra: ['clipPath', 'transform', 'transformOrigin'],
+    wrap: DECK_BOX_PART.cls,
+    wrapPart: DECK_BOX_PART,
+    note: `a peeking face at depth ${depth}, inside the \`.deck\` the app always puts it in. The state rule is \`.deck-face[data-depth='${depth}']\` and the geometry it authors resolves \`--deck-lip\` through \`clip-path\` and \`top\`, both of which the element only gets if a \`.deck\` ancestor declares it: measured bare, those two fall back to \`none\` and \`auto\` and the row would describe a wrapper the port is not building.`,
+    parts: [DECK_FACE_PART],
+  })),
+  {
+    name: 'deck-front',
+    src: HERO_SRC,
+    note:
+      'the hero card’s own wrapper, which the hero renders only when there is a deck behind it. The class is ' +
+      'authored in a guarded ternary rather than a `className="…"`, so the part carries `guarded` and the row is ' +
+      'measured without it — the wrapper exists or it does not.',
+    parts: [classOn(HERO_SRC, HERO_LINES, "'deck-front'", 'the hero card’s deck-front wrapper')],
+  },
+  {
+    name: 'action-key-grid',
+    src: HERO_SRC,
+    extra: ['gridTemplateColumns'],
+    note:
+      'the keys’ parent: the column count is authored as a class and the gap as a responsive pair, so this is the ' +
+      'one row on the family whose measurement differs between the four passes. `gridTemplateColumns` is asked for ' +
+      'because equal tracks, not a flex row, is what the port has to reproduce at either width.',
+    parts: [classOn(HERO_SRC, HERO_LINES, 'className="grid grid-cols-3 gap-2', 'the three keys’ grid')],
+  },
+  {
+    name: 'action-key',
+    src: HERO_SRC,
+    tag: 'button',
+    attrs: { type: 'button' },
+    extra: ['minWidth', 'cursor', 'transform'],
+    note:
+      'the key at rest: a <button type="button"> whose `min-w-0` is what lets a long label shrink inside one ' +
+      'column of the grid. Fill, display face, radius, the asymmetric padding and the inner gap are all measured ' +
+      'against the UA box, and the notch the rule masks out of its top edge is not (see `action-key-notch-mask`).',
+    parts: [classOn(HERO_SRC, HERO_LINES, 'className="action-key min-w-0"', 'an action key')],
+  },
+  {
+    name: 'action-key-disabled',
+    src: HERO_SRC,
+    tag: 'button',
+    attrs: { type: 'button', disabled: '' },
+    extra: ['minWidth', 'cursor', 'transform'],
+    note:
+      'the same element with `disabled` set, which is the only state of a key a detached element can be put in. ' +
+      'It is recorded because the app never writes it: `ActionKey` takes `onClick` as optional and passes it ' +
+      'straight through, so a key with no handler stays at full opacity and simply does nothing when tapped — the ' +
+      'port must not dim it. The measured answer is what the rule would paint if a caller ever disabled one.',
+    parts: [classOn(HERO_SRC, HERO_LINES, 'className="action-key min-w-0"', 'an action key')],
+  },
+  {
+    name: 'action-key-icon',
+    src: HERO_SRC,
+    note: 'the glyph box: `display: block` with `line-height: 0`, which is what stops the inline box of an SVG from adding leading under the icon',
+    parts: [classOn(HERO_SRC, HERO_LINES, 'className="action-key-icon"', 'the key’s glyph box')],
+  },
+  {
+    name: 'action-key-label',
+    src: HERO_SRC,
+    note: 'the word under the glyph: 10px, no leading, never wrapped',
+    parts: [classOn(HERO_SRC, HERO_LINES, 'className="text-[10px] leading-none whitespace-nowrap"', 'the key’s label')],
+  },
+];
+const ALL_STACKS = [...UTILITY_STACKS, ...MODAL_STACKS, ...LEDGER_STACKS, ...FACE_STACKS];
+for (const stack of ALL_STACKS) {
+  if (stack.wrapPart && stack.wrapPart.cls !== stack.wrap) {
+    throw new Error(
+      `${stack.name}: the wrapper is "${stack.wrap}" but the row cites "${stack.wrapPart.cls}" at ${stack.wrapPart.src || stack.src}:${stack.wrapPart.line}`,
+    );
+  }
+}
 const AUTHORED_NON_CSS = [
   {
     name: 'toast-auto-dismiss',
@@ -1151,7 +1606,312 @@ const LEDGER_AUTHORED = [
     ],
   },
 ];
-const ALL_AUTHORED = [...AUTHORED_NON_CSS, ...MODAL_AUTHORED, ...LEDGER_AUTHORED];
+/** Item 9's authored half: everything on this family that no detached element can
+ *  carry, and the JS that decides what the measured rows look like. Every line here
+ *  is read out of the pinned source — `rawAt` and `cssDeclOn` fail if the line they
+ *  cite no longer says what this record says it says — because a number copied from
+ *  a file into a spec and then into Dart is a number nobody can trust. */
+const rawAt = (lines, n, label) => {
+  const hit = lines[n - 1];
+  if (!hit) throw new Error(`no line ${n}`);
+  if (!label) return hit.text.trim();
+  if (!hit.text.includes(label)) throw new Error(`line ${n} no longer reads "${label}" — it is "${hit.text.trim()}"`);
+  return hit.text.trim();
+};
+/** One verbatim line of a component, as an authored part. The needle only locates
+ *  the line; what the record says is what the file says. */
+const jsPart = (rel, lines, needle, label) => {
+  const hit = lineWith(rel, lines, needle, label);
+  return { text: hit.text.trim(), line: hit.n };
+};
+/* A part quoted from a file other than the record’s own — the shape every
+ *  authored row has used since the modal family, where one record holds the
+ *  two call sites that disagree. */
+const jsPartFrom = (rel, lines, needle, label) => ({ ...jsPart(rel, lines, needle, label), src: rel });
+const FACE_KEY_RULE = cssRuleOn('.action-key {', 'the action key');
+const FACE_KEY_HOVER = cssRuleOn('.action-key:hover {', 'the action key hover');
+const FACE_KEY_ACTIVE = cssRuleOn('.action-key:active {', 'the action key press');
+const FACE_KEY_OFF = cssRuleOn('.action-key[disabled] {', 'the disabled action key');
+const FACE_SHEEN_RULE = cssRuleOn('.card-face::before {', 'the face sheen');
+const FACE_CHIP_RING = cssRuleOn('.card-face-chip::after {', 'the chip ring');
+const DECK_LIP_RULE = cssRuleOn('.deck {', 'the deck');
+const DECK_FACE_RULE = cssRuleOn('.deck-face {', 'a peeking face');
+const DECK_D2_RULE = cssRuleOn(".deck-face[data-depth='2'] {", 'the far peeking face');
+const DECK_D1_RULE = cssRuleOn(".deck-face[data-depth='1'] {", 'the near peeking face');
+
+const FACE_AUTHORED = [
+  {
+    name: 'face-tone-table-and-hash',
+    src: FACE_SRC,
+    tier: 'authored-js',
+    note:
+      `which of the ${FACE_TONES.names.length} gradients a wallet gets is not a fact about the wallet: ` +
+      '`faceToneForSeed` hashes the id ' +
+      'with the same `(h * 31 + charCodeAt) >>> 0` law `CategoryChip` uses for its tint, and takes the remainder ' +
+      'over the table. The table and the union that types it are two lists in one file, and the capture refuses ' +
+      'to run if they no longer name the same tones in the same order — the port has one list, so a drift there ' +
+      'is a decision the web app has to make, not one the port gets to invent.',
+    parts: [
+      { text: FACE_TONES.unionRaw, line: FACE_TONES.unionLine },
+      { text: rawAt(FACE_LINES, FACE_TONES.line), line: FACE_TONES.line },
+      { text: rawAt(FACE_LINES, FACE_TONES.line + 1), line: FACE_TONES.line + 1 },
+      { text: rawAt(FACE_LINES, FACE_TONES.endLine - 1), line: FACE_TONES.endLine - 1 },
+      { text: rawAt(FACE_LINES, FACE_TONES.endLine), line: FACE_TONES.endLine },
+      ...FACE_TONE_HASH.body.map((text, i) => ({ text, line: FACE_TONE_HASH.bodyLines[i] })),
+    ],
+  },
+  {
+    name: 'face-class-list-and-style-arms',
+    src: FACE_SRC,
+    tier: 'authored-js',
+    note:
+      `the two strings the face box is built from. \`aspectRatio: ${FACE_STYLE_ARMS.aspect}\` and the ` +
+      `${FACE_STYLE_ARMS.floor} floor exist in no stylesheet: they are authored in the component and written to ` +
+      `the element as an inline style, so the measurement in \`face-box-*\` is of a value this file had to hand ` +
+      `to the engine. That ratio is the shape of a card, and the capture reads it from both arms and throws if ` +
+      `they ever disagree — the fluid arm exists so a face survives a 320px hero, and it would be a strange ` +
+      `card that changed proportions when it did.`,
+    parts: [
+      { text: FACE_CLASS_TEMPLATE.raw, line: FACE_CLASS_TEMPLATE.line },
+      ...FACE_STYLE_ARMS.raw.map((text, i) => ({ text, line: FACE_STYLE_ARMS.line + i })),
+    ],
+  },
+  {
+    name: 'face-default-arms',
+    src: FACE_SRC,
+    tier: 'authored-js',
+    note:
+      'the prop defaults the widget has to carry over: violet when no tone is given, not fluid, not owed, and a ' +
+      'caption that says Owed for a liability and Balance otherwise.',
+    parts: [
+      jsPart(FACE_SRC, FACE_LINES, "tone = 'face-violet',", 'the default tone arm'),
+      jsPart(FACE_SRC, FACE_LINES, 'fluid = false,', 'the default fluid arm'),
+      jsPart(FACE_SRC, FACE_LINES, 'owed = false,', 'the default owed arm'),
+      jsPart(FACE_SRC, FACE_LINES, '{balanceLabel ?? (owed ?', 'the caption’s default expression'),
+    ],
+  },
+  {
+    name: 'face-money-call',
+    src: FACE_SRC,
+    tier: 'authored-js',
+    note:
+      'the face’s only formatting call: `maxFractionDigits: 0`, on the currency the caller passes. Item 7’s law ' +
+      'says the ported widget formats nothing itself, so what travels is this options object plus a string from ' +
+      'the already-ported money formatter — and the app’s own test expects `Rs.38,420` for a 38,420 liability and ' +
+      '`Rs.1,235` for 1234.56, which is the rounding the options buy.',
+    parts: [
+      jsPart(
+        FACE_SRC,
+        FACE_LINES,
+        'formatMoney(currency, balance, { maxFractionDigits: 0 })',
+        'the face’s only formatting call',
+      ),
+    ],
+  },
+  {
+    name: 'face-owed-changes-the-label-only',
+    src: FACE_SRC,
+    tier: 'authored-inline',
+    note:
+      'a finding, recorded as the app paints rather than as the comment describes. `CardFace` says a liability ' +
+      "“reads 'Owed' in danger ink”, and it does the first half: `owed` decides the caption and nothing else, " +
+      'while the figure’s class authors `text-white` unconditionally. Danger ink for a negative balance lives on ' +
+      'the hero headline instead, where the numeral class really does swap to `var(--danger)`. The face is ' +
+      'therefore ported with one colour for both states, and `face-balance` above is the measurement that says so.',
+    parts: [
+      jsPart(
+        FACE_SRC,
+        FACE_LINES,
+        '/** A liability: the number is what is owed',
+        'the comment that promises danger ink',
+      ),
+      jsPart(FACE_SRC, FACE_LINES, 'className="money text-[19px]', 'the figure’s unconditional white'),
+      jsPartFrom(HERO_SRC, HERO_LINES, 'numeral numeral-hero', 'the headline numeral class'),
+    ],
+  },
+  {
+    name: 'face-badge-recipe-is-copied',
+    src: FACE_SRC,
+    tier: 'authored-inline',
+    note:
+      'the pill one file draws for itself and the other file draws for it, both quoted here at their own lines. ' +
+      'They are byte-identical at capture; the two rows `face-badge` and `face-badge-deck` measure the same box ' +
+      'twice on purpose, and the drift test pins the equality, because a port with one badge recipe cannot ' +
+      'follow two that have diverged.',
+    parts: [
+      { text: rawAt(FACE_LINES, FACE_BADGE_PART.line), line: FACE_BADGE_PART.line },
+      { text: rawAt(DECK_LINES, DECK_BADGE_PART.line), src: DECK_SRC, line: DECK_BADGE_PART.line },
+    ],
+  },
+  {
+    name: 'face-badge-labels',
+    src: DECK_SRC,
+    tier: 'authored-js',
+    note:
+      'what goes inside a badge is decided by the wallet, not by the badge: frozen beats locked, locked beats the ' +
+      'kind, and the kind words are one shared table. The face’s own fallback is the word “Card”.',
+    parts: [
+      jsPart(DECK_SRC, DECK_LINES, 'const label = wallet.frozen', 'the badge’s precedence'),
+      jsPart(DECK_SRC, DECK_LINES, 'export const KIND_LABEL: Record<', 'the shared kind table'),
+      jsPart(DECK_SRC, DECK_LINES, '  cash: ', 'the cash row of that table'),
+      jsPart(DECK_SRC, DECK_LINES, '  credit: ', 'the credit row of that table'),
+      jsPartFrom(FACE_SRC, FACE_LINES, '            Card', 'the face’s own fallback word'),
+    ],
+  },
+  {
+    name: 'face-card-number-masking',
+    src: FACE_SRC,
+    tier: 'authored-js',
+    note:
+      'the masked last four. Stripping is `\\D`-based, the group separators are four `•` blocks with spaces, and a ' +
+      'number with fewer than four digits becomes `0000` — while a wallet with no card number at all renders no ' +
+      'line, which is the other half of the rule (`face-card-number` measures the line that does exist). The bullet ' +
+      'is U+2022 in the source, not an ellipsis and not an em dash.',
+    parts: [
+      jsPart(FACE_SRC, FACE_LINES, 'export function maskCardNumber(', 'the masker’s opening'),
+      jsPart(FACE_SRC, FACE_LINES, 'const digits = (cardNumber || ', 'the digit strip'),
+      jsPart(FACE_SRC, FACE_LINES, 'if (digits.length >= 4)', 'the four-digit test'),
+      jsPart(FACE_SRC, FACE_LINES, "return '•••• •••• •••• 0000';", 'the short-number fallback'),
+    ],
+  },
+  {
+    name: 'card-face-sheen-is-a-pseudo-layer',
+    src: NINE_CSS,
+    tier: 'authored-inline',
+    note:
+      'every face carries two gradient layers it does not author: a highlight at the top-right and a 115-degree ' +
+      'stripe every 36px, both in white at a fraction of itself. They live on `.card-face::before`, and a ' +
+      'detached element has no pseudo-element to measure, so this is the one part of the face the probe cannot ' +
+      'see and the port has to paint from the rule. The colours are literal rgba, not mixed, so nothing here ' +
+      'needs an engine — and the highlight’s own geometry lives in the `background` declaration below, which is ' +
+      'why that one line is carried whole rather than summarised.',
+    parts: [
+      { text: rawAt(NINE_CSS_LINES, FACE_SHEEN_RULE.headLine), line: FACE_SHEEN_RULE.headLine },
+      ...cssDeclOn(FACE_SHEEN_RULE, 'content'),
+      ...cssDeclOn(FACE_SHEEN_RULE, 'inset'),
+      ...cssDeclOn(FACE_SHEEN_RULE, 'background'),
+      ...cssDeclOn(FACE_SHEEN_RULE, 'pointer-events'),
+    ],
+  },
+  {
+    name: 'card-face-chip-ring-is-a-pseudo-layer',
+    src: NINE_CSS,
+    tier: 'authored-inline',
+    note:
+      'the chip has a second box inside it, drawn as a border on `::after` — so the gold face measured by ' +
+      '`face-chip` is one of the two layers and this record is the other. The inset and the border are the whole ' +
+      'recipe, and the ring colour is a black over whatever the tone is rather than a token of its own, which is ' +
+      'why the port needs it as authored numbers instead of as a colour from the theme.',
+    parts: [
+      { text: rawAt(NINE_CSS_LINES, FACE_CHIP_RING.headLine), line: FACE_CHIP_RING.headLine },
+      ...cssDeclOn(FACE_CHIP_RING, 'inset'),
+      ...cssDeclOn(FACE_CHIP_RING, 'border'),
+      ...cssDeclOn(FACE_CHIP_RING, 'border-radius'),
+    ],
+  },
+  {
+    name: 'action-key-notch-mask',
+    src: NINE_CSS,
+    tier: 'authored-inline',
+    note:
+      'the key is not a rounded rectangle: its rule masks an ellipse out of its own top edge, sized by two custom ' +
+      'properties declared in the same rule and cut by a radial gradient whose stop pair decides where the notch ' +
+      'hardens. Both the prefixed and the plain property are authored, because the app ships both. No probe row ' +
+      'measures a mask, so the geometry is carried here as the file writes it, and `action-key` above is what the ' +
+      'masked box still measures — padding, radius, fill and glyph box included.',
+    parts: [
+      { text: rawAt(NINE_CSS_LINES, FACE_KEY_RULE.headLine), line: FACE_KEY_RULE.headLine },
+      ...cssDeclOn(FACE_KEY_RULE, '--key-notch-w'),
+      ...cssDeclOn(FACE_KEY_RULE, '--key-notch-h'),
+      ...cssDeclOn(FACE_KEY_RULE, '-webkit-mask'),
+      ...cssDeclOn(FACE_KEY_RULE, 'mask'),
+    ],
+  },
+  {
+    name: 'action-key-states',
+    src: NINE_CSS,
+    tier: 'authored-inline',
+    note:
+      'the three states a key can be in, only one of which a detached element can be put in. `:active` squeezes ' +
+      'the box, `:hover` dims it with a filter, and `disabled` fades it while taking the squeeze away — each of ' +
+      'those three is one declaration below, at the line the rule opens on. D-U1 drops hover; ' +
+      '`action-key-disabled` measures the disabled arm; the press scale has no state a probe can be placed in, so ' +
+      'it travels as this line of CSS, which is the same route the ledger’s press took.',
+    parts: [
+      { text: rawAt(NINE_CSS_LINES, FACE_KEY_ACTIVE.headLine), line: FACE_KEY_ACTIVE.headLine },
+      ...cssDeclOn(FACE_KEY_ACTIVE, 'transform'),
+      { text: rawAt(NINE_CSS_LINES, FACE_KEY_HOVER.headLine), line: FACE_KEY_HOVER.headLine },
+      ...cssDeclOn(FACE_KEY_HOVER, 'filter'),
+      { text: rawAt(NINE_CSS_LINES, FACE_KEY_OFF.headLine), line: FACE_KEY_OFF.headLine },
+      ...cssDeclOn(FACE_KEY_OFF, 'opacity'),
+      ...cssDeclOn(FACE_KEY_OFF, 'cursor'),
+      ...cssDeclOn(FACE_KEY_OFF, 'transform'),
+    ],
+  },
+  {
+    name: 'action-key-glyph',
+    src: HERO_SRC,
+    tier: 'authored-js',
+    note:
+      'the icon a key is given, and the props that decide whether the key does anything. The size is the SVG box ' +
+      'and lands in `action-key-icon`’s measurement as a fact of the layout; the stroke weight is a lucide prop ' +
+      'with no Flutter equivalent, the same limit recorded for the chip’s glyph. `onClick` is optional, which is ' +
+      'what the disabled row is testing for.',
+    parts: [
+      jsPart(HERO_SRC, HERO_LINES, '<Icon size={19} strokeWidth={2.1} />', 'the glyph and its box'),
+      jsPart(HERO_SRC, HERO_LINES, 'function ActionKey(', 'the key component'),
+      jsPart(HERO_SRC, HERO_LINES, 'onClick?: () => void;', 'the optional handler'),
+    ],
+  },
+  {
+    name: 'deck-peer-budget',
+    src: DECK_SRC,
+    tier: 'authored-js',
+    note:
+      'how many faces peek, and which. A single wallet has no deck at all; two peers is the whole budget, nearest ' +
+      'first in the data and farthest first in the DOM, because the CSS stacks what comes later on top; the ' +
+      'selected wallet is rotated into the nearest slot rather than removed from the list. The figure handed to a ' +
+      'face is `Math.abs` with the sign carried as `owed`, which is the same no-negative-money rule the hero ' +
+      'headline follows.',
+    parts: [
+      jsPart(DECK_SRC, DECK_LINES, 'if (wallets.length < 2) return null;', 'no deck for a single wallet'),
+      jsPart(DECK_SRC, DECK_LINES, 'const ordered = selected > 0', 'the rotation that puts the pick first'),
+      jsPart(DECK_SRC, DECK_LINES, 'const peers = [ordered[0], ordered[1]]', 'the two-face budget'),
+      jsPart(DECK_SRC, DECK_LINES, 'depth: index === 0 ? 1 : 2,', 'which peer is near and which is far'),
+      jsPart(DECK_SRC, DECK_LINES, '.slice()', 'the copy the reverse is taken on'),
+      jsPart(DECK_SRC, DECK_LINES, '.reverse()', 'the DOM order the CSS stacks on'),
+      jsPart(DECK_SRC, DECK_LINES, 'balance={Math.abs(wallet.amount)}', 'the unsigned figure'),
+      jsPart(DECK_SRC, DECK_LINES, 'owed={wallet.amount < 0}', 'the sign, carried separately'),
+      jsPart(DECK_SRC, DECK_LINES, 'tone={faceToneForSeed(wallet.id)}', 'the hashed tone'),
+    ],
+  },
+  {
+    name: 'deck-lip-is-a-custom-property',
+    src: NINE_CSS,
+    tier: 'authored-inline',
+    note:
+      'the deck’s size is one custom property and one declaration, and everything else about it resolves against ' +
+      'that var: the container is two lips tall, the near face starts one lip down, and each face is clipped to ' +
+      'the top lip of its own box. It is authored rather than measured because it is a definition, not a ' +
+      'result — the two `deck-face-depth-*` rows already carry what Chrome makes of it, and the wrapper they are ' +
+      'measured inside exists so that this var has something to resolve from.',
+    parts: [
+      { text: rawAt(NINE_CSS_LINES, DECK_LIP_RULE.headLine), line: DECK_LIP_RULE.headLine },
+      ...cssDeclOn(DECK_LIP_RULE, '--deck-lip'),
+      ...cssDeclOn(DECK_LIP_RULE, 'height'),
+      ...cssDeclOn(DECK_LIP_RULE, 'margin'),
+      ...cssDeclOn(DECK_FACE_RULE, 'clip-path'),
+      ...cssDeclOn(DECK_FACE_RULE, 'transform-origin'),
+      ...cssDeclOn(DECK_D1_RULE, 'top'),
+      ...cssDeclOn(DECK_D1_RULE, 'transform'),
+      ...cssDeclOn(DECK_D1_RULE, 'opacity'),
+      ...cssDeclOn(DECK_D2_RULE, 'top'),
+      ...cssDeclOn(DECK_D2_RULE, 'transform'),
+      ...cssDeclOn(DECK_D2_RULE, 'opacity'),
+    ],
+  },
+];
+const ALL_AUTHORED = [...AUTHORED_NON_CSS, ...MODAL_AUTHORED, ...LEDGER_AUTHORED, ...FACE_AUTHORED];
 
 const PROBE_PAGE = (selectors, utilities, stacks) => {
   const cv = document.createElement('canvas');
@@ -1410,7 +2170,15 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
    *  unknown name is a programming error, so it throws rather than recording
    *  "undefined" as a measurement. `borderTopStyle` is the one that proves
    *  `border-dashed` painted at all — a width alone would be read the same for a
-   *  solid hairline. */
+   *  solid hairline.
+   * Item 9 grows the same whitelist by five names, all of them load-bearing for
+   *  the card faces: `aspectRatio` is what makes the face a card rather than a
+   *  band (and the authored `1.586` is the number the port has to match at every
+   *  width), `clipPath`/`transform`/`transformOrigin` are how the deck's two
+   *  back faces are pushed out of the way, and `gridTemplateColumns` is the
+   *  action-key row's count. Whitelisting is safe for the frozen rows: an extra
+   *  a row does not ask for never appears in its `props`, so nothing captured
+   *  before item 9 can shift. */
   const STACK_EXTRA_PROPS = [
     'borderBottomColor',
     'borderTopStyle',
@@ -1419,6 +2187,11 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
     'minWidth',
     'flexWrap',
     'cursor',
+    'aspectRatio',
+    'clipPath',
+    'transform',
+    'transformOrigin',
+    'gridTemplateColumns',
   ];
 
   /** The stack tier's wider read. Same engine, more properties: a utility stack
@@ -1600,7 +2373,7 @@ const PROBE_PAGE = (selectors, utilities, stacks) => {
     const tag = stack.tag || 'div';
     const el = document.createElement(tag);
     el.className = stack.parts
-      .map((p) => p.cls)
+      .map((p) => p.clsResolved ?? p.cls)
       .filter(Boolean)
       .join(' ');
     // The inline styles a component writes in `style={{…}}` go on the probe
@@ -1674,7 +2447,14 @@ const STACKS_NOTE =
   'carries an inline `color-mix(in oklab, …)` authored in JS, which the engine has to resolve just ' +
   'like one authored in CSS, and `wrap`/`before`/`after` give an element the siblings its rule ' +
   'answers to, because `divide-y` paints the children of a dividing parent and ' +
-  '`[&:last-child]:border-b-0` only matches the last of them.';
+  '`[&:last-child]:border-b-0` only matches the last of them. Item 9 (the card faces and the action ' +
+  'keys) takes the class lists out of the component files instead of retyping them here: a `face-box-*` ' +
+  'row is measured from the very template `CardFace` writes with only its tone and cursor holes filled, ' +
+  'and a row measured inside a parent cites that parent through `wrapPart`, which an invariant below ' +
+  'the rows checks — `.deck-face` cannot be read bare, because its clip and its offset resolve against ' +
+  'a custom property the `.deck` wrapper declares. What no detached element carries stays in ' +
+  'authoredNonCss rather than pretending to be a measurement: the pseudo-element layers, the mask cut ' +
+  'out of an action key, and the `:hover`/`:active` states.';
 
 /** The Tailwind that generated the stylesheet the stacks resolve against. */
 const tailwindVersion = () =>

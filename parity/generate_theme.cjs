@@ -7170,13 +7170,20 @@ if (txHoverToken !== '--surface-2') fail(`.tx-row:hover paints ${txHoverToken}, 
  *  so a drift test can re-check the pair rather than one half of it. */
 const rowsCite = (rec) => {
   const byFile = new Map();
+  const cite = (file, line) => {
+    if (line === undefined) return;
+    const set = byFile.get(file) || [];
+    if (!set.includes(line)) set.push(line);
+    byFile.set(file, set);
+  };
   for (const p of rec.parts || []) {
     const file = p.src || rec.src || US.source;
-    const set = byFile.get(file) || [];
     for (const l of [p.line, p.styleSrcLine, p.toneVarLine, ...(p.styleSrc || []).map((s) => s.line)]) {
-      if (l !== undefined && !set.includes(l)) set.push(l);
+      cite(file, l);
     }
-    byFile.set(file, set);
+    // A composed class list still names the line it was composed from, so a reader
+    // of the citation lands on the template rather than on nothing.
+    if (p.classOf !== undefined) cite(p.classOf.src || file, p.classOf.line);
   }
   return [...byFile].map(([file, lines]) => `${file}:${lines.sort((a, b) => a - b).join(',')}`).join(' + ');
 };
@@ -9194,6 +9201,3727 @@ L.push(
 );
 finish('app_rows.dart');
 
+// ================================================================ app_faces.dart
+//
+// Item 9: the card face, the wallet deck its peers peek out of, and the three
+// action keys under the hero balance. The family is measured as utility stacks
+// (`parity/ui-tokens.cjs` §`face-*`/`deck-*`/`action-key-*`), so — exactly as for
+// the ledger — every number below is read out of a re-checked record or out of the
+// pinned stylesheet, and nothing is typed. Two facts the record already warns
+// about are enforced here rather than remembered: the face box is *width-driven*
+// (its measured `height` is the mount's own width over the authored ratio, so only
+// the ratio is ported), and the deck's geometry only exists inside a `.deck`
+// ancestor (which is why those rows were measured wrapped).
+//
+// Where another emitted family already owns a fact — `.card-face`'s radius and
+// shadow tokens, the gold chip, the `.money` face — this file cross-checks the
+// measurement against that owner and cites it, instead of restating it.
+
+// ---------------------------------------------------------------- citations
+const FACE_TSX = readTsx('components', 'ui', 'CardFace.tsx');
+const DECK_TSX = readTsx('components', 'dashboard', 'WalletDeck.tsx');
+const HERO_TSX = readTsx('components', 'dashboard', 'DashboardHero.tsx');
+const FACE_FILES = {
+  'src/components/ui/CardFace.tsx': FACE_TSX,
+  'src/components/dashboard/WalletDeck.tsx': DECK_TSX,
+  'src/components/dashboard/DashboardHero.tsx': HERO_TSX,
+};
+
+/** `rowsCite` plus the prop-default line the non-interactive arm leans on, so a doc
+ *  comment cites every source line the record carries. */
+const faceCite = (rec) => {
+  const defaults = (rec.parts || []).map((p) => p.toneDefaultLine).filter((l) => l !== undefined);
+  const base = rowsCite(rec);
+  return defaults.length ? `${base} + ${rec.src || US.source}:${defaults.join(',')}` : base;
+};
+
+/**
+ * The inline style a face-box row cites, re-composed from the arm it names rather
+ * than read back out of the measured string. `CardFace.tsx` authors the box's
+ * `width`, `min-width` and `aspect-ratio` in a ternary, so those numbers are app
+ * code first and a measurement second: the arm line has to still say what the
+ * record says it said, and what the browser resolved has to be exactly what that
+ * line composes to. A bare `width,` contributes nothing here — the caller owns it.
+ */
+const faceInlineStyle = (p, name) => {
+  const src = p.styleSrc;
+  if (!Array.isArray(src) || src.length !== 2) {
+    fail(`${name}: the inline style needs the "const style = fluid" line plus one arm, got ${JSON.stringify(src)}`);
+  }
+  if (!src.some((s) => s.text === 'const style = fluid')) {
+    fail(`${name}: the style is not authored as \`const style = fluid\``);
+  }
+  const fluid = src.some((s) => /^\?\s*\{/.test(s.text));
+  const fixed = src.some((s) => /^:\s*\{/.test(s.text));
+  if (fluid === fixed) fail(`${name}: the style arms are not exactly one of \`?\` and \`:\``);
+  const armLine = src.find((s) => (fluid ? /^\?\s*\{/ : /^:\s*\{/).test(s.text));
+  const arm = armLine.text;
+  const full = /width:\s*'([^']+)'/.exec(arm);
+  const bare = /\{\s*width\s*,/.test(arm);
+  const floor = /minWidth:\s*(\d+)/.exec(arm);
+  const fallback = /minWidth:\s*width\s*\?\?\s*([\d.]+)/.exec(arm);
+  const ratio = /aspectRatio:\s*'([\d.]+)'/.exec(arm);
+  if (!ratio) fail(`${name}: the cited style arm "${arm}" authors no aspect ratio`);
+  if (full && fallback) fail(`${name}: the cited style arm "${arm}" sets min-width twice`);
+  if (bare && full) fail(`${name}: the cited style arm "${arm}" sets width twice`);
+  const parts = [];
+  if (full) parts.push(`width: ${full[1]}`);
+  if (floor) parts.push(`min-width: ${floor[1]}px`);
+  if (fallback) parts.push(`min-width: ${fallback[1]}px`);
+  parts.push(`aspect-ratio: ${ratio[1]}`);
+  const composed = parts.join('; ');
+  if (composed !== p.style) {
+    fail(`${name}: the cited arm composes to "${composed}", the record measured "${p.style}"`);
+  }
+  return {
+    fluid,
+    widthFull: full ? full[1] : null,
+    callerOwnsWidth: bare,
+    minWidthPx: floor ? parseFloat(floor[1]) : fallback ? parseFloat(fallback[1]) : null,
+    aspectRatio: parseFloat(ratio[1]),
+    armLine: armLine.line,
+  };
+};
+
+/** The measured `aspect-ratio` is Chrome's resolved `W / 1`; the port wants the
+ *  authored single number, and the two only agree when the ratio is exact. */
+const faceAspectRatio = (brightness, name, authored) => {
+  const raw = stkRaw(brightness, name, 'aspectRatio');
+  const m = /^([\d.]+)\s*\/\s*([\d.]+)$/.exec(raw);
+  if (!m) fail(`${name}: aspect-ratio "${raw}" is not the resolved "W / H" Chrome prints`);
+  const [w, h] = [parseFloat(m[1]), parseFloat(m[2])];
+  if (h !== 1 || w !== authored) {
+    fail(`${name}: aspect-ratio resolves to ${w}/${h}, but the cited style arm authors '${authored}'`);
+  }
+  return w;
+};
+
+/** One row of the family, with everything the record cites proven against the
+ *  pinned source before a measurement is taken from it: the class list (or the
+ *  guarded ternary that writes it), the template its holes are filled from, the
+ *  `FACE_TONES` array that lists its tone, the prop default the plain arm leans on
+ *  and the inline style arm it measured. */
+const faceChecked = (name) => {
+  const rec = usRow(name);
+  const file = rec.src || US.source;
+  const lines = FACE_FILES[file];
+  if (!lines) fail(`${name}: the face family cites ${file}, which app_faces.dart has no pinned source to check`);
+  if (rec.tag !== undefined && rec.tag !== 'div' && rec.tag !== 'button') {
+    fail(`${name}: recorded on a <${rec.tag}>, and this family ports boxes and buttons only`);
+  }
+  for (const p of rec.parts) {
+    if (p.classOf !== undefined) {
+      // The box composes its class list from one template, so the record cites the
+      // line that template lives on and carries the list it composes as
+      // `clsResolved`. Nothing here is a frozen fragment: the template is read off
+      // the pinned source, both of its arms are re-derived, and the authored record
+      // has to freeze this very line, or the citation points at text no test checks.
+      if (p.cls !== undefined) fail(`${name}: a composed class list cannot also cite one verbatim`);
+      if (typeof p.clsResolved !== 'string') fail(`${name}: cites a template it composes no class list from`);
+      const of = p.classOf;
+      const ofFile = of.src || file;
+      const ofLines = FACE_FILES[ofFile];
+      if (!ofLines) fail(`${name}: classOf points at ${ofFile}, which app_faces.dart has no pinned source for`);
+      if (of.line === undefined) fail(`${name}: classOf names ${ofFile} without a line`);
+      const raw = ofLines[of.line - 1];
+      if (raw === undefined) fail(`${name}: ${ofFile} has no line ${of.line} for the class list`);
+      const authored = raw.trim();
+      const HEAD = 'const className = ';
+      const QUOTE = String.fromCharCode(96);
+      if (!authored.startsWith(HEAD + QUOTE) || !authored.endsWith(QUOTE + ';')) {
+        fail(`${name}: ${ofFile}:${of.line} is not the class-list template: "${authored}"`);
+      }
+      const body = authored.slice(HEAD.length + 1, authored.length - 2);
+      if (body.includes(QUOTE)) fail(`${name}: ${ofFile}:${of.line} holds more than one template literal`);
+      const frozen = US.authoredNonCss.flatMap((e) =>
+        (e.parts || []).filter((q) => (q.src || e.src || US.source) === ofFile && q.line === of.line),
+      );
+      if (frozen.length !== 1) {
+        fail(
+          `${name}: the template it composes from at ${ofFile}:${of.line} is frozen by ` +
+            `${frozen.length} authored records, and the port reads those`,
+        );
+      }
+      if (frozen[0].text !== authored) {
+        fail(`${name}: ${ofFile}:${of.line} reads "${authored}", the record freezes "${frozen[0].text}"`);
+      }
+      const slots = body.split(/(\$\{[^{}]*\})/g);
+      const holes = slots.filter((s) => s.startsWith('${'));
+      const texts = slots.filter((s) => !s.startsWith('${'));
+      if (holes.length !== 2 || texts.length !== 3) {
+        fail(`${name}: ${ofFile}:${of.line} should hold two holes and three literal segments`);
+      }
+      if (holes[0] !== '${tone}')
+        fail(`${name}: the first hole of ${ofFile}:${of.line} is not the tone: "${holes[0]}"`);
+      const cursor = /^\$\{onClick \? '([^']+)' : ''\}$/.exec(holes[1]);
+      if (!cursor) {
+        fail(`${name}: the second hole of ${ofFile}:${of.line} is not the pointer-cursor ternary: "${holes[1]}"`);
+      }
+      if (p.tone === undefined) fail(`${name}: the class template fills a tone the record does not name`);
+      const compose = (cursorCls) => texts.map((t, i) => t + (i === 0 ? p.tone : i === 1 ? cursorCls : '')).join('');
+      if (![compose(cursor[1]), compose('')].includes(p.clsResolved)) {
+        fail(`${name}: "${p.clsResolved}" is neither arm of ${ofFile}:${of.line}`);
+      }
+      if (p.toneTable) {
+        const [first, last] = p.toneTable;
+        tsxLine(ofLines, ofFile, first, 'const FACE_TONES: CardFaceTone[] = [');
+        tsxLine(ofLines, ofFile, last, '];');
+      }
+      if (p.toneDefaultLine !== undefined) {
+        tsxLine(ofLines, ofFile, p.toneDefaultLine, `tone = '${p.tone}'`);
+      }
+      if (p.style !== undefined) faceInlineStyle(p, name);
+      continue;
+    }
+    if (p.cls === undefined) fail(`${name}: a cited part carries no class list`);
+    if (p.guarded) {
+      if (rec.parts.length !== 1) fail(`${name}: a guarded class list cannot share a row with another part`);
+      tsxLine(lines, file, p.line, `'${p.cls}'`);
+      continue;
+    }
+    tsxLine(lines, file, p.line, `className="${p.cls}"`);
+  }
+  return rec;
+};
+
+// ---------------------------------------------------------------- tones
+/** The tones in the order `FACE_TONES` lists them, taken from the records rather
+ *  than typed: a row is only a tone row if it fills the template's tone hole and
+ *  cites the array. The array in the source then has to list exactly the tones the
+ *  records measured, in that order. */
+const faceToneRows = (() => {
+  const out = [];
+  for (const r of US.rows) {
+    if (!/^face-box-/.test(r.name)) continue;
+    const p = r.parts.find((x) => x.toneTable);
+    if (!p) continue;
+    if (r.name !== `face-box-${p.tone.replace(/^face-/, '')}`) {
+      fail(`${r.name}: its tone is ${p.tone}, which the row name does not carry`);
+    }
+    if (out.some((x) => x.tone === p.tone)) fail(`${p.tone}: two face-box rows claim one tone`);
+    out.push({ name: r.name, tone: p.tone, id: p.tone.replace(/^face-/, '') });
+  }
+  if (!out.length) fail('no face-box tone rows are recorded');
+  const table = usRow(out[0].name).parts.find((x) => x.toneTable).toneTable;
+  const listed = [];
+  for (let l = table[0] + 1; l < table[1]; l++) {
+    const m = /^\s*'(face-[a-z]+)',$/.exec(FACE_TSX[l - 1]);
+    if (!m) fail(`FACE_TONES entry at src/components/ui/CardFace.tsx:${l} is not a quoted tone`);
+    listed.push(m[1]);
+  }
+  const measured = out.map((x) => x.tone);
+  if (JSON.stringify(listed) !== JSON.stringify(measured)) {
+    fail(
+      `FACE_TONES lists ${listed.join(', ')} at src/components/ui/CardFace.tsx:${table[0]}, ` +
+        `while the measured rows carry ${measured.join(', ')}`,
+    );
+  }
+  return out;
+})();
+
+/** The stack props of a row, with the four-pass agreements this family needs.
+ *  `width` and `height` are the mount's own box at this viewport and are never
+ *  read through these helpers; `faceBoxIsWidthDriven` proves that instead. */
+const stkCompound = (brightness, name, field) => {
+  const v = stkVal(brightness, name, field);
+  if (!v || typeof v !== 'object' || typeof v.raw !== 'string') {
+    fail(`${name}.${field} is not a measured compound value: ${JSON.stringify(v)}`);
+  }
+  return v;
+};
+const stkGradient = (brightness, name) => {
+  const v = stkCompound(brightness, name, 'backgroundImage');
+  if (v.raw === 'none') fail(`${name}: no background-image was measured, so there is no gradient to port`);
+  return parseGradient(v.substituted || v.raw, `${name} background-image`);
+};
+const stkShadowLayers = (brightness, name) => {
+  const v = stkCompound(brightness, name, 'boxShadow');
+  if (v.raw === 'none') return null;
+  return probeShadowList(v.substituted || v.raw, `${name} box-shadow`);
+};
+/** A property whose two viewports genuinely disagree — the responsive gap of the
+ *  action key grid, and nothing else here. A pair that does not actually differ is
+ *  a single value and `stkVal`’s business, so this refuses to carry one. */
+const stkPair = (brightness, name, field) => {
+  const narrow = stk(`${brightness}-phone`, name)[field];
+  const wide = stk(`${brightness}-desktop`, name)[field];
+  if (narrow === undefined || wide === undefined) {
+    fail(`${name}: ${brightness} ${field} is missing on one of the two viewports`);
+  }
+  if (JSON.stringify(narrow) === JSON.stringify(wide)) {
+    fail(`${name}: ${brightness} ${field} does not move with the viewport; read it with stkVal`);
+  }
+  return { narrow, wide };
+};
+/** `padding: T H B` / `T R B L` as the four sides a box needs. The action key is
+ *  the only asymmetric member; a symmetric box passes the same number through. */
+const facePadSides = (brightness, name) => {
+  const raw = stkRaw(brightness, name, 'padding');
+  const parts = raw.split(/\s+/).map((s) => lenAnyPx(s, `${name} padding`));
+  if (parts.length > 4) fail(`${name}: padding "${raw}" has more than four sides`);
+  const [top, right = top, bottom = top, left = right] = parts;
+  return { top, right, bottom, left };
+};
+/** A radius the port draws as a pill. Chrome resolves Tailwind's `rounded-full` to
+ *  a length far beyond any box, so the sentinel is recognised rather than carried,
+ *  and the class list that asked for it is the evidence. */
+const faceRadius = (brightness, name, cls) => {
+  const px = stkLen(brightness, name, 'borderRadius');
+  if (px > 1e4) {
+    if (!/\brounded-full\b/.test(cls)) {
+      fail(`${name}: radius ${px}px is a pill, but the cited class list has no \`rounded-full\``);
+    }
+    return { px: null, isPill: true };
+  }
+  if (/\brounded-full\b/.test(cls)) fail(`${name}: the class list says rounded-full, the measurement says ${px}px`);
+  return { px, isPill: false };
+};
+// ---------------------------------------------------------------- the sheet
+/** Whitespace as one space, and a call’s parentheses tight: prettier breaks the
+ *  long `mask` and sheen declarations over lines, and the port reads them whole. */
+const faceCssNorm = (s) => collapse(s).replace(/\(\s+/g, '(').replace(/\s+\)/g, ')');
+
+/** `.card-face` — the box every face is, before a tone paints it. Its radius and
+ *  shadow are tokens another emitted family already owns, so they are named here
+ *  and cross-checked, never restated. */
+const faceBase = (() => {
+  const cls = '.card-face';
+  const rule = cssRule(/^\.card-face \{$/, cls);
+  const allowed = ['position', 'overflow', 'border-radius', 'color', 'box-shadow'];
+  const props = ruleProps(rule, cls);
+  for (const [prop] of props) {
+    if (!allowed.includes(prop)) {
+      fail(`${cls}: the base rule sets \`${prop}\` (src/index.css:${rule.line}); AppCardFaceSpec cannot port it`);
+    }
+  }
+  const decl = Object.fromEntries(props);
+  const radiusToken = tokenRef(decl['border-radius'], `${cls} border-radius`, cls);
+  const shadowToken = tokenRef(decl['box-shadow'], `${cls} box-shadow`, cls);
+  if (decl.position !== 'relative') fail(`${cls}: position is "${decl.position}", not relative`);
+  if (decl.overflow !== 'hidden') fail(`${cls}: overflow is "${decl.overflow}", not hidden`);
+  if (decl.color !== 'white') fail(`${cls}: colour is authored "${decl.color}", not the face ink white`);
+  return { cls, line: rule.line, radiusToken, shadowToken, decl, props };
+})();
+
+/** `::before` — the sheen. A probe cannot see a pseudo-element, so this is the
+ *  pinned rule read whole (`.skeleton::after` and the chip ring set that
+ *  precedent), and every number in it is parsed rather than paraphrased. */
+const faceSheen = (() => {
+  const cls = '.card-face::before';
+  const rule = cssRule(/^\.card-face::before \{$/, cls, 20);
+  const props = ruleProps(rule, cls);
+  const allowed = ['content', 'position', 'inset', 'background', 'pointer-events'];
+  for (const [prop] of props) {
+    if (!allowed.includes(prop)) {
+      fail(`${cls}: sets \`${prop}\` (src/index.css:${rule.line}); the sheen is a highlight and a stripe only`);
+    }
+  }
+  const decl = Object.fromEntries(props);
+  if (decl.content !== "''") fail(`${cls}: content is "${decl.content}", so it paints no layer`);
+  if (decl.position !== 'absolute') fail(`${cls}: position is "${decl.position}"`);
+  if (decl.inset !== '0px' && decl.inset !== '0') fail(`${cls}: inset is "${decl.inset}", not the whole box`);
+  if (decl['pointer-events'] !== 'none') fail(`${cls}: pointer-events is "${decl['pointer-events']}"`);
+  const layers = splitLayers(faceCssNorm(decl.background), cls);
+  if (layers.length !== 2) fail(`${cls}: background paints ${layers.length} layers, not the highlight and the stripe`);
+  const hi =
+    /^radial-gradient\(([\d.]+)% ([\d.]+)% at ([\d.]+)% ([\d.]+)%, rgba\((\d+), (\d+), (\d+), ([\d.]+)\) ([\d.]+)%, transparent ([\d.]+)%\)$/.exec(
+      layers[0],
+    );
+  if (!hi) fail(`${cls}: highlight layer "${layers[0]}" is not the sized elliptical fade the port records`);
+  const stripe =
+    /^repeating-linear-gradient\(([\d.]+)deg, transparent 0 ([\d.]+)px, rgba\((\d+), (\d+), (\d+), ([\d.]+)\) ([\d.]+)px ([\d.]+)px\)$/.exec(
+      layers[1],
+    );
+  if (!stripe) fail(`${cls}: stripe layer "${layers[1]}" is not the repeating hairline the port records`);
+  return {
+    cls,
+    line: rule.line,
+    highlightCentreX: parseFloat(hi[3]) / 100,
+    highlightCentreY: parseFloat(hi[4]) / 100,
+    highlightRadiusX: parseFloat(hi[1]) / 100,
+    highlightRadiusY: parseFloat(hi[2]) / 100,
+    highlightColour: { r: +hi[5], g: +hi[6], b: +hi[7], alpha: parseFloat(hi[8]) },
+    highlightFadeAt: parseFloat(hi[9]) / 100,
+    highlightClearAt: parseFloat(hi[10]) / 100,
+    stripeAngleDeg: parseFloat(stripe[1]),
+    stripeClearUntilPx: parseFloat(stripe[2]),
+    stripeColour: { r: +stripe[3], g: +stripe[4], b: +stripe[5], alpha: parseFloat(stripe[6]) },
+    stripeFromPx: parseFloat(stripe[7]),
+    stripeToPx: parseFloat(stripe[8]),
+    authoredBackground: faceCssNorm(decl.background),
+  };
+})();
+
+/** `.pressable` — the class the face box cites for its press. The face and the
+ *  ledger row lean on the same rule, so the value is read again here rather than
+ *  imported from the row family, and the two are pinned together by the drift
+ *  tests over the sheet. */
+const facePress = (() => {
+  const cls = '.pressable';
+  const rest = cssRule(/^\.pressable \{$/, cls);
+  const active = cssRule(/^\.pressable:active \{$/, `${cls}:active`);
+  const transition = controlTransition(rest, cls, ['transform']);
+  return {
+    cls,
+    restLine: rest.line,
+    activeLine: active.line,
+    scale: cssScale(active, `${cls}:active`),
+    ms: transition.ms,
+    ease: transition.curve,
+    props: transition.props,
+  };
+})();
+
+/** One `.face-*` rule as the recipe it authors: an angled gradient of two
+ *  `color-mix(in oklab, var(--hue-X) N%, var(--face-anchor))` stops, or a bare
+ *  `var(--face-anchor)` for the tone that ends on the anchor itself. */
+const faceGradientRecipe = (tone) => {
+  const cls = `.${tone}`;
+  const rule = cssRule(new RegExp(`^\\${cls} \\{$`), cls, 12);
+  const props = ruleProps(rule, cls);
+  for (const [prop] of props) {
+    if (prop !== 'background') fail(`${cls}: sets \`${prop}\` (src/index.css:${rule.line}); a tone paints a gradient`);
+  }
+  const raw = faceCssNorm(cssDecl(rule, 'background', cls));
+  const head = /^linear-gradient\(([\d.]+)deg, (.+) 0%, (.+) 100%\)$/.exec(raw);
+  if (!head) fail(`${cls}: background "${raw}" is not a two-stop angled gradient`);
+  const stops = [head[2], head[3]].map((text) => {
+    const mix = /^color-mix\(in oklab, var\((--[a-z0-9-]+)\) ([\d.]+)%, var\((--[a-z0-9-]+)\)\)$/.exec(text);
+    if (mix) return { hueToken: mix[1], mixPercent: parseFloat(mix[2]), anchorToken: mix[3], authored: text };
+    const bare = /^var\((--[a-z0-9-]+)\)$/.exec(text);
+    if (bare) return { anchorToken: bare[1], mixPercent: 0, authored: text };
+    fail(`${cls}: stop "${text}" is neither a color-mix over the anchor nor the bare anchor`);
+  });
+  if (new Set(stops.map((s) => s.anchorToken)).size !== 1) {
+    fail(`${cls}: its two stops mix over different anchors`);
+  }
+  return { cls, line: rule.line, angle: parseFloat(head[1]), stops, anchorToken: stops[0].anchorToken, raw };
+};
+
+/** The recipe against the measurement: the angle and stop count have to agree, and
+ *  a stop the sheet authors as a bare token has to measure exactly that token’s
+ *  colour. A `color-mix` is the engine’s arithmetic — the port takes the
+ *  substituted pixels the pass measured, which is the same law §2.2 gradients use. */
+const faceGradientCheck = (tone, recipe, gradient, brightness) => {
+  if (gradient.angle !== recipe.angle) {
+    fail(`.${tone}: ${brightness} measures a ${gradient.angle}deg gradient, the rule authors ${recipe.angle}deg`);
+  }
+  if (gradient.stops.length !== recipe.stops.length) {
+    fail(`.${tone}: ${brightness} measured ${gradient.stops.length} stops, the rule authors ${recipe.stops.length}`);
+  }
+  for (const [i, stop] of recipe.stops.entries()) {
+    if (stop.mixPercent !== 0) continue;
+    const token = passTheme(`${brightness}-phone`).root[stop.anchorToken];
+    if (!token || !token.srgb) fail(`.${tone}: ${stop.anchorToken} is not a measured colour in ${brightness}-phone`);
+    const got = gradient.stops[i].colour;
+    const want = token.srgb;
+    if (got.r !== want.r || got.g !== want.g || got.b !== want.b || got.a !== want.alpha) {
+      fail(
+        `.${tone}: ${brightness} stop ${i} measured rgba(${got.r}, ${got.g}, ${got.b}, ${got.a}) ` +
+          `while ${stop.anchorToken} is ${want.rgba}`,
+      );
+    }
+  }
+};
+
+/** The §6 probe for the tone rule, which has to be the same gradient the width
+ *  driven face-box row measured: the box and the class are one paint. */
+const faceProbeGradient = (tone, brightness) => {
+  const probe = passTheme(`${brightness}-phone`).probes[`.${tone}`];
+  if (!probe) fail(`.${tone}: ${brightness}-phone measured no probe`);
+  return probeGradient(probe, `.${tone}`);
+};
+// ---------------------------------------------------------------- the face
+const faceSpacingUnit = rowsSpacingPx('app_faces.dart');
+
+/** A class rule in the pinned sheet, or null: a utility token that has no rule of
+ *  its own is a Tailwind compile, not a ported class. */
+const faceRuleOrNull = (token) => {
+  const safe = token.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const re = new RegExp(`^\\.${safe} \\{$`);
+  if (!CSS_LINES.some((l) => re.test(l))) return null;
+  return cssRule(re, `.${token}`, 32);
+};
+
+/** The one ported typography class a class list cites — the class whose rule
+ *  authors a font, a numeral alignment, a tracking or a case. A slot that cites
+ *  two of them stops generation: the port cannot say which one it renders. */
+const faceTypeClass = (name, cls) => {
+  const TYPE_PROPS = ['font-family', 'font-variant-numeric', 'letter-spacing', 'text-transform'];
+  const hits = [];
+  for (const token of cls.split(/\s+/).filter(Boolean)) {
+    const rule = faceRuleOrNull(token);
+    if (!rule) continue;
+    const props = new Set(ruleProps(rule, `.${token}`).map(([p]) => p));
+    if (TYPE_PROPS.some((p) => props.has(p))) hits.push({ token: `.${token}`, rule });
+  }
+  if (hits.length > 1) {
+    fail(`${name}: the class list cites ${hits.map((h) => h.token).join(' and ')} — two authored type classes`);
+  }
+  return hits.length ? hits[0] : null;
+};
+
+/** Every `p-*`/`px-*`/`py-*`/`mt-*`/`mb-*`/`gap-*` utility the cited class list
+ *  authors, as `--spacing` times its multiplier, against what the pass painted.
+ *  `space-y-*` is deliberately not one of them: it authors no offset on the
+ *  element that carries it, only on the children after the first, so it belongs to
+ *  `faceWrapSpacing` — which reads it off the wrapper a *child* row records and
+ *  requires the child's own measured margin to be exactly that. */
+const faceOffsets = (brightness, name, cls, got, wrapped = null) => {
+  const WRAP_SIDE = { mt: 'marginTopPx', mb: 'marginBottomPx' };
+  const OFFSET = /^(!?)(p|px|py|mt|mb|gap)-(\d+(?:\.\d+)?)$/;
+  const tokens = cls.split(/\s+/).filter((t) => t.length);
+  const cited = tokens.filter((t) => /(^|!)(p|px|py|mt|mb|gap)-/.test(t));
+  const spaced = tokens.filter((t) => /^space-[xy]-/.test(t));
+  if (spaced.length > 1) fail(`${name}: the class list authors ${spaced.join(' and ')} — one spacing utility`);
+  const wanted = { p: null, px: null, py: null, mt: null, mb: null, gap: null };
+  for (const tok of cited) {
+    const m = OFFSET.exec(tok);
+    if (!m) {
+      fail(
+        `${name}: "${tok}" is a variant-gated or shorthand offset the face port cannot attribute — ` +
+          'an offset has to be a bare utility, and the box spacing has to be written per axis',
+      );
+    }
+    const px = parseFloat(m[3]) * faceSpacingUnit;
+    if (wanted[m[2]] !== null && wanted[m[2]] !== px) {
+      fail(`${name}: two utilities author ${m[2]} with different pixels (${wanted[m[2]]} and ${px})`);
+    }
+    wanted[m[2]] = px;
+  }
+  const sides = {
+    top: got.paddingTopPx,
+    right: got.paddingRightPx,
+    bottom: got.paddingBottomPx,
+    left: got.paddingLeftPx,
+  };
+  if (wanted.p !== null) {
+    for (const [side, px] of Object.entries(sides)) {
+      if (px !== wanted.p)
+        fail(`${name}: \`p-${wanted.p / faceSpacingUnit}\` authors ${wanted.p}px, ${side} measured ${px}px`);
+    }
+  }
+  // Each axis is then proven on its own, which is also what catches a side that
+  // measures padding no utility authored: the wanted number falls back to the
+  // shorthand and then to zero, and the measured pixel has to answer to it.
+  for (const [axis, pair] of [
+    ['py', [sides.top, sides.bottom]],
+    ['px', [sides.left, sides.right]],
+  ]) {
+    const want = wanted[axis] === null ? (wanted.p === null ? 0 : wanted.p) : wanted[axis];
+    for (const px of pair) {
+      if (px !== want) fail(`${name}: ${axis} measured ${px}px, the cited class list authors ${want}px`);
+    }
+  }
+  for (const [axis, px] of [
+    ['mt', got.marginTopPx],
+    ['mb', got.marginBottomPx],
+  ]) {
+    const own = wanted[axis];
+    const fromWrapper = wrapped && wrapped.side === WRAP_SIDE[axis] ? wrapped.px : null;
+    if (own !== null && fromWrapper !== null) {
+      fail(
+        `${name}: the row authors a ${axis} utility and its space-y wrapper authors ${fromWrapper}px on the same side`,
+      );
+    }
+    const want = own !== null ? own : fromWrapper === null ? 0 : fromWrapper;
+    if (px !== want) {
+      fail(
+        `${name}: ${axis} measured ${px}px, the cited class list${fromWrapper === null ? '' : ' or its wrapper'} authors ${want}px ` +
+          `(${cited.join(' ') || 'no offset utility'}) at --spacing ${faceSpacingUnit}px`,
+      );
+    }
+  }
+  const gapWant = wanted.gap === null ? null : wanted.gap;
+  if ((got.gapPx === null ? null : got.gapPx) !== gapWant) {
+    fail(`${name}: gap measured ${got.gapPx}, the cited class list authors ${gapWant}`);
+  }
+};
+
+/** The `.deck` wrapper a peeking face was measured inside, and the `space-y-*`
+ *  rule the chip row and the masked number were measured under. Both give a
+ *  margin to a child that authors none of its own, so the utility is read off the
+ *  cited wrapper line and the measured pixel has to answer to it. */
+const faceWrapSpacing = (rec, brightness) => {
+  if (rec.wrap === undefined) return null;
+  const m = /^space-y-([\d.]+)$/.exec(rec.wrap.split(/\s+/).find((t) => /^space-y-/.test(t)) || '');
+  if (!m) fail(`${rec.name}: the wrapper "${rec.wrap}" authors no space-y utility`);
+  const px = parseFloat(m[1]) * faceSpacingUnit;
+  const file = rec.src || US.source;
+  tsxLine(FACE_FILES[file], file, rec.wrapPart.line, `className="${rec.wrapPart.cls}"`);
+  if (rec.after === undefined && rec.before === undefined) fail(`${rec.name}: a wrapped row names no sibling side`);
+  return { px, after: rec.after === true, before: rec.before === true };
+};
+
+const faceBodyInk = (brightness) => probeSrgb(passTheme(`${brightness}-phone`).probes.body, 'color', 'body');
+
+/** One slot of a face, or of the key: read twice (once per brightness) and only
+ *  ported once, because the measurement says the geometry does not move. */
+const faceSlotRead = (brightness, name, opts) => {
+  const rec = faceChecked(name);
+  const cls = rec.parts.map((p) => p.cls).join(' ');
+  const sizePx = stkLen(brightness, name, 'fontSize');
+  const lineHeightPx = stkLen(brightness, name, 'lineHeight');
+  const track = stkTrack(brightness, name, sizePx);
+  const sides = facePadSides(brightness, name);
+  const rowGap = stkRaw(brightness, name, 'rowGap');
+  const colGap = stkRaw(brightness, name, 'columnGap');
+  if (rowGap !== colGap) fail(`${name}: the two gap axes disagree (${rowGap} / ${colGap})`);
+  const out = {
+    name,
+    cls,
+    src: faceCite(rec),
+    displayCss: stkRaw(brightness, name, 'display'),
+    positionCss: stkRaw(brightness, name, 'position'),
+    zIndexCss: stkRaw(brightness, name, 'zIndex'),
+    flexDirectionCss: stkRaw(brightness, name, 'flexDirection'),
+    alignItemsCss: stkRaw(brightness, name, 'alignItems'),
+    justifyContentCss: stkRaw(brightness, name, 'justifyContent'),
+    gapPx: rowGap === 'normal' ? null : stkLen(brightness, name, 'rowGap'),
+    marginTopPx: stkLen(brightness, name, 'marginTop'),
+    marginBottomPx: stkLen(brightness, name, 'marginBottom'),
+    paddingTopPx: sides.top,
+    paddingRightPx: sides.right,
+    paddingBottomPx: sides.bottom,
+    paddingLeftPx: sides.left,
+    fontFamily: (() => {
+      const type = opts.typeClass;
+      if (type === null) {
+        return firstFamily(probeRaw(passTheme(`${brightness}-phone`).probes.body, 'fontFamily', 'body'), name);
+      }
+      const probe = passTheme(`${brightness}-phone`).probes[type.token];
+      if (!probe) fail(`${name}: ${type.token} measured no probe, so its family cannot be read`);
+      const authored = faceSlotAuthoredFamily(type, brightness);
+      const got = firstFamily(probeRaw(probe, 'fontFamily', type.token), type.token);
+      if (authored !== null && authored !== got) {
+        fail(`${name}: ${type.token} computes to ${got} while its rule authors ${authored}`);
+      }
+      return got;
+    })(),
+    fontSizePx: sizePx,
+    fontWeight: parseInt(stkRaw(brightness, name, 'fontWeight'), 10),
+    heightRatio: lineHeightPx / sizePx,
+    letterSpacingPx: track.px,
+    letterSpacingEm: track.em,
+    textColor: null,
+    inheritsFaceInk: false,
+    textTransformCss: stkHas(brightness, name, 'textTransform') ? stkRaw(brightness, name, 'textTransform') : null,
+    whiteSpaceCss: stkRaw(brightness, name, 'whiteSpace'),
+    textOverflowCss: stkRaw(brightness, name, 'textOverflow'),
+    overflowXCss: stkRaw(brightness, name, 'overflowX'),
+    overflowYCss: stkRaw(brightness, name, 'overflowY'),
+    truncates: /\btruncate\b/.test(cls),
+    tabularNums: opts.tabular,
+    authoredTypeClass: opts.typeClass ? opts.typeClass.token : null,
+    authoredTypeSrc: opts.typeClass ? `src/index.css:${opts.typeClass.rule.line}` : null,
+    radius: faceRadius(brightness, name, cls),
+    borderWidthPx: stkLen(brightness, name, 'borderTopWidth'),
+    borderColor: null,
+    minWidthZero: stkHas(brightness, name, 'minWidth') ? stkRaw(brightness, name, 'minWidth') === '0px' : null,
+    flexGrow: stkNum(brightness, name, 'flexGrow'),
+    flexShrink: stkNum(brightness, name, 'flexShrink'),
+  };
+  // Colour: a slot either paints white at a fraction (a utility the class list
+  // names) or paints nothing at all and takes the face’s ink. Anything else is a
+  // colour this family has no evidence for.
+  const col = stkCol(brightness, name, 'color');
+  const ink = faceBodyInk(brightness);
+  if (col.hex === ink.hex && col.alpha === ink.alpha) {
+    out.inheritsFaceInk = true;
+  } else if (col.r === 255 && col.g === 255 && col.b === 255) {
+    out.textColor = col;
+  } else {
+    fail(`${name}: ${brightness} measures colour ${col.rgba}, which is neither the body ink ${ink.rgba} nor white`);
+  }
+  if (out.borderWidthPx > 0) {
+    const top = stkCol(brightness, name, 'borderTopColor');
+    const left = stkCol(brightness, name, 'borderLeftColor');
+    if (top.rgba !== left.rgba) fail(`${name}: the frame measures ${top.rgba} on top and ${left.rgba} on the left`);
+    out.borderColor = top;
+  } else if (stkCol(brightness, name, 'borderTopColor').rgba !== stkCol(brightness, name, 'borderLeftColor').rgba) {
+    fail(`${name}: a frameless slot measures different border colours on different sides`);
+  }
+  // The truncate trio, the case and the numeral alignment are all proven against
+  // the class list, exactly as the ledger slots are.
+  if (out.truncates) {
+    for (const [field, want] of [
+      ['whiteSpace', 'nowrap'],
+      ['textOverflow', 'ellipsis'],
+      ['overflowX', 'hidden'],
+      ['overflowY', 'hidden'],
+    ]) {
+      if (stkRaw(brightness, name, field) !== want) {
+        fail(`${name}: claims \`truncate\` but ${field} measured ${stkRaw(brightness, name, field)}`);
+      }
+    }
+  } else if (out.textOverflowCss !== 'clip') {
+    fail(`${name}: a non-truncating slot measures ${out.textOverflowCss} text-overflow`);
+  }
+  // The wrapper is read before the row's own offsets, because `space-y-*` gives a
+  // child a margin it authors nothing of its own about. Which child carries it is
+  // not the sibling marker's answer but the pass's: Tailwind v4 puts the space on
+  // the *first* child's bottom, so the row facing the next sibling may measure it
+  // and the row facing the previous one may not — and either way the row may
+  // measure nothing, because the space belongs between the two.
+  const wrap = faceWrapSpacing(rec, brightness);
+  let wrapped = null;
+  if (wrap) {
+    const facing = wrap.after ? 'marginBottomPx' : 'marginTopPx';
+    const away = facing === 'marginBottomPx' ? 'marginTopPx' : 'marginBottomPx';
+    if (out[away] !== 0)
+      fail(`${name}: ${away} measured ${out[away]} under a space-y wrapper, which spaces only between neighbours`);
+    if (out[facing] !== 0 && out[facing] !== wrap.px) {
+      fail(
+        `${name}: ${facing} measured ${out[facing]} while the wrapper "${rec.wrap}" authors ${wrap.px}px at --spacing ${faceSpacingUnit}px`,
+      );
+    }
+    wrapped = out[facing] === wrap.px ? { side: facing, px: wrap.px } : null;
+  }
+  faceOffsets(brightness, name, cls, out, wrapped);
+  faceTrackingCheck(brightness, name, cls, out, opts);
+  out.leading = faceLeadingCheck(brightness, name, cls, out);
+  if (out.flexGrow !== 0)
+    fail(`${name}: a face slot measures flex-grow ${out.flexGrow}, which the port does not lay out`);
+  return out;
+};
+
+/** The family a ported type class authors, when its rule names one — read from the
+ *  token so the computed probe and the stylesheet have to agree. */
+const faceSlotAuthoredFamily = (type, brightness) => {
+  const decl = Object.fromEntries(ruleProps(type.rule, type.token))['font-family'];
+  if (decl === undefined) return null;
+  return firstFamily(
+    passTheme(`${brightness}-phone`).root[tokenRef(decl, `${type.token} font-family`, type.token)].raw,
+    type.token,
+  );
+};
+
+/** A tracking value is only ported with the source that authored it: a
+ *  `tracking-*` utility (whose token the measurement has to reproduce), an
+ *  arbitrary `tracking-[…em]` literal, or the ported type class. `normal` is no
+ *  tracking at all and is the only thing a slot with none of those may measure. */
+const faceTrackingCheck = (brightness, name, cls, out, opts) => {
+  const arbitrary = /tracking-\[(-?[\d.]+)em\]/.exec(cls);
+  const utility = /\btracking-(tight|normal|wide|wider|widest)\b/.exec(cls);
+  let want = null;
+  let source = null;
+  if (arbitrary) {
+    want = parseFloat(arbitrary[1]);
+    source = `the \`tracking-[${arbitrary[1]}em]\` utility`;
+  } else if (utility) {
+    const token = `--tracking-${utility[1]}`;
+    const raw = passTheme(`${brightness}-phone`).root[token];
+    if (!raw) fail(`${name}: ${token} is not measured in ${brightness}-phone`);
+    const m = /^(-?[\d.]+)em$/.exec(collapse(raw.raw));
+    if (!m) fail(`${name}: ${token} is "${raw.raw}", not an em length`);
+    want = parseFloat(m[1]);
+    source = token;
+  } else if (opts.typeClass) {
+    const decl = Object.fromEntries(ruleProps(opts.typeClass.rule, opts.typeClass.token))['letter-spacing'];
+    if (decl === undefined) {
+      want = 0;
+      source = `${opts.typeClass.token} authors no letter-spacing`;
+    } else {
+      const m = /^(-?[\d.]+)em$/.exec(faceCssNorm(decl));
+      if (!m) fail(`${name}: ${opts.typeClass.token} authors letter-spacing "${decl}", not an em length`);
+      want = parseFloat(m[1]);
+      source = opts.typeClass.token;
+    }
+  } else {
+    want = 0;
+    source = 'no tracking source';
+  }
+  if (Math.abs(out.letterSpacingEm - want) > 1e-12 || (want === 0 && out.letterSpacingPx !== 0)) {
+    fail(
+      `${name}: ${brightness} measures ${out.letterSpacingPx}px (${out.letterSpacingEm}em) at ${out.fontSizePx}px, ${source} says ${want}em`,
+    );
+  }
+  // The same product the pass divided, compared with the float's own slack: an
+  // authored `0.14em` of a 10px size is 1.4px in Chrome and 1.4000000000000001 in
+  // IEEE-754, and a tracking that disagrees by more than that is a different tracking.
+  if (Math.abs(out.letterSpacingPx - want * out.fontSizePx) > 1e-9 && !(want === 0 && out.letterSpacingPx === 0)) {
+    fail(`${name}: ${out.letterSpacingPx}px is not ${want}em of ${out.fontSizePx}px`);
+  }
+};
+
+/** A slot’s line box. Tailwind authors a leading only as a utility, so either the
+ *  class names one (and the measured ratio is that utility’s number) or the slot
+ *  inherits the document multiplier, which the `body` probe measures. */
+const faceLeadingCheck = (brightness, name, cls, out) => {
+  const utility = /\bleading-([a-z]+|none)\b/.exec(cls);
+  if (utility === null) {
+    const bodyProbe = passTheme(`${brightness}-phone`).probes.body;
+    const bodyRatio = probePx(bodyProbe, 'lineHeight', 'body') / probePx(bodyProbe, 'fontSize', 'body');
+    if (Math.abs(out.heightRatio - bodyRatio) > 1e-9) {
+      fail(
+        `${name}: its line box is ${out.heightRatio}x its size with no leading utility; body measures ${bodyRatio}x`,
+      );
+    }
+    return { leadingUtility: null, leadingToken: null, leadingValue: bodyRatio };
+  }
+  if (utility[1] === 'none') {
+    if (out.heightRatio !== 1) {
+      fail(`${name}: \`leading-none\` authors a 1x line box, the pass measured ${out.heightRatio}x`);
+    }
+    return { leadingUtility: 'none', leadingToken: null, leadingValue: 1 };
+  }
+  const token = `--leading-${utility[1]}`;
+  const raw = passTheme(`${brightness}-phone`).root[token];
+  if (!raw) fail(`${name}: ${token} is not measured in ${brightness}-phone`);
+  const value = ratioOf(collapse(raw.raw), token);
+  if (Math.abs(out.heightRatio - value) > 1e-9) {
+    fail(`${name}: ${token} is ${value}x, the pass measured ${out.heightRatio}x`);
+  }
+  return { leadingUtility: utility[1], leadingToken: token, leadingValue: value };
+};
+
+/** One slot, read twice: the measurement says a face does not move between the
+ *  schemes, so a record that disagrees is a drift to review, not a pair to port. */
+const faceSlot = (name, opts) => {
+  const rec = usRow(name);
+  const cls = rec.parts.map((p) => p.cls).join(' ');
+  const typeClass = faceTypeClass(name, cls);
+  const tabular =
+    typeClass !== null &&
+    faceCssNorm(Object.fromEntries(ruleProps(typeClass.rule, typeClass.token))['font-variant-numeric'] || 'none') ===
+      'tabular-nums';
+  const built = { ...opts, typeClass, tabular };
+  const light = faceSlotRead('light', name, built);
+  const dark = faceSlotRead('dark', name, built);
+  for (const key of Object.keys(light)) {
+    if (JSON.stringify(light[key]) !== JSON.stringify(dark[key])) {
+      fail(
+        `${name}: ${key} moves with the scheme (light ${JSON.stringify(light[key])}, dark ${JSON.stringify(dark[key])})`,
+      );
+    }
+  }
+  return light;
+};
+// ---------------------------------------------------------------- the box
+/** The mount’s own pixels, read only to prove the box is width-driven: a
+ *  `width: 100%` box with an aspect ratio has no height of its own, so the port
+ *  carries the ratio and the floor and never this number. Chrome snaps a layout
+ *  size to 1/64 px, which is the bound the check uses. */
+const faceBoxSize = (tag, name) => {
+  const p = stk(tag, name);
+  if (typeof p.width !== 'string' || typeof p.height !== 'string') {
+    fail(`${name}: ${tag} did not measure a plain width/height pair`);
+  }
+  return { w: lenAnyPx(p.width, `${name} width at ${tag}`), h: lenAnyPx(p.height, `${name} height at ${tag}`) };
+};
+const faceWidthDriven = (name, ratio) => {
+  for (const tag of ['light-desktop', 'dark-desktop', 'light-phone', 'dark-phone']) {
+    const { w, h } = faceBoxSize(tag, name);
+    if (Math.abs(h - w / ratio) > 1 / 64) {
+      fail(
+        `${name}: ${tag} measured a ${w}x${h} box, which is not width ${w} over the authored ratio ${ratio} ` +
+          '(± Chrome’s 1/64px layout snap) — the height is no longer a mount artifact',
+      );
+    }
+  }
+};
+
+const faceBoxRead = (brightness, name) => {
+  const rec = faceChecked(name);
+  const p = rec.parts[0];
+  // The part's `cls` is the authored template, which a drift test re-reads at
+  // CardFace.tsx:59; the box this row measures carries the template with both
+  // holes filled, which is `clsResolved` and what every read below compares to.
+  if (p.clsResolved === undefined) fail(`${name}: the box record composes no class list from its template`);
+  const cls = p.clsResolved;
+  const style = faceInlineStyle(p, name);
+  if (!stkHas(brightness, name, 'cursor')) fail(`${name}: the pass measured no cursor, so interactivity is unknown`);
+  const cursor = stkRaw(brightness, name, 'cursor');
+  const interactive = cursor === 'pointer';
+  if (interactive !== /\bcursor-pointer\b/.test(cls)) {
+    fail(`${name}: cursor "${cursor}" disagrees with the cited class list`);
+  }
+  const sides = facePadSides(brightness, name);
+  const rowGap = stkRaw(brightness, name, 'rowGap');
+  if (rowGap !== stkRaw(brightness, name, 'columnGap')) fail(`${name}: the two gap axes disagree`);
+  const out = {
+    name,
+    cls,
+    src: faceCite(rec),
+    styleSrc: `${(rec.src || US.source).replace(/^src\//, 'src/')}:${style.armLine}`,
+    aspectRatio: faceAspectRatio(brightness, name, style.aspectRatio),
+    minWidthPx: style.minWidthPx,
+    callerOwnsWidth: style.callerOwnsWidth,
+    widthFull: style.widthFull,
+    interactive,
+    cursorCss: cursor,
+    displayCss: stkRaw(brightness, name, 'display'),
+    positionCss: stkRaw(brightness, name, 'position'),
+    flexDirectionCss: stkRaw(brightness, name, 'flexDirection'),
+    alignItemsCss: stkRaw(brightness, name, 'alignItems'),
+    justifyContentCss: stkRaw(brightness, name, 'justifyContent'),
+    textAlignCss: stkRaw(brightness, name, 'textAlign'),
+    gapPx: rowGap === 'normal' ? null : stkLen(brightness, name, 'rowGap'),
+    marginTopPx: stkLen(brightness, name, 'marginTop'),
+    marginBottomPx: stkLen(brightness, name, 'marginBottom'),
+    paddingTopPx: sides.top,
+    paddingRightPx: sides.right,
+    paddingBottomPx: sides.bottom,
+    paddingLeftPx: sides.left,
+    radius: faceRadius(brightness, name, cls),
+    borderWidthPx: stkLen(brightness, name, 'borderTopWidth'),
+    ink: stkCol(brightness, name, 'color'),
+    overflowXCss: stkRaw(brightness, name, 'overflowX'),
+    overflowYCss: stkRaw(brightness, name, 'overflowY'),
+    fill: stkCol(brightness, name, 'backgroundColor'),
+    gradient: stkGradient(brightness, name),
+    shadow: stkShadowLayers(brightness, name),
+    blur: stkRaw(brightness, name, 'backdropFilter'),
+    flexGrow: stkNum(brightness, name, 'flexGrow'),
+    flexShrink: stkNum(brightness, name, 'flexShrink'),
+  };
+  faceOffsets(brightness, name, cls, out);
+  if (out.marginTopPx !== 0 || out.marginBottomPx !== 0)
+    fail(`${name}: the face box measures a margin it does not author`);
+  if (out.displayCss !== 'flex' || out.flexDirectionCss !== 'column') {
+    fail(`${name}: the box measures ${out.displayCss}/${out.flexDirectionCss}, not a flex column`);
+  }
+  if (out.justifyContentCss !== 'space-between') fail(`${name}: justify-content is ${out.justifyContentCss}`);
+  if (out.alignItemsCss !== 'normal')
+    fail(`${name}: align-items is ${out.alignItemsCss}, which the port cannot lay out`);
+  if (out.textAlignCss !== 'left') fail(`${name}: text-align is ${out.textAlignCss}, not the authored left`);
+  if (out.overflowXCss !== 'hidden' || out.overflowYCss !== 'hidden') {
+    fail(`${name}: the box measures overflow ${out.overflowXCss}/${out.overflowYCss}; the sheen needs it clipped`);
+  }
+  if (out.positionCss !== faceBase.decl.position) {
+    fail(`${name}: position measures ${out.positionCss} while .card-face authors ${faceBase.decl.position}`);
+  }
+  if (
+    out.radius.isPill ||
+    out.radius.px !== lengthPx(passTheme(`${brightness}-phone`).root[faceBase.radiusToken].raw, faceBase.radiusToken)
+  ) {
+    fail(`${name}: radius ${JSON.stringify(out.radius)} is not ${faceBase.radiusToken}`);
+  }
+  if (out.borderWidthPx !== 0) fail(`${name}: the face box measures a ${out.borderWidthPx}px frame`);
+  if (out.fill.alpha !== 0) fail(`${name}: the face box paints ${out.fill.rgba} under its gradient`);
+  if (out.blur !== 'none') fail(`${name}: the face box measures backdrop-filter ${out.blur}`);
+  if (out.ink.rgba !== 'rgba(255, 255, 255, 1)') fail(`${name}: the face ink is ${out.ink.rgba}, not white`);
+  if (out.flexGrow !== 0) fail(`${name}: the face box measures flex-grow ${out.flexGrow}`);
+  faceWidthDriven(name, out.aspectRatio);
+  if (!/\bpressable\b/.test(cls)) fail(`${name}: the face box cites no pressable rule for its press`);
+  return out;
+};
+
+/** The box as one brightness painted it: geometry from the light pass (proven not
+ *  to move), paint from the pass that measured it. */
+const faceBox = (name) => {
+  const light = faceBoxRead('light', name);
+  const dark = faceBoxRead('dark', name);
+  for (const key of Object.keys(light)) {
+    if (['gradient', 'shadow', 'ink'].includes(key)) continue;
+    if (JSON.stringify(light[key]) !== JSON.stringify(dark[key])) {
+      fail(
+        `${name}: ${key} moves with the scheme (light ${JSON.stringify(light[key])}, dark ${JSON.stringify(dark[key])})`,
+      );
+    }
+  }
+  if (light.ink.rgba !== dark.ink.rgba) fail(`${name}: the face ink moves with the scheme`);
+  return { ...light, paint: { light, dark } };
+};
+
+/** The `.card-face` probe and the `--shadow-float` token, against what a face
+ *  measured: the box, its radius, its ink and its float are one fact owned by
+ *  AppSurfaces and AppShadows, so this file checks them and cites them. */
+const faceBaseCrossChecks = () => {
+  const surface = surfaces.find((s) => s.cls === '.card-face');
+  if (!surface) fail('app_faces.dart needs the §6 .card-face surface, which AppSurfaces did not emit');
+  const token = shadowTokens.find((s) => s.name === faceBase.shadowToken);
+  if (!token) fail(`.card-face paints ${faceBase.shadowToken}, which is not an emitted §2.2 shadow token`);
+  for (const [brightness, side] of [
+    ['light', 'l'],
+    ['dark', 'd'],
+  ]) {
+    const probe = surface[side];
+    if (probe.paddingPx !== 0) fail(`.card-face paints ${probe.paddingPx}px of padding; the face box owns its own`);
+    if (probe.gradient !== null) fail('.card-face now paints a gradient of its own; the tone rules own the face paint');
+    if (probe.borderWidthPx !== 0) fail('.card-face measures a frame the sheet does not author');
+    if (probe.backdrop.px !== null) fail('.card-face measures a backdrop blur the sheet does not author');
+    if (probe.textColor.rgba !== 'rgba(255, 255, 255, 1)') fail(`.card-face measures ink ${probe.textColor.rgba}`);
+    const want = parseShadow(token[`${brightness}Raw`], faceBase.shadowToken);
+    for (const tone of faceToneRows) {
+      const box = faceBoxRead(brightness, tone.name);
+      if (probe.radiusPx !== box.radius.px) {
+        fail(`${tone.name}: measures radius ${box.radius.px} while the .card-face probe measures ${probe.radiusPx}`);
+      }
+      const got = box.shadow;
+      if (got.length !== want.length) {
+        fail(
+          `${tone.name}: ${brightness} measures ${got.length} shadow layers, ${faceBase.shadowToken} authors ${want.length}`,
+        );
+      }
+      for (const [i, layer] of want.entries()) {
+        const g = got[i];
+        if (g.dx !== layer.dx || g.dy !== layer.dy || g.blur !== layer.blur || g.spread !== layer.spread) {
+          fail(
+            `${tone.name}: ${brightness} shadow ${i} is ${g.dx}/${g.dy}/${g.blur}/${g.spread}, the token authors ${layer.dx}/${layer.dy}/${layer.blur}/${layer.spread}`,
+          );
+        }
+        if (
+          g.colour.r !== layer.colour.r ||
+          g.colour.g !== layer.colour.g ||
+          g.colour.b !== layer.colour.b ||
+          g.colour.a !== layer.colour.a
+        ) {
+          fail(
+            `${tone.name}: ${brightness} shadow ${i} paints rgba(${g.colour.r}, ${g.colour.g}, ${g.colour.b}, ${g.colour.a}), the token authors ${layer.colour.r}/${layer.colour.g}/${layer.colour.b}/${layer.colour.a}`,
+          );
+        }
+      }
+    }
+  }
+  const radiiTok = passTheme('light-phone').root[faceBase.radiusToken];
+  if (!radiiTok) fail(`${faceBase.radiusToken} is not measured in the light-phone pass`);
+  const radiusPx = lengthPx(radiiTok.raw, faceBase.radiusToken);
+  const emittedRadius = byKind.radii.find((o) => o.name === faceBase.radiusToken);
+  if (!emittedRadius) {
+    fail(`${faceBase.radiusToken} is the corner .card-face asks for, but app_radii.dart emits no such token`);
+  }
+  if (px(emittedRadius) !== radiusPx) {
+    fail(
+      `${faceBase.radiusToken} resolves to ${radiusPx}px in the pass while app_radii.dart publishes ` +
+        `${px(emittedRadius)}px — [AppCardFaceSpec.radiusPx] would resolve a corner nobody measured`,
+    );
+  }
+  return { surface, token, radiusPx };
+};
+
+/** The gold chip, which AppChips already owns. The face row measured the same box,
+ *  so the two are pinned together rather than ported twice. */
+const faceChipRow = (brightness) => {
+  const name = 'face-chip';
+  const rec = faceChecked(name);
+  const cls = rec.parts.map((p) => p.cls).join(' ');
+  if (collapse(cls) !== collapse(faceChip.cls.slice(1))) {
+    fail(`${name}: cites "${cls}", which is not the ${faceChip.cls} class AppChips paints`);
+  }
+  const probe = passTheme(`${brightness}-phone`).probes[faceChip.cls];
+  if (!probe) fail(`${name}: ${faceChip.cls} measured no probe in ${brightness}-phone`);
+  const size = { w: stkLen(brightness, name, 'width'), h: stkLen(brightness, name, 'height') };
+  if (size.w !== faceChip.widthPx || size.h !== faceChip.heightPx) {
+    fail(
+      `${name}: the face measured ${size.w}x${size.h} while AppChips ports ${faceChip.widthPx}x${faceChip.heightPx}`,
+    );
+  }
+  if (stkLen(brightness, name, 'borderRadius') !== faceChip.radiusPx) {
+    fail(`${name}: radius ${stkLen(brightness, name, 'borderRadius')} != the chip's ${faceChip.radiusPx}`);
+  }
+  gEq(faceChip.gradient, stkGradient(brightness, name), `${name} ${brightness}`);
+  if (stkRaw(brightness, name, 'position') !== 'relative')
+    fail(`${name}: the chip no longer sits positioned for its ring`);
+  if (stkCol(brightness, name, 'backgroundColor').alpha !== 0)
+    fail(`${name}: the chip paints a fill under its gradient`);
+  return {
+    name,
+    cls,
+    src: faceCite(rec),
+    widthPx: size.w,
+    heightPx: size.h,
+    authoredSrc: `${faceChip.restSrc} + ${faceChip.afterSrc}`,
+  };
+};
+/** An authored length that may be written as a unitless zero, which is how the
+ *  sheet writes the deck's full bleed. */
+const len0 = (raw, label) => (collapse(raw) === '0' ? 0 : lengthPx(raw, label));
+
+// ---------------------------------------------------------------- the deck
+/** `.deck` — the container the peeking faces are measured inside. Its whole
+ *  geometry is one custom property: the rule declares `--deck-lip` and every other
+ *  length resolves against it, so the lip is read once here and the three places
+ *  the sheet uses it — the container's `height`, the near face's `top`, and each
+ *  face's `clip-path` — all have to answer to that one number. A face detached from
+ *  a `.deck` measures `top: auto` and `clip-path: none`, which is exactly why the
+ *  two face rows record `wrap: "deck"` instead of being measured bare. */
+const faceDeckRule = (() => {
+  const cls = '.deck';
+  const rule = cssRule(/^\.deck \{$/, cls);
+  const allowed = ['--deck-lip', 'position', 'z-index', 'width', 'height', 'margin'];
+  const props = ruleProps(rule, cls);
+  checkStateProps(props, allowed, 'the deck container', cls, rule.line);
+  const decl = Object.fromEntries(props);
+  const lip = lengthPx(decl['--deck-lip'], `${cls} --deck-lip`);
+  if (collapse(decl.height) !== 'calc(var(--deck-lip) * 2)') {
+    fail(`${cls}: height is "${decl.height}", not two lips`);
+  }
+  if (decl['z-index'] !== '2') fail(`${cls}: z-index is "${decl['z-index']}", so the lips are not above the hero`);
+  if (decl.position !== 'relative') fail(`${cls}: position is "${decl.position}"`);
+  const parts = collapse(decl.margin).split(/\s+/);
+  if (parts.length !== 3 || parts[0] !== '0' || parts[1] !== 'auto') {
+    fail(`${cls}: margin is "${decl.margin}", not \`0 auto <bottom>\``);
+  }
+  const marginBottom = lengthPx(parts[2], `${cls} margin bottom`);
+  const frontZ = parseInt(stkRaw('light', 'deck-front', 'zIndex'), 10);
+  if (frontZ >= 2) fail(`${cls}: z-index is ${decl['z-index']}, so the lips are not above a .deck-front at ${frontZ}`);
+  return {
+    cls,
+    line: rule.line,
+    lipPx: lip,
+    heightPx: lip * 2,
+    zIndex: parseInt(decl['z-index'], 10),
+    widthCss: decl.width,
+    positionCss: decl.position,
+    marginBottomPx: marginBottom,
+    marginCss: collapse(decl.margin),
+    heightCss: collapse(decl.height),
+    frontZIndex: frontZ,
+  };
+})();
+
+/** `.deck-face` — the rule every peeking face shares. The clip and the origin are
+ *  the two facts that make a face a lip rather than a scaled card, and both are
+ *  authored in terms of `--deck-lip`, so they are checked against the container's
+ *  number rather than read as literals. */
+const faceDeckFaceBase = (() => {
+  const cls = '.deck-face';
+  const rule = cssRule(/^\.deck-face \{$/, cls, 12);
+  const allowed = ['position', 'left', 'right', 'transform-origin', 'clip-path', 'transition'];
+  const props = ruleProps(rule, cls);
+  checkStateProps(props, allowed, 'the deck face', cls, rule.line);
+  const decl = Object.fromEntries(props);
+  if (decl.position !== 'absolute') fail(`${cls}: position is "${decl.position}"`);
+  for (const side of ['left', 'right']) {
+    if (decl[side] !== '0' && decl[side] !== '0px') fail(`${cls}: ${side} is "${decl[side]}", not the full bleed`);
+  }
+  if (decl['transform-origin'] !== 'top center') {
+    fail(`${cls}: transform-origin is "${decl['transform-origin']}", so the scale no longer hangs from the top edge`);
+  }
+  const clip = faceCssNorm(decl['clip-path']);
+  if (clip !== 'inset(0 0 calc(100% - var(--deck-lip)) 0)') {
+    fail(`${cls}: clip-path is "${clip}", not the top lip the sheet ports`);
+  }
+  return {
+    cls,
+    line: rule.line,
+    positionCss: decl.position,
+    leftPx: len0(decl.left, `${cls} left`),
+    rightPx: len0(decl.right, `${cls} right`),
+    transformOriginCss: decl['transform-origin'],
+    clipPathCss: clip,
+    transition: controlTransition(rule, cls, ['transform', 'opacity']),
+  };
+})();
+
+/** One `matrix(a, 0, 0, a, 0, 0)` as its scale, refusing anything that translates
+ *  or skews: a peeking face changes size and opacity and nothing else. */
+const faceDeckMatrix = (brightness, name) => {
+  const raw = faceCssNorm(stkRaw(brightness, name, 'transform'));
+  const m = /^matrix\(([-\d.]+), 0, 0, ([-\d.]+), ([-\d.]+), ([-\d.]+)\)$/.exec(raw);
+  if (!m) fail(`${name}: ${brightness} measures transform "${raw}", not a plain scale`);
+  const [a, d, e, f] = m.slice(1).map(Number);
+  if (a !== d) fail(`${name}: ${brightness} measures a non-uniform scale ${a}/${d}`);
+  if (e !== 0 || f !== 0) fail(`${name}: ${brightness} measures a translate (${e}, ${f}) the sheet does not author`);
+  return a;
+};
+
+/** The lip Chrome resolved inside a measured face. The authored `calc(100% - 30px)`
+ *  keeps its `calc` in the computed value, so the number is read back out of it and
+ *  has to be the container's own lip. */
+const faceDeckClipLip = (brightness, name, cls) => {
+  const raw = faceCssNorm(stkRaw(brightness, name, 'clipPath'));
+  const m = /^inset\(0px 0px calc\(100% - ([\d.]+)px\)\)$/.exec(raw);
+  if (!m) fail(`${name}: ${cls} clip-path "${raw}" is not the top-lip inset the sheet authors`);
+  const lip = parseFloat(m[1]);
+  if (lip !== faceDeckRule.lipPx) {
+    fail(`${name}: the clip cuts at ${lip}px while ${faceDeckRule.cls} declares --deck-lip: ${faceDeckRule.lipPx}px`);
+  }
+  return lip;
+};
+
+/** One peeking face: the shared `.deck-face` rule plus its own `[data-depth]` arm,
+ *  measured inside a real `.deck`. */
+const faceDeckPeerRead = (brightness, depth) => {
+  const name = `deck-face-depth-${depth}`;
+  const cls = 'deck-face';
+  const rec = usRow(name);
+  const file = rec.src || US.source;
+  if (rec.parts.length !== 1 || rec.parts[0].cls !== cls) {
+    fail(`${name}: expected the single \`${cls}\` class, got ${JSON.stringify(rec.parts.map((p) => p.cls))}`);
+  }
+  tsxLine(FACE_FILES[file], file, rec.parts[0].line, `className="${cls}"`);
+  if (!rec.wrapPart) fail(`${name}: a peeking face was not measured inside a wrapper`);
+  tsxLine(FACE_FILES[rec.wrapPart.src || file], rec.wrapPart.src || file, rec.wrapPart.line, 'className="deck"');
+  if (rec.wrap !== faceDeckRule.cls.slice(1)) fail(`${name}: wrapped in "${rec.wrap}", not \`${faceDeckRule.cls}\``);
+  if (!rec.attrs || rec.attrs['data-depth'] !== String(depth)) {
+    fail(`${name}: not measured with data-depth="${depth}"`);
+  }
+  const stateCls = `.deck-face[data-depth='${depth}']`;
+  const rule = cssRule(new RegExp(`^\\.deck-face\\[data-depth='${depth}'\\] \\{$`), stateCls, 8);
+  const props = ruleProps(rule, cls);
+  checkStateProps(props, ['top', 'transform', 'opacity'], stateCls, cls, rule.line);
+  const decl = Object.fromEntries(props);
+  const wantTop = depth === 1 ? 'var(--deck-lip)' : '0';
+  if (decl.top !== wantTop) fail(`${stateCls}: top is "${decl.top}", expected "${wantTop}"`);
+  const scale = cssScale(rule, stateCls);
+  if (!/^[\d.]+$/.test(decl.opacity)) fail(`${stateCls}: opacity "${decl.opacity}" is not a plain number`);
+  const opacity = parseFloat(decl.opacity);
+  const out = {
+    depth,
+    name,
+    cls: `${cls} data-depth="${depth}"`,
+    src: `${file}:${rec.parts[0].line}`,
+    stateLine: rule.line,
+    positionCss: stkRaw(brightness, name, 'position'),
+    leftPx: stkLen(brightness, name, 'left'),
+    rightPx: stkLen(brightness, name, 'right'),
+    topPx: stkLen(brightness, name, 'top'),
+    scale,
+    opacity,
+    clipLipPx: faceDeckClipLip(brightness, name, cls),
+    transition: faceDeckFaceBase.transition,
+  };
+  if (out.positionCss !== faceDeckFaceBase.positionCss) fail(`${name}: position measures ${out.positionCss}`);
+  if (out.leftPx !== faceDeckFaceBase.leftPx || out.rightPx !== faceDeckFaceBase.rightPx) {
+    fail(
+      `${name}: the face measures ${out.leftPx}/${out.rightPx} inset, the rule authors ${faceDeckFaceBase.leftPx}/${faceDeckFaceBase.rightPx}`,
+    );
+  }
+  const authoredTop = depth === 1 ? faceDeckRule.lipPx : 0;
+  if (out.topPx !== authoredTop) {
+    fail(`${name}: top measures ${out.topPx}, ${stateCls} authors ${wantTop} = ${authoredTop}`);
+  }
+  if (faceDeckMatrix(brightness, name) !== scale) {
+    fail(`${name}: the box measures a scale of ${faceDeckMatrix(brightness, name)}, ${stateCls} authors ${scale}`);
+  }
+  if (stkNum(brightness, name, 'opacity') !== opacity) {
+    fail(`${name}: opacity measures ${stkNum(brightness, name, 'opacity')}, ${stateCls} authors ${opacity}`);
+  }
+  // `top center` is the one authored value Chrome reports in the mount's own
+  // pixels, so it only reads as a fraction of a box that moves with the viewport.
+  const origin = stkPair(brightness, name, 'transformOrigin');
+  const width = stkPair(brightness, name, 'width');
+  for (const side of ['narrow', 'wide']) {
+    const [ox, oy] = origin[side].split(/\s+/).map((s) => lenAnyPx(s, `${name} ${side} transform-origin`));
+    const w = lenAnyPx(width[side], `${name} ${side} width`);
+    if (oy !== 0 || Math.abs(ox / w - 0.5) > 1 / 128) {
+      fail(`${name}: ${side} transform-origin "${origin[side]}" is not the top centre of a ${w}px box`);
+    }
+  }
+  return out;
+};
+
+const faceDeckPeer = (depth) => {
+  const light = faceDeckPeerRead('light', depth);
+  const dark = faceDeckPeerRead('dark', depth);
+  for (const key of Object.keys(light)) {
+    if (JSON.stringify(light[key]) !== JSON.stringify(dark[key])) {
+      fail(`${light.name}: ${key} moves with the scheme`);
+    }
+  }
+  return light;
+};
+const faceDeckPeers = [faceDeckPeer(1), faceDeckPeer(2)];
+if (faceDeckPeers[0].depth !== 1 || faceDeckPeers[1].depth !== 2) fail('the deck peers are not depths 1 and 2');
+if (faceDeckPeers[0].scale <= faceDeckPeers[1].scale) {
+  fail(
+    `the near face scales ${faceDeckPeers[0].scale} while the far one scales ${faceDeckPeers[1].scale}: depth 1 must be the larger`,
+  );
+}
+if (faceDeckPeers[0].opacity <= faceDeckPeers[1].opacity) {
+  fail(`the near face is ${faceDeckPeers[0].opacity} while the far one is ${faceDeckPeers[1].opacity}`);
+}
+
+/** `.deck-front` — the wrapper the hero writes only when a deck is behind it. The
+ *  class is authored in a guarded ternary, so the row is measured on the element
+ *  that ternary produces; the port needs its two properties and no more. */
+const faceDeckFront = (() => {
+  const name = 'deck-front';
+  const rec = faceChecked(name);
+  const cls = rec.parts[0].cls;
+  const rule = cssRule(/^\.deck-front \{$/, `.${cls}`, 8);
+  const props = ruleProps(rule, `.${cls}`);
+  checkStateProps(props, ['position', 'z-index'], 'the deck front', `.${cls}`, rule.line);
+  const decl = Object.fromEntries(props);
+  if (decl.position !== 'relative') fail(`.${cls}: position is "${decl.position}"`);
+  const z = parseInt(decl['z-index'], 10);
+  if (stkRaw('light', name, 'position') !== decl.position) fail(`${name}: position drifts from the rule`);
+  if (parseInt(stkRaw('light', name, 'zIndex'), 10) !== z)
+    fail(`${name}: z-index ${stkRaw('light', name, 'zIndex')} != the rule's ${z}`);
+  for (const brightness of ['light', 'dark']) {
+    if (stkCol(brightness, name, 'backgroundColor').alpha !== 0) fail(`${name}: ${brightness} paints a front fill`);
+    if (stkRaw(brightness, name, 'boxShadow') !== 'none') fail(`${name}: ${brightness} gives the front a shadow`);
+    if (stkRaw(brightness, name, 'zIndex') !== String(z))
+      fail(`${name}: ${brightness} measures z-index ${stkRaw(brightness, name, 'zIndex')}`);
+  }
+  return {
+    name,
+    cls,
+    src: faceCite(rec),
+    line: rule.line,
+    positionCss: decl.position,
+    zIndex: z,
+  };
+})();
+
+/** The deck as the app builds it: the peer budget in `WalletDeck.tsx` and the one
+ *  custom property in the sheet. Both are records of source lines, and every line
+ *  they carry is re-read from the pinned files before the depths are documented. */
+const faceDeckAuthored = (() => {
+  const budget = usAuthored('deck-peer-budget');
+  const lipRec = usAuthored('deck-lip-is-a-custom-property');
+  const byText = new Map();
+  for (const rec of [budget, lipRec]) {
+    const file = rec.src || US.source;
+    for (const p of rec.parts) {
+      const src = p.src || file;
+      const lines = FACE_FILES[src] || (src === 'src/index.css' ? CSS_LINES : undefined);
+      if (!lines) fail(`${rec.name}: part cites ${src}, which app_faces.dart has no pinned copy of`);
+      tsxLine(lines, src, p.line, p.text);
+      if (src === 'src/index.css') byText.set(`${src}:${p.text}`, p.line);
+    }
+  }
+  const cite = (text) => {
+    const line = byText.get(`src/index.css:${text}`);
+    if (line === undefined) fail(`${faceDeckFaceBase.cls}: the deck record carries no line for "${text}"`);
+    return `src/index.css:${line}`;
+  };
+  for (const peer of faceDeckPeers) {
+    peer.authoredSrc = [
+      `${faceDeckRule.cls}:${faceDeckRule.line} (${faceDeckRule.cls} --deck-lip ${faceDeckRule.lipPx}px)`,
+      cite(`top: ${peer.depth === 1 ? 'var(--deck-lip)' : '0'};`),
+      cite(`transform: scale(${peer.scale});`),
+      cite(`opacity: ${peer.opacity};`),
+    ].join(' + ');
+    peer.lipCite = cite(peer.depth === 1 ? 'top: var(--deck-lip);' : 'top: 0;');
+    peer.clipCite = cite('clip-path: inset(0 0 calc(100% - var(--deck-lip)) 0);');
+    peer.originCite = cite('transform-origin: top center;');
+    peer.heightCite = cite('height: calc(var(--deck-lip) * 2);');
+    peer.marginCite = cite('margin: 0 auto -16px;');
+  }
+  return { budget, lipRec };
+})();
+// ---------------------------------------------------------------- the key grid
+/** The three keys' parent. It is the one row on the family whose measurement
+ *  genuinely moves with the viewport, because the gap is authored as a responsive
+ *  pair (`gap-2 sm:gap-2.5`), and the only row laid out as a grid rather than a flex
+ *  box — equal tracks, which a `Row` of three `Expanded` children reproduces. A
+ *  variant-gated utility is not something `faceOffsets` can attribute, so the pair is
+ *  read here as the two class tokens it is. */
+const faceKeyGrid = (() => {
+  const name = 'action-key-grid';
+  const rec = faceChecked(name);
+  const cls = rec.parts.map((p) => p.cls).join(' ');
+  const tokens = cls.split(/\s+/).filter(Boolean);
+  const cols = /^grid-cols-(\d+)$/.exec(tokens.find((t) => /^grid-cols-/.test(t)) || '');
+  if (!cols) fail(`${name}: "${cls}" authors no bare \`grid-cols-N\``);
+  if (tokens.filter((t) => /^grid-cols-/.test(t)).length !== 1) fail(`${name}: "${cls}" sets the column count twice`);
+  const tracks = parseInt(cols[1], 10);
+  const unit = faceSpacingUnit;
+  const gapTokens = tokens.filter((t) => /^(gap-|sm:gap-)/.test(t));
+  const narrowTok = /^gap-([\d.]+)$/.exec(gapTokens.find((t) => /^gap-/.test(t)) || '');
+  const wideTok = /^sm:gap-([\d.]+)$/.exec(gapTokens.find((t) => /^sm:gap-/.test(t)) || '');
+  if (!narrowTok || !wideTok || gapTokens.length !== 2) {
+    fail(`${name}: "${cls}" is not the \`gap-N\` plus \`sm:gap-M\` pair the port carries (${gapTokens.join(' ')})`);
+  }
+  const want = { narrow: parseFloat(narrowTok[1]) * unit, wide: parseFloat(wideTok[1]) * unit };
+  // `stkPair` hands back what Chrome reported, which for a length is the authored
+  // string; the class list's arithmetic is a number, so the side that gets compared
+  // is converted before it is compared.
+  const rawGap = stkPair('light', name, 'rowGap');
+  const pair = {
+    narrow: lenAnyPx(rawGap.narrow, `${name} phone rowGap`),
+    wide: lenAnyPx(rawGap.wide, `${name} desktop rowGap`),
+  };
+  if (pair.narrow !== want.narrow || pair.wide !== want.wide) {
+    fail(
+      `${name}: gap measures ${rawGap.narrow}/${rawGap.wide}, the class list authors ` +
+        `${narrowTok[1]}×${unit}=${want.narrow}px and ${wideTok[1]}×${unit}=${want.wide}px`,
+    );
+  }
+  const rawCol = stkPair('light', name, 'columnGap');
+  if (rawCol.narrow !== rawGap.narrow || rawCol.wide !== rawGap.wide)
+    fail(`${name}: the two gap axes move differently`);
+  // Equal tracks: every column is the row's own width minus the gaps, over the
+  // count. Chrome snaps a track to 1/64 px, which is the bound this proof uses.
+  const template = stkPair('light', name, 'gridTemplateColumns');
+  const width = stkPair('light', name, 'width');
+  for (const side of ['narrow', 'wide']) {
+    const gap = side === 'narrow' ? want.narrow : want.wide;
+    const parts = template[side]
+      .trim()
+      .split(/\s+/)
+      .map((s) => lenAnyPx(s, `${name} ${side} track`));
+    if (parts.length !== tracks) fail(`${name}: ${side} measured ${parts.length} tracks for \`grid-cols-${tracks}\``);
+    const w = lenAnyPx(width[side], `${name} ${side} width`);
+    const ideal = (w - gap * (tracks - 1)) / tracks;
+    for (const px of parts) {
+      if (Math.abs(px - ideal) > 1 / 64) {
+        fail(`${name}: ${side} track ${px}px is not the equal share ${ideal} of a ${w}px row (± Chrome's 1/64px snap)`);
+      }
+    }
+  }
+  const out = {
+    name,
+    cls,
+    src: faceCite(rec),
+    displayCss: stkRaw('light', name, 'display'),
+    positionCss: stkRaw('light', name, 'position'),
+    tracks,
+    columnCountCss: cols[1],
+    gapNarrowPx: want.narrow,
+    gapWidePx: want.wide,
+    gapNarrowCss: narrowTok[1],
+    gapWideCss: wideTok[1],
+    spacingUnitPx: unit,
+  };
+  if (out.displayCss !== 'grid') fail(`${name}: display measures ${out.displayCss}, not grid`);
+  if (out.positionCss !== 'static') fail(`${name}: position measures ${out.positionCss}, so the grid is positioned`);
+  for (const brightness of ['light', 'dark']) {
+    if (stkCol(brightness, name, 'backgroundColor').alpha !== 0) fail(`${name}: ${brightness} paints a grid fill`);
+    if (stkRaw(brightness, name, 'boxShadow') !== 'none') fail(`${name}: ${brightness} gives the grid a shadow`);
+    if (stkLen(brightness, name, 'padding') !== 0) fail(`${name}: ${brightness} measures grid padding`);
+    // The gap axes are compared per viewport rather than through `stkRaw`, because
+    // the row's gap is a responsive pair and `stkVal` refuses a value that moves.
+    for (const pass of [`${brightness}-phone`, `${brightness}-desktop`]) {
+      const stack = stk(pass, name);
+      if (stack.rowGap !== stack.columnGap) {
+        fail(`${name}: ${pass} gaps its two axes differently (${stack.rowGap} vs ${stack.columnGap})`);
+      }
+    }
+  }
+  return out;
+})();
+
+// ---------------------------------------------------------------- the key
+/** `.action-key` — the box under the hero balance. It is not a rounded rectangle:
+ *  its own rule masks an ellipse out of its top edge, sized by two custom properties
+ *  declared in the same block, so the notch is read as the geometry the sheet names
+ *  rather than as a decoration. The prefixed and plain property are both authored,
+ *  because the app ships both, and they have to agree. */
+const faceKeyRule = (() => {
+  const cls = '.action-key';
+  const rule = cssRule(/^\.action-key \{$/, cls, 40);
+  const allowed = [
+    '--key-notch-w',
+    '--key-notch-h',
+    'position',
+    'display',
+    'flex-direction',
+    'align-items',
+    'justify-content',
+    'gap',
+    'padding',
+    'border-radius',
+    'background',
+    'color',
+    'font-family',
+    'font-size',
+    'font-weight',
+    'letter-spacing',
+    'cursor',
+    'border',
+    '-webkit-mask',
+    'mask',
+    'transition',
+  ];
+  const props = ruleProps(rule, cls);
+  checkStateProps(props, allowed, 'the action key', cls, rule.line);
+  const decl = Object.fromEntries(props);
+  const notchW = lengthPx(decl['--key-notch-w'], `${cls} --key-notch-w`);
+  const notchH = lengthPx(decl['--key-notch-h'], `${cls} --key-notch-h`);
+  const maskOf = (prop) => {
+    const value = faceCssNorm(decl[prop]);
+    const m =
+      /^radial-gradient\(ellipse var\(--key-notch-w\) var\(--key-notch-h\) at ([\d.]+)% ([\d.]+)%, transparent ([\d.]+)%, #000 calc\(([\d.]+)% \+ ([\d.]+)px\)\)$/.exec(
+        value,
+      );
+    if (!m) fail(`${cls}: ${prop} is "${value}", not the top-edge ellipse notch the port cuts`);
+    if (m[3] !== m[4]) fail(`${cls}: ${prop} fades out at ${m[3]}% but hardens at ${m[4]}%`);
+    return {
+      css: value,
+      centreX: parseFloat(m[1]) / 100,
+      centreY: parseFloat(m[2]) / 100,
+      cutAt: parseFloat(m[3]) / 100,
+      edgePx: parseFloat(m[5]),
+    };
+  };
+  const prefixed = maskOf('-webkit-mask');
+  const plain = maskOf('mask');
+  if (JSON.stringify(prefixed.css) !== JSON.stringify(plain.css)) {
+    fail(`${cls}: the prefixed and plain masks disagree (${prefixed.css} vs ${plain.css})`);
+  }
+  if (decl.border !== 'none') fail(`${cls}: border is "${decl.border}", so the key has a frame to port`);
+  if (decl.cursor !== 'pointer') fail(`${cls}: cursor is "${decl.cursor}"`);
+  if (decl['font-weight'] !== '700') fail(`${cls}: font-weight is "${decl['font-weight']}"`);
+  const tracking = /^(-?[\d.]+)em$/.exec(decl['letter-spacing']);
+  if (!tracking) fail(`${cls}: letter-spacing "${decl['letter-spacing']}" is not an em length`);
+  const pad = collapse(decl.padding)
+    .split(/\s+/)
+    .map((s) => lengthPx(s, `${cls} padding`));
+  if (pad.length < 3 || pad.length > 4) fail(`${cls}: padding "${decl.padding}" is not the three-sided authoring`);
+  const [pt, pr, pb, pl = pr] = pad;
+  return {
+    cls,
+    line: rule.line,
+    notchWidthPx: notchW,
+    notchHeightPx: notchH,
+    notch: plain,
+    maskAuthored: plain.css,
+    positionCss: decl.position,
+    displayCss: decl.display,
+    flexDirectionCss: decl['flex-direction'],
+    alignItemsCss: decl['align-items'],
+    justifyContentCss: decl['justify-content'],
+    gapPx: lengthPx(decl.gap, `${cls} gap`),
+    paddingCss: collapse(decl.padding),
+    paddingPx: { top: pt, right: pr, bottom: pb, left: pl },
+    radiusPx: lengthPx(decl['border-radius'], `${cls} border-radius`),
+    accentToken: tokenRef(decl.background, `${cls} background`, cls),
+    inkToken: tokenRef(decl.color, `${cls} color`, cls),
+    familyToken: tokenRef(decl['font-family'], `${cls} font-family`, cls),
+    sizeToken: tokenRef(decl['font-size'], `${cls} font-size`, cls),
+    fontWeight: parseInt(decl['font-weight'], 10),
+    trackingEm: parseFloat(tracking[1]),
+    cursorCss: decl.cursor,
+    borderCss: decl.border,
+    transition: controlTransition(rule, cls, ['transform', 'filter']),
+  };
+})();
+
+/** The three states a key can be in. `action-key-states` is the record that names
+ *  each declaration's line, so the lines come from the record and every one of them
+ *  is re-read from the pinned sheet; the rules themselves are parsed here so a state
+ *  that grew a fourth property stops generation. D-U1 drops hover, the press is
+ *  ported, and `disabled` is what the `action-key-disabled` row measured — a state
+ *  the app never writes, because `ActionKey` passes an optional `onClick` straight
+ *  through and a key with no handler simply does nothing. */
+const faceKeyStates = (() => {
+  const cls = '.action-key';
+  const rec = usAuthored('action-key-states');
+  const file = rec.src || 'src/index.css';
+  if (file !== 'src/index.css') fail(`${rec.name}: authored from ${file}, which is not the pinned sheet`);
+  const lineOf = (text) => {
+    const hits = rec.parts.filter((p) => p.text === text);
+    if (hits.length !== 1) fail(`${rec.name}: the record carries ${hits.length} lines reading "${text}"`);
+    const p = hits[0];
+    tsxLine(CSS_LINES, 'src/index.css', p.line, p.text);
+    return p.line;
+  };
+  const headOf = (text) => {
+    const hits = rec.parts.filter((p) => p.text === text);
+    if (hits.length !== 1) fail(`${rec.name}: the record carries ${hits.length} heads reading "${text}"`);
+    tsxLine(CSS_LINES, 'src/index.css', hits[0].line, hits[0].text);
+    return hits[0].line;
+  };
+  const hover = cssRule(/^\.action-key:hover \{$/, `${cls}:hover`, 8);
+  const active = cssRule(/^\.action-key:active \{$/, `${cls}:active`, 8);
+  const disabled = cssRule(/^\.action-key:disabled,$/, `${cls}:disabled`, 10);
+  if (hover.line !== headOf('.action-key:hover {'))
+    fail(`${cls}:hover opens at ${hover.line}, the record says ${hover.line}`);
+  if (active.line !== headOf('.action-key:active {')) fail(`${cls}:active opens at ${active.line}`);
+  if (disabled.line !== headOf('.action-key[disabled] {') - 1) {
+    fail(
+      `${cls}:disabled opens at ${disabled.line}, one line above the record's \`.action-key[disabled] {{\` at ${headOf('.action-key[disabled] {')}`,
+    );
+  }
+  const hoverProps = Object.fromEntries(ruleProps(hover, cls));
+  checkStateProps(Object.entries(hoverProps), ['filter'], 'the hover rule', cls, hover.line);
+  const dim = /^brightness\(([\d.]+)\)$/.exec(collapse(hoverProps.filter));
+  if (!dim) fail(`${cls}:hover filter "${hoverProps.filter}" is not a plain brightness(N) dim`);
+  const activeProps = Object.fromEntries(ruleProps(active, cls));
+  checkStateProps(Object.entries(activeProps), ['transform'], 'the active rule', cls, active.line);
+  const disabledProps = ruleProps(disabled, cls);
+  checkStateProps(disabledProps, ['opacity', 'cursor', 'transform'], 'the disabled rule', cls, disabled.line);
+  const dDecl = Object.fromEntries(disabledProps);
+  if (!/^[\d.]+$/.test(dDecl.opacity)) fail(`${cls}:disabled opacity "${dDecl.opacity}" is not a plain number`);
+  if (dDecl.cursor !== 'not-allowed') fail(`${cls}:disabled cursor is "${dDecl.cursor}"`);
+  if (collapse(dDecl.transform) !== 'none') fail(`${cls}:disabled transform is "${dDecl.transform}"`);
+  return {
+    pressScale: cssScale(active, `${cls}:active`),
+    pressDeclLine: lineOf('transform: scale(0.965);'),
+    pressHeadLine: active.line,
+    hoverBrightness: parseFloat(dim[1]),
+    hoverDeclLine: lineOf('filter: brightness(0.94);'),
+    hoverHeadLine: hover.line,
+    disabledOpacity: parseFloat(dDecl.opacity),
+    disabledCursor: dDecl.cursor,
+    disabledDeclLines: [lineOf('opacity: 0.45;'), lineOf('cursor: not-allowed;'), lineOf('transform: none;')].join(','),
+    disabledHeadLine: disabled.line,
+    transition: faceKeyRule.transition,
+  };
+})();
+
+/** `.action-key-icon` — the glyph's own box. The icon's size is an SVG attribute the
+ *  caller hands to the icon component (`action-key-glyph` records it), not a fact the
+ *  sheet or the measurement paints, so the port carries the box that stops an inline
+ *  SVG adding leading underneath it and leaves the size with the caller. */
+const faceKeyIconRule = (() => {
+  const cls = '.action-key-icon';
+  const rule = cssRule(/^\.action-key-icon \{$/, cls, 8);
+  const props = ruleProps(rule, cls);
+  checkStateProps(props, ['display', 'line-height'], 'the glyph box', cls, rule.line);
+  const decl = Object.fromEntries(props);
+  if (decl.display !== 'block') fail(`${cls}: display is "${decl.display}"`);
+  if (len0(decl['line-height'], `${cls} line-height`) !== 0) {
+    fail(`${cls}: line-height is "${decl['line-height']}", so the glyph box has leading to port`);
+  }
+  const name = 'action-key-icon';
+  const rec = faceChecked(name);
+  if (rec.parts.map((p) => p.cls).join(' ') !== cls.slice(1)) {
+    fail(`${name}: the row cites "${rec.parts.map((p) => p.cls).join(' ')}", not the single \`${cls}\` class`);
+  }
+  for (const brightness of ['light', 'dark']) {
+    if (stkRaw(brightness, name, 'display') !== decl.display) fail(`${name}: ${brightness} display drifts from ${cls}`);
+    if (stkLen(brightness, name, 'lineHeight') !== 0)
+      fail(`${name}: ${brightness} measures ${stkLen(brightness, name, 'lineHeight')}px of leading`);
+    if (stkCol(brightness, name, 'backgroundColor').alpha !== 0) fail(`${name}: ${brightness} paints the glyph box`);
+  }
+  const glyph = usAuthored('action-key-glyph');
+  for (const p of glyph.parts) {
+    const src = p.src || glyph.src;
+    const lines = FACE_FILES[src];
+    if (!lines) fail(`${glyph.name}: part cites ${src}, which app_faces.dart has no pinned copy of`);
+    tsxLine(lines, src, p.line, p.text);
+  }
+  return {
+    name,
+    cls: cls.slice(1),
+    line: rule.line,
+    src: faceCite(rec),
+    displayCss: decl.display,
+    lineHeightPx: 0,
+    glyphSrc: `${glyph.src}:${glyph.parts.map((p) => p.line).join(',')}`,
+  };
+})();
+
+/** The family the key computes to. `font-family` is not one of the properties the
+ *  utility-stack capture asks Chrome for — the guard below says so out loud rather
+ *  than leaving the probe read unexplained — so the family comes from the
+ *  `.action-key` probe, which is the same class the row cites and the one the rule
+ *  declares `var(--font-…)` on. Both viewports of a brightness must report one
+ *  stack, and Flutter is given its first family where CSS is given a fallback list. */
+const faceKeyFamily = (brightness, name) => {
+  const cls = faceKeyRule.cls;
+  if (stkHas(brightness, name, 'fontFamily')) {
+    fail(`${name}: the stack now measures font-family, so ${cls} is no longer its only source`);
+  }
+  const sides = ['phone', 'desktop'].map((viewport) => {
+    const probe = passTheme(`${brightness}-${viewport}`).probes[cls];
+    if (!probe) fail(`${cls}: ${brightness}-${viewport} measured no probe`);
+    return probeRaw(probe, 'fontFamily', `${cls} ${brightness}-${viewport}`);
+  });
+  if (sides[0] !== sides[1]) fail(`${cls}: the font stack moves with the viewport (${sides[0]} vs ${sides[1]})`);
+  return firstFamily(sides[0], cls);
+};
+
+/** The key at rest and disabled, read as a pair: everything the box is, plus the
+ *  accent fill and ink the rule names, and the three properties the disabled arm
+ *  changes. */
+const faceKeyRead = (brightness, name) => {
+  const rec = faceChecked(name);
+  const cls = rec.parts.map((p) => p.cls).join(' ');
+  const out = {
+    name,
+    cls,
+    src: faceCite(rec),
+    tag: rec.tag,
+    displayCss: stkRaw(brightness, name, 'display'),
+    positionCss: stkRaw(brightness, name, 'position'),
+    flexDirectionCss: stkRaw(brightness, name, 'flexDirection'),
+    alignItemsCss: stkRaw(brightness, name, 'alignItems'),
+    justifyContentCss: stkRaw(brightness, name, 'justifyContent'),
+    gapPx: stkLen(brightness, name, 'rowGap'),
+    cursorCss: stkRaw(brightness, name, 'cursor'),
+    opacity: stkNum(brightness, name, 'opacity'),
+    transformCss: stkRaw(brightness, name, 'transform'),
+    radiusPx: stkLen(brightness, name, 'borderRadius'),
+    minWidthPx: stkLen(brightness, name, 'minWidth'),
+    flexGrow: stkNum(brightness, name, 'flexGrow'),
+    flexShrink: stkNum(brightness, name, 'flexShrink'),
+    borderWidthPx: stkLen(brightness, name, 'borderTopWidth'),
+    fontSizePx: stkLen(brightness, name, 'fontSize'),
+    fontWeight: parseInt(stkRaw(brightness, name, 'fontWeight'), 10),
+    letterSpacingPx: stkLen(brightness, name, 'letterSpacing'),
+    lineHeightPx: stkLen(brightness, name, 'lineHeight'),
+    fontFamily: faceKeyFamily(brightness, name),
+    fill: stkCol(brightness, name, 'backgroundColor'),
+    ink: stkCol(brightness, name, 'color'),
+    sides: facePadSides(brightness, name),
+  };
+  const rule = faceKeyRule;
+  if (out.displayCss !== rule.displayCss) fail(`${name}: display ${out.displayCss} != the rule's ${rule.displayCss}`);
+  if (out.positionCss !== rule.positionCss)
+    fail(`${name}: position ${out.positionCss} != the rule's ${rule.positionCss}`);
+  if (out.flexDirectionCss !== rule.flexDirectionCss) fail(`${name}: flex-direction drifts from the rule`);
+  if (out.alignItemsCss !== rule.alignItemsCss || out.justifyContentCss !== rule.justifyContentCss) {
+    fail(`${name}: the key no longer centres its glyph and word (${out.alignItemsCss}/${out.justifyContentCss})`);
+  }
+  if (out.gapPx !== rule.gapPx) fail(`${name}: gap measures ${out.gapPx}, the rule authors ${rule.gapPx}`);
+  if (out.radiusPx !== rule.radiusPx)
+    fail(`${name}: radius measures ${out.radiusPx}, the rule authors ${rule.radiusPx}`);
+  if (out.borderWidthPx !== 0) fail(`${name}: the key measures a ${out.borderWidthPx}px frame the rule sets to none`);
+  if (out.cursorCss !== rule.cursorCss && out.cursorCss !== faceKeyStates.disabledCursor) {
+    fail(`${name}: cursor "${out.cursorCss}" is neither the rule's "${rule.cursorCss}" nor the disabled arm`);
+  }
+  if (out.fontWeight !== rule.fontWeight)
+    fail(`${name}: weight measures ${out.fontWeight}, the rule authors ${rule.fontWeight}`);
+  const sizeToken = passTheme(`${brightness}-phone`).root[rule.sizeToken];
+  if (!sizeToken) fail(`${name}: ${rule.sizeToken} is not measured in ${brightness}-phone`);
+  if (out.fontSizePx !== lengthPx(sizeToken.raw, rule.sizeToken)) {
+    fail(`${name}: size measures ${out.fontSizePx}px, ${rule.sizeToken} is ${sizeToken.raw}`);
+  }
+  if (out.letterSpacingPx !== rule.trackingEm * out.fontSizePx) {
+    fail(
+      `${name}: tracking measures ${out.letterSpacingPx}px, ${rule.trackingEm}em of ${out.fontSizePx}px is not that`,
+    );
+  }
+  const familyToken = passTheme(`${brightness}-phone`).root[rule.familyToken];
+  if (!familyToken) fail(`${name}: ${rule.familyToken} is not measured in ${brightness}-phone`);
+  const authoredFamily = firstFamily(familyToken.raw, rule.familyToken);
+  if (out.fontFamily !== authoredFamily) {
+    fail(`${name}: the key computes to ${out.fontFamily} while ${rule.familyToken} is ${authoredFamily}`);
+  }
+  out.fill = stkTokenColour(brightness, name, 'backgroundColor', rule.accentToken, 'the accent fill');
+  out.ink = stkTokenColour(brightness, name, 'color', rule.inkToken, 'the accent ink');
+  for (const side of ['top', 'right', 'bottom', 'left']) {
+    if (out.sides[side] !== rule.paddingPx[side]) {
+      fail(`${name}: ${side} padding measures ${out.sides[side]}, the rule authors ${rule.paddingCss}`);
+    }
+  }
+  if (stkHas(brightness, name, 'minWidth') !== true) fail(`${name}: the row measured no minimum width`);
+  return out;
+};
+
+const faceKey = (() => {
+  const rest = { light: faceKeyRead('light', 'action-key'), dark: faceKeyRead('dark', 'action-key') };
+  const off = { light: faceKeyRead('light', 'action-key-disabled'), dark: faceKeyRead('dark', 'action-key-disabled') };
+  for (const brightness of ['light', 'dark']) {
+    const r = rest[brightness];
+    const d = off[brightness];
+    if (r.cls !== d.cls) fail(`action-key: the two states measure different class lists (${r.cls} / ${d.cls})`);
+    if (r.tag !== 'button') fail(`action-key: recorded on a <${r.tag}>, not the button the app writes`);
+    if (d.opacity !== faceKeyStates.disabledOpacity) {
+      fail(
+        `action-key-disabled: ${brightness} measures opacity ${d.opacity}, the rule authors ${faceKeyStates.disabledOpacity}`,
+      );
+    }
+    if (d.cursorCss !== faceKeyStates.disabledCursor) {
+      fail(
+        `action-key-disabled: ${brightness} cursor "${d.cursorCss}" != the rule's "${faceKeyStates.disabledCursor}"`,
+      );
+    }
+    if (d.transformCss !== 'none') fail(`action-key-disabled: ${brightness} measures transform ${d.transformCss}`);
+    if (r.transformCss !== 'none') fail(`action-key: ${brightness} rests at transform ${r.transformCss}`);
+    if (r.opacity !== 1) fail(`action-key: ${brightness} rests at opacity ${r.opacity}`);
+    for (const key of Object.keys(r)) {
+      if (['opacity', 'cursorCss', 'name', 'src'].includes(key)) continue;
+      if (JSON.stringify(r[key]) !== JSON.stringify(d[key])) {
+        fail(
+          `action-key-disabled: ${key} differs from the rest row (${JSON.stringify(r[key])} → ${JSON.stringify(d[key])})`,
+        );
+      }
+    }
+    if (/\bpressable\b/.test(r.cls)) fail('action-key: the key cites .pressable; its press is its own rule');
+    if (!/\bmin-w-0\b/.test(r.cls)) fail(`action-key: "${r.cls}" has no \`min-w-0\` for the grid to shrink into`);
+    if (r.minWidthPx !== 0) fail(`action-key: min-width measures ${r.minWidthPx}, the cited utility authors 0`);
+    if (r.flexGrow !== 0) fail(`action-key: the key measures flex-grow ${r.flexGrow}`);
+    if (r.lineHeightPx / r.fontSizePx !== rest[brightness].lineHeightPx / rest[brightness].fontSizePx) {
+      fail(`action-key: ${brightness} line box drifts`);
+    }
+  }
+  return { rest: rest.light, restPaint: rest, off: off.light, offPaint: off };
+})();
+// ---------------------------------------------------------------- the family, assembled
+/** The two facts another emitted family owns: AppSurfaces' `.card-face` probe and
+ *  AppShadows' `--shadow-float`. The call is the check — every tone's radius and
+ *  every tone's shadow list has to answer to them, or the run stops. */
+const faceOwners = faceBaseCrossChecks();
+
+/** The gold chip, pinned to AppChips in both brightnesses. The face does not port
+ *  it; it ports the row it was measured on so the widget can say where the chip
+ *  sits and the drift tests can say the two files still agree. */
+const faceChipSlot = { light: faceChipRow('light'), dark: faceChipRow('dark') };
+
+/** The box, read once per tone. A tone changes the paint and nothing else — a
+ *  geometry that moved between tones could not be ported as one box, and the face
+ *  component writes one box with the tone filled into a hole. */
+const faceBoxShared = ['gradient', 'shadow', 'ink', 'paint', 'name', 'cls', 'src'];
+const faceToneBoxes = faceToneRows.map((t) => ({ ...t, box: faceBox(t.name) }));
+for (const later of faceToneBoxes.slice(1)) {
+  const first = faceToneBoxes[0].box;
+  for (const key of Object.keys(first)) {
+    if (faceBoxShared.includes(key)) continue;
+    if (JSON.stringify(first[key]) !== JSON.stringify(later.box[key])) {
+      fail(
+        `${later.name}: ${key} is ${JSON.stringify(later.box[key])} while ${faceToneBoxes[0].name} measures ` +
+          `${JSON.stringify(first[key])} — one component writes one box`,
+      );
+    }
+  }
+  for (const brightness of ['light', 'dark']) {
+    const a = first.paint[brightness];
+    const b = later.box.paint[brightness];
+    if (JSON.stringify(a.shadow) !== JSON.stringify(b.shadow)) {
+      fail(`${later.name}: ${brightness} shadows differ from ${faceToneBoxes[0].name}'s`);
+    }
+    if (JSON.stringify(a.fill) !== JSON.stringify(b.fill)) {
+      fail(`${later.name}: ${brightness} fills differ from ${faceToneBoxes[0].name}'s`);
+    }
+    if (JSON.stringify(a.ink) !== JSON.stringify(b.ink)) {
+      fail(`${later.name}: ${brightness} ink differs from ${faceToneBoxes[0].name}'s`);
+    }
+  }
+}
+
+/** The non-interactive arm — the same template with the cursor hole left empty and
+ *  the default tone. It is ported as the box's second class list, not as a second
+ *  box: the measurement says only the cursor and the element moved.
+ *
+ *  It is, however, measured on the component's *fixed* style arm while every tone
+ *  row was measured on the `fluid` arm, so the four fields that arm writes are the
+ *  difference the port carries as two facts rather than one drift: the interactive
+ *  box is `width: 100%` with no floor, the plain box is the caller's width with a
+ *  250px floor, and the aspect ratio both arms author by hand is one number. */
+const facePlain = faceBox('face-box-plain');
+const faceToneDefault = faceToneBoxes.find((t) => t.box.cls.includes('face-violet'));
+if (!faceToneDefault) fail('face-box-plain cites the violet tone, which no measured tone row carries');
+const FACE_ARM_FIELDS = ['styleSrc', 'minWidthPx', 'callerOwnsWidth', 'widthFull'];
+for (const key of Object.keys(facePlain)) {
+  if (['name', 'cls', 'src', 'interactive', 'cursorCss', 'paint', ...FACE_ARM_FIELDS].includes(key)) continue;
+  if (JSON.stringify(facePlain[key]) !== JSON.stringify(faceToneDefault.box[key])) {
+    fail(`face-box-plain: ${key} differs from the interactive arm of the same box`);
+  }
+}
+for (const brightness of ['light', 'dark']) {
+  for (const key of ['gradient', 'shadow', 'fill', 'ink']) {
+    if (
+      JSON.stringify(facePlain.paint[brightness][key]) !== JSON.stringify(faceToneDefault.box.paint[brightness][key])
+    ) {
+      fail(`face-box-plain: ${brightness} ${key} differs from the interactive arm of the same tone`);
+    }
+  }
+}
+if (facePlain.aspectRatio !== faceToneDefault.box.aspectRatio) {
+  fail('face-box-plain: the two style arms no longer author one aspect ratio');
+}
+if (facePlain.styleSrc === faceToneDefault.box.styleSrc) fail('face-box-plain: both arms cite the same style line');
+if (facePlain.callerOwnsWidth !== true || faceToneDefault.box.callerOwnsWidth !== false) {
+  fail('face-box-plain: the fixed arm is not the one the caller owns the width of');
+}
+if (facePlain.minWidthPx === faceToneDefault.box.minWidthPx) fail('face-box-plain: both arms measure the same floor');
+if (facePlain.interactive !== false) fail('face-box-plain measures an interactive cursor');
+if (faceToneDefault.box.interactive !== true) fail(`${faceToneDefault.name}: the tone row measures no pointer`);
+if (!/ $/.test(facePlain.cls))
+  fail(`face-box-plain: "${facePlain.cls}" does not end in the space the empty hole leaves`);
+
+/** One tone as both things it is: the recipe the sheet authors and the pixels the
+ *  pass painted. The recipe is what a reader traces (`color-mix` over the anchor),
+ *  the measurement is what Flutter draws, and §6's detached probe of the same class
+ *  has to be the third copy of the same gradient. */
+const faceTints = faceToneBoxes.map((t) => {
+  const recipe = faceGradientRecipe(t.tone);
+  const light = t.box.paint.light.gradient;
+  const dark = t.box.paint.dark.gradient;
+  faceGradientCheck(t.tone, recipe, light, 'light');
+  faceGradientCheck(t.tone, recipe, dark, 'dark');
+  gEq(faceProbeGradient(t.tone, 'light'), light, `.${t.tone} light`);
+  gEq(faceProbeGradient(t.tone, 'dark'), dark, `.${t.tone} dark`);
+  for (const [brightness, gradient] of [
+    ['light', light],
+    ['dark', dark],
+  ]) {
+    if (gradient.stops.length !== recipe.stops.length)
+      fail(`${t.tone}: ${brightness} stop count drifts from the recipe`);
+    for (const [i, stop] of recipe.stops.entries()) {
+      if (gradient.stops[i].at !== (i === 0 ? 0 : 1)) {
+        fail(
+          `${t.tone}: ${brightness} stop ${i} sits at ${gradient.stops[i].at}, the recipe authors ${i === 0 ? '0%' : '100%'}`,
+        );
+      }
+    }
+  }
+  return { ...t, recipe, light, dark };
+});
+if (new Set(faceTints.map((t) => JSON.stringify(t.light))).size !== faceTints.length) {
+  fail('two tones paint one light gradient; the tone table would not be a table');
+}
+
+/** The bands and the words inside a face. Each is one row, read twice and ported
+ *  once, because `faceSlot` refuses a slot whose geometry moves with the scheme. */
+const FACE_SLOT_ROWS = [
+  'face-top-row',
+  'face-name-block',
+  'face-bank-name',
+  'face-card-name',
+  'face-badge',
+  'face-badge-deck',
+  'face-amount-block',
+  'face-balance-label',
+  'face-balance',
+  'face-number-block',
+  'face-chip-row',
+  'face-card-number',
+];
+const faceSlots = Object.fromEntries(FACE_SLOT_ROWS.map((n) => [n, faceSlot(n, {})]));
+// The badge the face draws for itself and the one the deck passes it are the same
+// recipe kept in two files; the record says so, and the measurement has to agree.
+for (const key of Object.keys(faceSlots['face-badge'])) {
+  if (['name', 'src', 'cls'].includes(key)) continue;
+  if (JSON.stringify(faceSlots['face-badge'][key]) !== JSON.stringify(faceSlots['face-badge-deck'][key])) {
+    fail(`face-badge-deck: ${key} drifts from face-badge, which the record says is a byte-for-byte copy`);
+  }
+}
+if (faceSlots['face-badge'].cls !== faceSlots['face-badge-deck'].cls)
+  fail('the two badges no longer cite one class list');
+/** The two children of `face-number-block`’s `space-y-2`. Chrome gives the space to
+ *  the *first* child’s margin-bottom and nothing to the last, which is the
+ *  difference between this pair’s two rows — so the pair is pinned as one fact:
+ *  exactly one child carries it, the parent’s own class list is the `wrap` the two
+ *  children were measured under, and the px both children answer to is that
+ *  utility’s number (the check `faceWrapSpacing` runs per row). */
+const faceSpacedParent = usRow('face-number-block')
+  .parts.map((p) => p.cls)
+  .join(' ');
+for (const child of ['face-chip-row', 'face-card-number']) {
+  if (usRow(child).wrap !== faceSpacedParent) {
+    fail(`${child}: measured under "${usRow(child).wrap}", not the parent row "${faceSpacedParent}"`);
+  }
+}
+const faceSpaced = [faceSlots['face-chip-row'], faceSlots['face-card-number']];
+const faceSpacingCarriers = faceSpaced.filter((s) => s.marginTopPx !== 0 || s.marginBottomPx !== 0);
+if (faceSpacingCarriers.length !== 1) {
+  fail(`face-number-block: ${faceSpacingCarriers.length} of its two children carry the \`space-y\` margin`);
+}
+if (faceSpacingCarriers[0].name !== 'face-chip-row') fail('face-card-number: the last child carries the space');
+if (faceSpaced[1].marginTopPx !== 0 || faceSpaced[1].marginBottomPx !== 0) {
+  fail('face-card-number: the last child of a space-y parent measures a margin');
+}
+
+/** The `.deck` as one measured row, against the arithmetic of its own custom
+ *  property: height two lips, one lip of pull-up, and the stacking the hero needs. */
+const faceDeckBox = (() => {
+  const name = 'deck-box';
+  const rec = faceChecked(name);
+  if (rec.parts.length !== 1 || rec.parts[0].cls !== faceDeckRule.cls.slice(1)) {
+    fail(
+      `${name}: expected the single \`${faceDeckRule.cls}\` class, got ${JSON.stringify(rec.parts.map((p) => p.cls))}`,
+    );
+  }
+  const out = {
+    name,
+    cls: rec.parts[0].cls,
+    src: faceCite(rec),
+    displayCss: stkRaw('light', name, 'display'),
+    positionCss: stkRaw('light', name, 'position'),
+    heightPx: stkLen('light', name, 'height'),
+    marginBottomPx: stkLen('light', name, 'marginBottom'),
+    zIndex: parseInt(stkRaw('light', name, 'zIndex'), 10),
+    paddingPx: stkLen('light', name, 'padding'),
+    overflowXCss: stkRaw('light', name, 'overflowX'),
+    overflowYCss: stkRaw('light', name, 'overflowY'),
+  };
+  if (out.heightPx !== faceDeckRule.heightPx) {
+    fail(
+      `${name}: height measures ${out.heightPx}, ${faceDeckRule.cls} authors ${faceDeckRule.heightCss} = ${faceDeckRule.heightPx}px`,
+    );
+  }
+  if (out.marginBottomPx !== faceDeckRule.marginBottomPx) {
+    fail(
+      `${name}: margin-bottom measures ${out.marginBottomPx}, ${faceDeckRule.cls} authors "${faceDeckRule.marginCss}"`,
+    );
+  }
+  if (out.zIndex !== faceDeckRule.zIndex)
+    fail(`${name}: z-index measures ${out.zIndex}, the rule authors ${faceDeckRule.zIndex}`);
+  if (out.positionCss !== faceDeckRule.positionCss) fail(`${name}: position measures ${out.positionCss}`);
+  if (out.displayCss !== 'block') fail(`${name}: display measures ${out.displayCss}, so the lips are not a block flow`);
+  if (out.paddingPx !== 0) fail(`${name}: the deck measures ${out.paddingPx}px of padding the rule does not author`);
+  for (const brightness of ['light', 'dark']) {
+    if (stkCol(brightness, name, 'backgroundColor').alpha !== 0) fail(`${name}: ${brightness} paints a deck fill`);
+    if (stkRaw(brightness, name, 'boxShadow') !== 'none') fail(`${name}: ${brightness} gives the deck a shadow`);
+  }
+  return out;
+})();
+
+/** The word under a key's glyph. It is measured detached, so it paints the body's
+ *  ink and authors no colour of its own; inside a key it takes `var(--accent-fg)`,
+ *  which is the same inheritance law `faceSlot` reads a face slot's ink by. */
+const faceKeyLabel = faceSlot('action-key-label', {});
+if (!faceKeyLabel.inheritsFaceInk) fail('action-key-label: the row paints a colour of its own, not the key’s ink');
+if (faceKeyLabel.textColor !== null) fail('action-key-label: a detached row should not measure an authored colour');
+/** A row name to a Dart enum member: `face-bank-name` → `bankName`. The identifier
+ *  is derived from the measured row rather than typed, so an enum member cannot be
+ *  named for a row the record does not carry — and a name that will not camel-case
+ *  into a legal identifier stops generation instead of emitting a broken class. */
+const faceSlotId = (name) => {
+  const bare = name.replace(/^(face-|action-key-)/, '');
+  const id = bare.replace(/-([a-z0-9])/g, (m, c) => c.toUpperCase());
+  if (!/^[a-z][A-Za-z0-9]*$/.test(id))
+    fail(`${name}: yields the Dart identifier "${id}", which is not lower camel case`);
+  return id;
+};
+/** The bands that are not of the face. They share [AppFaceSlotSpec] because they are
+ *  measured by the same reader, so one enum names the face’s bands and the key’s,
+ *  and the widget indexes one table. */
+const FACE_EMIT_SLOTS = FACE_SLOT_ROWS.filter((n) => n !== 'face-badge-deck').concat([faceKeyLabel.name]);
+for (const n of FACE_EMIT_SLOTS) {
+  if (n !== faceKeyLabel.name && !faceSlots[n]) fail(`${n}: named for emission but never measured`);
+}
+if (new Set(FACE_EMIT_SLOTS.map(faceSlotId)).size !== FACE_EMIT_SLOTS.length)
+  fail('two bands yield one Dart identifier');
+
+/** One tone’s stops for one pass: the pixels the pass measured and the text the rule
+ *  authored are the same stop read from two directions, so the two lists are zipped
+ *  by index — which `faceTints` already requires to be the same length and to sit at
+ *  the same 0% and 100%. */
+const faceStopList = (t, brightness) => {
+  const ind = '    ';
+  const items = t[brightness].stops.map((stop, i) => {
+    if (stop.at !== (i === 0 ? 0 : 1)) fail(`${t.tone}: stop ${i} is not at the position the recipe authors`);
+    const recipe = t.recipe.stops[i];
+    return `${ind}  ${rowsSpecValue(
+      'AppFaceStopSpec',
+      FACE_STOP_FIELDS,
+      {
+        at: stop.at,
+        colour: stop.colour,
+        authored: recipe.authored,
+        hueToken: recipe.hueToken === undefined ? null : recipe.hueToken,
+        mixPercent: recipe.mixPercent,
+        anchorToken: recipe.anchorToken,
+      },
+      `${ind}  `,
+    )},`;
+  });
+  return `<AppFaceStopSpec>[\n${items.join('\n')}\n${ind}]`;
+};
+// ---------------------------------------------------------------- Dart emission
+// One table per spec class: its Dart fields and its Dart literals are the same list
+// read twice, so a number cannot be declared in the class and carried here under
+// another name. Every getter below reads a value the reader layer measured; none of
+// them computes one.
+banner();
+L.push(
+  "import 'package:flutter/material.dart';",
+  '',
+  "import 'app_radii.dart';",
+  "import 'app_shadows.dart';",
+  '',
+  '/// The card face, the wallet deck its peers peek out of, and the three action',
+  '/// keys under the hero balance — the three boxes `src/index.css` paints with a',
+  '/// gradient of its own rather than with a surface token.',
+  '///',
+  '/// As for the ledger, the measurement is a `utilityStacks` row: the verbatim',
+  '/// class list — plus, where the component writes one, the inline `style` — on the',
+  '/// element the component really uses. A §6 probe cannot see a Tailwind utility,',
+  "/// and `src/index.css` supplies what a detached element cannot show: a tone's",
+  '/// gradient, the `.card-face::before` sheen, a state rule, the deck lip.',
+  '///',
+  '/// Three laws bind this file. A fact another generated family owns is cited and',
+  '/// cross-checked here, never restated: `.card-face`’s corner is AppRadii’s and its',
+  '/// float AppShadows’, the gold chip is AppChips’, and the balance figure is the',
+  '/// `.money` face AppNumerals ports. A value no pass measured fails generation —',
+  '/// there is no default in this file. And a box whose measured height is the',
+  '/// mount’s own width over an authored ratio is ported as that ratio, never as',
+  '/// the pixels, which is why no `*Px` here names a width.',
+  '',
+  '/// A tone of `CardFace.tsx`’s `FACE_TONES` table, in the order the component',
+  '/// declares them. Generation reads the array out of the pinned source and',
+  '/// requires it to list exactly the tones whose rows were measured, so an enum',
+  '/// here cannot drift from the component without the run failing.',
+  'enum AppFaceTone {',
+);
+for (const t of faceTints) {
+  L.push(`  ${t.id}('${t.tone}', '${t.name}'),`);
+}
+L.push(
+  ';',
+  '',
+  '  const AppFaceTone(this.cssClass, this.stackRow);',
+  '',
+  '  /// The `.face-*` class that paints this tone.',
+  '  final String cssClass;',
+  '',
+  '  /// The `utilityStacks` row the tone’s own box was measured on.',
+  '  final String stackRow;',
+  '',
+  '  /// The tone `CardFace.tsx` falls back to when the caller passes none — the',
+  '  /// prop default the non-interactive arm was measured with, read off the line',
+  '  /// that declares it.',
+  `  static const AppFaceTone defaultTone = AppFaceTone.${faceToneDefault.id};`,
+  '}',
+  '',
+);
+
+const FACE_STOP_FIELDS = [
+  ['at', 'double', (s) => s.at, ['The stop’s position along the gradient, as the recipe authors it: 0% and 100%.']],
+  [
+    'colour',
+    'Color',
+    (s) => ({ r: s.colour.r, g: s.colour.g, b: s.colour.b, alpha: s.colour.a }),
+    [
+      'The pixels this pass painted — a `color-mix` is the engine’s arithmetic, so',
+      'this is the resolved colour, not a formula.',
+    ],
+  ],
+  [
+    'authored',
+    'String',
+    (s) => s.authored,
+    ['The stop exactly as the rule writes it, so the measurement can be traced back to the stylesheet.'],
+  ],
+  [
+    'hueToken',
+    'String?',
+    (s) => s.hueToken,
+    ['The `--hue-*` token the stop mixes from, `null` for the stop that is the bare anchor.'],
+  ],
+  [
+    'mixPercent',
+    'double',
+    (s) => s.mixPercent,
+    ['How much of [hueToken] the stop mixes with [anchorToken]; `0` when the stop is the anchor itself.'],
+  ],
+  [
+    'anchorToken',
+    'String',
+    (s) => s.anchorToken,
+    ['The token both stops mix over — `--face-anchor`, the one colour every tone shares.'],
+  ],
+];
+rowsSpecClass(
+  'AppFaceStopSpec',
+  [
+    '/// One stop of a tone’s gradient, as the sheet authors it and as the pass painted',
+    '/// it. The two are the same fact from two directions: `authored` is the',
+    '/// `color-mix(…)` text in `src/index.css`, and [colour] is what Chrome resolved',
+    '/// from it at this brightness, which generation requires a bare anchor stop to',
+    '/// equal exactly.',
+  ],
+  FACE_STOP_FIELDS,
+  [],
+);
+
+const FACE_TINT_FIELDS = [
+  ['cssClass', 'String', (t) => t.recipe.cls, ['`.face-blue` — the rule that paints this tone.']],
+  ['stackRow', 'String', (t) => t.name, ['The measured box this tone was mounted as.']],
+  [
+    'authoredSrc',
+    'String',
+    (t) => t.box.src,
+    ['Where the component writes the class list, with the tone filled into its hole.'],
+  ],
+  ['recipeSrc', 'String', (t) => `src/index.css:${t.recipe.line}`, ['Where the sheet authors the gradient.']],
+  ['angleDeg', 'double', (t) => t.recipe.angle, ['The authored gradient angle, which every pass measured unchanged.']],
+  ['anchorToken', 'String', (t) => t.recipe.anchorToken, ['The `:root` token both stops mix over.']],
+  [
+    'light',
+    'List<AppFaceStopSpec>',
+    (t) => ({ __dartExpr: faceStopList(t, 'light') }),
+    ['The stops as the light pass painted them.'],
+  ],
+  [
+    'dark',
+    'List<AppFaceStopSpec>',
+    (t) => ({ __dartExpr: faceStopList(t, 'dark') }),
+    ['The stops as the dark pass painted them — the same recipe, resolved over the dark anchor.'],
+  ],
+  [
+    'fillLight',
+    'LinearGradient',
+    (t) => ({ __dartExpr: gradientExpr(t.light) }),
+    ['The gradient the light pass measured, which is [light] drawn.'],
+  ],
+  [
+    'fillDark',
+    'LinearGradient',
+    (t) => ({ __dartExpr: gradientExpr(t.dark) }),
+    ['The gradient the dark pass measured.'],
+  ],
+];
+rowsSpecClass(
+  'AppFaceTintSpec',
+  [
+    '/// One tone: the gradient `src/index.css` authors for it and the pixels each',
+    '/// pass painted from that recipe.',
+    '///',
+    '/// A tone changes the paint and nothing else. Generation measured a whole box',
+    '/// for every tone and refused one whose geometry disagrees with the first, so',
+    '/// the widget draws [fillAt] inside [AppCardFaceSpec] rather than picking a',
+    '/// different frame.',
+  ],
+  FACE_TINT_FIELDS,
+  [
+    '  /// The gradient this pass painted, which is [light] or [dark] drawn.',
+    '  LinearGradient fillAt(Brightness brightness) =>',
+    '      brightness == Brightness.dark ? fillDark : fillLight;',
+    '',
+  ],
+);
+// prettier-ignore
+const FACE_SHEEN_FIELDS = [
+  ['cssClass', 'String', (s) => s.cls.slice('.card-face'.length), ['The pseudo-element’s own class.']],
+  ['ruleSrc', 'String', (s) => `src/index.css:${s.line}`, ['Where the sheet authors it.']],
+  [
+    'authoredBackground',
+    'String',
+    (s) => s.authoredBackground,
+    [
+      'The two layers exactly as the rule writes them, so the numbers below can be',
+      'traced back to the declaration the reader parsed.',
+    ],
+  ],
+  [
+    'highlightCentreX',
+    'double',
+    (s) => s.highlightCentreX,
+    ['The ellipse’s centre as a fraction of the box, `at 85% 10%` divided by 100.'],
+  ],
+  ['highlightCentreY', 'double', (s) => s.highlightCentreY, []],
+  [
+    'highlightRadiusX',
+    'double',
+    (s) => s.highlightRadiusX,
+    ['The ellipse’s own radius as a fraction of the box, which is why it is larger than the box.'],
+  ],
+  ['highlightRadiusY', 'double', (s) => s.highlightRadiusY, []],
+  [
+    'highlightColour',
+    'Color',
+    (s) => ({ r: s.highlightColour.r, g: s.highlightColour.g, b: s.highlightColour.b, alpha: s.highlightColour.alpha }),
+    ['The highlight’s white and alpha.'],
+  ],
+  [
+    'highlightFadeAt',
+    'double',
+    (s) => s.highlightFadeAt,
+    ['Where the colour starts — the rule’s `0%`, so the fade is the whole radius.'],
+  ],
+  [
+    'highlightClearAt',
+    'double',
+    (s) => s.highlightClearAt,
+    ['Where it reaches `transparent`, i.e. 50% of that radius.'],
+  ],
+  ['stripeAngleDeg', 'double', (s) => s.stripeAngleDeg, ['The `repeating-linear-gradient` angle.']],
+  [
+    'stripeClearUntilPx',
+    'double',
+    (s) => s.stripeClearUntilPx,
+    ['The first px the stripe leaves transparent — the same number the coloured stop opens at.'],
+  ],
+  [
+    'stripeColour',
+    'Color',
+    (s) => ({ r: s.stripeColour.r, g: s.stripeColour.g, b: s.stripeColour.b, alpha: s.stripeColour.alpha }),
+    ['The hairline’s white and alpha.'],
+  ],
+  ['stripeFromPx', 'double', (s) => s.stripeFromPx, ['Where the hairline starts.']],
+  ['stripeToPx', 'double', (s) => s.stripeToPx, ['Where it stops, and therefore the period’s end.']],
+];
+rowsSpecClass(
+  'AppFaceSheenSpec',
+  [
+    '/// The `.card-face::before` layer, ported as the two gradients the rule authors.',
+    '///',
+    '/// A detached element cannot show a pseudo-element, so this whole spec is the',
+    '/// pinned rule read with `ruleProps` — the same law `.skeleton::after` and the',
+    '/// chip ring set. Generation parses every number out of the declaration with two',
+    '/// anchored regexes and stops if either layer does not match it, and refuses a',
+    '/// rule that sets a property outside the five the sheen is made of.',
+    '///',
+    '/// It is one spec, not a per-brightness pair: the sheen paints the same white',
+    '/// over every tone and both schemes, which is why `.card-face::before` authors no',
+    '/// token at all.',
+  ],
+  FACE_SHEEN_FIELDS,
+  [
+    '  /// The centre as a Flutter alignment, which is the same -1..1 space CSS’s',
+    '  /// percentage coordinates describe.',
+    '  Alignment get highlightCentre =>',
+    '      Alignment(highlightCentreX * 2.0 - 1.0, highlightCentreY * 2.0 - 1.0);',
+    '',
+    '  /// The hairline’s period: the stripe’s `to` minus its `from`, which is why',
+    '  /// the two numbers above travel as a pair and not as a width.',
+    '  double get stripePeriodPx => stripeToPx - stripeFromPx;',
+    '',
+  ],
+);
+
+// prettier-ignore
+const FACE_PRESS_FIELDS = [
+  ['cssClass', 'String', (p) => p.cls, ['`.pressable`, the class the face box cites.']],
+  ['restSrc', 'String', (p) => `src/index.css:${p.restLine}`, ['Where the rest state’s transition is authored.']],
+  ['activeSrc', 'String', (p) => `src/index.css:${p.activeLine}`, ['Where `:active` is authored.']],
+  [
+    'pressScale',
+    'double',
+    (p) => p.scale,
+    ['The `transform: scale(…)` a press takes. The face and the ledger row cite', 'the same rule, so this is the same number in both files, read twice rather', 'than imported.'],
+  ],
+  ['pressDurationMs', 'int', (p) => rowsInt(p.ms), ['The authored transition duration.']],
+  ['easeX1', 'double', (p) => p.ease[0], ['The `cubic-bezier` control points, in the order CSS writes them.']],
+  ['easeY1', 'double', (p) => p.ease[1], []],
+  ['easeX2', 'double', (p) => p.ease[2], []],
+  ['easeY2', 'double', (p) => p.ease[3], []],
+  [
+    'transitionProps',
+    'String',
+    (p) => p.props.join(' '),
+    [
+      'What the transition animates — `transform` and nothing else, which',
+      '`controlTransition` requires before any of this is emitted.',
+    ],
+  ],
+];
+rowsSpecClass(
+  'AppFacePressSpec',
+  [
+    '/// The press a face takes, from `.pressable`.',
+    '///',
+    '/// Hover is deliberately absent. Ruling D-U1 drops every hover state in this',
+    '/// port because Flutter has no hover on a touch device, so the sheet’s',
+    '/// `filter: brightness(…)` rules are measured, recorded and not ported; the',
+    '/// press survives because a touch device does have one.',
+  ],
+  FACE_PRESS_FIELDS,
+  [
+    '  /// The authored easing, as the curve Flutter reproduces it.',
+    '  Cubic get ease => Cubic(easeX1, easeY1, easeX2, easeY2);',
+    '',
+  ],
+);
+
+L.push(
+  '/// A named band of the face — one element of `CardFace.tsx`’s tree, measured on',
+  '/// the class list the component really writes there. The deck’s badge is not a',
+  '/// member: `WalletDeck.tsx` passes the face the same class list, and generation',
+  '/// proves the two rows measure identically before it ports one band for both.',
+  'enum AppFaceSlot {',
+);
+if (FACE_EMIT_SLOTS[FACE_EMIT_SLOTS.length - 1] !== faceKeyLabel.name) {
+  fail('the action key’s label is no longer the last band the enum and the holder walk');
+}
+for (const row of FACE_EMIT_SLOTS.slice(0, -1)) {
+  L.push(`  ${faceSlotId(row)}('${row}'),`);
+}
+L.push(
+  '  /// The word under an action key’s glyph. It is a band of the key, not of the',
+  '  /// face, and shares this table because it is measured the same way — as one',
+  '  /// detached row that inherits its ink.',
+  `  ${faceSlotId(faceKeyLabel.name)}('${faceKeyLabel.name}');`,
+  '',
+  '  const AppFaceSlot(this.stackRow);',
+  '',
+  '  /// The `utilityStacks` row this band was measured from.',
+  '  final String stackRow;',
+  '}',
+  '',
+);
+
+// The bands inside the box. One field table, so the enum’s twelve members and the
+// twelve specs the holder indexes are the same list read twice.
+const FACE_SLOT_FIELDS = [
+  ['stackRow', 'String', (s) => s.name, ['The `utilityStacks` row this band was measured from.']],
+  ['cssClasses', 'String', (s) => s.cls, ['The verbatim class list the component writes on this element.']],
+  [
+    'authoredSrc',
+    'String',
+    (s) => s.src,
+    ['`file:lines` of that class list, re-checked against the pinned source before emission.'],
+  ],
+  ['displayCss', 'String', (s) => s.displayCss, ['The measured `display`, which is what the widget lays out as.']],
+  [
+    'positionCss',
+    'String',
+    (s) => s.positionCss,
+    ['The measured `position`; `static` for a band that lifts nothing above the sheen.'],
+  ],
+  [
+    'zIndexCss',
+    'String',
+    (s) => s.zIndexCss,
+    [
+      'The authored stacking, as the sheet writes it: `10` on the bands that sit over',
+      '`.card-face::before`, `auto` on the rest. Flutter needs no z-index for this —',
+      'the sheen is painted under the column — so it travels as the record of why the',
+      'web needed one.',
+    ],
+  ],
+  [
+    'flexDirectionCss',
+    'String',
+    (s) => s.flexDirectionCss,
+    ['The measured `flex-direction`; a `display: block` row answers `row` and never uses it.'],
+  ],
+  [
+    'alignItemsCss',
+    'String',
+    (s) => s.alignItemsCss,
+    ['The measured `align-items`; `normal` where no flex axis asks for one.'],
+  ],
+  [
+    'justifyContentCss',
+    'String',
+    (s) => s.justifyContentCss,
+    ['The measured `justify-content`; `normal` for a block flow, `space-between` for the two rows that spread.'],
+  ],
+  [
+    'gapPx',
+    'double?',
+    (s) => s.gapPx,
+    ['The measured `gap` in phone px, `null` where the row measures `normal` — which is no gap.'],
+  ],
+  [
+    'marginTopPx',
+    'double',
+    (s) => s.marginTopPx,
+    [
+      'The measured top offset. Tailwind v4’s `space-y-*` puts its space on the',
+      'first child’s bottom margin, so this is `0` for the last child of a spaced',
+      'parent; generation requires exactly one of `face-number-block`’s two children',
+      'to carry the margin and names it.',
+    ],
+  ],
+  [
+    'marginBottomPx',
+    'double',
+    (s) => s.marginBottomPx,
+    [
+      'The measured bottom offset — the `space-y-2` side at the unit every pass',
+      'agrees on, and `0` for every other band.',
+    ],
+  ],
+  ['paddingTopPx', 'double', (s) => s.paddingTopPx, ['The band’s own inner inset; only the badge asks for any.']],
+  ['paddingRightPx', 'double', (s) => s.paddingRightPx, []],
+  ['paddingBottomPx', 'double', (s) => s.paddingBottomPx, []],
+  ['paddingLeftPx', 'double', (s) => s.paddingLeftPx, []],
+  [
+    'fontFamily',
+    'String',
+    (s) => s.fontFamily,
+    [
+      'The first family of the stack this band paints in. A band that cites a type',
+      'class takes it from that class’s §6 probe; one that cites none is measured',
+      'detached, so it reports the body family and takes the face’s own when mounted.',
+    ],
+  ],
+  ['fontSizePx', 'double', (s) => s.fontSizePx, ['The phone font size.']],
+  [
+    'fontWeight',
+    'int',
+    (s) => rowsInt(s.fontWeight),
+    ['The measured numeric weight, carried as a number so [weight] can name it.'],
+  ],
+  [
+    'heightRatio',
+    'double',
+    (s) => s.heightRatio,
+    [
+      'The line box as a multiplier of the size — the band’s own `leading-*` utility',
+      'if it authors one (`leading-tight` on the balance figure), the `body`',
+      'multiplier generation re-reads and requires to be identical otherwise.',
+    ],
+  ],
+  ['letterSpacingPx', 'double', (s) => s.letterSpacingPx, ['The phone resolution of the tracking.']],
+  [
+    'letterSpacingEm',
+    'double',
+    (s) => s.letterSpacingEm,
+    ['The `em` that produced it, so [styleAt] can re-derive it at another size.'],
+  ],
+  [
+    'textColor',
+    'Color?',
+    (s) => s.textColor,
+    [
+      'The colour the band painted, or `null` where it authors none. A band that',
+      'names no colour is [inheritsFaceInk] and paints whatever the face hands down,',
+      'which is why no colour is guessed for it here.',
+    ],
+  ],
+  [
+    'inheritsFaceInk',
+    'bool',
+    (s) => s.inheritsFaceInk,
+    ['True exactly when neither the class list nor an inline style authors a colour.'],
+  ],
+  [
+    'textTransformCss',
+    'String?',
+    (s) => s.textTransformCss,
+    [
+      'The measured `text-transform` — `uppercase` for the eyebrow and the badge,',
+      '`null` for a band that leaves it `none`.',
+    ],
+  ],
+  ['whiteSpaceCss', 'String?', (s) => s.whiteSpaceCss, ['The measured `white-space`.']],
+  [
+    'textOverflowCss',
+    'String?',
+    (s) => s.textOverflowCss,
+    ['The measured `text-overflow`; `null` where the row measures none, which is a detached row’s own answer.'],
+  ],
+  [
+    'truncates',
+    'bool',
+    (s) => s.truncates,
+    [
+      '`truncate`, proven as the trio it actually measures (`nowrap`, `ellipsis`,',
+      '`overflow: hidden`) and as a word of the class list.',
+    ],
+  ],
+  [
+    'tabularNums',
+    'bool',
+    (s) => s.tabularNums,
+    [
+      '`font-variant-numeric: tabular-nums`, which the cited type class authors and the',
+      'widget answers with [FontFeature.tabularFigures] — a font feature, so it does',
+      'nothing in a fallback face and is re-checked when the design-system fonts land.',
+    ],
+  ],
+  [
+    'authoredTypeClass',
+    'String?',
+    (s) => s.authoredTypeClass,
+    [
+      'The `src/index.css` type class the band cites — `.mono`, `.eyebrow`, `.money` —',
+      'which the family that owns that class ports; `null` where the band sizes itself',
+      'with utilities alone.',
+    ],
+  ],
+  [
+    'authoredTypeSrc',
+    'String?',
+    (s) => s.authoredTypeSrc,
+    ['Where that class is authored, so the citation a reader follows is the one generation checked.'],
+  ],
+  ['radiusPx', 'double?', (s) => s.radius.px, ['The measured corner, `null` for a pill — see [radiusIsPill].']],
+  [
+    'radiusIsPill',
+    'bool',
+    (s) => s.radius.isPill,
+    [
+      '`rounded-full`, which Chrome resolves past any box. Generation accepts that',
+      'sentinel only when the class list really asks for it, and refuses a pill the',
+      'pixels do not show, so this is the class and the measurement agreeing.',
+    ],
+  ],
+  [
+    'borderWidthPx',
+    'double',
+    (s) => s.borderWidthPx,
+    ['The measured frame width; `0` for every band that draws none.'],
+  ],
+  ['borderColor', 'Color?', (s) => s.borderColor, ['The frame’s colour, `null` where no frame was measured.']],
+  [
+    'minWidthZero',
+    'bool?',
+    (s) => s.minWidthZero,
+    [
+      '`min-w-0`, only where the row asked for it: the web’s hint that a long figure',
+      'may shrink below its content width. Flutter gives a `Text` its parent’s max',
+      'width already, so this is a record rather than a port; `null` says the property',
+      'was never measured and is not a fact about this band.',
+    ],
+  ],
+  ['flexGrow', 'double', (s) => s.flexGrow, ['The measured `flex-grow`.']],
+  ['flexShrink', 'double', (s) => s.flexShrink, ['The measured `flex-shrink`.']],
+  [
+    'leadingUtility',
+    'String?',
+    (s) => s.leading.leadingUtility,
+    ['The `leading-*` utility the class list names, `null` where the band inherits its line box.'],
+  ],
+  [
+    'leadingToken',
+    'String?',
+    (s) => s.leading.leadingToken,
+    ['The `:root` token that utility resolves to, `null` for `leading-none`, which authors none.'],
+  ],
+  [
+    'leadingValue',
+    'double',
+    (s) => s.leading.leadingValue,
+    ['The multiplier the pass measured, which generation requires the utility and the token to produce.'],
+  ],
+];
+const FACE_SLOT_MEMBERS = [
+  '  /// The weight Flutter names for the measured numeric weight.',
+  '  FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];',
+  '',
+  '  /// The space this band asks for around itself. The face’s own inset is',
+  '  /// [AppCardFaceSpec]’s padding, never a text child’s margin, so the two never',
+  '  /// double-count.',
+  '  EdgeInsets get margin => EdgeInsets.only(top: marginTopPx, bottom: marginBottomPx);',
+  '',
+  '  /// The band’s own inner inset — the badge’s `px-2 py-0.5`, and nothing elsewhere.',
+  '  EdgeInsets get padding =>',
+  '      EdgeInsets.fromLTRB(paddingLeftPx, paddingTopPx, paddingRightPx, paddingBottomPx);',
+  '',
+  '  /// Tabular figures where the cited class authors them.',
+  '  List<FontFeature> get fontFeatures =>',
+  '      tabularNums ? const <FontFeature>[FontFeature.tabularFigures()] : const <FontFeature>[];',
+  '',
+  '  /// The band as the phone pass measured it.',
+  '  TextStyle get textStyle => styleAt(fontSizePx);',
+  '',
+  '  /// The band at another font size. CSS resolves tracking against the used font',
+  '  /// size, so a resized band re-derives it from [letterSpacingEm] rather than',
+  '  /// keeping the phone pixels; the line box travels as its multiplier.',
+  '  TextStyle styleAt(double sizePx) => TextStyle(',
+  '        fontFamily: fontFamily,',
+  '        color: textColor,',
+  '        fontSize: sizePx,',
+  '        fontWeight: weight,',
+  '        height: heightRatio,',
+  '        letterSpacing: letterSpacingEm * sizePx,',
+  '        fontFeatures: fontFeatures,',
+  '      );',
+  '',
+];
+rowsSpecClass(
+  'AppFaceSlotSpec',
+  [
+    '/// One band of the face — or the word under an action key — as the element the',
+    '/// component really writes: its class list, and everything the pass measured on',
+    '/// it.',
+    '///',
+    '/// A band is read in both brightnesses and generation refuses one whose geometry',
+    '/// moves between them. The face paints its own ink, so a scheme change cannot',
+    '/// re-flow these bands, and a band that tried to would be a second design rather',
+    '/// than one ported twice. The type classes they cite, though, belong to other',
+    '/// families: [authoredTypeClass] is `.money`, `.eyebrow` or `.mono` and those',
+    '/// rows stay emitted where they are owned.',
+  ],
+  FACE_SLOT_FIELDS,
+  FACE_SLOT_MEMBERS,
+);
+// The box every face is, in one brightness. The tone is not a field here: it selects
+// a gradient, which lives in [AppFaceTintSpec], and the geometry every tone measures
+// is asserted to be one geometry before this table is read.
+const FACE_BOX_FIELDS = [
+  ['stackRow', 'String', (b) => b.name, ['The `utilityStacks` row the box was measured on — the default tone’s.']],
+  [
+    'cssClasses',
+    'String',
+    (b) => b.cls,
+    ['The verbatim class list, with the tone and the cursor hole already filled.'],
+  ],
+  [
+    'authoredSrc',
+    'String',
+    (b) => b.src,
+    ['The lines that compose and mount that class list, re-checked against the pinned source.'],
+  ],
+  [
+    'styleSrc',
+    'String',
+    (b) => b.styleSrc,
+    ['The line that writes the inline `style` — the `fluid` arm, which owns the width.'],
+  ],
+  [
+    'ruleSrc',
+    'String',
+    () => `src/index.css:${faceBase.line}`,
+    [
+      '`.card-face`, the rule every face is under: the frame, the ink and the corner',
+      'this file cites rather than restates.',
+    ],
+  ],
+  [
+    'radiusToken',
+    'String',
+    () => faceBase.radiusToken,
+    ['The corner, named by the token `.card-face` asks for; [radiusPx] resolves it through AppRadii.'],
+  ],
+  [
+    'shadowToken',
+    'String',
+    () => faceBase.shadowToken,
+    ['The float, named by the token `.card-face` asks for; [shadowsAt] resolves it through AppShadows.'],
+  ],
+  [
+    'aspectRatio',
+    'double',
+    (b) => b.aspectRatio,
+    [
+      'The authored `aspect-ratio`. The box’s height is its own width over this',
+      'number, so the port carries the ratio and never the pixels: what the phone',
+      'pass measured as a height was a function of the mount.',
+    ],
+  ],
+  [
+    'minWidthPx',
+    'double',
+    (b) => b.minWidthPx,
+    ['The measured `min-width` of the arm this row was read on — `0` when the caller does not own the width.'],
+  ],
+  [
+    'callerOwnsWidth',
+    'bool',
+    (b) => b.callerOwnsWidth,
+    [
+      'Whether the inline style gives the box `width: 100%` (the card in a grid) or',
+      'leaves the width to its caller (the deck’s fixed peers).',
+    ],
+  ],
+  [
+    'widthFullCss',
+    'String?',
+    (b) => b.widthFull,
+    ['The authored width of that arm, `null` where the style writes none.'],
+  ],
+  [
+    'interactive',
+    'bool',
+    (b) => b.interactive,
+    ['`true` for the arm that takes `cursor-pointer` and `false` for the one the component renders as a plain `div`.'],
+  ],
+  [
+    'cursorCss',
+    'String',
+    (b) => b.cursorCss,
+    [
+      'The measured `cursor`. A web-only fact, kept as the record of which arm is',
+      'clickable; Flutter’s pointer device answers it with [AppFacePressSpec].',
+    ],
+  ],
+  ['displayCss', 'String', (b) => b.displayCss, ['The measured `display`.']],
+  [
+    'positionCss',
+    'String',
+    (b) => b.positionCss,
+    ['The measured `position`, which `.card-face` authors as `relative` for the sheen’s layer.'],
+  ],
+  ['flexDirectionCss', 'String', (b) => b.flexDirectionCss, ['The measured `flex-direction`: the column of bands.']],
+  [
+    'alignItemsCss',
+    'String',
+    (b) => b.alignItemsCss,
+    ['The measured `align-items`; `normal` because the column stretches its children instead.'],
+  ],
+  [
+    'justifyContentCss',
+    'String',
+    (b) => b.justifyContentCss,
+    ['The measured `justify-content`: `space-between` puts the figure at the bottom of the box.'],
+  ],
+  ['textAlignCss', 'String', (b) => b.textAlignCss, ['The measured `text-align` from `text-left`.']],
+  ['gapPx', 'double', (b) => b.gapPx, ['The measured `gap-2` between the bands.']],
+  [
+    'marginTopPx',
+    'double',
+    (b) => b.marginTopPx,
+    ['The box’s own outer offset — `0`; the deck, not the face, pulls the stack up.'],
+  ],
+  ['marginBottomPx', 'double', (b) => b.marginBottomPx, []],
+  ['paddingTopPx', 'double', (b) => b.paddingTopPx, ['`p-3.5` at the unit all four passes agree on.']],
+  ['paddingRightPx', 'double', (b) => b.paddingRightPx, []],
+  ['paddingBottomPx', 'double', (b) => b.paddingBottomPx, []],
+  ['paddingLeftPx', 'double', (b) => b.paddingLeftPx, []],
+  [
+    'borderWidthPx',
+    'double',
+    (b) => b.borderWidthPx,
+    ['The measured frame; `.card-face` authors none, so a face has no border to draw.'],
+  ],
+  [
+    'ink',
+    'Color',
+    (b) => b.ink,
+    [
+      'The colour every band inherits — the `color: white` of `.card-face`, which',
+      'generation requires the pass to paint exactly. A band that names its own',
+      'transparency is a different alpha of the same white.',
+    ],
+  ],
+  [
+    'fill',
+    'Color',
+    (b) => b.fill,
+    ['The measured `background-color`, transparent because the tone paints a `background-image` gradient over it.'],
+  ],
+  ['overflowXCss', 'String', (b) => b.overflowXCss, ['The measured `overflow-x`, `hidden` by `.card-face`.']],
+  ['overflowYCss', 'String', (b) => b.overflowYCss, ['The measured `overflow-y`.']],
+  [
+    'backdropFilterCss',
+    'String',
+    (b) => b.blur,
+    [
+      '`none`, recorded because a face is a painted box, not a glass panel: the app’s',
+      'blur classes are a different family.',
+    ],
+  ],
+  ['flexGrow', 'double', (b) => b.flexGrow, ['The measured `flex-grow`.']],
+  ['flexShrink', 'double', (b) => b.flexShrink, ['The measured `flex-shrink`.']],
+  [
+    'plainCssClasses',
+    'String',
+    () => facePlain.cls,
+    [
+      'The non-interactive arm’s class list — the same template with the cursor hole',
+      'left empty. Generation proves it ends in the space that empty hole writes, so',
+      'the two arms are one template and not two designs.',
+    ],
+  ],
+  [
+    'plainStyleSrc',
+    'String',
+    () => facePlain.styleSrc,
+    ['The other arm’s `style` line — the fixed one, which the component uses when the caller owns the width.'],
+  ],
+  ['plainMinWidthPx', 'double', () => facePlain.minWidthPx, ['That arm’s measured floor.']],
+  [
+    'plainWidthFullCss',
+    'String?',
+    () => facePlain.widthFull,
+    ['`null`: the fixed arm authors no width, which is what [callerOwnsWidth] means.'],
+  ],
+];
+const FACE_BOX_MEMBERS = [
+  '  /// The inset every band sits inside.',
+  '  EdgeInsets get padding =>',
+  '      EdgeInsets.fromLTRB(paddingLeftPx, paddingTopPx, paddingRightPx, paddingBottomPx);',
+  '',
+  '  /// The outer offset, which no face measures.',
+  '  EdgeInsets get margin => EdgeInsets.only(top: marginTopPx, bottom: marginBottomPx);',
+  '',
+  '  /// The corner `.card-face` asks for, resolved by the family that owns radii.',
+  '  /// This file cites the token and never restates the pixel; generation proved',
+  '  /// AppRadii’s value and this box’s measurement are the same number.',
+  '  double get radiusPx {',
+  '    final double? px = AppRadii.byToken[radiusToken];',
+  '    if (px == null) {',
+  "      throw ArgumentError('$radiusToken is not an emitted radius token');",
+  '    }',
+  '    return px;',
+  '  }',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '',
+  '  /// The float, resolved by the family that owns shadows.',
+  '  List<BoxShadow> shadowsAt(Brightness brightness) {',
+  '    final List<BoxShadow>? layers = (brightness == Brightness.dark',
+  '            ? AppShadows.shadowsDark',
+  '            : AppShadows.shadowsLight)[shadowToken];',
+  '    if (layers == null) {',
+  "      throw ArgumentError('$shadowToken is not an emitted shadow token');",
+  '    }',
+  '    return layers;',
+  '  }',
+  '',
+];
+rowsSpecClass(
+  'AppCardFaceSpec',
+  [
+    '/// The card face’s box in one brightness: the frame, the padding, the ink and the',
+    '/// ratio — the geometry every tone shares, which generation proves by reading all',
+    '/// six tone rows and refusing a second that disagrees.',
+    '///',
+    '/// The paint a tone adds is not here. [AppFaceTintSpec] carries the gradient, and',
+    '/// the corner and the float are named by token and resolved through AppRadii and',
+    '/// AppShadows, because `.card-face` is a rule in the same stylesheet those families',
+    '/// were emitted from and restating it would be a third copy of one fact.',
+    '///',
+    '/// The box also carries the component’s second arm: the same class list with the',
+    '/// cursor hole left empty, and the fixed rather than fluid `style`. Both were',
+    '/// measured, and the difference between them is exactly four fields.',
+  ],
+  FACE_BOX_FIELDS,
+  FACE_BOX_MEMBERS,
+);
+/** An authored record’s code lines as `///` prose. The deck’s shape is a budget the
+ *  component writes in JavaScript rather than a property any pass measured, so what
+ *  reaches Dart is the citation of the line that writes it — derived from the record,
+ *  never retyped, and refused if a line could close the comment it lives in. */
+const faceAuthoredDoc = (rec, heading) => {
+  const out = [`/// ${heading}`];
+  for (const part of rec.parts) {
+    if (part.text.includes('*/') || part.text.includes('\n')) {
+      fail(`${rec.name}: "${part.text}" cannot be carried as a Dart doc line`);
+    }
+    const src = part.src || rec.src;
+    out.push(`/// \`(${src}:${part.line})\` — \`${part.text}\``);
+  }
+  return out;
+};
+
+/** The one custom property the deck’s whole size resolves from, as the declaration
+ *  that defines it. `faceDeckRule` already proved the container is two lips tall and
+ *  the faces are clipped to one, so the arithmetic Dart restates is this number. */
+const faceDeckLip = (() => {
+  const decl = faceDeckAuthored.lipRec.parts.find((p) => /^--deck-lip:/.test(collapse(p.text)));
+  if (!decl) fail('the deck’s lip declaration is not in the record that cites it');
+  const px = lenAnyPx(decl.text.split(/[:;]/)[1], '.deck --deck-lip');
+  if (px !== faceDeckRule.lipPx)
+    fail(`.deck --deck-lip is "${decl.text}", which is ${px}px, not the ${faceDeckRule.lipPx}px the rule resolves`);
+  return { decl: collapse(decl.text), line: decl.line, src: decl.src || 'src/index.css', px };
+})();
+
+const FACE_DECK_FIELDS = [
+  ['stackRow', 'String', (d) => d.box.name, ['The `utilityStacks` row the deck container was measured on.']],
+  ['cssClasses', 'String', (d) => d.box.cls, ['`.deck`, the only class the container carries.']],
+  ['authoredSrc', 'String', (d) => d.box.src, ['Where the component mounts it.']],
+  ['ruleSrc', 'String', (d) => `src/index.css:${d.rule.line}`, ['Where the sheet authors the container.']],
+  [
+    'lipDeclSrc',
+    'String',
+    (d) => `${d.lip.src}:${d.lip.line}`,
+    ['The `--deck-lip` declaration every other number here resolves from.'],
+  ],
+  [
+    'lipPx',
+    'double',
+    (d) => d.lip.px,
+    [
+      'The lip: the band of a back face the deck shows. The container is two lips',
+      'tall and every face is clipped to its own top lip, so this one number is the',
+      'deck’s size — which is why [heightPx] and [marginBottomPx] are records of',
+      'arithmetic rather than separate measurements.',
+    ],
+  ],
+  ['heightPx', 'double', (d) => d.box.heightPx, ['`calc(var(--deck-lip) * 2)`, as the pass measured it.']],
+  [
+    'marginBottomPx',
+    'double',
+    (d) => d.box.marginBottomPx,
+    [
+      'The deck’s pull-up into the hero balance under it — negative, and authored as',
+      'the middle value of a three-value `margin`.',
+    ],
+  ],
+  [
+    'zIndex',
+    'int',
+    (d) => rowsInt(d.box.zIndex),
+    ['The container’s stacking, which puts the whole deck over the balance block.'],
+  ],
+  [
+    'frontZIndex',
+    'int',
+    (d) => rowsInt(d.rule.frontZIndex),
+    ['`.deck-front`’s stacking, one below the peers it frames.'],
+  ],
+  ['displayCss', 'String', (d) => d.box.displayCss, ['The measured `display`, which makes the lips a block flow.']],
+  ['positionCss', 'String', (d) => d.box.positionCss, ['The measured `position`.']],
+  [
+    'paddingPx',
+    'double',
+    (d) => d.box.paddingPx,
+    ['The container’s own inset — none, so the faces span its full width.'],
+  ],
+  [
+    'overflowXCss',
+    'String',
+    (d) => d.box.overflowXCss,
+    ['The measured `overflow-x`: the clip is on each face, not on the container.'],
+  ],
+  ['overflowYCss', 'String', (d) => d.box.overflowYCss, []],
+  ['widthCss', 'String', (d) => d.rule.widthCss, ['The authored `width`, which the pass confirms.']],
+  [
+    'heightCss',
+    'String',
+    (d) => d.rule.heightCss,
+    ['The declaration as the sheet writes it, so the arithmetic above can be traced to it.'],
+  ],
+  ['marginCss', 'String', (d) => d.rule.marginCss, ['The authored three-value `margin`.']],
+  ['frontCssClass', 'String', (d) => d.front.cls, ['`.deck-front`, the face that is not a peer.']],
+  ['frontAuthoredSrc', 'String', (d) => d.front.src, ['Where the component mounts it.']],
+  ['frontRuleSrc', 'String', (d) => `src/index.css:${d.front.line}`, ['Where the sheet gives it its stacking.']],
+  [
+    'frontPositionCss',
+    'String',
+    (d) => d.front.positionCss,
+    ['`relative`: the front face is the deck’s only box in flow.'],
+  ],
+  [
+    'peerTransitionDurationMs',
+    'int',
+    (d) => rowsInt(d.base.transition.ms),
+    ['The `--dur` a peer rotates on — the deck’s own motion, not the face press’s `--dur-fast`.'],
+  ],
+  [
+    'peerEaseX1',
+    'double',
+    (d) => d.base.transition.curve[0],
+    ['The `--ease-out` control points, shared by every peer.'],
+  ],
+  ['peerEaseY1', 'double', (d) => d.base.transition.curve[1], []],
+  ['peerEaseX2', 'double', (d) => d.base.transition.curve[2], []],
+  ['peerEaseY2', 'double', (d) => d.base.transition.curve[3], []],
+  [
+    'peerTransformOriginCss',
+    'String',
+    (d) => d.base.transformOriginCss,
+    [
+      '`top center`, which the pass resolves to a fraction of the box; Flutter’s',
+      'scale is about its centre, so the widget has to shift by this anchor.',
+    ],
+  ],
+  [
+    'peerClipPathCss',
+    'String',
+    (d) => d.base.clipPathCss,
+    [
+      'The authored `inset(0 0 calc(100% - var(--deck-lip)) 0)`, resolved by the',
+      'engine to the pixels in [AppDeckFaceSpec.clipLipPx].',
+    ],
+  ],
+  ['peerRuleSrc', 'String', (d) => `src/index.css:${d.base.line}`, ['`.deck-face`, the rule every peer is under.']],
+];
+rowsSpecClass(
+  'AppDeckSpec',
+  [
+    '/// The wallet deck: the container the faces stack in, and the laws their',
+    '/// positions, scales and opacities resolve from.',
+    '///',
+    `/// One number makes this shape: \`${faceDeckLip.decl.replace(/;$/, '')}\`, the`,
+    '/// container’s own declaration. The deck is two lips tall, the near peer',
+    '/// starts one lip down, and every peer is clipped to its own top lip — so the',
+    `/// deck shows a ${faceDeckLip.px}px band of each back face. Generation reads`,
+    `/// the declaration, the rules and the ${faceDeckPeers.length} measured peers`,
+    '/// against each other, and stops if the arithmetic and the pixels disagree.',
+    '///',
+    '/// The budget — how many faces peek, and which — is JavaScript, not CSS, and is',
+    '/// recorded in the citation list below rather than as a measured property.',
+    ...faceAuthoredDoc(faceDeckAuthored.budget, 'How many faces peek, in the component’s own lines:'),
+  ],
+  FACE_DECK_FIELDS,
+  [
+    '  /// The deck’s pull-up, as the inset the hero has to absorb.',
+    '  EdgeInsets get margin => EdgeInsets.only(bottom: marginBottomPx);',
+    '',
+    '  /// The peer’s easing.',
+    '  Cubic get peerEase => Cubic(peerEaseX1, peerEaseY1, peerEaseX2, peerEaseY2);',
+    '',
+  ],
+);
+
+const FACE_DECK_FACE_FIELDS = [
+  [
+    'depth',
+    'int',
+    (f) => rowsInt(f.depth),
+    ['The `data-depth` the component writes, which the sheet’s two state rules key off.'],
+  ],
+  ['stackRow', 'String', (f) => f.name, ['The `utilityStacks` row this peer was measured on.']],
+  ['cssClasses', 'String', (f) => f.cls, ['The class and the attribute the pass resolved together.']],
+  ['authoredSrc', 'String', (f) => f.src, ['Where `WalletDeck.tsx` mounts the peer.']],
+  ['stateSrc', 'String', (f) => `src/index.css:${f.stateLine}`, ['The `[data-depth=…]` rule that places this peer.']],
+  ['positionCss', 'String', (f) => f.positionCss, ['`absolute`: a peer is taken out of the deck’s flow and stacked.']],
+  ['leftPx', 'double', (f) => f.leftPx, ['The authored `left: 0`.']],
+  [
+    'rightPx',
+    'double',
+    (f) => f.rightPx,
+    ['The authored `right: 0`, which makes the peer the container’s full width.'],
+  ],
+  [
+    'topPx',
+    'double',
+    (f) => f.topPx,
+    [
+      'How far down the peer sits. The near face is one lip down and the far face is',
+      'at the top, which is what puts the far face behind the near one’s band.',
+    ],
+  ],
+  ['scale', 'double', (f) => f.scale, ['The peer’s `transform: scale(…)` — a smaller card the further back it is.']],
+  ['opacity', 'double', (f) => f.opacity, ['The peer’s opacity, which dims the deeper faces.']],
+  [
+    'clipLipPx',
+    'double',
+    (f) => f.clipLipPx,
+    ['The clip: this peer shows the top lip of its own box and nothing below it.'],
+  ],
+  [
+    'placementSrc',
+    'String',
+    (f) => f.authoredSrc,
+    ['The lines whose `var(--deck-lip)` arithmetic produced the numbers above.'],
+  ],
+  ['lipSrc', 'String', (f) => f.lipCite, ['The `top` the pass measured this `topPx` from.']],
+  ['clipSrc', 'String', (f) => f.clipCite, ['The `clip-path` that produced [clipLipPx].']],
+  ['originSrc', 'String', (f) => f.originCite, ['The `transform-origin` the scale is anchored to.']],
+];
+rowsSpecClass(
+  'AppDeckFaceSpec',
+  [
+    '/// One peer of the deck — a face the wallet data puts behind the front card.',
+    '///',
+    '/// The pair is not a gradient or a size but a placement: how far down the deck',
+    '/// drops it, how small it scales, how far it dims, and how much of it the clip',
+    '/// leaves visible. Both were measured on the element the component really mounts,',
+    '/// and both are required to answer to the same `--deck-lip` the container does.',
+  ],
+  FACE_DECK_FACE_FIELDS,
+  [],
+);
+
+const FACE_DECK_NAMES = { 1: 'near', 2: 'far' };
+if (faceDeckPeers.map((f) => f.depth).join() !== Object.keys(FACE_DECK_NAMES).join()) {
+  fail(`the deck peers are depths ${faceDeckPeers.map((f) => f.depth).join()}, which this enum’s names do not cover`);
+}
+L.push(
+  '/// How far back a deck peer sits, in the order the component fills the slots.',
+  'enum AppDeckDepth {',
+  ...faceDeckPeers.map((f) => `  ${FACE_DECK_NAMES[f.depth]}(${f.depth}),`),
+  ';',
+  '',
+  '  const AppDeckDepth(this.dataDepth);',
+  '',
+  '  /// The `data-depth` value the component writes and the sheet keys its rule off.',
+  '  final int dataDepth;',
+  '}',
+  '',
+);
+const FACE_KEY_GRID_FIELDS = [
+  ['stackRow', 'String', (g) => g.name, ['The `utilityStacks` row the grid was measured on.']],
+  [
+    'cssClasses',
+    'String',
+    (g) => g.cls,
+    ['The verbatim class list, including the `sm:` variant the wide gap comes from.'],
+  ],
+  ['authoredSrc', 'String', (g) => g.src, ['Where the component mounts it.']],
+  ['displayCss', 'String', (g) => g.displayCss, ['The measured `display`.']],
+  [
+    'positionCss',
+    'String',
+    (g) => g.positionCss,
+    ['The measured `position`: the grid is the family’s only `static` box.'],
+  ],
+  [
+    'tracks',
+    'int',
+    (g) => rowsInt(g.tracks),
+    [
+      'The equal columns `grid-cols-3` compiles to. Generation counts them out of the',
+      'measured `grid-template-columns` rather than trusting the class, and requires',
+      'the tracks to be equal — which they are down to the 1/64px the engine snaps to.',
+    ],
+  ],
+  [
+    'columnCountCss',
+    'String',
+    (g) => g.columnCountCss,
+    ['The authored `-webkit-column-count` / track list the pass reported, kept as the record of that count.'],
+  ],
+  [
+    'gapNarrowPx',
+    'double',
+    (g) => g.gapNarrowPx,
+    [
+      'The phone gap: `gap-2` at the unit every pass agrees on.',
+      '',
+      'This grid is the family’s only row whose geometry moves with the viewport, and',
+      'the pair is ported as two numbers because the movement is the design. Which',
+      'viewport takes which number is the `sm:` breakpoint’s business and stays with',
+      'the caller — the same ruling that keeps a rail’s breakpoint out of',
+      '[AppLedgerRailSpec].',
+    ],
+  ],
+  [
+    'gapWidePx',
+    'double',
+    (g) => g.gapWidePx,
+    ['The `sm:gap-2.5` gap, which the desktop pass measured and the phone pass did not.'],
+  ],
+  ['gapNarrowCss', 'String', (g) => g.gapNarrowCss, ['The multiplier the narrow utility authors.']],
+  ['gapWideCss', 'String', (g) => g.gapWideCss, ['The multiplier the wide utility authors.']],
+  [
+    'spacingUnitPx',
+    'double',
+    (g) => g.spacingUnitPx,
+    ['`--spacing`, the unit both multipliers are read against — AppSpacing’s own number, re-read here.'],
+  ],
+];
+rowsSpecClass(
+  'AppActionKeyGridSpec',
+  [
+    '/// The row of keys under the hero balance: three equal columns and the gap',
+    '/// between them.',
+    '///',
+    '/// The only viewport-dependent values in this file. Generation read the gap at',
+    '/// both viewports, required the two axes of one viewport to agree, and required',
+    '/// each pair to be the utility’s multiplier times the unit the class list names.',
+  ],
+  FACE_KEY_GRID_FIELDS,
+  [],
+);
+
+const FACE_KEY_FIELDS = [
+  ['stackRow', 'String', (k) => k.name, ['The `utilityStacks` row the key was measured on.']],
+  ['cssClasses', 'String', (k) => k.cls, ['The verbatim class list the component writes on the button.']],
+  ['authoredSrc', 'String', (k) => k.src, ['Where the component mounts it, re-checked against the pinned source.']],
+  [
+    'tag',
+    'String',
+    (k) => k.tag,
+    ['The element the component renders — a `button`, which is why the press state is real.'],
+  ],
+  ['ruleSrc', 'String', (k) => `src/index.css:${faceKeyRule.line}`, ['Where the sheet authors `.action-key`.']],
+  ['displayCss', 'String', (k) => k.displayCss, ['The measured `display`.']],
+  [
+    'positionCss',
+    'String',
+    (k) => k.positionCss,
+    ['The measured `position`, which `.action-key` authors for the notch’s mask.'],
+  ],
+  [
+    'flexDirectionCss',
+    'String',
+    (k) => k.flexDirectionCss,
+    ['The measured `flex-direction`: the glyph over the word.'],
+  ],
+  ['alignItemsCss', 'String', (k) => k.alignItemsCss, ['The measured `align-items`, both axes centred.']],
+  ['justifyContentCss', 'String', (k) => k.justifyContentCss, []],
+  ['gapPx', 'double', (k) => k.gapPx, ['The authored `gap` between the glyph and its label.']],
+  [
+    'paddingCss',
+    'String',
+    (k) => faceKeyRule.paddingCss,
+    [
+      'The authored `padding` exactly as the rule writes it — three values, which is',
+      'why the key’s inset is asymmetric and the top one is the notch’s room.',
+    ],
+  ],
+  ['paddingTopPx', 'double', (k) => k.sides.top, ['The band the notch cuts out of.']],
+  ['paddingRightPx', 'double', (k) => k.sides.right, []],
+  ['paddingBottomPx', 'double', (k) => k.sides.bottom, []],
+  ['paddingLeftPx', 'double', (k) => k.sides.left, []],
+  [
+    'radiusPx',
+    'double',
+    (k) => k.radiusPx,
+    [
+      'The corner `.action-key` authors itself, rather than through a `--r-*` token —',
+      'so this one is a pixel and not a citation.',
+    ],
+  ],
+  [
+    'borderWidthPx',
+    'double',
+    (k) => k.borderWidthPx,
+    ['The measured frame, which the rule’s `border: none` leaves at zero.'],
+  ],
+  ['borderCss', 'String', (k) => faceKeyRule.borderCss, ['The authored `border`.']],
+  [
+    'fill',
+    'Color',
+    (k) => k.fill,
+    [
+      'The key’s background — `var(--accent)`, which in the light scheme is the',
+      'near-black ink and in the dark scheme the near-white of the inverted key. The',
+      'token is the fact; the pixels are what this pass painted from it.',
+    ],
+  ],
+  ['ink', 'Color', (k) => k.ink, ['The glyph and label colour, `var(--accent-fg)` — the exact inversion of [fill].']],
+  [
+    'fillToken',
+    'String',
+    (k) => faceKeyRule.accentToken,
+    ['The token [fill] resolves from, named so a reader can follow it back to §2.1.'],
+  ],
+  ['inkToken', 'String', (k) => faceKeyRule.inkToken, ['The token [ink] resolves from.']],
+  [
+    'fontFamily',
+    'String',
+    (k) => k.fontFamily,
+    [
+      'The first family of the stack the `.action-key` probe measured. The row’s own',
+      'class list authors no font, so this comes from the rule’s `font-family` and not',
+      'from the 45 properties a stack row whitelists.',
+    ],
+  ],
+  ['familyToken', 'String', (k) => faceKeyRule.familyToken, ['The token that stack is authored from.']],
+  ['fontSizePx', 'double', (k) => k.fontSizePx, ['The measured size.']],
+  ['sizeToken', 'String', (k) => faceKeyRule.sizeToken, ['The `--text-*` token it resolves from.']],
+  ['fontWeight', 'int', (k) => rowsInt(k.fontWeight), ['The measured numeric weight.']],
+  ['letterSpacingPx', 'double', (k) => k.letterSpacingPx, ['The phone resolution of the tracking.']],
+  [
+    'letterSpacingEm',
+    'double',
+    (k) => faceKeyRule.trackingEm,
+    ['The authored `em`, which the measurement had to reproduce.'],
+  ],
+  ['lineHeightPx', 'double', (k) => k.lineHeightPx, ['The measured line box the label and glyph share.']],
+  [
+    'minWidthPx',
+    'double',
+    (k) => k.minWidthPx,
+    ['`min-w-0`, so a long label shrinks rather than pushing the third key out.'],
+  ],
+  ['flexGrow', 'double', (k) => k.flexGrow, ['The measured `flex-grow`.']],
+  ['flexShrink', 'double', (k) => k.flexShrink, ['The measured `flex-shrink`.']],
+  [
+    'opacity',
+    'double',
+    (k) => k.opacity,
+    ['The measured opacity — `1` at rest, and [disabledOpacity] in the other row.'],
+  ],
+  [
+    'transformCss',
+    'String',
+    (k) => k.transformCss,
+    ['`none` at rest: the scale lives in `:active` and the pass measured the resting key.'],
+  ],
+  [
+    'cursorCss',
+    'String',
+    (k) => k.cursorCss,
+    ['The measured `cursor` — a web-only fact, kept as the record of the rule’s own answer.'],
+  ],
+  [
+    'pressScale',
+    'double',
+    (k) => faceKeyStates.pressScale,
+    ['The `:active` scale. Ruling D-U1 drops hover, not press: a touch device has one.'],
+  ],
+  [
+    'pressSrc',
+    'String',
+    (k) => `src/index.css:${faceKeyStates.pressHeadLine},${faceKeyStates.pressDeclLine}`,
+    ['The `:active` rule’s head and declaration.'],
+  ],
+  [
+    'hoverBrightness',
+    'double',
+    (k) => faceKeyStates.hoverBrightness,
+    [
+      'The `:hover` `filter: brightness(…)`, recorded and deliberately not ported.',
+      '',
+      'Ruling D-U1 drops every hover state in this port because a touch device has no',
+      'hover. The number stays on the spec so the drop is visible rather than silent,',
+      'and so a reader can see what the sheet still authors.',
+    ],
+  ],
+  [
+    'hoverSrc',
+    'String',
+    (k) => `src/index.css:${faceKeyStates.hoverHeadLine},${faceKeyStates.hoverDeclLine}`,
+    ['The `:hover` rule the drop reads against.'],
+  ],
+  [
+    'disabledOpacity',
+    'double',
+    (k) => faceKey.off.opacity,
+    [
+      'The disabled key’s opacity. The disabled row was measured as its own element',
+      'and generation proved it differs from the rest row in exactly this and the',
+      'cursor — which is why [AppActionKeySpec] is one spec with one extra pair of',
+      'numbers rather than two boxes.',
+    ],
+  ],
+  [
+    'disabledCursorCss',
+    'String',
+    (k) => faceKey.off.cursorCss,
+    ['The disabled `cursor`, the other half of that difference.'],
+  ],
+  ['disabledStackRow', 'String', (k) => faceKey.off.name, ['The row the disabled state was measured on.']],
+  ['disabledAuthoredSrc', 'String', (k) => faceKey.off.src, ['Where the component disables it.']],
+  [
+    'disabledSrc',
+    'String',
+    (k) => `src/index.css:${faceKeyStates.disabledHeadLine} (${faceKeyStates.disabledDeclLines})`,
+    ['The `:disabled, [disabled]` rule’s head and its three declarations.'],
+  ],
+  [
+    'transitionDurationMs',
+    'int',
+    (k) => rowsInt(faceKeyStates.transition.ms),
+    ['The `--dur-fast` the rule transitions on.'],
+  ],
+  ['easeX1', 'double', (k) => faceKeyStates.transition.curve[0], ['The `--ease-out` control points.']],
+  ['easeY1', 'double', (k) => faceKeyStates.transition.curve[1], []],
+  ['easeX2', 'double', (k) => faceKeyStates.transition.curve[2], []],
+  ['easeY2', 'double', (k) => faceKeyStates.transition.curve[3], []],
+  [
+    'transitionProps',
+    'String',
+    (k) => faceKeyStates.transition.props.join(' '),
+    [
+      '`transform filter` — the filter half belongs to the dropped hover, and the',
+      'transform half to the press that survives it.',
+    ],
+  ],
+  [
+    'notchWidthPx',
+    'double',
+    (k) => faceKeyRule.notchWidthPx,
+    ['The ellipse the mask cuts out of the top edge, authored as `--key-notch-w`.'],
+  ],
+  ['notchHeightPx', 'double', (k) => faceKeyRule.notchHeightPx, ['Its height, `--key-notch-h`.']],
+  [
+    'notchCentreX',
+    'double',
+    (k) => faceKeyRule.notch.centreX,
+    ['The centre as a fraction of the box — `50%`, the middle of the top edge.'],
+  ],
+  [
+    'notchCentreY',
+    'double',
+    (k) => faceKeyRule.notch.centreY,
+    ['`0`, which is what puts the notch on the edge rather than in the box.'],
+  ],
+  [
+    'notchCutAt',
+    'double',
+    (k) => faceKeyRule.notch.cutAt,
+    [
+      'Where the mask turns opaque, as a fraction of the ellipse’s own radius: 98.5%',
+      'of a full ellipse would be the whole notch, so the cut is the ellipse with a',
+      'hairline of its own edge left in.',
+    ],
+  ],
+  ['notchEdgePx', 'double', (k) => faceKeyRule.notch.edgePx, ['That hairline — `calc(98.5% + 1px)`.']],
+  [
+    'notchAuthored',
+    'String',
+    (k) => faceKeyRule.maskAuthored,
+    ['The declaration as the sheet writes it, so the numbers above can be traced to it.'],
+  ],
+  ['notchSrc', 'String', (k) => `src/index.css:${faceKeyRule.line}`, ['Where `.action-key` authors the mask.']],
+];
+const FACE_KEY_MEMBERS = [
+  '  /// The inset the glyph and label sit inside — the top one leaves the notch’s room.',
+  '  EdgeInsets get padding =>',
+  '      EdgeInsets.fromLTRB(paddingLeftPx, paddingTopPx, paddingRightPx, paddingBottomPx);',
+  '',
+  '  BorderRadius get borderRadius => BorderRadius.circular(radiusPx);',
+  '',
+  '  /// The weight Flutter names for the measured numeric weight.',
+  '  FontWeight get weight => FontWeight.values[fontWeight ~/ 100 - 1];',
+  '',
+  '  /// The key’s own type: the word it paints in [ink] at the measured size.',
+  '  TextStyle get textStyle => TextStyle(',
+  '        fontFamily: fontFamily,',
+  '        color: ink,',
+  '        fontSize: fontSizePx,',
+  '        fontWeight: weight,',
+  '        height: lineHeightPx / fontSizePx,',
+  '        letterSpacing: letterSpacingEm * fontSizePx,',
+  '      );',
+  '',
+  '  /// The press easing.',
+  '  Cubic get ease => Cubic(easeX1, easeY1, easeX2, easeY2);',
+  '',
+];
+rowsSpecClass(
+  'AppActionKeySpec',
+  [
+    '/// One action key in one brightness: the inverted accent box, its notch, its',
+    '/// type and the states the sheet gives it.',
+    '///',
+    '/// A key is the family’s only box whose colour is a token pair rather than a',
+    '/// gradient — `--accent` under `--accent-fg`, which is why generation reads both',
+    '/// from §2.1 and requires the measured pixels to be what the pass painted.',
+    '/// The disabled face is the same box with two numbers moved, proven against a',
+    '/// second measured row rather than assumed.',
+  ],
+  FACE_KEY_FIELDS,
+  FACE_KEY_MEMBERS,
+);
+
+const FACE_KEY_ICON_FIELDS = [
+  ['stackRow', 'String', (i) => i.name, ['The `utilityStacks` row the icon wrapper was measured on.']],
+  ['cssClasses', 'String', (i) => i.cls, ['The class list the component writes around the glyph.']],
+  ['authoredSrc', 'String', (i) => i.src, ['Where the component mounts it.']],
+  ['ruleSrc', 'String', (i) => `src/index.css:${i.line}`, ['Where the sheet authors `.action-key-icon`.']],
+  ['displayCss', 'String', (i) => i.displayCss, ['`block`, which is what lets the wrapper take `line-height: 0`.']],
+  [
+    'lineHeightPx',
+    'double',
+    (i) => i.lineHeightPx,
+    [
+      '`0`, authored so the glyph’s box is the glyph and nothing more — the gap',
+      'between the symbol and its label is the key’s `gap`, not leading the wrapper',
+      'adds to it.',
+    ],
+  ],
+  [
+    'glyphSrc',
+    'String',
+    (i) => i.glyphSrc,
+    [
+      'The lines that choose the symbol. Which Lucide glyph each key draws is the',
+      'component’s mapping, not a measured property; the icon dependency has not',
+      'landed, so this is a citation and not a name.',
+    ],
+  ],
+];
+rowsSpecClass(
+  'AppActionKeyIconSpec',
+  [
+    '/// The box around a key’s glyph. It draws nothing itself: it is the web’s',
+    '/// leading-killer, ported so the key’s `gap` is the only space between the symbol',
+    '/// and the word under it.',
+  ],
+  FACE_KEY_ICON_FIELDS,
+  [],
+);
+/** `rowsSpecValue` walks a field table against a record, and that pairing is the one
+ *  place a reader that renamed a property would print `null` into a Dart field the
+ *  class declares non-nullable. The holder is where every table meets its record, so
+ *  it checks the pairing before it emits: a required field the record cannot answer
+ *  for stops the run rather than landing a file that will not compile. */
+const faceSpecValue = (ctor, fields, rec, label, ind) => {
+  for (const [name, type, get] of fields) {
+    if (type.endsWith('?')) continue;
+    let value;
+    try {
+      value = get(rec);
+    } catch (e) {
+      fail(`${ctor} for ${label}: reading the field ${name} threw ${e.message}`);
+    }
+    if (value === undefined || value === null) {
+      fail(`${ctor} for ${label}: ${name} is required, but the record carries no value for it`);
+    }
+  }
+  return rowsSpecValue(ctor, fields, rec, ind);
+};
+
+const faceSlotRecords = FACE_EMIT_SLOTS.map((row) => (row === faceKeyLabel.name ? faceKeyLabel : faceSlots[row]));
+if (faceSlotRecords.map((s) => s.name).join() !== FACE_EMIT_SLOTS.join()) {
+  fail('the holder’s slot records are not the rows AppFaceSlot lists');
+}
+
+const faceDeckRec = {
+  box: faceDeckBox,
+  rule: faceDeckRule,
+  lip: faceDeckLip,
+  base: faceDeckFaceBase,
+  front: faceDeckFront,
+};
+
+/** One `static const` holding a whole spec: its doc, its declaration, its value.
+ *  The value is one multi-line string and `dart format` places it afterwards, so
+ *  the emitter never has to guess a layout for the file it writes. */
+const faceConst = (doc, type, name, ctor, fields, rec, label) => {
+  L.push(...doc, `  static const ${type} ${name} = ${faceSpecValue(ctor, fields, rec, label, '    ')};`, '');
+};
+
+L.push(
+  '/// The face, the deck and the keys, indexed the way the widgets ask for them.',
+  '///',
+  '/// Every value below is one the reader measured on the class list the component',
+  '/// really writes. Nothing here has a default and no lookup falls back: a key that',
+  '/// was never measured throws, because a substitute would be a second design.',
+  'abstract final class AppFaces {',
+  '',
+  '  /// The gradient of each tone, in the order `CardFace.tsx` declares them. One',
+  '  /// entry carries both passes, because a tone is one recipe resolved twice.',
+  '  static const Map<AppFaceTone, AppFaceTintSpec> tints =',
+  '      <AppFaceTone, AppFaceTintSpec>{',
+  ...faceTints.map(
+    (t) => `    AppFaceTone.${t.id}: ${faceSpecValue('AppFaceTintSpec', FACE_TINT_FIELDS, t, t.name, '      ')},`,
+  ),
+  '  };',
+  '',
+  '  /// The tone’s paint. The caller chooses a tone; nothing here infers one.',
+  '  static AppFaceTintSpec tint(AppFaceTone tone) {',
+  '    final AppFaceTintSpec? spec = tints[tone];',
+  '    if (spec == null) {',
+  "      throw ArgumentError('no gradient was measured for ${tone.name}');",
+  '    }',
+  '    return spec;',
+  '  }',
+  '',
+);
+faceConst(
+  [
+    '  /// The `.card-face::before` sheen every tone draws over its gradient — the',
+    '  /// highlight and the hairline, as the sheet layers them.',
+  ],
+  'AppFaceSheenSpec',
+  'sheen',
+  'AppFaceSheenSpec',
+  FACE_SHEEN_FIELDS,
+  faceSheen,
+  faceSheen.cls,
+);
+
+faceConst(
+  [
+    '  /// The press a face takes, from the `.pressable` class its own box cites.',
+    '  ///',
+    '  /// Hover is not ported anywhere in this family: ruling D-U1 drops it because',
+    '  /// a touch device has no hover, and `.pressable` authors none to drop.',
+  ],
+  'AppFacePressSpec',
+  'press',
+  'AppFacePressSpec',
+  FACE_PRESS_FIELDS,
+  facePress,
+  facePress.cls,
+);
+
+faceConst(
+  [
+    '  /// The box every face is: the frame, the inset, the ink and the ratio.',
+    `  /// Its corner is \`${faceBase.radiusToken}\` and its float is`,
+    `  /// \`${faceBase.shadowToken}\` — resolved through [AppRadii] and [AppShadows]`,
+    '  /// rather than restated, because generation proved the passes measured',
+    `  /// ${faceOwners.radiusPx}px of corner and the token’s own layers in both`,
+    '  /// brightnesses. A face drawn here is the frame the theme names.',
+  ],
+  'AppCardFaceSpec',
+  'face',
+  'AppCardFaceSpec',
+  FACE_BOX_FIELDS,
+  faceToneDefault.box,
+  faceToneDefault.box.name,
+);
+
+L.push(
+  '  /// The bands and words of a face, plus the word under an action key, each',
+  '  /// keyed by the `utilityStacks` row it was measured on. Every band is read in',
+  '  /// both brightnesses and generation refuses one whose geometry moves with the',
+  '  /// scheme, which is why this is one table and not two.',
+  '  ///',
+  `  /// The gold chip is not here: the row \`${faceChipSlot.light.name}\`, measured`,
+  `  /// at ${faceChipSlot.light.src}, is the box AppChips already paints.`,
+  '  /// Generation stops if the two disagree rather than port one chip twice.',
+  '  static const Map<AppFaceSlot, AppFaceSlotSpec> slots =',
+  '      <AppFaceSlot, AppFaceSlotSpec>{',
+  ...faceSlotRecords.map(
+    (s) =>
+      `    AppFaceSlot.${faceSlotId(s.name)}: ${faceSpecValue('AppFaceSlotSpec', FACE_SLOT_FIELDS, s, s.name, '      ')},`,
+  ),
+  '  };',
+  '',
+  '  /// The band as the component writes it.',
+  '  static AppFaceSlotSpec slot(AppFaceSlot slot) {',
+  '    final AppFaceSlotSpec? spec = slots[slot];',
+  '    if (spec == null) {',
+  "      throw ArgumentError('no band was measured for ${slot.name}');",
+  '    }',
+  '    return spec;',
+  '  }',
+  '',
+);
+
+faceConst(
+  [
+    '  /// The wallet deck: the container, the lip every other number in it',
+    '  /// resolves from, and the laws its peers are placed by.',
+  ],
+  'AppDeckSpec',
+  'deck',
+  'AppDeckSpec',
+  FACE_DECK_FIELDS,
+  faceDeckRec,
+  faceDeckBox.name,
+);
+
+L.push(
+  '  /// One peer per `data-depth` the sheet has a rule for. How many peers a deck',
+  '  /// builds is the component’s own budget, cited on [AppDeckSpec]; what is',
+  '  /// measured here is where a peer of that depth sits.',
+  '  static const Map<AppDeckDepth, AppDeckFaceSpec> deckFaces =',
+  '      <AppDeckDepth, AppDeckFaceSpec>{',
+  ...faceDeckPeers.map(
+    (f) =>
+      `    AppDeckDepth.${FACE_DECK_NAMES[f.depth]}: ${faceSpecValue('AppDeckFaceSpec', FACE_DECK_FACE_FIELDS, f, f.name, '      ')},`,
+  ),
+  '  };',
+  '',
+  '  /// The placement a peer of this depth takes.',
+  '  static AppDeckFaceSpec deckFace(AppDeckDepth depth) {',
+  '    final AppDeckFaceSpec? spec = deckFaces[depth];',
+  '    if (spec == null) {',
+  "      throw ArgumentError('no deck peer was measured at depth ${depth.dataDepth}');",
+  '    }',
+  '    return spec;',
+  '  }',
+  '',
+);
+
+faceConst(
+  [
+    '  /// The row of keys under the hero balance: three equal columns and the two',
+    '  /// gaps the `sm:` variant switches between. Which viewport takes which gap',
+    '  /// stays with the caller — the same ruling that keeps a rail’s breakpoint',
+    '  /// out of [AppLedgerRailSpec].',
+  ],
+  'AppActionKeyGridSpec',
+  'grid',
+  'AppActionKeyGridSpec',
+  FACE_KEY_GRID_FIELDS,
+  faceKeyGrid,
+  faceKeyGrid.name,
+);
+
+faceConst(
+  [
+    `  /// An action key as the light pass painted it: \`${faceKeyRule.accentToken}\``,
+    `  /// under \`${faceKeyRule.inkToken}\` — the app’s accent, inverted against the`,
+    '  /// page.',
+  ],
+  'AppActionKeySpec',
+  'keyLight',
+  'AppActionKeySpec',
+  FACE_KEY_FIELDS,
+  faceKey.restPaint.light,
+  'action-key light',
+);
+
+faceConst(
+  ['  /// The same key as the dark pass painted it.'],
+  'AppActionKeySpec',
+  'keyDark',
+  'AppActionKeySpec',
+  FACE_KEY_FIELDS,
+  faceKey.restPaint.dark,
+  'action-key dark',
+);
+
+faceConst(
+  [
+    '  /// The disabled key, measured as its own row: generation proved it differs',
+    '  /// from the rest row in [AppActionKeySpec.disabledOpacity] and',
+    '  /// [AppActionKeySpec.disabledCursorCss] and nothing else.',
+  ],
+  'AppActionKeySpec',
+  'keyOffLight',
+  'AppActionKeySpec',
+  FACE_KEY_FIELDS,
+  faceKey.offPaint.light,
+  'action-key-disabled light',
+);
+
+faceConst(
+  ['  /// The disabled key in the dark pass.'],
+  'AppActionKeySpec',
+  'keyOffDark',
+  'AppActionKeySpec',
+  FACE_KEY_FIELDS,
+  faceKey.offPaint.dark,
+  'action-key-disabled dark',
+);
+
+L.push(
+  '  /// The key as one brightness painted it, at rest or disabled.',
+  '  static AppActionKeySpec keyAt(Brightness brightness, {bool enabled = true}) {',
+  '    if (enabled) {',
+  '      return brightness == Brightness.dark ? keyDark : keyLight;',
+  '    }',
+  '    return brightness == Brightness.dark ? keyOffDark : keyOffLight;',
+  '  }',
+  '',
+);
+
+faceConst(
+  [
+    '  /// The box around a key’s glyph. It draws nothing: it is the web’s',
+    '  /// leading-killer, ported so the key’s gap is the only space between the',
+    '  /// symbol and the word under it.',
+  ],
+  'AppActionKeyIconSpec',
+  'icon',
+  'AppActionKeyIconSpec',
+  FACE_KEY_ICON_FIELDS,
+  faceKeyIconRule,
+  faceKeyIconRule.name,
+);
+
+L.push('}', '');
+finish('app_faces.dart');
+
 fs.mkdirSync(OUT_DIR, { recursive: true });
 for (const [name, text] of dartFiles) {
   fs.writeFileSync(path.join(OUT_DIR, name), text, 'utf8');
@@ -9247,6 +12975,7 @@ console.log(
     `  §6 bar classes emitted:      ${bars.length} classes x 2 passes  -> AppBars`,
     `  numeral/money rows emitted:  ${numerals.length} classes x 2 passes  -> AppNumerals`,
     `  ledger chrome emitted:     ${Object.keys(ROW_CLASSES).length} row slots + day head, divider, 2 empty states, 2 rails, ${catToneNames.length} chip tones + ${CAT_SIZES.length} sizes x 2 passes  -> AppRows`,
+    `  card face + action keys emitted: ${faceTints.length} tones x 2 passes + the box + ${faceSlotRecords.length} bands + the deck with ${faceDeckPeers.length} peers + the key in 2 states x 2 passes  -> AppFaces`,
     `  files written:                 ${dartFiles.map((f) => f[0]).join(', ')}`,
   ].join('\n'),
 );
