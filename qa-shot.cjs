@@ -34,12 +34,59 @@ const FILLS = (arg('--fill', '') || '')
   .map((s) => s.trim())
   .filter(Boolean);
 
+/**
+ * `--now 2026-10-06T09:08:22.819Z` pins the instant a run is measured at.
+ *
+ * Two independent clocks feed one screenshot: `buildSeed()` reads Node's clock, and
+ * the app reads the browser's clock for everything relative — "due in 3 days", an
+ * overdue badge, a month bucket. Freezing either one alone reproduces neither
+ * baseline, so `--now` moves both. `buildSeed` takes the pinned instant itself, and
+ * the browser uses `clock.install`, which starts the page at that instant and lets it
+ * tick from there — the same relationship the unpinned run had, where the page was a
+ * few seconds older than the seed by the time it was shot.
+ *
+ * Seeding from the pin rather than from an offset is measured, not stylistic. The
+ * stamp is the id prefix of every seeded row (`${S}-ca-1`), and
+ * `faceToneForSeed(wallet.id)` (`src/components/ui/CardFace.tsx:16`) hashes that id
+ * into the deck's card colour. An offset anchored at module load let the login flow
+ * elapse 5601 ms before the seed was built, so the ids — and two visible bands of the
+ * screenshot — moved with network latency. A run with `--now` is now a pure function
+ * of the instant it names.
+ *
+ * Unset, both expressions below are the behaviour this file has always had.
+ */
+const NOW_ISO = arg('--now', '');
+const NOW_MS = NOW_ISO ? Date.parse(NOW_ISO) : NaN;
+if (NOW_ISO && Number.isNaN(NOW_MS)) {
+  console.error(`FATAL: --now is not a parseable instant: ${NOW_ISO}`);
+  process.exit(1);
+}
+const nodeNowMs = () => (Number.isNaN(NOW_MS) ? Date.now() : NOW_MS);
+
+/**
+ * `--app-theme light|dark` pre-sets the app's own stored theme. That is a separate
+ * source of truth from the OS signal Playwright sets via `colorScheme`:
+ * `getInitialTheme()` (`src/context/ThemeContext.tsx:13-28`) reads `em-budget-theme`
+ * first and only falls back to `prefers-color-scheme` when nothing is stored, so
+ * the app-light/OS-dark combination in D16 is unreachable without writing the key.
+ * Written through `addInitScript`, i.e. before any app script runs, so the boot
+ * decision is made from the stored value rather than corrected after first paint.
+ *
+ * Unset, no key is written and the app bootstraps from the OS signal as before.
+ */
+const APP_THEME = arg('--app-theme', '');
+if (APP_THEME && !['light', 'dark'].includes(APP_THEME)) {
+  console.error(`FATAL: --app-theme must be light or dark, got ${APP_THEME}`);
+  process.exit(1);
+}
+const APP_THEME_KEY = 'em-budget-theme';
+
 /** Realistic ledger so screens are judged with content, not empty states. */
 function buildSeed(ownerEmail) {
-  const S = Date.now().toString(36);
+  const S = nodeNowMs().toString(36);
   const S2 = (x) => `${S}-${x}`;
   const iso = (d) => d.toISOString().slice(0, 10);
-  const now = new Date();
+  const now = new Date(nodeNowMs());
   const daysAgo = (n) => {
     const d = new Date(now);
     d.setDate(d.getDate() - n);
@@ -351,7 +398,11 @@ if (require.main === module)
         colorScheme: THEME,
         deviceScaleFactor: 1,
       });
+      if (APP_THEME) {
+        await ctx.addInitScript(([key, value]) => localStorage.setItem(key, value), [APP_THEME_KEY, APP_THEME]);
+      }
       const page = await ctx.newPage();
+      if (NOW_ISO) await page.clock.install({ time: NOW_MS });
       page.on('pageerror', (e) => errors.push(`${width}px pageerror: ${e.message}`));
       page.on('console', (m) => {
         if (m.type() === 'error') errors.push(`${width}px: ${m.text()}`);
