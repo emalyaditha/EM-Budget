@@ -3415,6 +3415,15 @@ export default function App() {
     }));
   };
 
+  const handleClearAllNotifications = () => {
+    const count = state.notifications.length;
+    updateState((prev) => ({
+      ...prev,
+      notifications: [],
+    }));
+    showToast(`Cleared ${count} notification${count === 1 ? '' : 's'}`, 'success');
+  };
+
   // JSON state upload restoration
   const handleJSONRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -4582,6 +4591,7 @@ export default function App() {
               notifications={state.notifications}
               onMarkRead={handleMarkNotificationRead}
               onClear={handleClearNotification}
+              onClearAll={handleClearAllNotifications}
               isOpen={isNotifOpen}
               onClose={() => setIsNotifOpen(false)}
             />

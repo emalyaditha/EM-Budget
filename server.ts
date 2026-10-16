@@ -3440,9 +3440,16 @@ Return a JSON object matching this schema:
   const ocrGate = createOcrSemaphore(OCR_MAX_CONCURRENT, OCR_MAX_QUEUED);
 
   async function runOcrRecognition(imgBuffer: Buffer) {
-    const { createWorker } = await import('tesseract.js');
+    const { createWorker, PSM } = await import('tesseract.js');
     const worker = await createWorker('eng');
     try {
+      // Same reasoning as the browser pass: receipts are one column of
+      // right-aligned figures, and leaving layout detection on its default merges
+      // the label and amount columns into one line.
+      await worker.setParameters({
+        tessedit_pageseg_mode: PSM.SINGLE_COLUMN,
+        preserve_interword_spaces: '1',
+      });
       return await withTimeout(worker.recognize(imgBuffer), OCR_RECOGNIZE_TIMEOUT_MS, 'OCR recognition');
     } finally {
       await worker.terminate();

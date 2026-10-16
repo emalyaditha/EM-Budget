@@ -97037,9 +97037,13 @@ Return a JSON object matching this schema:
   const OCR_RECOGNIZE_TIMEOUT_MS = 3e4;
   const ocrGate = createOcrSemaphore(OCR_MAX_CONCURRENT, OCR_MAX_QUEUED);
   async function runOcrRecognition(imgBuffer) {
-    const { createWorker } = await import("tesseract.js");
+    const { createWorker, PSM } = await import("tesseract.js");
     const worker = await createWorker("eng");
     try {
+      await worker.setParameters({
+        tessedit_pageseg_mode: PSM.SINGLE_COLUMN,
+        preserve_interword_spaces: "1"
+      });
       return await withTimeout(worker.recognize(imgBuffer), OCR_RECOGNIZE_TIMEOUT_MS, "OCR recognition");
     } finally {
       await worker.terminate();
